@@ -44,7 +44,7 @@ export function fullPlan(reason) {
 // Package mode (owner decision 2026-11-15): a pull request that would need the full suite runs the
 // quick lane instead (typecheck, lint, unit tests, docker, restore-test). The full suite (all E2E
 // shards, screenshots, Windows) runs on main, which is what a release is cut from. The label
-// `risk:high` still forces the full suite on the pull request itself.
+// `ci:full` forces the full suite on the pull request itself (`risk:high` is a review class only).
 export function packageLane(plan, event, highRisk) {
   return event === 'pull_request' && !highRisk && plan.lane === 'full'
     ? {

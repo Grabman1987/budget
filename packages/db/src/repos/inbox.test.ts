@@ -188,7 +188,7 @@ describe('actual inbox work', () => {
       title: 'Kurse fehlen',
       refType: 'fx',
       refId: 'USD',
-      detail: 'unavailable',
+      detail: 'Fehlerklasse: http',
     });
     const item = queue().entries.find((e) => e.type === 'stored')!;
     const resolved = resolveInboxItem(opened.db, item.id, testCtx);

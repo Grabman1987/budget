@@ -84,6 +84,7 @@ export interface AccountRow {
   manualValueCents?: number | null;
   hasHoldings?: boolean;
   bankBalance?: {
+    currency?: string;
     valuation?: CashValuation | null;
     amountCents: number | null;
     date: string | null;

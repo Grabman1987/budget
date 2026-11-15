@@ -2,8 +2,10 @@ import {
   createTestDatabase,
   priceSeries,
   priceStand,
+  readInbox,
   schema,
   sqliteOf,
+  undo,
   upsertFxRate,
   upsertPrice,
   type Db,
@@ -340,6 +342,100 @@ describe('refreshPrices', () => {
     await refreshPrices(db, sourcesOf(ok), { today: '2026-09-30' });
     expect(inbox().filter((i) => !i.resolvedAt)).toHaveLength(0);
     expect(inbox()[0]?.resolution).toBeTruthy();
+  });
+
+  it('records source and day of the successful fetch in the entry, audited and undoable (#1101)', async () => {
+    addSecurity();
+    await refreshPrices(db, sourcesOf(failing('yfinance'), failing('ariva', 'http')), {
+      today: '2026-09-29',
+    });
+    expect(inbox().filter((i) => !i.resolvedAt)).toHaveLength(2);
+    const ok = scripted('ariva', (_r, from) => [{ date: from, priceMicro: 1_000_000 }]);
+    await refreshPrices(db, sourcesOf(failing('yfinance'), ok), { today: '2026-09-30' });
+    expect(inbox().map((i) => i.resolution)).toEqual([
+      'Automatisch geschlossen: Kursabruf über ariva erfolgreich (Stand 30.09.2026).',
+      'Automatisch geschlossen: Kursabruf über ariva erfolgreich (Stand 30.09.2026).',
+    ]);
+    expect(inbox().every((i) => i.resolvedAt)).toBe(true);
+    // The history under Konten › Prüfen carries the closed entries with their reason.
+    const closed = readInbox(db, '2026-09-30').autoResolved;
+    expect(closed.map((i) => i.detail).sort()).toEqual([
+      'Fehlerklasse: http',
+      'Fehlerklasse: network',
+    ]);
+    expect(closed.every((i) => i.resolution.includes('ariva') && i.refId === 's1')).toBe(true);
+    // One audited group per run and instrument; undo reopens both warnings.
+    const audits = db
+      .select()
+      .from(schema.auditLog)
+      .where(eq(schema.auditLog.entityType, 'inbox_item'))
+      .all();
+    expect(audits).toHaveLength(2);
+    expect(audits.every((a) => a.actor === 'market-refresh' && a.action === 'update')).toBe(true);
+    expect(new Set(audits.map((a) => a.groupId)).size).toBe(1);
+    undo(db, { groupId: audits[0]!.groupId! }, { actor: 'test' });
+    expect(inbox().filter((i) => !i.resolvedAt)).toHaveLength(2);
+    expect(readInbox(db, '2026-09-30').autoResolved).toEqual([]);
+  });
+
+  it('closes an exchange-rate fetch failure after the next successful ECB fetch (#1101)', async () => {
+    db.insert(schema.security)
+      .values({ id: 'usd-etf', name: 'Synthetischer USD-ETF', kind: 'etf', currency: 'USD' })
+      .run();
+    const down: FxSource = {
+      history: async () => {
+        throw new MarketError('http');
+      },
+    };
+    await refreshFx(db, sourcesOf(failing('yfinance'), undefined, down), { today: '2026-09-29' });
+    expect(inbox().filter((i) => !i.resolvedAt && i.refType === 'fx')).toHaveLength(1);
+    const up: FxSource = { history: async (_c, from) => [{ date: from, rateMicro: 1_100_000 }] };
+    await refreshFx(db, sourcesOf(failing('yfinance'), undefined, up), { today: '2026-09-30' });
+    const fx = inbox().filter((i) => i.refType === 'fx');
+    expect(fx.map((i) => i.resolution)).toEqual([
+      'Automatisch geschlossen: Wechselkursabruf über ecb erfolgreich (Stand 30.09.2026).',
+    ]);
+    expect(readInbox(db, '2026-09-30').autoResolved.map((i) => i.refId)).toEqual(['USD']);
+  });
+
+  it('a successful fetch closes only its own instrument and never a real difference (#1101)', async () => {
+    addSecurity();
+    addSecurity({ id: 's2', name: 'Synthetischer Anleihen-ETF', symbol: 'SYN-B' });
+    const partly = (ok: string) =>
+      scripted('yfinance', (ref, from) => {
+        if (ref.id !== ok) throw new MarketError('http');
+        return [{ date: from, priceMicro: 1_000_000 }];
+      });
+    await refreshPrices(db, sourcesOf(failing('yfinance', 'http')), { today: '2026-09-29' });
+    // Real differences on the same instrument: a holdings deviation and a missing movement.
+    for (const [id, title, detail] of [
+      ['diff-holding', 'Bestand weicht ab: Synthetischer Welt-ETF', 'Erwartet 0,50, erfasst 0,48'],
+      ['diff-movement', 'Bewegung fehlt: Synthetischer Welt-ETF', null],
+    ] as const)
+      db.insert(schema.inboxItem)
+        .values({ id, kind: 'stale_value', title, detail, refType: 'security', refId: 's1' })
+        .run();
+    db.insert(schema.inboxItem)
+      .values({
+        id: 'fx-fail',
+        kind: 'stale_value',
+        title: 'FX',
+        detail: 'Fehlerklasse: http',
+        refType: 'fx',
+        refId: 'USD',
+      })
+      .run();
+    const before = db.select().from(schema.price).all().length;
+    await refreshPrices(db, sourcesOf(partly('s1')), { today: '2026-09-30' });
+    expect(db.select().from(schema.price).all().length).toBe(before + 1);
+    const open = inbox()
+      .filter((i) => !i.resolvedAt)
+      .map((i) =>
+        i.id.startsWith('diff-') || i.id === 'fx-fail' ? i.id : `${i.refId}:${i.detail}`,
+      )
+      .sort();
+    expect(open).toEqual(['diff-holding', 'diff-movement', 'fx-fail', 's2:Fehlerklasse: http']);
+    expect(readInbox(db, '2026-09-30').autoResolved.map((i) => i.refId)).toEqual(['s1']);
   });
 
   it('an empty answer is only a failure after a full week without quotes', async () => {

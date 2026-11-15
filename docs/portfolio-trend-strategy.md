@@ -183,6 +183,18 @@ based on the synthetic provider tests. Adjacent
 #544/#548 own existing portfolio navigation and savings history; #550/#551 own
 net-worth composition. This feature must not duplicate or overwrite that work.
 
+## Signal basis view (#762)
+
+`portfolioStrategyView` adds a read-only `signalBasis` with three entries: the daily preview,
+the running month's signal (penultimate session; `signal_date_pending` before that session has
+completed) and the retained binding decision (from its stored inputs, so a stale or missing
+feed never alters it). Each available entry carries the trend, session, close, 200-session
+average, the average 20 sessions earlier (display values in hundredths of a point, half up;
+the trend is decided on the exact sums), source, index, calendar and observation time.
+Unavailable entries carry a reason, a display kind and the missing sessions, never an
+estimate. Pure figures: `strategySignalFigures`; no migration, no write, no target change.
+A stale series now lists every overdue session, also across a month boundary.
+
 ## Signal series (evidence provider, #762)
 
 Owner decision 10.11.2026: Ariva is the primary source of the unlevered Nasdaq-100

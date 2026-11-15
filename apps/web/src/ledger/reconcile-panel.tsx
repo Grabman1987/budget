@@ -16,6 +16,7 @@ import { AccountFormDialog } from './account-form-dialog';
 import { CategoryCombobox } from './category-picker';
 import { pickableCategories } from './capture-model';
 import { defaultCorrectionCategoryLabel } from './reconcile-category';
+import { lockKnownBankBalance } from './bank-balance';
 import './reconcile-panel.css';
 
 /** Value that follows `value` after a pause (the preview is asked for when typing stops). */
@@ -84,7 +85,14 @@ export function ReconcileFlow({
       ? account.clearedCents
       : null,
   );
-  const [text, setText] = useState('');
+  const [text, setText] = useState(() => {
+    const bank = account.bankBalance;
+    return bank?.effectiveDate === date &&
+      bank.amountCents !== null &&
+      (!bank.currency || bank.currency === account.currency)
+      ? formatDecimal(cents(bank.amountCents))
+      : '';
+  });
   const [categoryId, setCategoryId] = useState('');
   const lookups = useQuery({ ...lookupsQuery(), enabled: !closeContext });
   const categories = pickableCategories(
@@ -116,6 +124,8 @@ export function ReconcileFlow({
 
   const parsed = parseAmount(text);
   const statement = parsed.ok && text.trim() !== '' ? parsed.cents : null;
+  const useBankLock =
+    !closeContext && bank?.canLock && bankDate === date && statement === bank.amountCents;
   const asked = useDebounced({ date, statement }, 300);
   // The bank balance of a day that has not happened yet does not exist: check up to today.
   const future = date > today;
@@ -171,7 +181,10 @@ export function ReconcileFlow({
         ...extra,
         ...(closeContext && extra.adjust && reason.trim() ? { note: reason.trim() } : {}),
       };
-      return closeContext ? closeContext.confirm(input) : reconcileAccount(account.id, input);
+      if (closeContext) return closeContext.confirm(input);
+      if (useBankLock && Object.keys(extra).length === 0)
+        return lockKnownBankBalance(account.id).then((result) => ({ result }));
+      return reconcileAccount(account.id, input);
     },
     onSettled: () => {
       closeContext?.onBusy(false);
@@ -252,6 +265,9 @@ export function ReconcileFlow({
         die bestätigten Buchungen als geprüft festgeschrieben. Vorgemerkte Buchungen zählen nicht.
       </p>
       {!closeContext && <p className="kmeta">Stichtag und Ausgleich: heute, {longDay(date)}.</p>}
+      {bank && bank.amountCents !== null && bankDate === date && (
+        <p className="kmeta">Bankstand vom {longDay(bankDate)}.</p>
+      )}
       {bank && bank.amountCents !== null && bankDate && (
         <Button
           variant="ghost"
@@ -393,7 +409,7 @@ export function ReconcileFlow({
                 disabled={confirm.isPending || candidateBusy || staleClose}
                 onClick={() => run({})}
               >
-                Kontostand stimmt
+                {useBankLock ? 'Abgleich sperren bis heute' : 'Kontostand stimmt'}
               </Button>
             </div>
           </>

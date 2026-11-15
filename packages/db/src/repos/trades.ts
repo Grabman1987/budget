@@ -17,6 +17,8 @@ import {
 } from './audit';
 import {
   createBooking,
+  createTransfer,
+  deleteBooking,
   deleteTradeSettlementBooking,
   getBooking,
   updateTradeSettlementBooking,
@@ -73,6 +75,83 @@ export function tradeCashTransferInput(t: TradeInput, cashAccountId: string): Tr
     source: 'import',
     importKey: `${t.importKey}:cash`,
   };
+}
+
+/**
+ * Owner-confirmed counter booking of a trade (#1099): the cash moves by one transfer between the
+ * settlement account (Verrechnungskonto) and the investment account, for exactly the settlement
+ * amount of the trade (a buy's gross plus fee, a sale's gross less fee and tax). The fee stays in
+ * the trade (cost basis, cost report); no separate fee booking exists, so nothing counts twice.
+ * Written in the caller's audit group: one undo reverts trade, depot booking and transfer.
+ */
+/** Import key of the counter transfer's legs; unique per depot, so it identifies its trade. */
+const cashKey = (importKey: string, depotId: string) => `${importKey}:cash:${depotId}`;
+
+/** The live depot leg of a trade's counter transfer (#1099), if the trade has one. */
+function counterTransferLeg(tx: Executor, row: TradeRow): { id: string } | undefined {
+  if (!row.importKey) return undefined;
+  return tx
+    .select({ id: booking.id })
+    .from(booking)
+    .where(
+      and(
+        eq(booking.accountId, row.accountId),
+        eq(booking.importKey, cashKey(row.importKey, row.accountId)),
+        isNull(booking.deletedAt),
+      ),
+    )
+    .get();
+}
+
+function settleTradeCash(
+  tx: Executor,
+  input: TradeInput,
+  cashAccountId: string,
+  ctx: ReturnType<typeof withGroup>,
+): string | null {
+  const cash = tx
+    .select()
+    .from(account)
+    .where(and(eq(account.id, cashAccountId), isNull(account.deletedAt)))
+    .get();
+  if (!cash) throw new EntityNotFoundError('account', cashAccountId);
+  if (cash.id === input.accountId)
+    throw new TradeRuleError('The settlement account must differ from the investment account');
+  if (cash.closedAt) throw new TradeRuleError('The settlement account is closed');
+  const transferInput = tradeCashTransferInput(input, cashAccountId);
+  if (!transferInput) return null;
+  return createTransfer(
+    tx,
+    {
+      ...transferInput,
+      source: 'manual',
+      memo: 'Verrechnung',
+      importKey: cashKey(input.importKey!, input.accountId),
+    },
+    ctx,
+  ).transferId;
+}
+
+/**
+ * `createTrade` plus the counter booking on `settlementAccountId`, in one transaction and one
+ * audit group. A repeated `importKey` writes nothing (no second transfer either).
+ */
+export function createTradeWithCashTransfer(
+  db: Executor,
+  input: TradeInput,
+  settlementAccountId: string,
+  ctx: AuditContext,
+): TradeResult & { transferId: string | null } {
+  // The reference ties the transfer to its trade (edit and delete follow it).
+  if (!input.importKey)
+    throw new TradeRuleError('A counter booking needs the reference of the confirmation');
+  const grouped = withGroup(ctx);
+  return runInTransaction(db, (tx) => {
+    const result = createTrade(tx, input, grouped);
+    if (result.duplicate) return { ...result, transferId: null };
+    const transferId = settleTradeCash(tx, input, settlementAccountId, grouped);
+    return { ...result, transferId };
+  });
 }
 
 /** Income in kind: the dividend funds an equal buy without moving platform cash. */
@@ -251,6 +330,18 @@ export function updateTrade(
   const grouped = withGroup(ctx);
   return runInTransaction(db, (tx) => {
     const cur = loadTrade(tx, id);
+    // Money, kind and day of a trade with a counter transfer cannot drift from that transfer.
+    if (
+      (patch.kind !== undefined ||
+        patch.amountCents !== undefined ||
+        patch.feeCents !== undefined ||
+        patch.taxCents !== undefined ||
+        patch.date !== undefined) &&
+      counterTransferLeg(tx, cur)
+    )
+      throw new TradeRuleError(
+        'Dieser Handel hat eine Umbuchung vom Verrechnungskonto. Bitte den Handel löschen (die Umbuchung wird mitgelöscht) und neu erfassen.',
+      );
     if (
       cur.savingsPlanId &&
       ((patch.kind && patch.kind !== 'buy') ||
@@ -326,7 +417,7 @@ export function updateTrade(
   });
 }
 
-/** Soft-delete a trade and its settlement booking in one audit group. */
+/** Soft-delete a trade, its settlement booking and its counter transfer in one audit group. */
 export function deleteTrade(
   db: Executor,
   id: string,
@@ -336,6 +427,9 @@ export function deleteTrade(
   const grouped = withGroup(ctx);
   runInTransaction(db, (tx) => {
     const cur = loadTrade(tx, id);
+    // The counter transfer of the same confirmation goes with the trade (both legs, one group).
+    const counter = counterTransferLeg(tx, cur);
+    if (counter) deleteBooking(tx, counter.id, grouped, options);
     updateTracked(tx, trade, [id], { deletedAt: new Date().toISOString() }, grouped, 'delete');
     if (cur.bookingId) {
       if (!getBooking(tx, cur.bookingId))
