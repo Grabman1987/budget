@@ -734,6 +734,8 @@ function onePagerInRange(db: Executor, today: string, month: string): OnePager {
  * of the totals and the per-type rows on both sides, but their expected payments stay in
  * `byPayment` so that their status remains visible. A month after `today` has nothing received yet.
  * Line `receivedCents` is the counted income of the linked booking (same splits as the report).
+ * Summary expectations are received household income plus unresolved occurrence remainders;
+ * original per-occurrence expectations remain available for explaining deviations.
  */
 export function monthIncomeBooked(
   db: Executor,
@@ -767,7 +769,12 @@ export function monthIncomeBooked(
       expectedCents: 0,
       receivedCents: 0,
     };
-    e.expectedCents += l.expectedCents;
+    // A received occurrence is settled within its configured tolerance. Linked bookings outside
+    // this month/as-of scope still retain the original expectation in this month's comparison.
+    e.expectedCents +=
+      l.status === 'received' && l.receivedCents > 0
+        ? 0
+        : Math.max(0, l.expectedCents - l.receivedCents);
     types.set(l.incomeTypeId ?? '', e);
   }
   for (const b of booked.types) {
@@ -778,6 +785,7 @@ export function monthIncomeBooked(
       receivedCents: 0,
     };
     e.receivedCents += b.cents;
+    e.expectedCents += b.cents;
     types.set(b.typeId ?? '', e);
   }
   return {
@@ -801,9 +809,7 @@ export function monthIncomeBooked(
         receivedCents: 0,
         bookingId: null,
       })),
-    expectedCents: byPayment
-      .filter((l) => keep(l.incomeTypeId))
-      .reduce((a, l) => a + l.expectedCents, 0),
+    expectedCents: [...types.values()].reduce((sum, t) => sum + t.expectedCents, 0),
     receivedCents: booked.earnedCents,
     byIncomeType: [...types.values()].sort((a, b) => (a.name ?? '￿').localeCompare(b.name ?? '￿')),
     byPayment,
