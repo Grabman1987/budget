@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- JSON answers are inspected, not typed */
 import { createTestDatabase, schema, upsertFxRate, upsertPrice, type Db } from '@budget/db';
-import { fixtureFxSource, fixtureQuoteSource } from '@budget/market';
+import { fixtureFxSource, fixtureQuoteSource, MarketError } from '@budget/market';
 import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -71,6 +71,93 @@ async function call(method: string, path: string, body?: unknown) {
   });
   return { status: res.status, body: (await res.json()) as Record<string, any> };
 }
+
+describe('quote cause diagnostics', () => {
+  it('reads current mapping and latest dated price without inventing historical source evidence', async () => {
+    const result = await call('GET', '/securities/s1/quote-diagnostics');
+    expect(result.status).toBe(200);
+    expect(result.body).toMatchObject({
+      securityId: 's1',
+      currency: 'EUR',
+      symbol: 'SYN-A',
+      asOf: TODAY,
+      latest: { date: '2026-03-27', priceMicro: 80_000_000, source: 'yfinance' },
+      movements: [],
+    });
+    expect((await call('GET', '/securities/missing/quote-diagnostics')).status).toBe(404);
+  });
+
+  it('previews each source, exposes safe error classes and leaves prices and warnings untouched', async () => {
+    db.insert(schema.inboxItem)
+      .values({
+        id: 'quote-warning',
+        kind: 'stale_value',
+        title: 'Synthetic quote warning',
+        refType: 'security',
+        refId: 's1',
+      })
+      .run();
+    app = createApp({
+      webDir,
+      auth: signedIn,
+      ledger: {
+        db,
+        today: () => TODAY,
+        market: {
+          quotes: {
+            id: 'ariva',
+            async history() {
+              throw new MarketError('currency_mismatch', 'DO_NOT_EXPOSE_RESPONSE');
+            },
+          },
+          moreQuotes: [
+            {
+              id: 'coingecko',
+              supports: () => false,
+              async history() {
+                throw new Error('must not run');
+              },
+            },
+          ],
+          fallbackQuotes: {
+            id: 'yfinance',
+            async history() {
+              return [{ date: TODAY, priceMicro: 80_000_000 }];
+            },
+          },
+          fx: fixtureFxSource({ anchorsFor: () => [] }),
+        },
+      },
+    });
+    const before = db.select().from(schema.price).all();
+    const result = await call('POST', '/securities/s1/quote-preview', {});
+    expect(result.status).toBe(200);
+    expect(result.body).toMatchObject({
+      securityId: 's1',
+      currency: 'EUR',
+      from: '2026-03-01',
+      to: TODAY,
+      attempts: [
+        { source: 'ariva', error: 'currency_mismatch', latest: null },
+        { source: 'coingecko', error: 'not_configured', latest: null },
+        { source: 'yfinance', error: null, latest: { date: TODAY, priceMicro: 80_000_000 } },
+      ],
+    });
+    expect(JSON.stringify(result.body)).not.toContain('DO_NOT_EXPOSE_RESPONSE');
+    expect(db.select().from(schema.price).all()).toEqual(before);
+    expect(
+      db
+        .select()
+        .from(schema.inboxItem)
+        .all()
+        .find((row) => row.id === 'quote-warning')?.resolvedAt,
+    ).toBeNull();
+    expect((await call('POST', '/securities/missing/quote-preview', {})).status).toBe(404);
+    expect((await call('POST', '/securities/s1/quote-preview', { currency: 'USD' })).status).toBe(
+      400,
+    );
+  });
+});
 
 describe('POST /api/market/refresh', () => {
   it('runs both jobs and answers with counts per source', async () => {

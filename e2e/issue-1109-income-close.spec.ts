@@ -13,7 +13,7 @@ import { setTheme } from './theme';
 test.use({ ledgerToday: '2026-09-17' });
 
 for (const receivedCents of [0, 7_501]) {
-  test(`closes one unpaid income occurrence with ${receivedCents} received cents and restores it with Undo`, async ({
+  test(`acknowledges an income occurrence already received with ${receivedCents} received cents and restores it with Undo`, async ({
     page,
     isolatedLedger,
   }) => {
@@ -67,10 +67,12 @@ for (const receivedCents of [0, 7_501]) {
     await expect(
       page.getByText(receivedCents ? /von erwartet 175,02/ : /von erwartet 100,01/),
     ).toBeVisible();
-    await open.getByRole('button', { name: 'Kommt nicht mehr', exact: true }).click();
+    await open.getByRole('button', { name: 'Bereits erhalten', exact: true }).click();
     const closed = page.getByRole('list', { name: 'Abgeschlossene Einnahmen des Monats' });
     await expect(closed).toContainText('Testprämie');
-    await expect(closed).toContainText('Fehlbetrag 100,01');
+    await expect(closed).toContainText('Bereits erhalten');
+    await expect(closed).toContainText('Planwert 100,01');
+    await expect(page.getByText(/Fehlbetrag|Minderbetrag/)).toHaveCount(0);
     await expect(
       page.getByText(receivedCents ? /von erwartet 75,01/ : /von erwartet 0,00/),
     ).toBeVisible();
