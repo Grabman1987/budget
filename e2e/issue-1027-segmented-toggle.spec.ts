@@ -49,26 +49,27 @@ async function settle(page: Page) {
 test.skip(!REDESIGN, 'segmented pill and title-row actions are redesign-only');
 
 test.describe('Heute Zeitraum toggle at 390', () => {
+  // On the phone the period control is a tab row (selected label plus underline), not a pill.
   for (const theme of ['light', 'dark'] as const) {
-    test(`pill sits under the selected label in ${theme}`, async ({ page }) => {
+    test(`selected tab is marked and labels stay unclipped in ${theme}`, async ({ page }) => {
       await page.setViewportSize({ width: 390, height: 844 });
       await page.addInitScript((value) => localStorage.setItem('budget-theme', value), theme);
       await page.goto('/?monat=2026-09&period=month');
       await settle(page);
       const group = page.getByRole('group', { name: 'Zeitraum' }).first();
       await expect(group).toBeVisible();
+      await expect(group.locator('.seg-thumb')).toBeHidden();
       await expectLabelsUnclipped(group);
-      await expectPillUnderSelected(group);
       await group.getByRole('button', { name: 'Bis Gehalt', exact: true }).click();
       await expect(group.getByRole('button', { name: 'Bis Gehalt', exact: true })).toHaveAttribute(
         'aria-pressed',
         'true',
       );
-      await expectPillUnderSelected(group);
+      await expect(group.getByRole('button', { name: 'Monat', exact: true })).toHaveAttribute(
+        'aria-pressed',
+        'false',
+      );
       await expectLabelsUnclipped(group);
-      // Visible track outline (inset shadow on the phone) and one 44px row with the month switch.
-      await expect(group).not.toHaveCSS('box-shadow', 'none');
-      expect((await box(group)).height).toBe(44);
     });
   }
 });
