@@ -559,6 +559,7 @@ export function bankBalanceForAccount(db: Executor, accountId: string, today: st
                     ? 'Bankstand und gebuchter App-Saldo am Bankstand-Datum unterscheiden sich.'
                     : null;
   return {
+    currency: row.currency === 'XXX' ? acct.currency : row.currency,
     amountCents: row.balanceCents,
     date: row.balanceDate,
     /** The day the balance counts for: the observed day, else the Vienna day it was fetched. */

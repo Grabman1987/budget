@@ -133,18 +133,19 @@ Bereich: Konten (`/konten`, `/konten/$id`), Alle Buchungen (`/konten/buchungen`)
 - **Ausgangslage:** Ich habe den Kontoauszug oder Bankstand vor mir, oder die App meldet „Konten prüfen“.
 - **Ablauf:**
   1. Ich öffne ein Konto und tippe „Kontostand prüfen“ (oder in Heute „Konten prüfen“ › „Abgleichen“).
-  2. Im Dialog „Kontostand prüfen · <Konto>“ gebe ich „Saldo laut Bank“ und „Stichtag“ ein (Schuld als Minus).
+  2. Im Dialog „Kontostand prüfen · <Konto>“ ist „Saldo laut Bank“ mit dem bekannten Bankstand von heute vorbelegt, mit sichtbarem Datum. Ohne passenden Bankstand gebe ich den Betrag ein (Schuld als Minus); geprüft wird heute.
   3. Die App zeigt „App-Saldo gebucht“ und „Differenz“; Vorgemerktes wird nicht gezählt.
   4. Bei Differenz prüfe ich „Kandidaten zuerst prüfen“ (mögliche doppelte Buchung, fehlende Buchung) oder gebe „Grund für den Ausgleich“ und „Kategorie für den Ausgleich“ an.
   5. Ich tippe „Bestätigen“. Passt der Stand, sperrt die App die bestätigten Buchungen bis zum Stichtag („bis heute“ ist die Obergrenze).
 - **Ergebnis:** Prüfstand und Sperre sind gespeichert; die Kontoübersicht zeigt „Prüfstand“ mit Datum; Änderung nur mit Entsperrung, rückgängig machbar.
 - **Abnahmekriterien:**
   1. Bankstand, Datum und Abrufzeit sind sichtbar.
-  2. Passt der Stand, sperrt „Bestätigen“ bis heute.
+  2. Passt der bekannte Bankstand von heute, bestätigt „Abgleich sperren bis heute“ mit einem Klick über die bestehende Bank-Sperraktion. Ohne passenden Bankstand bleibt die manuelle Prüfung erhalten.
   3. Ein Stichtag in der Zukunft wird abgewiesen („Geprüft wird höchstens bis heute.“).
   4. Ein ungültiger Betrag meldet „Bitte einen gültigen Betrag eingeben.“
   5. Bei Differenz ohne Ausgleichsgrund wird nicht gesperrt.
-- **Status:** live — **Verweis:** Y05
+  6. Die Differenz wird vor der Bestätigung angezeigt; Vorbelegen allein bucht und sperrt nichts. Rückgängig stellt Prüfstand und Buchungsstatus gemeinsam wieder her.
+- **Status:** live (bisherige Prüfung); Bankstand-Vorbelegung lokal implementiert (#1095), Veröffentlichung und Nutzerabnahme ausständig. — **Verweis:** Y05, #1095
 
 ### K-07 – Zuordnungsregeln („Immer so zuordnen“)
 - **Story:** Als Nutzer möchte ich Zuordnungsregeln pflegen, damit wiederkehrende Bankbuchungen automatisch dem richtigen Empfänger und der richtigen Kategorie zugeordnet werden und ich sie nicht jeden Monat neu zuordne.
