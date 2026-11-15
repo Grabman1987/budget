@@ -47,14 +47,14 @@ Bildschirm Prüfen: `/konten/pruefen` (Konten › Prüfen). Zähler: „Umsätze
   2. Bei einer Importwarnung klickt er „Warnung erklären“. Die App zeigt die Einzelpunkte unter „Einzelpunkte anzeigen“.
   3. Er behebt die Ursache an der Quelle (Link „Quelle“) oder entscheidet, dass nichts zu tun ist.
   4. Er klickt „Als erledigt markieren“. Die App löst den Eintrag auf und senkt den Zähler.
-  5. Warnungen zu einem fehlgeschlagenen Kurs- oder Wechselkursabruf („Kurse nicht abrufbar“, „Wechselkurs nicht abrufbar“) muss er nicht schließen: Der nächste erfolgreiche Abruf für dasselbe Instrument oder dieselbe Währung schließt sie. Unter „Automatisch geschlossene Warnungen“ steht je Eintrag der Verlauf (geöffnet am, Fehlerklasse, geschlossen am, Begründung mit Quelle), für die letzten 30 Tage.
+  5. Warnungen zu einem fehlgeschlagenen Kurs- oder Wechselkursabruf („Kurse nicht abrufbar“, „Wechselkurs nicht abrufbar“) muss er nicht schließen: Der nächste erfolgreiche Abruf für dasselbe Instrument oder dieselbe Währung schließt sie. Unter „Automatisch geschlossene Warnungen“ steht je Eintrag der Verlauf (geöffnet am, Fehlerklasse, geschlossen am, Begründung mit Quelle und Stand), für die letzten 30 Tage, höchstens die 20 neuesten.
 - **Ergebnis:** Eintrag ist erledigt, nichts wurde gelöscht. Die Warnung selbst repariert die Quelle nicht.
 - **Abnahmekriterien:**
   1. Der Zähler „Aufgaben“ sinkt je erledigtem Eintrag.
   2. „Als erledigt markieren“ ändert keine Buchung und keinen Saldo.
   3. Filter „Zeitraum der Aufgaben“ (Alle, Aktueller Monat, Historische Nacharbeit) schränkt die Liste ein; ein Chip zeigt den aktiven Zeitraum.
   4. Lädt die Liste nicht, zeigt die App eine Fehlermeldung mit „Erneut versuchen“ statt einer leeren Liste.
-  5. Eine Abrufwarnung schließt sich nach dem nächsten erfolgreichen Abruf selbst; die Begründung („Automatisch geschlossen: Kursabruf über … am … erfolgreich.“) steht im Eintrag und im Verlauf. Das Schließen ist protokolliert und rückgängig machbar und ändert keine Finanzzahl.
+  5. Eine Abrufwarnung schließt sich nach dem nächsten erfolgreichen Abruf selbst; die Begründung („Automatisch geschlossen: Kursabruf über … erfolgreich (Stand …).“) steht im Eintrag und im Verlauf. Das Schließen ist im Änderungsprotokoll erfasst (Rückgängig auf Protokollebene, noch ohne Schaltfläche) und ändert keine Finanzzahl.
   6. Warnungen zu echten Abweichungen (Bestand, fehlende Bewegung, abweichender Schlusskurs) schließen sich nie von selbst.
 - **Status:** live — **Verweis:** Y16, #1101
   Selbstschließende Abrufwarnungen mit Verlauf (#1101) sind umgesetzt, private Abnahme offen.

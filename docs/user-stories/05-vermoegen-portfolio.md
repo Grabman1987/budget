@@ -98,7 +98,7 @@ Geteilt: V-06 und V-09 sind aufgeteilt (V-06a/V-06b, V-09a/V-09b). V-17 und V-18
   1. Es läuft ein Abruf pro Nacht (ca. 02:30 Wiener Zeit, Schlusskurse des Vortags).
   2. Am Morgen Vermögen › Portfolio › Positionen öffnen; „Kursdatum“ zeigt das Datum je Position.
   3. Bei Problemen erscheint ein Eintrag in Konten › Prüfen, zum Beispiel „Kurse nicht abrufbar“ (Ursachenansicht siehe V-14).
-     Klappt der nächste Abruf für dieses Instrument, schließt sich der Eintrag selbst; Quelle und Tag des erfolgreichen Abrufs stehen als Begründung im Eintrag (Verlauf siehe I-01b).
+     Klappt der nächste Abruf für dieses Instrument, schließt sich der Eintrag selbst; Quelle und Stand des erfolgreichen Abrufs stehen als Begründung im Eintrag (Verlauf siehe I-01b).
   4. Im Instrument „Wert und Kurs“ prüfen, welche Quelle je Tag gilt (Gespeicherter Kurs, Ausführungskurs, Einstandsschätzung).
 - **Ergebnis:** Positionen und Nettovermögen sind mit den Vortagskursen bewertet.
 - **Abnahmekriterien:**
@@ -106,7 +106,7 @@ Geteilt: V-06 und V-09 sind aufgeteilt (V-06a/V-06b, V-09a/V-09b). V-17 und V-18
   - Der Positionswert ist Stück mal Kurs und stimmt mit dem Wertpapierwert im Nettovermögen überein.
   - Randfall: Ohne Kurs zeigt die Zeile „Kurs fehlt“ und der Wert fällt auf Ausführungskurs zurück, markiert „Geschätzt“.
   - Randfall: Ein abgelaufener Kurs trägt die Markierung „Kurs veraltet“.
-  - Eine Warnung aus einem fehlgeschlagenen Abruf schließt der nächste erfolgreiche Abruf desselben Instruments (bei Wechselkursen derselben Währung), protokolliert und rückgängig machbar; Warnungen anderer Instrumente und Warnungen zu echten Abweichungen bleiben offen.
+  - Eine Warnung aus einem fehlgeschlagenen Abruf schließt der nächste erfolgreiche Abruf desselben Instruments (bei Wechselkursen derselben Währung), im Änderungsprotokoll erfasst; Warnungen anderer Instrumente und Warnungen zu echten Abweichungen bleiben offen.
 - **Status:** teilweise · **Verweis:** I10, I12, #1101
   Fehlt noch: ausdrücklicher Erstabruf-Zeitstempel, abgenommener Live-Quellen-Status, Kurskennungen und Konventionen mit der Quelle abgeglichen.
 

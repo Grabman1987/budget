@@ -353,8 +353,8 @@ describe('refreshPrices', () => {
     const ok = scripted('ariva', (_r, from) => [{ date: from, priceMicro: 1_000_000 }]);
     await refreshPrices(db, sourcesOf(failing('yfinance'), ok), { today: '2026-09-30' });
     expect(inbox().map((i) => i.resolution)).toEqual([
-      'Automatisch geschlossen: Kursabruf über ariva am 30.09.2026 erfolgreich.',
-      'Automatisch geschlossen: Kursabruf über ariva am 30.09.2026 erfolgreich.',
+      'Automatisch geschlossen: Kursabruf über ariva erfolgreich (Stand 30.09.2026).',
+      'Automatisch geschlossen: Kursabruf über ariva erfolgreich (Stand 30.09.2026).',
     ]);
     expect(inbox().every((i) => i.resolvedAt)).toBe(true);
     // The history under Konten › Prüfen carries the closed entries with their reason.
@@ -378,6 +378,26 @@ describe('refreshPrices', () => {
     expect(readInbox(db, '2026-09-30').autoResolved).toEqual([]);
   });
 
+  it('closes an exchange-rate fetch failure after the next successful ECB fetch (#1101)', async () => {
+    db.insert(schema.security)
+      .values({ id: 'usd-etf', name: 'Synthetischer USD-ETF', kind: 'etf', currency: 'USD' })
+      .run();
+    const down: FxSource = {
+      history: async () => {
+        throw new MarketError('http');
+      },
+    };
+    await refreshFx(db, sourcesOf(failing('yfinance'), undefined, down), { today: '2026-09-29' });
+    expect(inbox().filter((i) => !i.resolvedAt && i.refType === 'fx')).toHaveLength(1);
+    const up: FxSource = { history: async (_c, from) => [{ date: from, rateMicro: 1_100_000 }] };
+    await refreshFx(db, sourcesOf(failing('yfinance'), undefined, up), { today: '2026-09-30' });
+    const fx = inbox().filter((i) => i.refType === 'fx');
+    expect(fx.map((i) => i.resolution)).toEqual([
+      'Automatisch geschlossen: Wechselkursabruf über ecb erfolgreich (Stand 30.09.2026).',
+    ]);
+    expect(readInbox(db, '2026-09-30').autoResolved.map((i) => i.refId)).toEqual(['USD']);
+  });
+
   it('a successful fetch closes only its own instrument and never a real difference (#1101)', async () => {
     addSecurity();
     addSecurity({ id: 's2', name: 'Synthetischer Anleihen-ETF', symbol: 'SYN-B' });
@@ -396,7 +416,14 @@ describe('refreshPrices', () => {
         .values({ id, kind: 'stale_value', title, detail, refType: 'security', refId: 's1' })
         .run();
     db.insert(schema.inboxItem)
-      .values({ id: 'fx-fail', kind: 'stale_value', title: 'FX', detail: 'Fehlerklasse: http' })
+      .values({
+        id: 'fx-fail',
+        kind: 'stale_value',
+        title: 'FX',
+        detail: 'Fehlerklasse: http',
+        refType: 'fx',
+        refId: 'USD',
+      })
       .run();
     const before = db.select().from(schema.price).all().length;
     await refreshPrices(db, sourcesOf(partly('s1')), { today: '2026-09-30' });

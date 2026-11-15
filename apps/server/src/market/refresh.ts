@@ -81,7 +81,7 @@ export interface FxRefreshResult {
   failed: Array<{ currency: string; errors: MarketErrorKind[] }>;
 }
 
-/** `2026-09-30` as `30.09.2026`, for the stored resolution text. */
+/** `2026-09-30` as `30.09.2026`, for the stored resolution text (the as-of day, not the run day). */
 const dayText = (day: string): string => day.split('-').reverse().join('.');
 
 /** Whether `from`..`today` holds at least `STALE_AFTER_WEEKDAYS` weekdays. */
@@ -124,7 +124,7 @@ const quoteChain = (sources: MarketSources): QuoteSource[] => [
  *   changes are audited. Running it twice writes nothing new.
  * - When every source fails, one open `stale_value` inbox item per security and error class
  *   (no second one while it is open). The next successful fetch for that security closes them,
- *   audited, with the source and day recorded in the entry; other warnings stay open.
+ *   audited, with the source and as-of day recorded in the entry; other warnings stay open.
  */
 export async function refreshPrices(
   db: Db,
@@ -266,7 +266,7 @@ export async function refreshPrices(
         db,
         'security',
         row.id,
-        `Kursabruf über ${written} am ${dayText(today)} erfolgreich.`,
+        `Kursabruf über ${written} erfolgreich (Stand ${dayText(today)}).`,
       );
     } else if (
       errors.length > 0 ||
@@ -334,7 +334,7 @@ export async function refreshFx(
         db,
         'fx',
         currency,
-        `Wechselkursabruf über ecb am ${dayText(today)} erfolgreich.`,
+        `Wechselkursabruf über ecb erfolgreich (Stand ${dayText(today)}).`,
       );
     } catch (error) {
       const kind = errorKind(error);

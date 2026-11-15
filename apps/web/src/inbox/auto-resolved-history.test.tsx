@@ -17,7 +17,8 @@ it('shows when a warning was opened and why the market run closed it', () => {
           refId: 'synthetic-etf',
           createdAt: '2026-09-29T02:00:00.000Z',
           resolvedAt: '2026-09-30T02:00:00.000Z',
-          resolution: 'Automatisch geschlossen: Kursabruf über ariva am 30.09.2026 erfolgreich.',
+          resolution:
+            'Automatisch geschlossen: Kursabruf über ariva erfolgreich (Stand 30.09.2026).',
         },
       ]}
     />,
@@ -28,7 +29,7 @@ it('shows when a warning was opened and why the market run closed it', () => {
   ).getAllByRole('listitem');
   expect(steps.map((step) => step.textContent)).toEqual([
     '29.09.2026 · Warnung geöffnet (Fehlerklasse: http)',
-    '30.09.2026 · Automatisch geschlossen: Kursabruf über ariva am 30.09.2026 erfolgreich.',
+    '30.09.2026 · Automatisch geschlossen: Kursabruf über ariva erfolgreich (Stand 30.09.2026).',
   ]);
 });
 
