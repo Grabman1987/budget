@@ -1,3 +1,4 @@
+import { setTheme } from './theme';
 import AxeBuilder from '@axe-core/playwright';
 import { expect } from '@playwright/test';
 import type { BudgetMonthView } from '../apps/web/src/budget/budget-api';
@@ -89,10 +90,8 @@ test('449 all-target preview preserves view and filter, funds full targets beyon
   await expect(dialog.getByRole('button', { name: '4,00 € zuweisen', exact: true })).toBeEnabled();
   expect(await state()).toEqual([0, 0, 200]);
   expect(writes).toBe(0);
-  for (const theme of ['light', 'dark']) {
-    await page.evaluate((value) => {
-      document.documentElement.dataset['theme'] = value;
-    }, theme);
+  for (const theme of ['light', 'dark'] as const) {
+    await setTheme(page, theme);
     expect((await new AxeBuilder({ page }).include('dialog[open]').analyze()).violations).toEqual(
       [],
     );

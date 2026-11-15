@@ -1,0 +1,2520 @@
+{
+  "base": "db99f615e741681ead727eb291747cfe83c0b792",
+  "build": "ON",
+  "data": "synthetic",
+  "method": "CSSOM disable .main::before and .main background-image immediately before an unmodified full axe scan",
+  "coverage": [
+    {
+      "areaTheme": "/?monat=2026-09 | dark",
+      "scans": 1
+    },
+    {
+      "areaTheme": "/?monat=2026-09 | light",
+      "scans": 1
+    },
+    {
+      "areaTheme": "/einstellungen/kontakte | dark",
+      "scans": 2
+    },
+    {
+      "areaTheme": "/einstellungen/kontakte | light",
+      "scans": 1
+    },
+    {
+      "areaTheme": "/einstellungen/profil | dark",
+      "scans": 2
+    },
+    {
+      "areaTheme": "/einstellungen/profil | light",
+      "scans": 1
+    },
+    {
+      "areaTheme": "/heute/details/month?monat=2026-08&period=month&von=%2F%3Fmonat%3D2026-08%26period%3Dmonth | dark",
+      "scans": 1
+    },
+    {
+      "areaTheme": "/heute/details/month?monat=2026-08&period=month&von=%2F%3Fmonat%3D2026-08%26period%3Dmonth | light",
+      "scans": 1
+    },
+    {
+      "areaTheme": "/heute/details/month?monat=2026-10&period=payday&von=%2F%3Fmonat%3D2026-10%26period%3Dpayday | dark",
+      "scans": 1
+    },
+    {
+      "areaTheme": "/heute/details/month?monat=2026-10&period=payday&von=%2F%3Fmonat%3D2026-10%26period%3Dpayday | light",
+      "scans": 1
+    },
+    {
+      "areaTheme": "/konten | dark",
+      "scans": 1
+    },
+    {
+      "areaTheme": "/konten | light",
+      "scans": 1
+    },
+    {
+      "areaTheme": "/konten/5c9c668d-ae64-49a5-946d-6e3f03ed9a98 | light",
+      "scans": 1
+    },
+    {
+      "areaTheme": "/konten/buchungen | dark",
+      "scans": 1
+    },
+    {
+      "areaTheme": "/konten/buchungen | light",
+      "scans": 1
+    },
+    {
+      "areaTheme": "/konten/d85f6c35-4aad-4a4b-acee-99c6c11d0f7d | dark",
+      "scans": 1
+    },
+    {
+      "areaTheme": "/konten/pruefen | dark",
+      "scans": 1
+    },
+    {
+      "areaTheme": "/konten/pruefen | light",
+      "scans": 1
+    },
+    {
+      "areaTheme": "/plan/erwartet | dark",
+      "scans": 2
+    },
+    {
+      "areaTheme": "/plan/erwartet | light",
+      "scans": 2
+    },
+    {
+      "areaTheme": "/plan/erwartet/1c3a9444-3648-4457-b3e2-d7a7fa564dc6 | dark",
+      "scans": 1
+    },
+    {
+      "areaTheme": "/plan/erwartet/3182c1f0-be87-4978-893f-8286e6a7767c | light",
+      "scans": 1
+    },
+    {
+      "areaTheme": "/plan/erwartet/ep-strom?monat=2026-09&ansicht=next&art=all&tage=35 | light",
+      "scans": 1
+    },
+    {
+      "areaTheme": "/plan/erwartet?ansicht=next&art=all&tage=35 | dark",
+      "scans": 1
+    },
+    {
+      "areaTheme": "/plan/erwartet?ansicht=next&art=all&tage=35 | light",
+      "scans": 1
+    },
+    {
+      "areaTheme": "/plan/erwartet?ansicht=next&art=all&tage=90 | light",
+      "scans": 1
+    },
+    {
+      "areaTheme": "/plan/jahr | dark",
+      "scans": 1
+    },
+    {
+      "areaTheme": "/plan/jahr | light",
+      "scans": 1
+    },
+    {
+      "areaTheme": "/plan/jahr?monat=2026-09 | dark",
+      "scans": 1
+    },
+    {
+      "areaTheme": "/plan/jahr?monat=2026-09 | light",
+      "scans": 1
+    },
+    {
+      "areaTheme": "/plan/monat?monat=2026-09 | dark",
+      "scans": 29
+    },
+    {
+      "areaTheme": "/plan/monat?monat=2026-09 | light",
+      "scans": 29
+    },
+    {
+      "areaTheme": "/plan/monat?monat=2026-10 | dark",
+      "scans": 5
+    },
+    {
+      "areaTheme": "/plan/monat?monat=2026-10 | light",
+      "scans": 5
+    },
+    {
+      "areaTheme": "/plan/monat?monat=2026-10&q=Visible | dark",
+      "scans": 1
+    },
+    {
+      "areaTheme": "/plan/monat?monat=2026-10&q=Visible | light",
+      "scans": 1
+    },
+    {
+      "areaTheme": "/reports | dark",
+      "scans": 2
+    },
+    {
+      "areaTheme": "/reports | light",
+      "scans": 1
+    },
+    {
+      "areaTheme": "/reports/budgettreue?monat=2026-09 | dark",
+      "scans": 1
+    },
+    {
+      "areaTheme": "/reports/budgettreue?monat=2026-09 | light",
+      "scans": 1
+    },
+    {
+      "areaTheme": "/reports/explorer?darstellung=eigene | dark",
+      "scans": 2
+    },
+    {
+      "areaTheme": "/reports/explorer?darstellung=eigene | light",
+      "scans": 1
+    },
+    {
+      "areaTheme": "/reports/jahresreport | dark",
+      "scans": 4
+    },
+    {
+      "areaTheme": "/reports/jahresreport | light",
+      "scans": 3
+    },
+    {
+      "areaTheme": "/reports/kontakte | dark",
+      "scans": 2
+    },
+    {
+      "areaTheme": "/reports/kontakte | light",
+      "scans": 1
+    },
+    {
+      "areaTheme": "/reports/onepager?monat=2026-08 | dark",
+      "scans": 3
+    },
+    {
+      "areaTheme": "/reports/onepager?monat=2026-08 | light",
+      "scans": 2
+    },
+    {
+      "areaTheme": "/reports/onepager?monat=2026-08&period=month | dark",
+      "scans": 1
+    },
+    {
+      "areaTheme": "/reports/onepager?monat=2026-08&period=month | light",
+      "scans": 1
+    },
+    {
+      "areaTheme": "/reports/vergleich | dark",
+      "scans": 2
+    },
+    {
+      "areaTheme": "/reports/vergleich | light",
+      "scans": 2
+    },
+    {
+      "areaTheme": "/vermoegen | dark",
+      "scans": 2
+    },
+    {
+      "areaTheme": "/vermoegen | light",
+      "scans": 1
+    },
+    {
+      "areaTheme": "/vermoegen/portfolio | dark",
+      "scans": 3
+    },
+    {
+      "areaTheme": "/vermoegen/portfolio | light",
+      "scans": 2
+    },
+    {
+      "areaTheme": "/vermoegen/schulden | dark",
+      "scans": 1
+    },
+    {
+      "areaTheme": "/vermoegen/schulden | light",
+      "scans": 1
+    }
+  ],
+  "failingPairs": [
+    {
+      "area": "/plan/erwartet?ansicht=next&art=all&tage=35",
+      "theme": "dark",
+      "fgColor": "#8fb4d1",
+      "bgColor": "#1d476b",
+      "contrastRatio": 4.44,
+      "fontSize": "9.0pt (12px)",
+      "fontWeight": "normal",
+      "messageKey": null,
+      "expectedContrastRatio": "4.5:1",
+      "targets": [
+        "tr[data-testid=\"group-overdue\"] > .col-name[colspan=\"3\"] > .grp-toggle > .grp-sub",
+        "tr[data-testid=\"group-this-week\"] > .col-name[colspan=\"3\"] > .grp-toggle > .grp-sub",
+        "tr[data-testid=\"group-next-week\"] > .col-name[colspan=\"3\"] > .grp-toggle > .grp-sub",
+        "tr[data-testid=\"group-later\"] > .col-name[colspan=\"3\"] > .grp-toggle > .grp-sub",
+        "tr[data-testid=\"week-2026-09-28\"] > .col-name[colspan=\"3\"] > .grp-toggle > .grp-sub",
+        "tr[data-testid=\"week-2026-10-05\"] > .col-name[colspan=\"3\"] > .grp-toggle > .grp-sub",
+        "tr[data-testid=\"week-2026-10-12\"] > .col-name[colspan=\"3\"] > .grp-toggle > .grp-sub",
+        "tr[data-testid=\"week-2026-10-19\"] > .col-name[colspan=\"3\"] > .grp-toggle > .grp-sub"
+      ]
+    },
+    {
+      "area": "/plan/erwartet/1c3a9444-3648-4457-b3e2-d7a7fa564dc6",
+      "theme": "dark",
+      "fgColor": "#8fb4d1",
+      "bgColor": "#1d476b",
+      "contrastRatio": 4.44,
+      "fontSize": "9.0pt (12px)",
+      "fontWeight": "normal",
+      "messageKey": null,
+      "expectedContrastRatio": "4.5:1",
+      "targets": [
+        "tr[data-testid=\"group-overdue\"] > .col-name[colspan=\"3\"] > .grp-toggle > .grp-sub",
+        "tr[data-testid=\"group-this-week\"] > .col-name[colspan=\"3\"] > .grp-toggle > .grp-sub",
+        "tr[data-testid=\"group-later\"] > .col-name[colspan=\"3\"] > .grp-toggle > .grp-sub",
+        ".is-week > .col-name[colspan=\"3\"] > .grp-toggle > .grp-sub"
+      ]
+    },
+    {
+      "area": "/plan/erwartet",
+      "theme": "dark",
+      "fgColor": "#8fb4d1",
+      "bgColor": "#1d476b",
+      "contrastRatio": 4.44,
+      "fontSize": "9.0pt (12px)",
+      "fontWeight": "normal",
+      "messageKey": null,
+      "expectedContrastRatio": "4.5:1",
+      "targets": [
+        "tr[data-testid=\"group-overdue\"] > .col-name[colspan=\"3\"] > .grp-toggle > .grp-sub",
+        "tr[data-testid=\"group-this-week\"] > .col-name[colspan=\"3\"] > .grp-toggle > .grp-sub",
+        "tr[data-testid=\"group-next-week\"] > .col-name[colspan=\"3\"] > .grp-toggle > .grp-sub",
+        "tr[data-testid=\"group-later\"] > .col-name[colspan=\"3\"] > .grp-toggle > .grp-sub",
+        "tr[data-testid=\"week-2026-09-28\"] > .col-name[colspan=\"3\"] > .grp-toggle > .grp-sub",
+        "tr[data-testid=\"week-2026-10-05\"] > .col-name[colspan=\"3\"] > .grp-toggle > .grp-sub",
+        "tr[data-testid=\"week-2026-10-12\"] > .col-name[colspan=\"3\"] > .grp-toggle > .grp-sub",
+        "tr[data-testid=\"week-2026-10-19\"] > .col-name[colspan=\"3\"] > .grp-toggle > .grp-sub"
+      ]
+    },
+    {
+      "area": "/plan/monat?monat=2026-09",
+      "theme": "dark",
+      "fgColor": "#ff8b7b",
+      "bgColor": "#2c4563",
+      "contrastRatio": 4.31,
+      "fontSize": "11.3pt (15px)",
+      "fontWeight": "normal",
+      "messageKey": null,
+      "expectedContrastRatio": "4.5:1",
+      "targets": [
+        ".insp-status > .is-bad:nth-child(1)",
+        ".is-bad:nth-child(2)",
+        ".is-over.prow[data-plan-state=\"overspent\"]:nth-child(2) > .col-avail.col-num[data-label=\"Verfügbar\"] > .is-bad.plan-available.pill",
+        ".is-credit.is-over[data-plan-state=\"overspent\"]:nth-child(25) > .col-avail.col-num[data-label=\"Verfügbar\"] > .is-bad.plan-available.pill",
+        ".is-over[data-plan-state=\"overspent\"][data-plan-class=\"want\"]:nth-child(26) > .col-avail.col-num[data-label=\"Verfügbar\"] > .is-bad.plan-available.pill",
+        ".is-credit.is-over[data-plan-state=\"overspent\"]:nth-child(27) > .col-avail.col-num[data-label=\"Verfügbar\"] > .is-bad.plan-available.pill",
+        ".is-credit.is-over[data-plan-state=\"overspent\"]:nth-child(28) > .col-avail.col-num[data-label=\"Verfügbar\"] > .is-bad.plan-available.pill",
+        ".is-over[data-plan-state=\"overspent\"][data-plan-class=\"want\"]:nth-child(31) > .col-avail.col-num[data-label=\"Verfügbar\"] > .is-bad.plan-available.pill",
+        ".is-credit.is-over[data-plan-state=\"overspent\"]:nth-child(53) > .col-avail.col-num[data-label=\"Verfügbar\"] > .is-bad.plan-available.pill",
+        ".is-over[data-plan-state=\"overspent\"][data-plan-class=\"want\"]:nth-child(60) > .col-avail.col-num[data-label=\"Verfügbar\"] > .is-bad.plan-available.pill"
+      ]
+    },
+    {
+      "area": "/plan/monat?monat=2026-10",
+      "theme": "dark",
+      "fgColor": "#ff8b7b",
+      "bgColor": "#2c4563",
+      "contrastRatio": 4.31,
+      "fontSize": "11.3pt (15px)",
+      "fontWeight": "normal",
+      "messageKey": null,
+      "expectedContrastRatio": "4.5:1",
+      "targets": [
+        ".insp-status > .is-bad",
+        ".is-bad"
+      ]
+    },
+    {
+      "area": "/reports/budgettreue?monat=2026-09",
+      "theme": "dark",
+      "fgColor": "#8fb4d1",
+      "bgColor": "#1d476b",
+      "contrastRatio": 4.44,
+      "fontSize": "9.0pt (12px)",
+      "fontWeight": "normal",
+      "messageKey": null,
+      "expectedContrastRatio": "4.5:1",
+      "targets": [
+        ".text-muted"
+      ]
+    },
+    {
+      "area": "/reports/explorer?darstellung=eigene",
+      "theme": "dark",
+      "fgColor": "#eef6fc",
+      "bgColor": "#3b7d68",
+      "contrastRatio": 4.45,
+      "fontSize": "9.0pt (12px)",
+      "fontWeight": "normal",
+      "messageKey": null,
+      "expectedContrastRatio": "4.5:1",
+      "targets": [
+        "td[data-chart-point=\"79\"]"
+      ]
+    },
+    {
+      "area": "/reports/explorer?darstellung=eigene",
+      "theme": "dark",
+      "fgColor": "#eef6fc",
+      "bgColor": "#3e8169",
+      "contrastRatio": 4.22,
+      "fontSize": "9.0pt (12px)",
+      "fontWeight": "normal",
+      "messageKey": null,
+      "expectedContrastRatio": "4.5:1",
+      "targets": [
+        "td[data-chart-point=\"127\"]"
+      ]
+    },
+    {
+      "area": "/reports/explorer?darstellung=eigene",
+      "theme": "dark",
+      "fgColor": "#eef6fc",
+      "bgColor": "#418569",
+      "contrastRatio": 4.01,
+      "fontSize": "9.0pt (12px)",
+      "fontWeight": "normal",
+      "messageKey": null,
+      "expectedContrastRatio": "4.5:1",
+      "targets": [
+        "td[data-chart-point=\"24\"]"
+      ]
+    },
+    {
+      "area": "/reports/explorer?darstellung=eigene",
+      "theme": "dark",
+      "fgColor": "#eef6fc",
+      "bgColor": "#428669",
+      "contrastRatio": 3.96,
+      "fontSize": "9.0pt (12px)",
+      "fontWeight": "normal",
+      "messageKey": null,
+      "expectedContrastRatio": "4.5:1",
+      "targets": [
+        "td[data-chart-point=\"2\"]"
+      ]
+    },
+    {
+      "area": "/reports/explorer?darstellung=eigene",
+      "theme": "dark",
+      "fgColor": "#eef6fc",
+      "bgColor": "#42876a",
+      "contrastRatio": 3.91,
+      "fontSize": "9.0pt (12px)",
+      "fontWeight": "normal",
+      "messageKey": null,
+      "expectedContrastRatio": "4.5:1",
+      "targets": [
+        "td[data-chart-point=\"6\"]",
+        "td[data-chart-point=\"10\"]",
+        "td[data-chart-point=\"18\"]",
+        "td[data-chart-point=\"83\"]"
+      ]
+    },
+    {
+      "area": "/reports/explorer?darstellung=eigene",
+      "theme": "dark",
+      "fgColor": "#eef6fc",
+      "bgColor": "#43886a",
+      "contrastRatio": 3.86,
+      "fontSize": "9.0pt (12px)",
+      "fontWeight": "normal",
+      "messageKey": null,
+      "expectedContrastRatio": "4.5:1",
+      "targets": [
+        "td[data-chart-point=\"123\"]"
+      ]
+    },
+    {
+      "area": "/reports/explorer?darstellung=eigene",
+      "theme": "dark",
+      "fgColor": "#eef6fc",
+      "bgColor": "#448a6a",
+      "contrastRatio": 3.77,
+      "fontSize": "9.0pt (12px)",
+      "fontWeight": "normal",
+      "messageKey": null,
+      "expectedContrastRatio": "4.5:1",
+      "targets": [
+        "td[data-chart-point=\"78\"]"
+      ]
+    },
+    {
+      "area": "/reports/explorer?darstellung=eigene",
+      "theme": "dark",
+      "fgColor": "#eef6fc",
+      "bgColor": "#48906b",
+      "contrastRatio": 3.5,
+      "fontSize": "9.0pt (12px)",
+      "fontWeight": "normal",
+      "messageKey": null,
+      "expectedContrastRatio": "4.5:1",
+      "targets": [
+        "td[data-chart-point=\"119\"]"
+      ]
+    },
+    {
+      "area": "/reports/explorer?darstellung=eigene",
+      "theme": "dark",
+      "fgColor": "#eef6fc",
+      "bgColor": "#4a926b",
+      "contrastRatio": 3.42,
+      "fontSize": "9.0pt (12px)",
+      "fontWeight": "normal",
+      "messageKey": null,
+      "expectedContrastRatio": "4.5:1",
+      "targets": [
+        "td[data-chart-point=\"15\"]"
+      ]
+    },
+    {
+      "area": "/reports/explorer?darstellung=eigene",
+      "theme": "dark",
+      "fgColor": "#eef6fc",
+      "bgColor": "#4d976c",
+      "contrastRatio": 3.22,
+      "fontSize": "9.0pt (12px)",
+      "fontWeight": "normal",
+      "messageKey": null,
+      "expectedContrastRatio": "4.5:1",
+      "targets": [
+        "td[data-chart-point=\"89\"]"
+      ]
+    },
+    {
+      "area": "/reports/explorer?darstellung=eigene",
+      "theme": "dark",
+      "fgColor": "#eef6fc",
+      "bgColor": "#4f9a6c",
+      "contrastRatio": 3.11,
+      "fontSize": "9.0pt (12px)",
+      "fontWeight": "normal",
+      "messageKey": null,
+      "expectedContrastRatio": "4.5:1",
+      "targets": [
+        "td[data-chart-point=\"63\"]",
+        "td[data-chart-point=\"76\"]",
+        "td[data-chart-point=\"115\"]",
+        "td[data-chart-point=\"141\"]",
+        "td[data-chart-point=\"145\"]",
+        "td[data-chart-point=\"162\"]",
+        "td[data-chart-point=\"167\"]"
+      ]
+    },
+    {
+      "area": "/reports/explorer?darstellung=eigene",
+      "theme": "dark",
+      "fgColor": "#eef6fc",
+      "bgColor": "#a4615d",
+      "contrastRatio": 4.32,
+      "fontSize": "9.0pt (12px)",
+      "fontWeight": "normal",
+      "messageKey": null,
+      "expectedContrastRatio": "4.5:1",
+      "targets": [
+        "td[data-chart-point=\"80\"]"
+      ]
+    },
+    {
+      "area": "/reports/explorer?darstellung=eigene",
+      "theme": "dark",
+      "fgColor": "#eef6fc",
+      "bgColor": "#a7625d",
+      "contrastRatio": 4.22,
+      "fontSize": "9.0pt (12px)",
+      "fontWeight": "normal",
+      "messageKey": null,
+      "expectedContrastRatio": "4.5:1",
+      "targets": [
+        "td[data-chart-point=\"3\"]",
+        "td[data-chart-point=\"11\"]"
+      ]
+    },
+    {
+      "area": "/reports/explorer?darstellung=eigene",
+      "theme": "dark",
+      "fgColor": "#eef6fc",
+      "bgColor": "#aa635d",
+      "contrastRatio": 4.13,
+      "fontSize": "9.0pt (12px)",
+      "fontWeight": "normal",
+      "messageKey": null,
+      "expectedContrastRatio": "4.5:1",
+      "targets": [
+        "td[data-chart-point=\"128\"]"
+      ]
+    },
+    {
+      "area": "/reports/explorer?darstellung=eigene",
+      "theme": "dark",
+      "fgColor": "#eef6fc",
+      "bgColor": "#ae635d",
+      "contrastRatio": 4.05,
+      "fontSize": "9.0pt (12px)",
+      "fontWeight": "normal",
+      "messageKey": null,
+      "expectedContrastRatio": "4.5:1",
+      "targets": [
+        "td[data-chart-point=\"17\"]",
+        "td[data-chart-point=\"70\"]"
+      ]
+    },
+    {
+      "area": "/reports/explorer?darstellung=eigene",
+      "theme": "dark",
+      "fgColor": "#eef6fc",
+      "bgColor": "#b8665d",
+      "contrastRatio": 3.77,
+      "fontSize": "9.0pt (12px)",
+      "fontWeight": "normal",
+      "messageKey": null,
+      "expectedContrastRatio": "4.5:1",
+      "targets": [
+        "td[data-chart-point=\"7\"]",
+        "td[data-chart-point=\"21\"]",
+        "td[data-chart-point=\"26\"]",
+        "td[data-chart-point=\"46\"]",
+        "td[data-chart-point=\"84\"]",
+        "td[data-chart-point=\"120\"]"
+      ]
+    },
+    {
+      "area": "/reports/jahresreport",
+      "theme": "dark",
+      "fgColor": "#eef6fc",
+      "bgColor": "#ffffff",
+      "contrastRatio": 1.09,
+      "fontSize": "21.0pt (28px)",
+      "fontWeight": "bold",
+      "messageKey": null,
+      "expectedContrastRatio": "3:1",
+      "targets": [
+        ".period-paper:nth-child(1) > .period-paper-heading > h2",
+        ".period-paper:nth-child(1) > .period-paper-lead",
+        ".period-paper:nth-child(2) > .period-paper-heading > h2",
+        ".period-paper:nth-child(2) > .period-paper-lead"
+      ]
+    },
+    {
+      "area": "/reports/jahresreport",
+      "theme": "dark",
+      "fgColor": "#eef6fc",
+      "bgColor": "#ffffff",
+      "contrastRatio": 1.09,
+      "fontSize": "12.0pt (16px)",
+      "fontWeight": "bold",
+      "messageKey": null,
+      "expectedContrastRatio": "4.5:1",
+      "targets": [
+        "span[data-testid=\"r5-year-income\"]",
+        ".period-paper:nth-child(1) > .period-kpis > div:nth-child(2) > strong",
+        ".period-paper:nth-child(1) > .period-kpis > div:nth-child(3) > strong",
+        ".period-paper:nth-child(1) > .period-kpis > div:nth-child(4) > strong",
+        ".period-summary-table > thead > tr > th:nth-child(1)",
+        ".period-summary-table > thead > tr > th:nth-child(2)",
+        ".period-summary-table > thead > tr > th:nth-child(3)",
+        ".period-summary-table > thead > tr > th:nth-child(4)",
+        ".period-summary-table > tbody > tr:nth-child(1) > th[scope=\"row\"]",
+        ".period-summary-table > tbody > tr:nth-child(1) > td:nth-child(2)",
+        ".period-summary-table > tbody > tr:nth-child(1) > td:nth-child(3)",
+        ".period-summary-table > tbody > tr:nth-child(1) > td:nth-child(4)",
+        ".period-summary-table > tbody > tr:nth-child(2) > th[scope=\"row\"]",
+        ".period-summary-table > tbody > tr:nth-child(2) > td:nth-child(2)",
+        ".period-summary-table > tbody > tr:nth-child(2) > td:nth-child(3)",
+        ".period-summary-table > tbody > tr:nth-child(2) > td:nth-child(4)",
+        ".period-summary-table > tbody > tr:nth-child(3) > th[scope=\"row\"]",
+        ".period-summary-table > tbody > tr:nth-child(3) > td:nth-child(2)",
+        ".period-summary-table > tbody > tr:nth-child(3) > td:nth-child(3)",
+        ".period-summary-table > tbody > tr:nth-child(3) > td:nth-child(4)",
+        ".period-summary-table > tbody > tr:nth-child(4) > th[scope=\"row\"]",
+        ".period-summary-table > tbody > tr:nth-child(4) > td:nth-child(2)",
+        ".period-summary-table > tbody > tr:nth-child(4) > td:nth-child(3)",
+        ".period-summary-table > tbody > tr:nth-child(4) > td:nth-child(4)",
+        ".period-summary-table > tbody > tr:nth-child(5) > th[scope=\"row\"]",
+        ".period-summary-table > tbody > tr:nth-child(5) > td:nth-child(2)",
+        ".period-summary-table > tbody > tr:nth-child(5) > td:nth-child(3)",
+        ".period-summary-table > tbody > tr:nth-child(5) > td:nth-child(4)",
+        ".period-summary-table > tbody > tr:nth-child(6) > th[scope=\"row\"]",
+        ".period-summary-table > tbody > tr:nth-child(6) > td:nth-child(2)",
+        ".period-summary-table > tbody > tr:nth-child(6) > td:nth-child(3)",
+        ".period-summary-table > tbody > tr:nth-child(6) > td:nth-child(4)",
+        ".period-summary-table > tbody > tr:nth-child(7) > th[scope=\"row\"]",
+        ".period-summary-table > tbody > tr:nth-child(7) > td:nth-child(2)",
+        ".period-summary-table > tbody > tr:nth-child(7) > td:nth-child(3)",
+        ".period-summary-table > tbody > tr:nth-child(7) > td:nth-child(4)",
+        ".period-summary-table > tbody > tr:nth-child(8) > th[scope=\"row\"]",
+        ".period-summary-table > tbody > tr:nth-child(8) > td:nth-child(2)",
+        ".period-summary-table > tbody > tr:nth-child(8) > td:nth-child(3)",
+        ".period-summary-table > tbody > tr:nth-child(8) > td:nth-child(4)",
+        "tfoot > tr > th",
+        "tfoot > tr > td:nth-child(2)",
+        "tfoot > tr > td:nth-child(3)",
+        "tfoot > tr > td:nth-child(4)",
+        ".period-paper:nth-child(1) > footer > div:nth-child(1) > b",
+        ".period-paper:nth-child(1) > footer > div:nth-child(2) > b",
+        ".period-paper:nth-child(1) > footer > div:nth-child(3) > b",
+        ".period-paper:nth-child(1) > footer > div:nth-child(4) > b",
+        ".period-desktop-wealth > .period-kpis > div:nth-child(1) > strong",
+        ".period-desktop-wealth > .period-kpis > div:nth-child(2) > strong",
+        ".period-desktop-wealth > .period-kpis > div:nth-child(3) > strong",
+        ".period-desktop-wealth > .period-kpis > div:nth-child(4) > strong",
+        ".period-wealth-rows > div:nth-child(1) > dt",
+        ".period-wealth-rows > div:nth-child(1) > dd",
+        ".period-wealth-rows > div:nth-child(2) > dt",
+        ".period-wealth-rows > div:nth-child(2) > dd",
+        ".period-wealth-rows > div:nth-child(3) > dt",
+        ".period-wealth-rows > div:nth-child(3) > dd",
+        ".period-wealth-rows > div:nth-child(4) > dt",
+        ".period-wealth-rows > div:nth-child(4) > dd",
+        ".period-wealth-rows > div:nth-child(5) > dt",
+        ".period-wealth-rows > div:nth-child(5) > dd",
+        ".period-paper:nth-child(2) > footer > div:nth-child(1) > b",
+        ".period-paper:nth-child(2) > footer > div:nth-child(2) > b",
+        ".period-paper:nth-child(2) > footer > div:nth-child(3) > b",
+        ".period-paper:nth-child(2) > footer > div:nth-child(4) > b"
+      ]
+    },
+    {
+      "area": "/reports/onepager?monat=2026-08&period=month",
+      "theme": "dark",
+      "fgColor": "#eef6fc",
+      "bgColor": "#ffffff",
+      "contrastRatio": 1.09,
+      "fontSize": "21.0pt (28px)",
+      "fontWeight": "bold",
+      "messageKey": null,
+      "expectedContrastRatio": "3:1",
+      "targets": [
+        ".period-paper-heading > h2",
+        ".period-paper-lead"
+      ]
+    },
+    {
+      "area": "/reports/onepager?monat=2026-08&period=month",
+      "theme": "dark",
+      "fgColor": "#eef6fc",
+      "bgColor": "#ffffff",
+      "contrastRatio": 1.09,
+      "fontSize": "12.0pt (16px)",
+      "fontWeight": "bold",
+      "messageKey": null,
+      "expectedContrastRatio": "4.5:1",
+      "targets": [
+        "span[data-testid=\"r5-month-income\"]",
+        ".period-kpis > div:nth-child(2) > strong",
+        "span[data-testid=\"r5-month-saved\"]",
+        ".period-kpis > div:nth-child(4) > strong",
+        ".period-summary-table > thead > tr > th:nth-child(1)",
+        ".period-summary-table > thead > tr > th:nth-child(2)",
+        ".period-summary-table > thead > tr > th:nth-child(3)",
+        ".period-summary-table > thead > tr > th:nth-child(4)",
+        "tr:nth-child(1) > th[scope=\"row\"]",
+        ".period-summary-table > tbody > tr:nth-child(1) > td:nth-child(2)",
+        ".period-summary-table > tbody > tr:nth-child(1) > td:nth-child(3)",
+        ".period-summary-table > tbody > tr:nth-child(1) > td:nth-child(4)",
+        "tr:nth-child(2) > th[scope=\"row\"]",
+        ".period-summary-table > tbody > tr:nth-child(2) > td:nth-child(2)",
+        ".period-summary-table > tbody > tr:nth-child(2) > td:nth-child(3)",
+        ".period-summary-table > tbody > tr:nth-child(2) > td:nth-child(4)",
+        "tr:nth-child(3) > th[scope=\"row\"]",
+        ".period-summary-table > tbody > tr:nth-child(3) > td:nth-child(2)",
+        ".period-summary-table > tbody > tr:nth-child(3) > td:nth-child(3)",
+        ".period-summary-table > tbody > tr:nth-child(3) > td:nth-child(4)",
+        "tr:nth-child(4) > th[scope=\"row\"]",
+        ".period-summary-table > tbody > tr:nth-child(4) > td:nth-child(2)",
+        ".period-summary-table > tbody > tr:nth-child(4) > td:nth-child(3)",
+        ".period-summary-table > tbody > tr:nth-child(4) > td:nth-child(4)",
+        ".period-wealth-line",
+        "b:nth-child(1)",
+        ".period-wealth-line > b:nth-child(2)",
+        "div:nth-child(1) > b",
+        "div:nth-child(2) > b",
+        "div:nth-child(3) > b",
+        "div:nth-child(4) > b"
+      ]
+    },
+    {
+      "area": "/reports/onepager?monat=2026-08",
+      "theme": "dark",
+      "fgColor": "#eef6fc",
+      "bgColor": "#ffffff",
+      "contrastRatio": 1.09,
+      "fontSize": "21.0pt (28px)",
+      "fontWeight": "bold",
+      "messageKey": null,
+      "expectedContrastRatio": "3:1",
+      "targets": [
+        ".period-paper-heading > h2",
+        ".period-paper-lead"
+      ]
+    },
+    {
+      "area": "/reports/onepager?monat=2026-08",
+      "theme": "dark",
+      "fgColor": "#eef6fc",
+      "bgColor": "#ffffff",
+      "contrastRatio": 1.09,
+      "fontSize": "12.0pt (16px)",
+      "fontWeight": "bold",
+      "messageKey": null,
+      "expectedContrastRatio": "4.5:1",
+      "targets": [
+        "span[data-testid=\"r5-month-income\"]",
+        ".period-kpis > div:nth-child(2) > strong",
+        "span[data-testid=\"r5-month-saved\"]",
+        ".period-kpis > div:nth-child(4) > strong",
+        ".period-summary-table > thead > tr > th:nth-child(1)",
+        ".period-summary-table > thead > tr > th:nth-child(2)",
+        ".period-summary-table > thead > tr > th:nth-child(3)",
+        ".period-summary-table > thead > tr > th:nth-child(4)",
+        "tr:nth-child(1) > th[scope=\"row\"]",
+        ".period-summary-table > tbody > tr:nth-child(1) > td:nth-child(2)",
+        ".period-summary-table > tbody > tr:nth-child(1) > td:nth-child(3)",
+        ".period-summary-table > tbody > tr:nth-child(1) > td:nth-child(4)",
+        "tr:nth-child(2) > th[scope=\"row\"]",
+        ".period-summary-table > tbody > tr:nth-child(2) > td:nth-child(2)",
+        ".period-summary-table > tbody > tr:nth-child(2) > td:nth-child(3)",
+        ".period-summary-table > tbody > tr:nth-child(2) > td:nth-child(4)",
+        "tr:nth-child(3) > th[scope=\"row\"]",
+        ".period-summary-table > tbody > tr:nth-child(3) > td:nth-child(2)",
+        ".period-summary-table > tbody > tr:nth-child(3) > td:nth-child(3)",
+        ".period-summary-table > tbody > tr:nth-child(3) > td:nth-child(4)",
+        "tr:nth-child(4) > th[scope=\"row\"]",
+        ".period-summary-table > tbody > tr:nth-child(4) > td:nth-child(2)",
+        ".period-summary-table > tbody > tr:nth-child(4) > td:nth-child(3)",
+        ".period-summary-table > tbody > tr:nth-child(4) > td:nth-child(4)",
+        ".period-wealth-line",
+        "b:nth-child(1)",
+        ".period-wealth-line > b:nth-child(2)",
+        "div:nth-child(1) > b",
+        "div:nth-child(2) > b",
+        "div:nth-child(3) > b",
+        "div:nth-child(4) > b"
+      ]
+    }
+  ],
+  "incompleteWithoutGrid": [
+    {
+      "area": "/einstellungen/profil",
+      "theme": "dark",
+      "reason": "bgGradient",
+      "targets": [
+        "#_r_b_",
+        "#_r_c_",
+        "#_r_d_",
+        "#_r_e_",
+        "#_r_f_",
+        "#_r_g_",
+        "#_r_h_",
+        "#_r_i_",
+        "#_r_j_",
+        "#_r_k_",
+        "#_r_l_"
+      ]
+    },
+    {
+      "area": "/plan/monat?monat=2026-09",
+      "theme": "light",
+      "reason": "bgOverlap",
+      "targets": [
+        "#plan-available-cat-kartenzahlung",
+        "#plan-available-cat-cloud",
+        "#plan-available-cat-zeitung",
+        "#plan-available-cat-ki1",
+        "#plan-available-cat-ki2",
+        "#plan-available-cat-fitness",
+        "#plan-available-cat-lieferdienste",
+        "#plan-available-cat-pflege",
+        ".month-overview-head > h2",
+        "h2 > span",
+        "details[data-overview-section=\"month\"] > summary",
+        ".insp-status > .is-bad:nth-child(1)",
+        ".is-bad:nth-child(2)",
+        ".month-statement > div:nth-child(1) > dt",
+        "dd[data-testid=\"month-statement-carryCents\"]",
+        ".month-statement > div:nth-child(2) > dt",
+        "dd[data-testid=\"month-statement-assignedCents\"]",
+        ".month-statement > div:nth-child(3) > dt",
+        "dd[data-testid=\"month-statement-activityCents\"]",
+        ".month-statement > .insp-total > dt",
+        "dd[data-testid=\"month-statement-availableCents\"] > .is-good.pill",
+        "#next-month-title",
+        ".next-month-state",
+        ".is-short",
+        "details[data-overview-section=\"split\"] > summary",
+        ".muted",
+        ".sb-note:nth-child(2)",
+        ".sb-comparison",
+        ".sb-comparison > a",
+        "i:nth-child(6) > small",
+        "i:nth-child(7) > small",
+        ".income-scale-end > small",
+        ".income-scale-note",
+        ".sb-legend > span:nth-child(1)",
+        "span:nth-child(1) > b",
+        ".sb-legend > span:nth-child(2)",
+        "span:nth-child(2) > b",
+        ".sb-legend > span:nth-child(3)",
+        "span:nth-child(3) > b",
+        "details[data-overview-section=\"automatic\"] > summary",
+        "#inspector-income > summary",
+        ".plan-budget-money > summary",
+        "details[data-overview-section=\"rail\"] > summary"
+      ]
+    },
+    {
+      "area": "/plan/monat?monat=2026-09",
+      "theme": "light",
+      "reason": "nonBmp",
+      "targets": [
+        "div:nth-child(1) > dt > span[aria-hidden=\"true\"]"
+      ]
+    },
+    {
+      "area": "/plan/monat?monat=2026-09",
+      "theme": "light",
+      "reason": "shortTextContent",
+      "targets": [
+        "span:nth-child(1) > .sw-abbr[aria-hidden=\"true\"]",
+        "span:nth-child(2) > .sw-abbr[aria-hidden=\"true\"]",
+        "span:nth-child(3) > .sw-abbr[aria-hidden=\"true\"]"
+      ]
+    },
+    {
+      "area": "/plan/monat?monat=2026-09",
+      "theme": "dark",
+      "reason": "bgOverlap",
+      "targets": [
+        "#plan-available-cat-kartenzahlung",
+        "#plan-available-cat-cloud",
+        "#plan-available-cat-zeitung",
+        "#plan-available-cat-ki1",
+        "#plan-available-cat-ki2",
+        "#plan-available-cat-fitness",
+        "#plan-available-cat-lieferdienste",
+        "#plan-available-cat-pflege",
+        ".month-overview-head > h2",
+        "h2 > span",
+        "details[data-overview-section=\"month\"] > summary",
+        ".insp-status > .is-bad:nth-child(1)",
+        ".is-bad:nth-child(2)",
+        ".month-statement > div:nth-child(1) > dt",
+        "dd[data-testid=\"month-statement-carryCents\"]",
+        ".month-statement > div:nth-child(2) > dt",
+        "dd[data-testid=\"month-statement-assignedCents\"]",
+        ".month-statement > div:nth-child(3) > dt",
+        "dd[data-testid=\"month-statement-activityCents\"]",
+        ".month-statement > .insp-total > dt",
+        "dd[data-testid=\"month-statement-availableCents\"] > .is-good.pill",
+        "#next-month-title",
+        ".next-month-state",
+        ".is-short",
+        "details[data-overview-section=\"split\"] > summary",
+        ".muted",
+        ".sb-note:nth-child(2)",
+        ".sb-comparison",
+        ".sb-comparison > a",
+        "i:nth-child(6) > small",
+        "i:nth-child(7) > small",
+        ".income-scale-end > small",
+        ".income-scale-note",
+        ".sb-legend > span:nth-child(1)",
+        "span:nth-child(1) > b",
+        ".sb-legend > span:nth-child(2)",
+        "span:nth-child(2) > b",
+        ".sb-legend > span:nth-child(3)",
+        "span:nth-child(3) > b",
+        "details[data-overview-section=\"automatic\"] > summary",
+        "#inspector-income > summary",
+        ".plan-budget-money > summary",
+        "details[data-overview-section=\"rail\"] > summary"
+      ]
+    },
+    {
+      "area": "/plan/monat?monat=2026-09",
+      "theme": "dark",
+      "reason": "nonBmp",
+      "targets": [
+        "div:nth-child(1) > dt > span[aria-hidden=\"true\"]"
+      ]
+    },
+    {
+      "area": "/plan/monat?monat=2026-09",
+      "theme": "dark",
+      "reason": "shortTextContent",
+      "targets": [
+        "span:nth-child(1) > .sw-abbr[aria-hidden=\"true\"]",
+        "span:nth-child(2) > .sw-abbr[aria-hidden=\"true\"]",
+        "span:nth-child(3) > .sw-abbr[aria-hidden=\"true\"]"
+      ]
+    },
+    {
+      "area": "/plan/monat?monat=2026-10",
+      "theme": "light",
+      "reason": "bgOverlap",
+      "targets": [
+        "#plan-available-bd4a5748-d622-45fd-8203-a7c7e515c88c",
+        "#plan-available-c739d40a-50b8-48e0-80fe-50f6ef3f36a4",
+        "#plan-available-7c902e33-bec5-4f59-a50c-ca7a0e4e05f9",
+        "#plan-available-0d327ff7-8a7a-45c4-b700-d3e6a643d4ba"
+      ]
+    },
+    {
+      "area": "/plan/monat?monat=2026-10",
+      "theme": "light",
+      "reason": "nonBmp",
+      "targets": [
+        "div:nth-child(1) > dt > span[aria-hidden=\"true\"]",
+        ".kform > .amount.field-row > .amount-box > .amount-ops[aria-label=\"Rechenzeichen\"][role=\"group\"] > button[aria-label=\"Minus\"]",
+        ".inspector-move > .amount.field-row > .amount-box > .amount-ops[aria-label=\"Rechenzeichen\"][role=\"group\"] > button[aria-label=\"Minus\"]"
+      ]
+    },
+    {
+      "area": "/plan/monat?monat=2026-10",
+      "theme": "dark",
+      "reason": "bgOverlap",
+      "targets": [
+        "#plan-available-4f7f9470-2fb2-45af-a43e-088cad77769a",
+        "#plan-available-c739d40a-50b8-48e0-80fe-50f6ef3f36a4",
+        "#plan-available-977321b9-b603-4e38-b446-aeef677ba541",
+        "#plan-available-f70f2194-0daa-4e14-a100-ed1eb49a2787"
+      ]
+    },
+    {
+      "area": "/plan/monat?monat=2026-10",
+      "theme": "dark",
+      "reason": "nonBmp",
+      "targets": [
+        "div:nth-child(1) > dt > span[aria-hidden=\"true\"]",
+        ".kform > .amount.field-row > .amount-box > .amount-ops[aria-label=\"Rechenzeichen\"][role=\"group\"] > button[aria-label=\"Minus\"]",
+        ".inspector-move > .amount.field-row > .amount-box > .amount-ops[aria-label=\"Rechenzeichen\"][role=\"group\"] > button[aria-label=\"Minus\"]"
+      ]
+    },
+    {
+      "area": "/plan/monat?monat=2026-10&q=Visible",
+      "theme": "light",
+      "reason": "elmPartiallyObscured",
+      "targets": [
+        ".month-overview-head > h2"
+      ]
+    },
+    {
+      "area": "/plan/monat?monat=2026-10&q=Visible",
+      "theme": "light",
+      "reason": "nonBmp",
+      "targets": [
+        "div:nth-child(1) > dt > span[aria-hidden=\"true\"]"
+      ]
+    },
+    {
+      "area": "/plan/monat?monat=2026-10&q=Visible",
+      "theme": "dark",
+      "reason": "elmPartiallyObscured",
+      "targets": [
+        ".month-overview-head > h2",
+        "h2 > span",
+        "details[data-overview-section=\"month\"] > summary",
+        ".month-statement > div:nth-child(1) > dt",
+        "dd[data-testid=\"month-statement-carryCents\"]",
+        ".month-statement > div:nth-child(2) > dt",
+        "dd[data-testid=\"month-statement-assignedCents\"]",
+        ".month-statement > div:nth-child(3) > dt",
+        "dd[data-testid=\"month-statement-activityCents\"]",
+        ".month-statement > .insp-total > dt",
+        "#next-month-title"
+      ]
+    },
+    {
+      "area": "/plan/monat?monat=2026-10&q=Visible",
+      "theme": "dark",
+      "reason": "nonBmp",
+      "targets": [
+        "div:nth-child(1) > dt > span[aria-hidden=\"true\"]"
+      ]
+    },
+    {
+      "area": "/plan/monat?monat=2026-10",
+      "theme": "light",
+      "reason": "bgGradient",
+      "targets": [
+        "#_r_17_",
+        "#_r_s_"
+      ]
+    },
+    {
+      "area": "/plan/monat?monat=2026-10",
+      "theme": "dark",
+      "reason": "bgGradient",
+      "targets": [
+        "#_r_17_",
+        "#_r_s_"
+      ]
+    },
+    {
+      "area": "/plan/erwartet?ansicht=next&art=all&tage=35",
+      "theme": "light",
+      "reason": "bgGradient",
+      "targets": [
+        "select[aria-label=\"Ansicht\"]",
+        "select[aria-label=\"Einnahmen oder Ausgaben\"]",
+        "select[aria-label=\"Zeitraum\"]"
+      ]
+    },
+    {
+      "area": "/plan/erwartet?ansicht=next&art=all&tage=90",
+      "theme": "light",
+      "reason": "bgGradient",
+      "targets": [
+        "select[aria-label=\"Ansicht\"]",
+        "select[aria-label=\"Einnahmen oder Ausgaben\"]",
+        "select[aria-label=\"Zeitraum\"]"
+      ]
+    },
+    {
+      "area": "/plan/erwartet?ansicht=next&art=all&tage=35",
+      "theme": "dark",
+      "reason": "bgGradient",
+      "targets": [
+        "select[aria-label=\"Ansicht\"]",
+        "select[aria-label=\"Einnahmen oder Ausgaben\"]",
+        "select[aria-label=\"Zeitraum\"]"
+      ]
+    },
+    {
+      "area": "/vermoegen/portfolio",
+      "theme": "dark",
+      "reason": "imgNode",
+      "targets": [
+        "text[y=\"116.95497134382232\"]",
+        "text[y=\"67.10543529259488\"]",
+        "text[y=\"17.25589924136745\"]",
+        "text[x=\"58\"]",
+        "text[x=\"488\"]"
+      ]
+    },
+    {
+      "area": "/reports/vergleich",
+      "theme": "light",
+      "reason": "bgGradient",
+      "targets": [
+        "select"
+      ]
+    },
+    {
+      "area": "/reports/vergleich",
+      "theme": "light",
+      "reason": "nonBmp",
+      "targets": [
+        "div[aria-label=\"Berechnung Zeitraumvergleich\"] > .ct-pair:nth-child(2) > .ct-op[aria-hidden=\"true\"]"
+      ]
+    },
+    {
+      "area": "/reports/vergleich",
+      "theme": "dark",
+      "reason": "bgGradient",
+      "targets": [
+        "select"
+      ]
+    },
+    {
+      "area": "/reports/vergleich",
+      "theme": "dark",
+      "reason": "nonBmp",
+      "targets": [
+        "div[aria-label=\"Berechnung Zeitraumvergleich\"] > .ct-pair:nth-child(2) > .ct-op[aria-hidden=\"true\"]"
+      ]
+    },
+    {
+      "area": "/konten/buchungen",
+      "theme": "light",
+      "reason": "elmPartiallyObscuring",
+      "targets": [
+        "th[scope=\"rowgroup\"][colspan=\"9\"] > span:nth-child(1)",
+        ".kmonth-sums"
+      ]
+    },
+    {
+      "area": "/konten/5c9c668d-ae64-49a5-946d-6e3f03ed9a98",
+      "theme": "light",
+      "reason": "elmPartiallyObscuring",
+      "targets": [
+        "th[scope=\"rowgroup\"][colspan=\"8\"] > span"
+      ]
+    },
+    {
+      "area": "/plan/monat?monat=2026-09",
+      "theme": "light",
+      "reason": "elmPartiallyObscuring",
+      "targets": [
+        "i:nth-child(6) > small"
+      ]
+    },
+    {
+      "area": "/plan/erwartet",
+      "theme": "dark",
+      "reason": "bgGradient",
+      "targets": [
+        "select[aria-label=\"Ansicht\"]",
+        "select[aria-label=\"Einnahmen oder Ausgaben\"]",
+        "select[aria-label=\"Zeitraum\"]"
+      ]
+    },
+    {
+      "area": "/reports/explorer?darstellung=eigene",
+      "theme": "light",
+      "reason": "bgGradient",
+      "targets": [
+        ".report-mode-select > select",
+        "#_r_5_",
+        "#_r_6_",
+        "#_r_7_",
+        "#_r_8_"
+      ]
+    },
+    {
+      "area": "/plan/jahr?monat=2026-09",
+      "theme": "dark",
+      "reason": "imgNode",
+      "targets": [
+        "text[y=\"190.49999999999997\"]",
+        "text[y=\"55.5\"]",
+        "text[x=\"709.5714285714287\"]",
+        "text[x=\"112.18681318681318\"]",
+        "text[x=\"166.4945054945055\"]",
+        "text[x=\"226.62087912087912\"]",
+        "text[x=\"284.8076923076923\"]",
+        "text[x=\"344.9340659340659\"]",
+        "text[x=\"403.1208791208791\"]",
+        "text[x=\"463.2472527472528\"]",
+        "text[x=\"523.3736263736264\"]",
+        "text[x=\"581.5604395604396\"]",
+        "text[x=\"641.6868131868132\"]",
+        "text[x=\"699.8736263736264\"]",
+        "text[x=\"760\"]"
+      ]
+    },
+    {
+      "area": "/plan/jahr?monat=2026-09",
+      "theme": "dark",
+      "reason": "shortTextContent",
+      "targets": [
+        "text[y=\"123\"]"
+      ]
+    },
+    {
+      "area": "/plan/jahr?monat=2026-09",
+      "theme": "dark",
+      "reason": "bgOverlap",
+      "targets": [
+        ".year-end-annotation"
+      ]
+    },
+    {
+      "area": "/plan/jahr?monat=2026-09",
+      "theme": "dark",
+      "reason": "elmPartiallyObscured",
+      "targets": [
+        "time[datetime=\"2027-03-10\"]"
+      ]
+    },
+    {
+      "area": "/plan/monat?monat=2026-09",
+      "theme": "dark",
+      "reason": "elmPartiallyObscuring",
+      "targets": [
+        "i:nth-child(6) > small"
+      ]
+    },
+    {
+      "area": "/reports/explorer?darstellung=eigene",
+      "theme": "dark",
+      "reason": "bgGradient",
+      "targets": [
+        ".report-mode-select > select",
+        "#_r_b_",
+        "#_r_c_",
+        "#_r_d_",
+        "#_r_e_",
+        "#_r_5_",
+        "#_r_6_",
+        "#_r_7_",
+        "#_r_8_"
+      ]
+    },
+    {
+      "area": "/reports/explorer?darstellung=eigene",
+      "theme": "dark",
+      "reason": "shortTextContent",
+      "targets": [
+        "td[data-chart-point=\"176\"]",
+        "td[data-chart-point=\"193\"]"
+      ]
+    },
+    {
+      "area": "/reports/onepager?monat=2026-08&period=month",
+      "theme": "light",
+      "reason": "bgGradient",
+      "targets": [
+        "select"
+      ]
+    },
+    {
+      "area": "/reports/onepager?monat=2026-08&period=month",
+      "theme": "light",
+      "reason": "nonBmp",
+      "targets": [
+        "div[aria-label=\"Berechnung Planabweichung\"] > .ct-pair:nth-child(2) > .ct-op[aria-hidden=\"true\"]"
+      ]
+    },
+    {
+      "area": "/reports/onepager?monat=2026-08&period=month",
+      "theme": "light",
+      "reason": "imgNode",
+      "targets": [
+        "text[y=\"146\"]",
+        "text[y=\"22\"]",
+        "text[x=\"60.70967741935484\"]",
+        "text[x=\"371.35483870967744\"]",
+        "text[x=\"682\"]"
+      ]
+    },
+    {
+      "area": "/reports/onepager?monat=2026-08&period=month",
+      "theme": "dark",
+      "reason": "bgGradient",
+      "targets": [
+        "select"
+      ]
+    },
+    {
+      "area": "/reports/onepager?monat=2026-08&period=month",
+      "theme": "dark",
+      "reason": "nonBmp",
+      "targets": [
+        "div[aria-label=\"Berechnung Planabweichung\"] > .ct-pair:nth-child(2) > .ct-op[aria-hidden=\"true\"]"
+      ]
+    },
+    {
+      "area": "/reports/onepager?monat=2026-08&period=month",
+      "theme": "dark",
+      "reason": "imgNode",
+      "targets": [
+        "text[y=\"146\"]",
+        "text[y=\"22\"]",
+        "text[x=\"60.70967741935484\"]",
+        "text[x=\"371.35483870967744\"]",
+        "text[x=\"682\"]"
+      ]
+    },
+    {
+      "area": "/konten/buchungen",
+      "theme": "dark",
+      "reason": "elmPartiallyObscuring",
+      "targets": [
+        "th[scope=\"rowgroup\"][colspan=\"9\"] > span:nth-child(1)",
+        ".kmonth-sums"
+      ]
+    },
+    {
+      "area": "/konten/d85f6c35-4aad-4a4b-acee-99c6c11d0f7d",
+      "theme": "dark",
+      "reason": "elmPartiallyObscuring",
+      "targets": [
+        "th[scope=\"rowgroup\"][colspan=\"8\"] > span"
+      ]
+    },
+    {
+      "area": "/heute/details/month?monat=2026-10&period=payday&von=%2F%3Fmonat%3D2026-10%26period%3Dpayday",
+      "theme": "light",
+      "reason": "shortTextContent",
+      "targets": [
+        "text[y=\"254\"][x=\"36\"][text-anchor=\"end\"]",
+        "text[y=\"214.8\"]",
+        "text[y=\"175.6\"]",
+        "text[y=\"136.4\"]",
+        "text[y=\"97.19999999999999\"]",
+        "text[y=\"58\"]",
+        "text[y=\"52\"]"
+      ]
+    },
+    {
+      "area": "/heute/details/month?monat=2026-10&period=payday&von=%2F%3Fmonat%3D2026-10%26period%3Dpayday",
+      "theme": "light",
+      "reason": "imgNode",
+      "targets": [
+        ".pace-cap-label",
+        ".pace-plan-label",
+        "text[x=\"185.16129032258064\"]",
+        "text[x=\"326.3225806451613\"]",
+        "text[x=\"467.48387096774195\"]",
+        "text[x=\"591\"]",
+        "text[x=\"79.29032258064515\"]",
+        "text[y=\"172\"][x=\"48\"][text-anchor=\"end\"]",
+        "text[y=\"112\"]",
+        "text[x=\"60\"]",
+        "text[y=\"196\"]",
+        "text[y=\"211\"]",
+        ".svg-label-strong[x=\"605\"][y=\"172\"]",
+        "text[y=\"190\"]",
+        ".svg-label-line[x=\"56\"][y=\"240\"]",
+        "text[x=\"164.60000000000002\"]",
+        "text[x=\"273.20000000000005\"]",
+        "text[x=\"381.8\"]",
+        "text[x=\"490.40000000000003\"]",
+        "text[x=\"599\"][y=\"240\"][text-anchor=\"middle\"]",
+        "text[x=\"32\"]",
+        "text[x=\"400\"]",
+        "text[y=\"32\"]",
+        "text[y=\"17\"]",
+        "text[x=\"-6\"]",
+        "text[y=\"131\"]"
+      ]
+    },
+    {
+      "area": "/heute/details/month?monat=2026-10&period=payday&von=%2F%3Fmonat%3D2026-10%26period%3Dpayday",
+      "theme": "dark",
+      "reason": "shortTextContent",
+      "targets": [
+        "text[y=\"254\"][x=\"36\"][text-anchor=\"end\"]",
+        "text[y=\"214.8\"]",
+        "text[y=\"175.6\"]",
+        "text[y=\"136.4\"]",
+        "text[y=\"97.19999999999999\"]",
+        "text[y=\"58\"]",
+        "text[y=\"52\"]"
+      ]
+    },
+    {
+      "area": "/heute/details/month?monat=2026-10&period=payday&von=%2F%3Fmonat%3D2026-10%26period%3Dpayday",
+      "theme": "dark",
+      "reason": "imgNode",
+      "targets": [
+        ".pace-cap-label",
+        ".pace-plan-label",
+        "text[x=\"185.16129032258064\"]",
+        "text[x=\"326.3225806451613\"]",
+        "text[x=\"467.48387096774195\"]",
+        "text[x=\"591\"]",
+        "text[x=\"79.29032258064515\"]",
+        "text[y=\"172\"][x=\"48\"][text-anchor=\"end\"]",
+        "text[y=\"112\"]",
+        "text[x=\"60\"]",
+        "text[y=\"196\"]",
+        "text[y=\"211\"]",
+        ".svg-label-strong[x=\"605\"][y=\"172\"]",
+        "text[y=\"190\"]",
+        ".svg-label-line[x=\"56\"][y=\"240\"]",
+        "text[x=\"164.60000000000002\"]",
+        "text[x=\"273.20000000000005\"]",
+        "text[x=\"381.8\"]",
+        "text[x=\"490.40000000000003\"]",
+        "text[x=\"599\"][y=\"240\"][text-anchor=\"middle\"]",
+        "text[x=\"32\"]",
+        "text[x=\"400\"]",
+        "text[y=\"32\"]",
+        "text[y=\"17\"]",
+        "text[x=\"-6\"]",
+        "text[y=\"131\"]"
+      ]
+    },
+    {
+      "area": "/vermoegen/schulden",
+      "theme": "light",
+      "reason": "shortTextContent",
+      "targets": [
+        "text[y=\"160\"]",
+        "text[y=\"234\"]"
+      ]
+    },
+    {
+      "area": "/vermoegen/schulden",
+      "theme": "light",
+      "reason": "imgNode",
+      "targets": [
+        "text[y=\"99.81481481481481\"]",
+        "text[y=\"39.62962962962963\"]",
+        "text[x=\"56\"][y=\"182\"][text-anchor=\"middle\"]",
+        "text[x=\"400\"]",
+        "text[x=\"744\"]",
+        "text[y=\"135.85185185185185\"]",
+        "text[y=\"37.703703703703695\"]",
+        "text[text-anchor=\"start\"]",
+        "text[x=\"569\"]",
+        "text[x=\"1082\"]"
+      ]
+    },
+    {
+      "area": "/vermoegen/schulden",
+      "theme": "dark",
+      "reason": "shortTextContent",
+      "targets": [
+        "text[y=\"160\"]",
+        "text[y=\"234\"]"
+      ]
+    },
+    {
+      "area": "/vermoegen/schulden",
+      "theme": "dark",
+      "reason": "imgNode",
+      "targets": [
+        "text[y=\"99.81481481481481\"]",
+        "text[y=\"39.62962962962963\"]",
+        "text[x=\"56\"][y=\"182\"][text-anchor=\"middle\"]",
+        "text[x=\"400\"]",
+        "text[x=\"744\"]",
+        "text[y=\"135.85185185185185\"]",
+        "text[y=\"37.703703703703695\"]",
+        "text[text-anchor=\"start\"]",
+        "text[x=\"569\"]",
+        "text[x=\"1082\"]"
+      ]
+    },
+    {
+      "area": "/heute/details/month?monat=2026-08&period=month&von=%2F%3Fmonat%3D2026-08%26period%3Dmonth",
+      "theme": "light",
+      "reason": "shortTextContent",
+      "targets": [
+        "text[y=\"254\"]"
+      ]
+    },
+    {
+      "area": "/heute/details/month?monat=2026-08&period=month&von=%2F%3Fmonat%3D2026-08%26period%3Dmonth",
+      "theme": "light",
+      "reason": "imgNode",
+      "targets": [
+        "text[y=\"205\"]",
+        "text[y=\"156\"]",
+        "text[y=\"107\"]",
+        "text[y=\"58\"]",
+        ".pace-cap-label",
+        "text[x=\"61.32258064516129\"]",
+        "text[x=\"182.5806451612903\"]",
+        "text[x=\"321.1612903225806\"]",
+        "text[x=\"459.741935483871\"]",
+        "text[x=\"581\"]",
+        "text[y=\"172\"]",
+        "text[y=\"110.88635663375867\"]",
+        "text[y=\"49.77271326751733\"]",
+        "text[x=\"60\"]",
+        "text[x=\"261.6857142857143\"]",
+        "text[y=\"196\"]",
+        "text[y=\"211\"]",
+        "text[y=\"153.85627598921343\"]",
+        "text[y=\"171.85627598921343\"]",
+        "text[x=\"56\"]",
+        "text[x=\"164.60000000000002\"]",
+        "text[x=\"273.20000000000005\"]",
+        "text[x=\"381.8\"]",
+        "text[x=\"490.40000000000003\"]",
+        "text[x=\"599\"]",
+        "text[x=\"32\"]",
+        "text[x=\"400\"]",
+        ".svg-label-strong[y=\"17\"][text-anchor=\"start\"]",
+        "text[x=\"628.9697193804183\"]",
+        "text[x=\"989.6358108385718\"]",
+        "text[x=\"499.8179054192859\"]"
+      ]
+    },
+    {
+      "area": "/heute/details/month?monat=2026-08&period=month&von=%2F%3Fmonat%3D2026-08%26period%3Dmonth",
+      "theme": "light",
+      "reason": "nonBmp",
+      "targets": [
+        "button[aria-describedby=\"_r_d_\"]",
+        "button[aria-describedby=\"_r_e_\"]",
+        "button[aria-describedby=\"_r_h_\"]"
+      ]
+    },
+    {
+      "area": "/plan/monat?monat=2026-09",
+      "theme": "light",
+      "reason": "elmPartiallyObscured",
+      "targets": [
+        "#grp-grp-kreditkarten > .pm-first.col-num:nth-child(8)",
+        "#grp-grp-kreditkarten > .col-num:nth-child(9)",
+        "#grp-grp-kreditkarten > .col-num:nth-child(10)",
+        ".prow:nth-child(2) > .col-assign.pm-first[data-label=\"Zugewiesen\"]:nth-child(8) > .assign-btn",
+        ".prow:nth-child(2) > .col-act.col-num[data-label=\"Aktivität\"]:nth-child(9) > .activity-link",
+        "#grp-grp-wohnen > .pm-first.col-num:nth-child(8)",
+        "#grp-grp-wohnen > .col-num:nth-child(9)",
+        "#grp-grp-wohnen > .col-num:nth-child(10)",
+        ".prow:nth-child(6) > .col-assign.pm-first[data-label=\"Zugewiesen\"]:nth-child(8) > .is-ghost.assign-btn",
+        ".prow:nth-child(6) > .col-act.col-num[data-label=\"Aktivität\"]:nth-child(9) > .activity-link",
+        ".prow:nth-child(7) > .col-assign.pm-first[data-label=\"Zugewiesen\"]:nth-child(8) > .is-ghost.assign-btn",
+        ".prow:nth-child(7) > .col-act.col-num[data-label=\"Aktivität\"]:nth-child(9) > .activity-link",
+        ".prow:nth-child(8) > .col-assign.pm-first[data-label=\"Zugewiesen\"]:nth-child(8) > .is-ghost.assign-btn",
+        ".prow:nth-child(8) > .col-act.col-num[data-label=\"Aktivität\"]:nth-child(9) > .activity-link",
+        ".prow:nth-child(9) > .col-assign.pm-first[data-label=\"Zugewiesen\"]:nth-child(8) > .assign-btn",
+        ".prow:nth-child(9) > .col-act.col-num[data-label=\"Aktivität\"]:nth-child(9) > .activity-link",
+        "#grp-grp-bank-und-gebuehren > .pm-first.col-num:nth-child(8)",
+        "#grp-grp-bank-und-gebuehren > .col-num:nth-child(9)",
+        "#grp-grp-bank-und-gebuehren > .col-num:nth-child(10)",
+        ".prow:nth-child(13) > .col-assign.pm-first[data-label=\"Zugewiesen\"]:nth-child(8) > .is-ghost.assign-btn",
+        ".prow:nth-child(13) > .col-act.col-num[data-label=\"Aktivität\"]:nth-child(9) > .activity-link",
+        "#grp-grp-kredite > .pm-first.col-num:nth-child(8)",
+        "#grp-grp-kredite > .col-num:nth-child(9)",
+        "#grp-grp-kredite > .col-num:nth-child(10)",
+        ".prow:nth-child(17) > .col-assign.pm-first[data-label=\"Zugewiesen\"]:nth-child(8) > .is-ghost.assign-btn",
+        ".prow:nth-child(17) > .col-act.col-num[data-label=\"Aktivität\"]:nth-child(9) > .activity-link",
+        ".prow:nth-child(18) > .col-assign.pm-first[data-label=\"Zugewiesen\"]:nth-child(8) > .is-ghost.assign-btn",
+        ".prow:nth-child(18) > .col-act.col-num[data-label=\"Aktivität\"]:nth-child(9) > .activity-link",
+        "#grp-grp-versicherungen > .pm-first.col-num:nth-child(8)",
+        "#grp-grp-versicherungen > .col-num:nth-child(9)",
+        "#grp-grp-versicherungen > .col-num:nth-child(10)",
+        ".prow:nth-child(22) > .col-assign.pm-first[data-label=\"Zugewiesen\"]:nth-child(8) > .is-ghost.assign-btn",
+        ".prow:nth-child(22) > .col-act.col-num[data-label=\"Aktivität\"]:nth-child(9) > .activity-link",
+        ".prow:nth-child(23) > .col-assign.pm-first[data-label=\"Zugewiesen\"]:nth-child(8) > .is-ghost.assign-btn",
+        ".prow:nth-child(23) > .col-act.col-num[data-label=\"Aktivität\"]:nth-child(9) > .activity-link",
+        ".prow:nth-child(24) > .col-assign.pm-first[data-label=\"Zugewiesen\"]:nth-child(8) > .is-ghost.assign-btn",
+        ".prow:nth-child(24) > .col-act.col-num[data-label=\"Aktivität\"]:nth-child(9) > .activity-link",
+        "#grp-grp-abos > .pm-first.col-num:nth-child(8)",
+        "#grp-grp-abos > .col-num:nth-child(9)",
+        "#grp-grp-abos > .col-num:nth-child(10)",
+        ".prow:nth-child(28) > .col-assign.pm-first[data-label=\"Zugewiesen\"]:nth-child(8) > .is-ghost.assign-btn",
+        ".prow:nth-child(28) > .col-act.col-num[data-label=\"Aktivität\"]:nth-child(9) > .activity-link",
+        ".prow:nth-child(29) > .col-assign.pm-first[data-label=\"Zugewiesen\"]:nth-child(8) > .is-ghost.assign-btn",
+        ".prow:nth-child(29) > .col-act.col-num[data-label=\"Aktivität\"]:nth-child(9) > .activity-link",
+        ".prow:nth-child(30) > .col-assign.pm-first[data-label=\"Zugewiesen\"]:nth-child(8) > .is-ghost.assign-btn",
+        ".prow:nth-child(30) > .col-act.col-num[data-label=\"Aktivität\"]:nth-child(9) > .activity-link",
+        ".prow:nth-child(31) > .col-assign.pm-first[data-label=\"Zugewiesen\"]:nth-child(8) > .is-ghost.assign-btn",
+        ".prow:nth-child(31) > .col-act.col-num[data-label=\"Aktivität\"]:nth-child(9) > .activity-link",
+        ".prow:nth-child(32) > .col-assign.pm-first[data-label=\"Zugewiesen\"]:nth-child(8) > .is-ghost.assign-btn",
+        ".prow:nth-child(32) > .col-act.col-num[data-label=\"Aktivität\"]:nth-child(9) > .activity-link",
+        ".prow:nth-child(33) > .col-assign.pm-first[data-label=\"Zugewiesen\"]:nth-child(8) > .is-ghost.assign-btn",
+        ".prow:nth-child(33) > .col-act.col-num[data-label=\"Aktivität\"]:nth-child(9) > .activity-link",
+        "#grp-grp-freizeit > .pm-first.col-num:nth-child(8)",
+        "#grp-grp-freizeit > .col-num:nth-child(9)",
+        "#grp-grp-freizeit > .col-num:nth-child(10)",
+        ".prow:nth-child(37) > .col-assign.pm-first[data-label=\"Zugewiesen\"]:nth-child(8) > .is-ghost.assign-btn",
+        ".prow:nth-child(37) > .col-act.col-num[data-label=\"Aktivität\"]:nth-child(9) > .activity-link",
+        ".prow:nth-child(38) > .col-assign.pm-first[data-label=\"Zugewiesen\"]:nth-child(8) > .is-ghost.assign-btn",
+        ".prow:nth-child(38) > .col-act.col-num[data-label=\"Aktivität\"]:nth-child(9) > .activity-link",
+        ".prow:nth-child(39) > .col-assign.pm-first[data-label=\"Zugewiesen\"]:nth-child(8) > .is-ghost.assign-btn",
+        ".prow:nth-child(39) > .col-act.col-num[data-label=\"Aktivität\"]:nth-child(9) > .activity-link",
+        "#grp-grp-projekte > .pm-first.col-num:nth-child(8)",
+        "#grp-grp-projekte > .col-num:nth-child(9)",
+        "#grp-grp-projekte > .col-num:nth-child(10)",
+        ".prow:nth-child(43) > .col-assign.pm-first[data-label=\"Zugewiesen\"]:nth-child(8) > .is-ghost.assign-btn",
+        ".prow:nth-child(43) > .col-act.col-num[data-label=\"Aktivität\"]:nth-child(9) > .activity-link",
+        "#grp-grp-lebensmittel > .pm-first.col-num:nth-child(8)",
+        "#grp-grp-lebensmittel > .col-num:nth-child(9)",
+        "#grp-grp-lebensmittel > .col-num:nth-child(10)",
+        ".prow:nth-child(47) > .col-assign.pm-first[data-label=\"Zugewiesen\"]:nth-child(8) > .is-ghost.assign-btn",
+        ".prow:nth-child(47) > .col-act.col-num[data-label=\"Aktivität\"]:nth-child(9) > .activity-link",
+        "#grp-grp-mobilitaet > .pm-first.col-num:nth-child(8)",
+        "#grp-grp-mobilitaet > .col-num:nth-child(9)",
+        "#grp-grp-mobilitaet > .col-num:nth-child(10)",
+        ".prow:nth-child(51) > .col-assign.pm-first[data-label=\"Zugewiesen\"]:nth-child(8) > .is-ghost.assign-btn",
+        ".prow:nth-child(51) > .col-act.col-num[data-label=\"Aktivität\"]:nth-child(9) > .activity-link",
+        ".prow:nth-child(52) > .col-assign.pm-first[data-label=\"Zugewiesen\"]:nth-child(8) > .assign-btn",
+        ".prow:nth-child(52) > .col-act.col-num[data-label=\"Aktivität\"]:nth-child(9) > .activity-link",
+        ".prow:nth-child(53) > .col-assign.pm-first[data-label=\"Zugewiesen\"]:nth-child(8) > .is-ghost.assign-btn",
+        ".prow:nth-child(53) > .col-act.col-num[data-label=\"Aktivität\"]:nth-child(9) > .activity-link",
+        "#grp-grp-gesundheit > .pm-first.col-num:nth-child(8)",
+        "#grp-grp-gesundheit > .col-num:nth-child(9)",
+        "#grp-grp-gesundheit > .col-num:nth-child(10)",
+        ".prow:nth-child(57) > .col-assign.pm-first[data-label=\"Zugewiesen\"]:nth-child(8) > .assign-btn",
+        ".prow:nth-child(57) > .col-act.col-num[data-label=\"Aktivität\"]:nth-child(9) > .activity-link",
+        "#grp-grp-kleidung > .pm-first.col-num:nth-child(8)",
+        "#grp-grp-kleidung > .col-num:nth-child(9)",
+        "#grp-grp-kleidung > .col-num:nth-child(10)",
+        ".prow:nth-child(61) > .col-assign.pm-first[data-label=\"Zugewiesen\"]:nth-child(8) > .assign-btn",
+        ".prow:nth-child(61) > .col-act.col-num[data-label=\"Aktivität\"]:nth-child(9) > .activity-link",
+        "#grp-grp-genuss > .pm-first.col-num:nth-child(8)",
+        "#grp-grp-genuss > .col-num:nth-child(9)",
+        "#grp-grp-genuss > .col-num:nth-child(10)",
+        ".prow:nth-child(65) > .col-assign.pm-first[data-label=\"Zugewiesen\"]:nth-child(8) > .is-ghost.assign-btn",
+        ".prow:nth-child(65) > .col-act.col-num[data-label=\"Aktivität\"]:nth-child(9) > .activity-link",
+        ".prow:nth-child(66) > .col-assign.pm-first[data-label=\"Zugewiesen\"]:nth-child(8) > .is-ghost.assign-btn",
+        ".prow:nth-child(66) > .col-act.col-num[data-label=\"Aktivität\"]:nth-child(9) > .activity-link",
+        "#grp-grp-anschaffungen > .pm-first.col-num:nth-child(8)",
+        "#grp-grp-anschaffungen > .col-num:nth-child(9)",
+        "#grp-grp-anschaffungen > .col-num:nth-child(10)",
+        ".prow:nth-child(70) > .col-assign.pm-first[data-label=\"Zugewiesen\"]:nth-child(8) > .is-ghost.assign-btn",
+        ".prow:nth-child(70) > .col-act.col-num[data-label=\"Aktivität\"]:nth-child(9) > .activity-link",
+        "#grp-grp-pflege > .pm-first.col-num:nth-child(8)",
+        "#grp-grp-pflege > .col-num:nth-child(9)",
+        "#grp-grp-pflege > .col-num:nth-child(10)",
+        ".prow:nth-child(74) > .col-assign.pm-first[data-label=\"Zugewiesen\"]:nth-child(8) > .is-ghost.assign-btn",
+        ".prow:nth-child(74) > .col-act.col-num[data-label=\"Aktivität\"]:nth-child(9) > .activity-link",
+        "#grp-grp-geschenke > .pm-first.col-num:nth-child(8)",
+        "#grp-grp-geschenke > .col-num:nth-child(9)",
+        "#grp-grp-geschenke > .col-num:nth-child(10)",
+        ".prow:nth-child(78) > .col-assign.pm-first[data-label=\"Zugewiesen\"]:nth-child(8) > .is-ghost.assign-btn",
+        ".prow:nth-child(78) > .col-act.col-num[data-label=\"Aktivität\"]:nth-child(9) > .activity-link",
+        ".prow:nth-child(79) > .col-assign.pm-first[data-label=\"Zugewiesen\"]:nth-child(8) > .is-ghost.assign-btn",
+        ".prow:nth-child(79) > .col-act.col-num[data-label=\"Aktivität\"]:nth-child(9) > .activity-link",
+        "#grp-grp-reisen > .pm-first.col-num:nth-child(8)",
+        "#grp-grp-reisen > .col-num:nth-child(9)",
+        "#grp-grp-reisen > .col-num:nth-child(10)",
+        ".prow:nth-child(83) > .col-assign.pm-first[data-label=\"Zugewiesen\"]:nth-child(8) > .is-ghost.assign-btn",
+        ".prow:nth-child(83) > .col-act.col-num[data-label=\"Aktivität\"]:nth-child(9) > .activity-link",
+        "#grp-grp-investieren > .pm-first.col-num:nth-child(8)",
+        "#grp-grp-investieren > .col-num:nth-child(9)",
+        "#grp-grp-investieren > .col-num:nth-child(10)",
+        ".prow:nth-child(87) > .col-assign.pm-first[data-label=\"Zugewiesen\"]:nth-child(8) > .is-ghost.assign-btn",
+        ".prow:nth-child(87) > .col-act.col-num[data-label=\"Aktivität\"]:nth-child(9) > .activity-link",
+        "#grp-grp-notgroschen > .pm-first.col-num:nth-child(8)",
+        "#grp-grp-notgroschen > .col-num:nth-child(9)",
+        "#grp-grp-notgroschen > .col-num:nth-child(10)",
+        ".prow:nth-child(91) > .col-assign.pm-first[data-label=\"Zugewiesen\"]:nth-child(8) > .is-ghost.assign-btn",
+        ".prow:nth-child(91) > .col-act.col-num[data-label=\"Aktivität\"]:nth-child(9) > .activity-link",
+        ".tabbar > a[href$=\"vermoegen\"]",
+        ".tabbar > a[href$=\"reports\"]"
+      ]
+    },
+    {
+      "area": "/plan/monat?monat=2026-09",
+      "theme": "light",
+      "reason": "imgNode",
+      "targets": [
+        ".prow:nth-child(2) > .col-assign.pm-first[data-label=\"Zugewiesen\"]:nth-child(5) > .assign-btn"
+      ]
+    },
+    {
+      "area": "/heute/details/month?monat=2026-08&period=month&von=%2F%3Fmonat%3D2026-08%26period%3Dmonth",
+      "theme": "dark",
+      "reason": "shortTextContent",
+      "targets": [
+        "text[y=\"254\"]"
+      ]
+    },
+    {
+      "area": "/heute/details/month?monat=2026-08&period=month&von=%2F%3Fmonat%3D2026-08%26period%3Dmonth",
+      "theme": "dark",
+      "reason": "imgNode",
+      "targets": [
+        "text[y=\"205\"]",
+        "text[y=\"156\"]",
+        "text[y=\"107\"]",
+        "text[y=\"58\"]",
+        ".pace-cap-label",
+        "text[x=\"61.32258064516129\"]",
+        "text[x=\"182.5806451612903\"]",
+        "text[x=\"321.1612903225806\"]",
+        "text[x=\"459.741935483871\"]",
+        "text[x=\"581\"]",
+        "text[y=\"172\"]",
+        "text[y=\"110.88635663375867\"]",
+        "text[y=\"49.77271326751733\"]",
+        "text[x=\"60\"]",
+        "text[x=\"261.6857142857143\"]",
+        "text[y=\"196\"]",
+        "text[y=\"211\"]",
+        "text[y=\"153.85627598921343\"]",
+        "text[y=\"171.85627598921343\"]",
+        "text[x=\"56\"]",
+        "text[x=\"164.60000000000002\"]",
+        "text[x=\"273.20000000000005\"]",
+        "text[x=\"381.8\"]",
+        "text[x=\"490.40000000000003\"]",
+        "text[x=\"599\"]",
+        "text[x=\"32\"]",
+        "text[x=\"400\"]",
+        ".svg-label-strong[y=\"17\"][text-anchor=\"start\"]",
+        "text[x=\"628.9697193804183\"]",
+        "text[x=\"989.6358108385718\"]",
+        "text[x=\"499.8179054192859\"]"
+      ]
+    },
+    {
+      "area": "/heute/details/month?monat=2026-08&period=month&von=%2F%3Fmonat%3D2026-08%26period%3Dmonth",
+      "theme": "dark",
+      "reason": "nonBmp",
+      "targets": [
+        "button[aria-describedby=\"_r_d_\"]",
+        "button[aria-describedby=\"_r_e_\"]",
+        "button[aria-describedby=\"_r_h_\"]"
+      ]
+    },
+    {
+      "area": "/plan/monat?monat=2026-09",
+      "theme": "dark",
+      "reason": "elmPartiallyObscured",
+      "targets": [
+        "#grp-grp-kreditkarten > .pm-first.col-num:nth-child(8)",
+        "#grp-grp-kreditkarten > .col-num:nth-child(9)",
+        "#grp-grp-kreditkarten > .col-num:nth-child(10)",
+        ".prow:nth-child(2) > .col-assign.pm-first[data-label=\"Zugewiesen\"]:nth-child(8) > .assign-btn",
+        ".prow:nth-child(2) > .col-act.col-num[data-label=\"Aktivität\"]:nth-child(9) > .activity-link",
+        "#grp-grp-wohnen > .pm-first.col-num:nth-child(8)",
+        "#grp-grp-wohnen > .col-num:nth-child(9)",
+        "#grp-grp-wohnen > .col-num:nth-child(10)",
+        ".prow:nth-child(6) > .col-assign.pm-first[data-label=\"Zugewiesen\"]:nth-child(8) > .is-ghost.assign-btn",
+        ".prow:nth-child(6) > .col-act.col-num[data-label=\"Aktivität\"]:nth-child(9) > .activity-link",
+        ".prow:nth-child(7) > .col-assign.pm-first[data-label=\"Zugewiesen\"]:nth-child(8) > .is-ghost.assign-btn",
+        ".prow:nth-child(7) > .col-act.col-num[data-label=\"Aktivität\"]:nth-child(9) > .activity-link",
+        ".prow:nth-child(8) > .col-assign.pm-first[data-label=\"Zugewiesen\"]:nth-child(8) > .is-ghost.assign-btn",
+        ".prow:nth-child(8) > .col-act.col-num[data-label=\"Aktivität\"]:nth-child(9) > .activity-link",
+        ".prow:nth-child(9) > .col-assign.pm-first[data-label=\"Zugewiesen\"]:nth-child(8) > .assign-btn",
+        ".prow:nth-child(9) > .col-act.col-num[data-label=\"Aktivität\"]:nth-child(9) > .activity-link",
+        "#grp-grp-bank-und-gebuehren > .pm-first.col-num:nth-child(8)",
+        "#grp-grp-bank-und-gebuehren > .col-num:nth-child(9)",
+        "#grp-grp-bank-und-gebuehren > .col-num:nth-child(10)",
+        ".prow:nth-child(13) > .col-assign.pm-first[data-label=\"Zugewiesen\"]:nth-child(8) > .is-ghost.assign-btn",
+        ".prow:nth-child(13) > .col-act.col-num[data-label=\"Aktivität\"]:nth-child(9) > .activity-link",
+        "#grp-grp-kredite > .pm-first.col-num:nth-child(8)",
+        "#grp-grp-kredite > .col-num:nth-child(9)",
+        "#grp-grp-kredite > .col-num:nth-child(10)",
+        ".prow:nth-child(17) > .col-assign.pm-first[data-label=\"Zugewiesen\"]:nth-child(8) > .is-ghost.assign-btn",
+        ".prow:nth-child(17) > .col-act.col-num[data-label=\"Aktivität\"]:nth-child(9) > .activity-link",
+        ".prow:nth-child(18) > .col-assign.pm-first[data-label=\"Zugewiesen\"]:nth-child(8) > .is-ghost.assign-btn",
+        ".prow:nth-child(18) > .col-act.col-num[data-label=\"Aktivität\"]:nth-child(9) > .activity-link",
+        "#grp-grp-versicherungen > .pm-first.col-num:nth-child(8)",
+        "#grp-grp-versicherungen > .col-num:nth-child(9)",
+        "#grp-grp-versicherungen > .col-num:nth-child(10)",
+        ".prow:nth-child(22) > .col-assign.pm-first[data-label=\"Zugewiesen\"]:nth-child(8) > .is-ghost.assign-btn",
+        ".prow:nth-child(22) > .col-act.col-num[data-label=\"Aktivität\"]:nth-child(9) > .activity-link",
+        ".prow:nth-child(23) > .col-assign.pm-first[data-label=\"Zugewiesen\"]:nth-child(8) > .is-ghost.assign-btn",
+        ".prow:nth-child(23) > .col-act.col-num[data-label=\"Aktivität\"]:nth-child(9) > .activity-link",
+        ".prow:nth-child(24) > .col-assign.pm-first[data-label=\"Zugewiesen\"]:nth-child(8) > .is-ghost.assign-btn",
+        ".prow:nth-child(24) > .col-act.col-num[data-label=\"Aktivität\"]:nth-child(9) > .activity-link",
+        "#grp-grp-abos > .pm-first.col-num:nth-child(8)",
+        "#grp-grp-abos > .col-num:nth-child(9)",
+        "#grp-grp-abos > .col-num:nth-child(10)",
+        ".prow:nth-child(28) > .col-assign.pm-first[data-label=\"Zugewiesen\"]:nth-child(8) > .is-ghost.assign-btn",
+        ".prow:nth-child(28) > .col-act.col-num[data-label=\"Aktivität\"]:nth-child(9) > .activity-link",
+        ".prow:nth-child(29) > .col-assign.pm-first[data-label=\"Zugewiesen\"]:nth-child(8) > .is-ghost.assign-btn",
+        ".prow:nth-child(29) > .col-act.col-num[data-label=\"Aktivität\"]:nth-child(9) > .activity-link",
+        ".prow:nth-child(30) > .col-assign.pm-first[data-label=\"Zugewiesen\"]:nth-child(8) > .is-ghost.assign-btn",
+        ".prow:nth-child(30) > .col-act.col-num[data-label=\"Aktivität\"]:nth-child(9) > .activity-link",
+        ".prow:nth-child(31) > .col-assign.pm-first[data-label=\"Zugewiesen\"]:nth-child(8) > .is-ghost.assign-btn",
+        ".prow:nth-child(31) > .col-act.col-num[data-label=\"Aktivität\"]:nth-child(9) > .activity-link",
+        ".prow:nth-child(32) > .col-assign.pm-first[data-label=\"Zugewiesen\"]:nth-child(8) > .is-ghost.assign-btn",
+        ".prow:nth-child(32) > .col-act.col-num[data-label=\"Aktivität\"]:nth-child(9) > .activity-link",
+        ".prow:nth-child(33) > .col-assign.pm-first[data-label=\"Zugewiesen\"]:nth-child(8) > .is-ghost.assign-btn",
+        ".prow:nth-child(33) > .col-act.col-num[data-label=\"Aktivität\"]:nth-child(9) > .activity-link",
+        "#grp-grp-freizeit > .pm-first.col-num:nth-child(8)",
+        "#grp-grp-freizeit > .col-num:nth-child(9)",
+        "#grp-grp-freizeit > .col-num:nth-child(10)",
+        ".prow:nth-child(37) > .col-assign.pm-first[data-label=\"Zugewiesen\"]:nth-child(8) > .is-ghost.assign-btn",
+        ".prow:nth-child(37) > .col-act.col-num[data-label=\"Aktivität\"]:nth-child(9) > .activity-link",
+        ".prow:nth-child(38) > .col-assign.pm-first[data-label=\"Zugewiesen\"]:nth-child(8) > .is-ghost.assign-btn",
+        ".prow:nth-child(38) > .col-act.col-num[data-label=\"Aktivität\"]:nth-child(9) > .activity-link",
+        ".prow:nth-child(39) > .col-assign.pm-first[data-label=\"Zugewiesen\"]:nth-child(8) > .is-ghost.assign-btn",
+        ".prow:nth-child(39) > .col-act.col-num[data-label=\"Aktivität\"]:nth-child(9) > .activity-link",
+        "#grp-grp-projekte > .pm-first.col-num:nth-child(8)",
+        "#grp-grp-projekte > .col-num:nth-child(9)",
+        "#grp-grp-projekte > .col-num:nth-child(10)",
+        ".prow:nth-child(43) > .col-assign.pm-first[data-label=\"Zugewiesen\"]:nth-child(8) > .is-ghost.assign-btn",
+        ".prow:nth-child(43) > .col-act.col-num[data-label=\"Aktivität\"]:nth-child(9) > .activity-link",
+        "#grp-grp-lebensmittel > .pm-first.col-num:nth-child(8)",
+        "#grp-grp-lebensmittel > .col-num:nth-child(9)",
+        "#grp-grp-lebensmittel > .col-num:nth-child(10)",
+        ".prow:nth-child(47) > .col-assign.pm-first[data-label=\"Zugewiesen\"]:nth-child(8) > .is-ghost.assign-btn",
+        ".prow:nth-child(47) > .col-act.col-num[data-label=\"Aktivität\"]:nth-child(9) > .activity-link",
+        "#grp-grp-mobilitaet > .pm-first.col-num:nth-child(8)",
+        "#grp-grp-mobilitaet > .col-num:nth-child(9)",
+        "#grp-grp-mobilitaet > .col-num:nth-child(10)",
+        ".prow:nth-child(51) > .col-assign.pm-first[data-label=\"Zugewiesen\"]:nth-child(8) > .is-ghost.assign-btn",
+        ".prow:nth-child(51) > .col-act.col-num[data-label=\"Aktivität\"]:nth-child(9) > .activity-link",
+        ".prow:nth-child(52) > .col-assign.pm-first[data-label=\"Zugewiesen\"]:nth-child(8) > .assign-btn",
+        ".prow:nth-child(52) > .col-act.col-num[data-label=\"Aktivität\"]:nth-child(9) > .activity-link",
+        ".prow:nth-child(53) > .col-assign.pm-first[data-label=\"Zugewiesen\"]:nth-child(8) > .is-ghost.assign-btn",
+        ".prow:nth-child(53) > .col-act.col-num[data-label=\"Aktivität\"]:nth-child(9) > .activity-link",
+        "#grp-grp-gesundheit > .pm-first.col-num:nth-child(8)",
+        "#grp-grp-gesundheit > .col-num:nth-child(9)",
+        "#grp-grp-gesundheit > .col-num:nth-child(10)",
+        ".prow:nth-child(57) > .col-assign.pm-first[data-label=\"Zugewiesen\"]:nth-child(8) > .assign-btn",
+        ".prow:nth-child(57) > .col-act.col-num[data-label=\"Aktivität\"]:nth-child(9) > .activity-link",
+        "#grp-grp-kleidung > .pm-first.col-num:nth-child(8)",
+        "#grp-grp-kleidung > .col-num:nth-child(9)",
+        "#grp-grp-kleidung > .col-num:nth-child(10)",
+        ".prow:nth-child(61) > .col-assign.pm-first[data-label=\"Zugewiesen\"]:nth-child(8) > .assign-btn",
+        ".prow:nth-child(61) > .col-act.col-num[data-label=\"Aktivität\"]:nth-child(9) > .activity-link",
+        "#grp-grp-genuss > .pm-first.col-num:nth-child(8)",
+        "#grp-grp-genuss > .col-num:nth-child(9)",
+        "#grp-grp-genuss > .col-num:nth-child(10)",
+        ".prow:nth-child(65) > .col-assign.pm-first[data-label=\"Zugewiesen\"]:nth-child(8) > .is-ghost.assign-btn",
+        ".prow:nth-child(65) > .col-act.col-num[data-label=\"Aktivität\"]:nth-child(9) > .activity-link",
+        ".prow:nth-child(66) > .col-assign.pm-first[data-label=\"Zugewiesen\"]:nth-child(8) > .is-ghost.assign-btn",
+        ".prow:nth-child(66) > .col-act.col-num[data-label=\"Aktivität\"]:nth-child(9) > .activity-link",
+        "#grp-grp-anschaffungen > .pm-first.col-num:nth-child(8)",
+        "#grp-grp-anschaffungen > .col-num:nth-child(9)",
+        "#grp-grp-anschaffungen > .col-num:nth-child(10)",
+        ".prow:nth-child(70) > .col-assign.pm-first[data-label=\"Zugewiesen\"]:nth-child(8) > .is-ghost.assign-btn",
+        ".prow:nth-child(70) > .col-act.col-num[data-label=\"Aktivität\"]:nth-child(9) > .activity-link",
+        "#grp-grp-pflege > .pm-first.col-num:nth-child(8)",
+        "#grp-grp-pflege > .col-num:nth-child(9)",
+        "#grp-grp-pflege > .col-num:nth-child(10)",
+        ".prow:nth-child(74) > .col-assign.pm-first[data-label=\"Zugewiesen\"]:nth-child(8) > .is-ghost.assign-btn",
+        ".prow:nth-child(74) > .col-act.col-num[data-label=\"Aktivität\"]:nth-child(9) > .activity-link",
+        "#grp-grp-geschenke > .pm-first.col-num:nth-child(8)",
+        "#grp-grp-geschenke > .col-num:nth-child(9)",
+        "#grp-grp-geschenke > .col-num:nth-child(10)",
+        ".prow:nth-child(78) > .col-assign.pm-first[data-label=\"Zugewiesen\"]:nth-child(8) > .is-ghost.assign-btn",
+        ".prow:nth-child(78) > .col-act.col-num[data-label=\"Aktivität\"]:nth-child(9) > .activity-link",
+        ".prow:nth-child(79) > .col-assign.pm-first[data-label=\"Zugewiesen\"]:nth-child(8) > .is-ghost.assign-btn",
+        ".prow:nth-child(79) > .col-act.col-num[data-label=\"Aktivität\"]:nth-child(9) > .activity-link",
+        "#grp-grp-reisen > .pm-first.col-num:nth-child(8)",
+        "#grp-grp-reisen > .col-num:nth-child(9)",
+        "#grp-grp-reisen > .col-num:nth-child(10)",
+        ".prow:nth-child(83) > .col-assign.pm-first[data-label=\"Zugewiesen\"]:nth-child(8) > .is-ghost.assign-btn",
+        ".prow:nth-child(83) > .col-act.col-num[data-label=\"Aktivität\"]:nth-child(9) > .activity-link",
+        "#grp-grp-investieren > .pm-first.col-num:nth-child(8)",
+        "#grp-grp-investieren > .col-num:nth-child(9)",
+        "#grp-grp-investieren > .col-num:nth-child(10)",
+        ".prow:nth-child(87) > .col-assign.pm-first[data-label=\"Zugewiesen\"]:nth-child(8) > .is-ghost.assign-btn",
+        ".prow:nth-child(87) > .col-act.col-num[data-label=\"Aktivität\"]:nth-child(9) > .activity-link",
+        "#grp-grp-notgroschen > .pm-first.col-num:nth-child(8)",
+        "#grp-grp-notgroschen > .col-num:nth-child(9)",
+        "#grp-grp-notgroschen > .col-num:nth-child(10)",
+        ".prow:nth-child(91) > .col-assign.pm-first[data-label=\"Zugewiesen\"]:nth-child(8) > .is-ghost.assign-btn",
+        ".prow:nth-child(91) > .col-act.col-num[data-label=\"Aktivität\"]:nth-child(9) > .activity-link",
+        ".tabbar > a[href$=\"vermoegen\"]",
+        ".tabbar > a[href$=\"reports\"]"
+      ]
+    },
+    {
+      "area": "/plan/monat?monat=2026-09",
+      "theme": "dark",
+      "reason": "imgNode",
+      "targets": [
+        ".prow:nth-child(2) > .col-assign.pm-first[data-label=\"Zugewiesen\"]:nth-child(5) > .assign-btn"
+      ]
+    },
+    {
+      "area": "/plan/jahr",
+      "theme": "dark",
+      "reason": "imgNode",
+      "targets": [
+        "text[y=\"190.49999999999997\"]",
+        "text[y=\"55.5\"]",
+        "text[x=\"709.5714285714287\"]",
+        "text[x=\"112.18681318681318\"]",
+        "text[x=\"166.4945054945055\"]",
+        "text[x=\"226.62087912087912\"]",
+        "text[x=\"284.8076923076923\"]",
+        "text[x=\"344.9340659340659\"]",
+        "text[x=\"403.1208791208791\"]",
+        "text[x=\"463.2472527472528\"]",
+        "text[x=\"523.3736263736264\"]",
+        "text[x=\"581.5604395604396\"]",
+        "text[x=\"641.6868131868132\"]",
+        "text[x=\"699.8736263736264\"]",
+        "text[x=\"760\"]"
+      ]
+    },
+    {
+      "area": "/plan/jahr",
+      "theme": "dark",
+      "reason": "shortTextContent",
+      "targets": [
+        "text[y=\"123\"]"
+      ]
+    },
+    {
+      "area": "/plan/jahr",
+      "theme": "dark",
+      "reason": "bgOverlap",
+      "targets": [
+        ".year-end-annotation"
+      ]
+    },
+    {
+      "area": "/plan/jahr",
+      "theme": "dark",
+      "reason": "elmPartiallyObscured",
+      "targets": [
+        "time[datetime=\"2027-03-10\"]"
+      ]
+    },
+    {
+      "area": "/reports/jahresreport",
+      "theme": "dark",
+      "reason": "nonBmp",
+      "targets": [
+        "div[aria-label=\"Berechnung Jahresergebnis\"] > .ct-pair:nth-child(2) > .ct-op[aria-hidden=\"true\"]"
+      ]
+    },
+    {
+      "area": "/reports/jahresreport",
+      "theme": "dark",
+      "reason": "imgNode",
+      "targets": [
+        "text[x=\"34\"][y=\"146\"][text-anchor=\"end\"]",
+        "text[y=\"20\"]",
+        "text[x=\"68.75\"]",
+        "text[x=\"122.25\"]",
+        "text[x=\"175.75\"]",
+        "text[x=\"229.25\"]",
+        "text[x=\"282.75\"]",
+        "text[x=\"336.25\"]",
+        "text[x=\"389.75\"]",
+        "text[x=\"443.25\"]",
+        "text[x=\"496.75\"]",
+        "text[x=\"550.25\"]",
+        "text[x=\"603.75\"]",
+        "text[x=\"657.25\"]",
+        "text[x=\"12\"]",
+        "text[x=\"682\"]"
+      ]
+    },
+    {
+      "area": "/vermoegen",
+      "theme": "dark",
+      "reason": "imgNode",
+      "targets": [
+        "text[y=\"116.95497134382232\"]",
+        "text[y=\"67.10543529259488\"]",
+        "text[y=\"17.25589924136745\"]",
+        "text[x=\"58\"]",
+        "text[x=\"488\"]"
+      ]
+    },
+    {
+      "area": "/konten",
+      "theme": "light",
+      "reason": "nonBmp",
+      "targets": [
+        ".term-trigger"
+      ]
+    },
+    {
+      "area": "/reports/budgettreue?monat=2026-09",
+      "theme": "light",
+      "reason": "nonBmp",
+      "targets": [
+        "div[aria-label=\"Berechnung Plan gegen Ist\"] > .ct-pair:nth-child(2) > .ct-op[aria-hidden=\"true\"]",
+        "div[aria-label=\"Maßkette Plan gegen Ist\"] > .ct-pair:nth-child(2) > .ct-op[aria-hidden=\"true\"]"
+      ]
+    },
+    {
+      "area": "/reports/budgettreue?monat=2026-09",
+      "theme": "light",
+      "reason": "bgGradient",
+      "targets": [
+        "select"
+      ]
+    },
+    {
+      "area": "/reports/budgettreue?monat=2026-09",
+      "theme": "dark",
+      "reason": "nonBmp",
+      "targets": [
+        "div[aria-label=\"Berechnung Plan gegen Ist\"] > .ct-pair:nth-child(2) > .ct-op[aria-hidden=\"true\"]",
+        "div[aria-label=\"Maßkette Plan gegen Ist\"] > .ct-pair:nth-child(2) > .ct-op[aria-hidden=\"true\"]"
+      ]
+    },
+    {
+      "area": "/reports/budgettreue?monat=2026-09",
+      "theme": "dark",
+      "reason": "bgGradient",
+      "targets": [
+        "select"
+      ]
+    },
+    {
+      "area": "/vermoegen",
+      "theme": "light",
+      "reason": "imgNode",
+      "targets": [
+        "text[y=\"116.95497134382232\"]",
+        "text[y=\"67.10543529259488\"]",
+        "text[y=\"17.25589924136745\"]",
+        "text[x=\"58\"]",
+        "text[x=\"488\"]"
+      ]
+    },
+    {
+      "area": "/plan/erwartet",
+      "theme": "light",
+      "reason": "bgGradient",
+      "targets": [
+        "select[aria-label=\"Ansicht\"]",
+        "select[aria-label=\"Einnahmen oder Ausgaben\"]",
+        "select[aria-label=\"Zeitraum\"]"
+      ]
+    },
+    {
+      "area": "/reports/kontakte",
+      "theme": "dark",
+      "reason": "nonBmp",
+      "targets": [
+        ".ct-op"
+      ]
+    },
+    {
+      "area": "/reports/kontakte",
+      "theme": "dark",
+      "reason": "bgGradient",
+      "targets": [
+        "select"
+      ]
+    },
+    {
+      "area": "/reports/jahresreport",
+      "theme": "light",
+      "reason": "nonBmp",
+      "targets": [
+        "div[aria-label=\"Berechnung Jahresergebnis\"] > .ct-pair:nth-child(2) > .ct-op[aria-hidden=\"true\"]"
+      ]
+    },
+    {
+      "area": "/reports/jahresreport",
+      "theme": "light",
+      "reason": "imgNode",
+      "targets": [
+        "text[x=\"34\"][y=\"146\"][text-anchor=\"end\"]",
+        "text[y=\"20\"]",
+        "text[x=\"68.75\"]",
+        "text[x=\"122.25\"]",
+        "text[x=\"175.75\"]",
+        "text[x=\"229.25\"]",
+        "text[x=\"282.75\"]",
+        "text[x=\"336.25\"]",
+        "text[x=\"389.75\"]",
+        "text[x=\"443.25\"]",
+        "text[x=\"496.75\"]",
+        "text[x=\"550.25\"]",
+        "text[x=\"603.75\"]",
+        "text[x=\"657.25\"]",
+        "text[x=\"12\"]",
+        "text[x=\"682\"]"
+      ]
+    },
+    {
+      "area": "/?monat=2026-09",
+      "theme": "dark",
+      "reason": "nonBmp",
+      "targets": [
+        "i:nth-child(2)",
+        ".term-trigger"
+      ]
+    },
+    {
+      "area": "/?monat=2026-09",
+      "theme": "dark",
+      "reason": "imgNode",
+      "targets": [
+        "text[x=\"32\"]",
+        "text[x=\"307\"]",
+        "text[y=\"112\"]",
+        "text[y=\"90\"]",
+        "text[y=\"68\"][x=\"36\"][text-anchor=\"end\"]",
+        "text[y=\"46\"]",
+        ".pace-plan-label",
+        "text[x=\"65.73333333333333\"]",
+        "text[x=\"217.86666666666667\"]",
+        "text[x=\"370\"]",
+        "text[x=\"543.8666666666667\"]",
+        "text[x=\"696\"][y=\"153\"][text-anchor=\"middle\"]",
+        "text[x=\"413.46666666666664\"]",
+        "text[y=\"143.08333333333334\"]",
+        "text[y=\"92.57969749595334\"]",
+        "text[y=\"42.076061658573366\"]",
+        "text[x=\"52\"]",
+        "text[x=\"288.6857142857143\"]",
+        ".svg-label-strong",
+        "text[y=\"184\"]",
+        "text[x=\"48\"]",
+        "text[x=\"177.6\"]",
+        "text[x=\"307.2\"]",
+        "text[x=\"436.8\"]",
+        "text[x=\"566.4\"]",
+        "text[x=\"696\"][y=\"200\"][text-anchor=\"middle\"]"
+      ]
+    },
+    {
+      "area": "/?monat=2026-09",
+      "theme": "dark",
+      "reason": "shortTextContent",
+      "targets": [
+        "text[y=\"134\"]",
+        "svg[aria-label=\"Revision A, dringend\"] > text[x=\"13\"][y=\"18\"][text-anchor=\"middle\"]",
+        "svg[aria-label=\"Revision B\"] > text[x=\"13\"][y=\"18\"][text-anchor=\"middle\"]",
+        "svg[aria-label=\"Revision C\"] > text[x=\"13\"][y=\"18\"][text-anchor=\"middle\"]",
+        "svg[aria-label=\"Revision D\"] > text[x=\"13\"][y=\"18\"][text-anchor=\"middle\"]"
+      ]
+    },
+    {
+      "area": "/?monat=2026-09",
+      "theme": "dark",
+      "reason": "bgOverlap",
+      "targets": [
+        ".pace-cap-label"
+      ]
+    },
+    {
+      "area": "/?monat=2026-09",
+      "theme": "light",
+      "reason": "nonBmp",
+      "targets": [
+        "i:nth-child(2)",
+        ".term-trigger"
+      ]
+    },
+    {
+      "area": "/?monat=2026-09",
+      "theme": "light",
+      "reason": "imgNode",
+      "targets": [
+        "text[x=\"32\"]",
+        "text[x=\"307\"]",
+        "text[y=\"112\"]",
+        "text[y=\"90\"]",
+        "text[y=\"68\"][x=\"36\"][text-anchor=\"end\"]",
+        "text[y=\"46\"]",
+        ".pace-plan-label",
+        "text[x=\"65.73333333333333\"]",
+        "text[x=\"217.86666666666667\"]",
+        "text[x=\"370\"]",
+        "text[x=\"543.8666666666667\"]",
+        "text[x=\"696\"][y=\"153\"][text-anchor=\"middle\"]",
+        "text[x=\"413.46666666666664\"]",
+        "text[y=\"143.08333333333334\"]",
+        "text[y=\"92.57969749595334\"]",
+        "text[y=\"42.076061658573366\"]",
+        "text[x=\"52\"]",
+        "text[x=\"288.6857142857143\"]",
+        ".svg-label-strong",
+        "text[y=\"184\"]",
+        "text[x=\"48\"]",
+        "text[x=\"177.6\"]",
+        "text[x=\"307.2\"]",
+        "text[x=\"436.8\"]",
+        "text[x=\"566.4\"]",
+        "text[x=\"696\"][y=\"200\"][text-anchor=\"middle\"]"
+      ]
+    },
+    {
+      "area": "/?monat=2026-09",
+      "theme": "light",
+      "reason": "shortTextContent",
+      "targets": [
+        "text[y=\"134\"]",
+        "svg[aria-label=\"Revision A, dringend\"] > text[x=\"13\"][y=\"18\"][text-anchor=\"middle\"]",
+        "svg[aria-label=\"Revision B\"] > text[x=\"13\"][y=\"18\"][text-anchor=\"middle\"]",
+        "svg[aria-label=\"Revision C\"] > text[x=\"13\"][y=\"18\"][text-anchor=\"middle\"]",
+        "svg[aria-label=\"Revision D\"] > text[x=\"13\"][y=\"18\"][text-anchor=\"middle\"]"
+      ]
+    },
+    {
+      "area": "/?monat=2026-09",
+      "theme": "light",
+      "reason": "bgOverlap",
+      "targets": [
+        ".pace-cap-label"
+      ]
+    },
+    {
+      "area": "/konten",
+      "theme": "dark",
+      "reason": "nonBmp",
+      "targets": [
+        ".term-trigger"
+      ]
+    },
+    {
+      "area": "/reports/onepager?monat=2026-08",
+      "theme": "light",
+      "reason": "bgGradient",
+      "targets": [
+        "select"
+      ]
+    },
+    {
+      "area": "/reports/onepager?monat=2026-08",
+      "theme": "light",
+      "reason": "nonBmp",
+      "targets": [
+        "div[aria-label=\"Berechnung Planabweichung\"] > .ct-pair:nth-child(2) > .ct-op[aria-hidden=\"true\"]"
+      ]
+    },
+    {
+      "area": "/reports/onepager?monat=2026-08",
+      "theme": "light",
+      "reason": "imgNode",
+      "targets": [
+        "text[y=\"146\"]",
+        "text[y=\"22\"]",
+        "text[x=\"60.70967741935484\"]",
+        "text[x=\"371.35483870967744\"]",
+        "text[x=\"682\"]"
+      ]
+    },
+    {
+      "area": "/reports/onepager?monat=2026-08",
+      "theme": "dark",
+      "reason": "bgGradient",
+      "targets": [
+        "select"
+      ]
+    },
+    {
+      "area": "/reports/onepager?monat=2026-08",
+      "theme": "dark",
+      "reason": "nonBmp",
+      "targets": [
+        "div[aria-label=\"Berechnung Planabweichung\"] > .ct-pair:nth-child(2) > .ct-op[aria-hidden=\"true\"]"
+      ]
+    },
+    {
+      "area": "/reports/onepager?monat=2026-08",
+      "theme": "dark",
+      "reason": "imgNode",
+      "targets": [
+        "text[y=\"146\"]",
+        "text[y=\"22\"]",
+        "text[x=\"60.70967741935484\"]",
+        "text[x=\"371.35483870967744\"]",
+        "text[x=\"682\"]"
+      ]
+    },
+    {
+      "area": "/plan/erwartet/3182c1f0-be87-4978-893f-8286e6a7767c",
+      "theme": "light",
+      "reason": "bgGradient",
+      "targets": [
+        "select[aria-label=\"Ansicht\"]",
+        "select[aria-label=\"Einnahmen oder Ausgaben\"]",
+        "select[aria-label=\"Zeitraum\"]"
+      ]
+    },
+    {
+      "area": "/plan/erwartet/3182c1f0-be87-4978-893f-8286e6a7767c",
+      "theme": "light",
+      "reason": "elmPartiallyObscured",
+      "targets": [
+        "#payment-title",
+        ".payment-history-preview > h3:nth-child(1)",
+        "time[datetime=\"2026-08-20\"]",
+        ".payment-history-preview > table:nth-child(2) > tbody > tr > td:nth-child(2)",
+        "td:nth-child(3) > strong",
+        ".has-deviation",
+        ".payment-history-source:nth-child(3)",
+        "h3:nth-child(4)",
+        "time[datetime=\"2026-09-20\"]",
+        "table:nth-child(5) > tbody > tr:nth-child(1) > td:nth-child(2) > strong",
+        "time[datetime=\"2026-10-20\"]",
+        "tr:nth-child(2) > td:nth-child(2) > strong",
+        "time[datetime=\"2026-11-20\"]",
+        "tr:nth-child(3) > td:nth-child(2) > strong",
+        ".payment-history-source:nth-child(6)",
+        ".payment-reference-management > summary",
+        ".xp-big",
+        ".panel-sub",
+        "#xp-versions",
+        ".rev-mark.tech",
+        ".rev-table > thead > tr > .tech:nth-child(2)",
+        ".rev-what > strong",
+        ".rev-what > span",
+        "section[aria-labelledby=\"xp-versions\"] > .btn-ghost.btn",
+        "#xp-occ",
+        "h4:nth-child(2)",
+        ".field-hint:nth-child(3)",
+        ".is-alert > .xp-occ-date",
+        ".is-alert > .xp-occ-amt",
+        ".is-alert > .xp-occ-amt > .xp-sub",
+        ".is-alert > .is-alert.xp-status",
+        ".is-alert > .xp-occ-actual",
+        ".is-alert > .xp-occ-actual > .xp-sub",
+        ".is-alert > .xp-occ-delta",
+        ".is-alert > .xp-occ-delta > .xp-sub",
+        ".xp-occ-book > a",
+        ".is-alert > .xp-occ-act > .btn-sm.btn-ghost.btn",
+        "h4:nth-child(5)",
+        ".field-hint:nth-child(6)",
+        ".xp-occ:nth-child(7) > li:nth-child(1) > .xp-occ-date",
+        ".xp-occ:nth-child(7) > li:nth-child(1) > .xp-occ-amt > .xp-sub"
+      ]
+    },
+    {
+      "area": "/plan/erwartet/3182c1f0-be87-4978-893f-8286e6a7767c",
+      "theme": "light",
+      "reason": "shortTextContent",
+      "targets": [
+        "text"
+      ]
+    },
+    {
+      "area": "/plan/erwartet/1c3a9444-3648-4457-b3e2-d7a7fa564dc6",
+      "theme": "dark",
+      "reason": "bgGradient",
+      "targets": [
+        "select[aria-label=\"Ansicht\"]",
+        "select[aria-label=\"Einnahmen oder Ausgaben\"]",
+        "select[aria-label=\"Zeitraum\"]"
+      ]
+    },
+    {
+      "area": "/plan/erwartet/1c3a9444-3648-4457-b3e2-d7a7fa564dc6",
+      "theme": "dark",
+      "reason": "elmPartiallyObscured",
+      "targets": [
+        "#payment-title",
+        ".payment-history-preview > h3:nth-child(1)",
+        "time[datetime=\"2026-08-20\"]",
+        ".payment-history-preview > table:nth-child(2) > tbody > tr > td:nth-child(2)",
+        "td:nth-child(3) > strong",
+        ".has-deviation",
+        ".payment-history-source:nth-child(3)",
+        "h3:nth-child(4)",
+        "time[datetime=\"2026-09-20\"]",
+        "table:nth-child(5) > tbody > tr:nth-child(1) > td:nth-child(2) > strong",
+        "time[datetime=\"2026-10-20\"]",
+        "tr:nth-child(2) > td:nth-child(2) > strong",
+        "time[datetime=\"2026-11-20\"]",
+        "tr:nth-child(3) > td:nth-child(2) > strong",
+        ".payment-history-source:nth-child(6)",
+        ".payment-reference-management > summary",
+        ".xp-big",
+        ".panel-sub",
+        "#xp-versions",
+        ".rev-mark.tech",
+        ".rev-table > thead > tr > .tech:nth-child(2)",
+        ".rev-what > strong",
+        ".rev-what > span",
+        "section[aria-labelledby=\"xp-versions\"] > .btn-ghost.btn",
+        "#xp-occ",
+        "h4:nth-child(2)",
+        ".field-hint:nth-child(3)",
+        ".is-alert > .xp-occ-date",
+        ".is-alert > .xp-occ-amt",
+        ".is-alert > .xp-occ-amt > .xp-sub",
+        ".is-alert > .is-alert.xp-status",
+        ".is-alert > .xp-occ-actual",
+        ".is-alert > .xp-occ-actual > .xp-sub",
+        ".is-alert > .xp-occ-delta",
+        ".is-alert > .xp-occ-delta > .xp-sub",
+        ".xp-occ-book > a",
+        ".is-alert > .xp-occ-act > .btn-sm.btn-ghost.btn",
+        "h4:nth-child(5)",
+        ".field-hint:nth-child(6)",
+        ".xp-occ:nth-child(7) > li:nth-child(1) > .xp-occ-date",
+        ".xp-occ:nth-child(7) > li:nth-child(1) > .xp-occ-amt > .xp-sub"
+      ]
+    },
+    {
+      "area": "/plan/erwartet/1c3a9444-3648-4457-b3e2-d7a7fa564dc6",
+      "theme": "dark",
+      "reason": "shortTextContent",
+      "targets": [
+        "text"
+      ]
+    },
+    {
+      "area": "/einstellungen/profil",
+      "theme": "light",
+      "reason": "bgGradient",
+      "targets": [
+        "#_r_b_",
+        "#_r_c_",
+        "#_r_d_",
+        "#_r_e_",
+        "#_r_f_",
+        "#_r_g_",
+        "#_r_h_",
+        "#_r_i_",
+        "#_r_j_",
+        "#_r_k_",
+        "#_r_l_"
+      ]
+    },
+    {
+      "area": "/reports/kontakte",
+      "theme": "light",
+      "reason": "nonBmp",
+      "targets": [
+        ".ct-op"
+      ]
+    },
+    {
+      "area": "/reports/kontakte",
+      "theme": "light",
+      "reason": "bgGradient",
+      "targets": [
+        "select"
+      ]
+    },
+    {
+      "area": "/vermoegen/portfolio",
+      "theme": "light",
+      "reason": "imgNode",
+      "targets": [
+        "text[y=\"116.95497134382232\"]",
+        "text[y=\"67.10543529259488\"]",
+        "text[y=\"17.25589924136745\"]",
+        "text[x=\"58\"]",
+        "text[x=\"488\"]"
+      ]
+    },
+    {
+      "area": "/plan/erwartet/ep-strom?monat=2026-09&ansicht=next&art=all&tage=35",
+      "theme": "light",
+      "reason": "bgGradient",
+      "targets": [
+        "select[aria-label=\"Ansicht\"]",
+        "select[aria-label=\"Einnahmen oder Ausgaben\"]",
+        "select[aria-label=\"Zeitraum\"]"
+      ]
+    },
+    {
+      "area": "/plan/erwartet/ep-strom?monat=2026-09&ansicht=next&art=all&tage=35",
+      "theme": "light",
+      "reason": "shortTextContent",
+      "targets": [
+        "svg[aria-label=\"Revision C\"] > text",
+        "svg[aria-label=\"Revision B\"] > text",
+        "svg[aria-label=\"Revision A\"] > text"
+      ]
+    },
+    {
+      "area": "/plan/jahr",
+      "theme": "light",
+      "reason": "imgNode",
+      "targets": [
+        "text[y=\"190.49999999999997\"]",
+        "text[y=\"55.5\"]",
+        "text[x=\"709.5714285714287\"]",
+        "text[x=\"112.18681318681318\"]",
+        "text[x=\"166.4945054945055\"]",
+        "text[x=\"226.62087912087912\"]",
+        "text[x=\"284.8076923076923\"]",
+        "text[x=\"344.9340659340659\"]",
+        "text[x=\"403.1208791208791\"]",
+        "text[x=\"463.2472527472528\"]",
+        "text[x=\"523.3736263736264\"]",
+        "text[x=\"581.5604395604396\"]",
+        "text[x=\"641.6868131868132\"]",
+        "text[x=\"699.8736263736264\"]",
+        "text[x=\"760\"]"
+      ]
+    },
+    {
+      "area": "/plan/jahr",
+      "theme": "light",
+      "reason": "shortTextContent",
+      "targets": [
+        "text[y=\"123\"]"
+      ]
+    },
+    {
+      "area": "/plan/jahr",
+      "theme": "light",
+      "reason": "bgOverlap",
+      "targets": [
+        ".year-end-annotation"
+      ]
+    },
+    {
+      "area": "/plan/jahr",
+      "theme": "light",
+      "reason": "elmPartiallyObscured",
+      "targets": [
+        "time[datetime=\"2027-03-10\"]"
+      ]
+    }
+  ]
+}

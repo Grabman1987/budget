@@ -2,6 +2,7 @@ import AxeBuilder from '@axe-core/playwright';
 import { expect, type Page, type TestInfo } from '@playwright/test';
 import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
+import { setTheme } from './theme';
 
 /**
  * Shared checks of the Überblick report specs: no serious axe violation in light and dark, no
@@ -15,8 +16,8 @@ export async function inspectReport(page: Page, info: TestInfo, label: string) {
     (document.activeElement as HTMLElement | null)?.blur();
     window.scrollTo(0, 0);
   });
-  for (const theme of ['light', 'dark']) {
-    await page.evaluate((value) => (document.documentElement.dataset['theme'] = value), theme);
+  for (const theme of ['light', 'dark'] as const) {
+    await setTheme(page, theme);
     const axe = await new AxeBuilder({ page }).analyze();
     expect(axe.violations.filter((v) => ['serious', 'critical'].includes(v.impact ?? ''))).toEqual(
       [],

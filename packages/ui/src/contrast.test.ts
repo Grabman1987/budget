@@ -3,6 +3,8 @@ import { describe, expect, it } from 'vitest';
 
 const css = readFileSync(new URL('./styles/tokens.css', import.meta.url), 'utf8');
 const blocks = [...css.matchAll(/\{([^{}]*)\}/g)].map((match) => match[1]!);
+const onCss = readFileSync(new URL('./styles/redesign-tokens.css', import.meta.url), 'utf8');
+const onBlocks = [...onCss.matchAll(/\{([^{}]*)\}/g)].map((match) => match[1]!);
 const modes = ['light', 'system dark', 'forced dark', 'print'];
 const precision = readFileSync(
   new URL('../../../apps/web/src/shell/precision.css', import.meta.url),
@@ -79,6 +81,29 @@ describe('Q1 contrast roles', () => {
             contrast(color(foreground), color(background)),
             `${foreground} on ${background}`,
           ).toBeGreaterThanOrEqual(3);
+    });
+
+    it(`${modes[index]} ON: secondary metadata and warning text reach AA on their tinted surfaces`, () => {
+      const foregroundColor = (name: string) =>
+        rgb(new RegExp(`--${name}:\\s*([^;]+);`).exec(onBlocks[index]!)![1]!);
+      for (const [foreground, tint] of [
+        ['ink-3', 'tint'],
+        ['red', 'red-soft'],
+      ] as const) {
+        const [red, green, blue, alpha] = token(tint)
+          .match(/[\d.]+/g)!
+          .map(Number);
+        for (const background of ['surface', 'surface-2', 'ground']) {
+          const base = color(background);
+          const mixed = [red!, green!, blue!].map(
+            (channel, i) => channel * alpha! + base[i]! * (1 - alpha!),
+          );
+          expect(
+            contrast(foregroundColor(foreground), mixed),
+            `${foreground} on ${tint}/${background}`,
+          ).toBeGreaterThanOrEqual(4.5);
+        }
+      }
     });
 
     it(`${modes[index]}: positive hero metadata and controls keep contrast after local remapping`, () => {
