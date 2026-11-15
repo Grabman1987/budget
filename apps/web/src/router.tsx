@@ -59,6 +59,7 @@ import {
 import { NotFoundPage } from './pages/not-found';
 import { PlaceholderPage } from './pages/placeholder-page';
 import { AppShell } from './shell/app-shell';
+import { NavigationError } from './shell/navigation-outlet';
 import type { PageTitleData } from './shell/page-meta';
 import { isMonth } from './nav/month';
 import { isZeitraum } from './wealth/zeitraum';
@@ -144,6 +145,7 @@ const shellRoute = createRoute({
     }
   },
   component: AppShell,
+  errorComponent: NavigationError,
 });
 
 const pageRoute = (path: string, meta: PageMeta) =>
