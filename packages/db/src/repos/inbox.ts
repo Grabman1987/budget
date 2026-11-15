@@ -12,6 +12,7 @@ import {
   sql,
 } from 'drizzle-orm';
 import {
+  addDays,
   cents,
   formatEuro,
   monthOf,
@@ -42,6 +43,7 @@ import { savingsExecutionProposals, type SavingsExecutionProposal } from './savi
 import { candidateMatches } from './bank-followups';
 import { payslipDocumentMetadata } from './payslip-intake';
 import { readAssignmentCandidate } from './assignment-rules';
+import { AUTO_RESOLVED_HISTORY_DAYS, autoResolvedWarnings } from './market';
 
 export type BankSuggestion = { label: string; needsReview: boolean };
 
@@ -463,6 +465,11 @@ export function readInbox(
         reminders.length +
         (bankSource || readSource || options.bankAccountId ? 0 : unlinkedReceipts.length),
       entries,
+      // History of warnings the market run closed by itself (#1101); never part of the count.
+      autoResolved:
+        bankSource || readSource || options.bankAccountId
+          ? []
+          : autoResolvedWarnings(tx, addDays(today, -AUTO_RESOLVED_HISTORY_DAYS)),
       readSourceSummaries:
         bankSource || readSource || options.bankAccountId
           ? []
