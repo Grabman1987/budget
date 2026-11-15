@@ -2,9 +2,15 @@
 
 Alle Reports mit Nummer laut `docs/FEATURES.md` (34 Reports, 1.1 bis 5.6). Jede Nummer steht genau einmal im Feld „Verweis“. Berichte werden sonst nur mit Namen genannt.
 
-**Gemeinsamer Einstieg (für alle Stories):** Reports im Hauptmenü öffnen (`/reports`). Dort „Alle Berichte“ nach Gruppe („Berichtsgruppen“) filtern oder mit „Name oder Frage suchen“ suchen; „Zuletzt geöffnet“ führt zurück. Im Bericht wechselt „Bericht wechseln“ (oder Alt+Shift+Pfeil links/rechts) zum Nachbarn. Zeitraumberichte haben die „Zeitraum-Schnellauswahl“ (Dieser Monat, Letzter Monat, 3 Monate, 6 Monate, 12 Monate, Dieses Jahr, Letztes Jahr, Alles, Benutzerdefiniert), „Voriger Zeitraum“/„Nächster Zeitraum“ und „Zeitraum wählen“; die Wahl steht in der Adresse (`?zeitraum=`). Monatsberichte haben „Monat“ mit „Vormonat“/„Nächster Monat“, Jahresberichte „Jahr“. Fachbegriffe mit gepunkteter Unterstreichung öffnen eine Erklärung (RP-24). „Berechnung und Einordnung“ zeigt die Rechenbasis. Die Liquiditätsprognose liegt unter Plan › Prognose, ist aber hier aufgeführt.
+**Shared entry (all stories):** Open Reports (`/reports`). Filter “Alle Berichte” through “Berichtsgruppen”, search with “Name oder Frage suchen”, or return through “Zuletzt geöffnet”. Within a report, “Bericht wechseln” opens the shared menu; Alt+Shift+Left/Right still navigates to adjacent reports. Monthly and annual reports offer indented paper presentations, and the monthly report also offers “Finanz-Check-Verlauf”. Period reports retain “Zeitraum-Schnellauswahl” (Dieser Monat, Letzter Monat, 3 Monate, 6 Monate, 12 Monate, Dieses Jahr, Letztes Jahr, Alles, Benutzerdefiniert), “Voriger Zeitraum”/“Nächster Zeitraum” and “Zeitraum wählen”, with the selection in `?zeitraum=`. Monthly reports retain “Monat”, “Vormonat” and “Nächster Monat”; annual reports retain “Jahr”. Dotted terminology opens RP-24 explanations, and “Berechnung und Einordnung” explains the calculation basis. The liquidity forecast remains under Plan › Prognose.
 
 **Aufteilungen:** RP-05, RP-07, RP-11, RP-12, RP-13, RP-15, RP-16, RP-17, RP-18, RP-21 und RP-23 sind in a/b(/c) geteilt, weil sie unabhängige Berichte bündeln. Namen folgen dem Katalog der App: RP-05b „Einnahmen und Cashflow“ (früher „Einnahmen und Ausgaben“), RP-11a „Prognosegenauigkeit“ (in der alten Tabelle als Budgettreue geführt), RP-11b „Budgettreue“, RP-13a „Verträge und Kosten“, RP-18a „Portfolio-Auswertung“.
+
+### RP-Header – Compact report header and subreports
+- **Story:** As a user, I want to switch reports through one shared menu and find the figure controls immediately below it.
+- **Flow:** Open a report and choose “Bericht wechseln”. Under “Monatsbericht”, choose the indented “Finanz-Check-Verlauf” or monthly A4 sheet; under “Jahresbericht”, choose the annual A4 sheet. Month and period intent remain in the URL, and Back restores the previous presentation.
+- **Acceptance:** Back link, visible title and menu share one compact row, including at 390 px. Controls and the quiet data basis sit together below it. No “Report N” line or visible report arrows. Monthly/annual paper presentations and finance-check history have no second presentation select. Menu labels, focus, deep links and RP-00's period preference remain usable.
+- **Status:** first slice for review (#1150); shared heading and monthly submenu checked with synthetic data on desktop/390 px and WebKit in light/dark. Remaining: move the other wealth, income/spending, budget-adherence, contract, Explorer and portfolio-cost subreports into the same menu and remove their separate view controls. CI and live acceptance remain open.
 
 ### RP-00 – Zeitraum zwischen Reports behalten
 - **Story:** Als Nutzer möchte ich meinen Zeitraum beim Reportwechsel behalten, damit ich mehrere Berichte ohne erneute Auswahl lesen kann.
@@ -26,7 +32,7 @@ Alle Reports mit Nummer laut `docs/FEATURES.md` (34 Reports, 1.1 bis 5.6). Jede 
 - **Story:** Als Nutzer möchte ich den Monat auf einem Blatt mit Ergebniskette und 50/30/20 sehen und drucken, damit ich am Monatsende ohne Suchen entscheide, ob der Monat gut lief und was ich im nächsten ändere.
 - **Ausgangslage:** Monatsende oder laufender Monat; Buchungen und Plan des Monats sind vorhanden.
 - **Ablauf:**
-  1. Reports › Monats-One-Pager öffnen.
+  1. Open Reports › Monatsbericht; choose the indented “A4 Druckblatt · Monat” in the report menu when needed.
   2. Mit „Monat“, „Vormonat“ und „Nächster Monat“ den Monat wählen; bei einem laufenden Monat steht „Monat läuft noch · Beträge bisher“.
   3. „Maßkette des Monats“, 50/30/20 auf zugewiesenem Geld („Zwölftel“), Nettovermögen mit Eigenanteil und Markt, größte Ausgaben, Plan und Finanz-Check-Zellen lesen.
   4. „Drucken“ wählen; „Als PDF speichern“ geht über den Druckdialog (A4 Hochformat).
@@ -36,7 +42,7 @@ Alle Reports mit Nummer laut `docs/FEATURES.md` (34 Reports, 1.1 bis 5.6). Jede 
   - Der Druck ergibt eine saubere A4-Seite ohne App-Menü.
   - Randfall: Ohne Einnahmen im Monat steht „Ohne Einnahmen im Monat lässt sich keine Verteilung berechnen.“; ohne Ausgaben „In diesem Monat gibt es keine Ausgaben in Bedarf und Wunsch.“
   - Randfall: Kapitalerträge erscheinen nur als Hinweis, nicht in Einnahmen oder Sparquote; für einen laufenden Monat gibt es keine Quote.
-- **Status:** live · **Verweis:** 1.1
+- **Status:** report live; shared header and paper-menu entry for review (#1150), live acceptance pending · **Verweis:** 1.1
 
 ### RP-02 – Gehaltsreport mit Brutto/Netto und Jahresvergleich
 - **Story:** Als Nutzer möchte ich Brutto, Abzüge und Netto je Monat und im Jahresvergleich sehen, damit ich weiß, was vom Brutto bleibt, ob jede Zahlung zur Bank passt und ob das Gehalt gestiegen ist.
@@ -487,7 +493,7 @@ Alle Reports mit Nummer laut `docs/FEATURES.md` (34 Reports, 1.1 bis 5.6). Jede 
 - **Story:** Als Nutzer möchte ich das Jahr auf zwei A4-Seiten drucken, damit ich ein Ablagedokument für Steuer, Überblick und Jahresabschluss habe.
 - **Ausgangslage:** Mindestens ein abgeschlossenes Jahr.
 - **Ablauf:**
-  1. Reports › Jahresreport öffnen, „Jahr“ wählen.
+  1. Open Reports › Jahresreport and select “Jahr”; the indented “A4 Druckblatt · Jahr” is available in the report menu.
   2. Blatt 1 und 2 lesen: Nettovermögenskette, Einkommen, Konsum, Zukunft, Sparquote, Kapitalerträge, Cashflow je Monat, größte Kategorien, 50/30/20, Finanz-Check, Befunde.
   3. „Drucken“ und „Als PDF speichern“ über den Druckdialog.
 - **Ergebnis:** Ein zweiseitiges Jahresblatt.
@@ -495,7 +501,7 @@ Alle Reports mit Nummer laut `docs/FEATURES.md` (34 Reports, 1.1 bis 5.6). Jede 
   - Der Druck ergibt genau zwei A4-Seiten.
   - Nettovermögenskette entspricht Vermögen › Nettovermögen; Sparquote entspricht Sparquote und Geldalter.
   - Randfall: Nur volle Monate zählen; ein laufendes Jahr ist als Teiljahr erkennbar; Gehaltserhöhungen und Preisänderungen gibt es noch nicht als Befunde.
-- **Status:** live · **Verweis:** 5.1
+- **Status:** report live; shared header and paper-menu entry for review (#1150), live acceptance pending · **Verweis:** 5.1
 
 ### RP-20a – Jahreskennzahlen und Vermögenszuwachs (#1118, first slice)
 - **Story:** Als Nutzer möchte ich Vermögenszuwachs und die Veränderung meiner bisherigen Jahreskennzahlen sehen, damit ich das Jahr beurteilen kann.
@@ -517,15 +523,16 @@ Alle Reports mit Nummer laut `docs/FEATURES.md` (34 Reports, 1.1 bis 5.6). Jede 
 - **Story:** Als Nutzer möchte ich sehen, welche Regeln verletzt sind und seit wann, damit ich zuerst die offene Regel der aktuellen Stufe behebe.
 - **Ausgangslage:** Regelwerk ist unter Einstellungen › Regelwerk konfiguriert; die App speichert die Ergebnisse zu den Monatsenden.
 - **Ablauf:**
-  1. Reports › Finanz-Check-Verlauf öffnen.
+  1. Open “Bericht wechseln” in a report and choose the indented “Finanz-Check-Verlauf” under “Monatsbericht”. Its direct link remains reachable.
   2. „Stufen nach Nettovermögen“ und „Regeln der aktuellen Stufe“ lesen; die Statusleiste zeigt 12 Monatsenden plus heute.
   3. In „Regelwerk mit Verlauf“ Schwelle, Status und „seit“-Datum prüfen; offene Aktionen sind verlinkt.
 - **Ergebnis:** Ich sehe, welche Regel seit wann offen ist.
 - **Abnahmekriterien:**
   - Der Status je Regel entspricht Einstellungen › Regelwerk und Heute für den Stichtag.
+  - The shared report menu replaces the second presentation select; Back and reopening preserve the selected month context.
   - Das Öffnen des Berichts berechnet die gespeicherten Ergebnisse idempotent neu.
   - Randfall: Ein Tag ohne Daten bleibt „nicht bewertbar“; nur die letzten zwölf Monatsenden sind gespeichert.
-- **Status:** live · **Verweis:** 5.2
+- **Status:** report live; compact shared header and menu path for review (#1150), live acceptance pending · **Verweis:** 5.2
 
 ### RP-21b – Kontakte-Abrechnung
 - **Story:** Als Nutzer möchte ich sehen, wer wem wie viel schuldet, damit ich Auslagen zurückfordere und den Überblick über offene Salden habe.

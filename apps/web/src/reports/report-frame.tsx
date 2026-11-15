@@ -6,7 +6,7 @@ import {
   useAmountPrivacy,
   type DimensionChainTerm,
 } from '@budget/ui';
-import { useParams } from '@tanstack/react-router';
+import { useParams, useSearch } from '@tanstack/react-router';
 import { ChevronLeft } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { eur, longDay } from '../ledger/format';
@@ -75,7 +75,13 @@ function RedesignReportFrame({
   const id =
     sourceReportId ?? params.reportId ?? verdict?.reportId ?? location.pathname.split('/')[2] ?? '';
   const catalog = hubReport(id);
-  const name = catalog?.id === id ? catalog.name : (title ?? meta.title);
+  const presentation = useSearch({ strict: false }) as { darstellung?: string };
+  const name =
+    id === 'onepager' && presentation.darstellung === 'finanzcheck'
+      ? 'Finanz-Check-Verlauf'
+      : catalog?.id === id
+        ? catalog.name
+        : (title ?? meta.title);
   const calculation = verdict?.unavailable ? undefined : suppliedCalculation;
   const result = verdict?.unavailable ? undefined : (calculation?.result ?? verdict?.metric);
   const inputs =
@@ -93,9 +99,10 @@ function RedesignReportFrame({
           </AppLink>
           <div className="redesign-report-title">
             <h1>{maskMoneyText(name)}</h1>
-            {id && <ReportNavigation id={id} />}
           </div>
-          {catalog && <p className="redesign-report-number">Report {catalog.no}</p>}
+          {id && <ReportNavigation id={id} />}
+        </div>
+        <div className="redesign-report-toolbar">
           <div className="redesign-report-controls">
             {extraFields.map((field) => (
               <div key={field.label} className="redesign-report-control">
@@ -103,6 +110,21 @@ function RedesignReportFrame({
                 {field.value}
               </div>
             ))}
+          </div>
+
+          {reportControls && <div className="redesign-report-extra-controls">{reportControls}</div>}
+          <div className="redesign-report-source" data-testid="report-frame-source">
+            <span>
+              Datenbasis:{' '}
+              <span data-testid="report-frame-basis">{reportDataBasis ?? 'wird geladen'}</span>
+            </span>
+            {sourceDate && <span>Stand {longDay(sourceDate)}</span>}
+            {reportStand && (
+              <span>
+                {reportStand.label}:{' '}
+                <span data-testid="report-frame-stand">{reportStand.value}</span>
+              </span>
+            )}
           </div>
         </div>
         <div className="redesign-report-calculation" data-testid="report-calculation">
@@ -141,19 +163,6 @@ function RedesignReportFrame({
             <span className="redesign-report-result-label">≈ Bewertung teilweise geschätzt</span>
           )}
         </div>
-        <div className="redesign-report-source" data-testid="report-frame-source">
-          <span>
-            Datenbasis:{' '}
-            <span data-testid="report-frame-basis">{reportDataBasis ?? 'wird geladen'}</span>
-          </span>
-          {sourceDate && <span>Stand {longDay(sourceDate)}</span>}
-          {reportStand && (
-            <span>
-              {reportStand.label}: <span data-testid="report-frame-stand">{reportStand.value}</span>
-            </span>
-          )}
-        </div>
-        {reportControls && <div className="redesign-report-extra-controls">{reportControls}</div>}
       </header>
       {(explanation || verdict || calculation) && (
         <details className="redesign-report-detail">
