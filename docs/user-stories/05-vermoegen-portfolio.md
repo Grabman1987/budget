@@ -269,7 +269,7 @@ Geteilt: V-06 und V-09 sind aufgeteilt (V-06a/V-06b, V-09a/V-09b). V-17 und V-18
 ### V-14 – Kurs- und Kryptoabweichungen mit Ursache (geplant)
 - **Story:** Als Nutzer möchte ich zu jeder Kurs- oder Krypto-Abweichung die Ursache sehen, damit ich weiß, ob ein Zuordnungsfehler, eine fehlende Bewegung oder ein echter Bestandsunterschied vorliegt und die Warnung wirklich behebe statt wegklicke.
 - **Ausgangslage:** Konten › Prüfen enthält Einträge wie „Kurse nicht abrufbar“ (Währungskonflikt, leere Antwort, Abruffehler) oder Krypto-Bestandsabweichungen.
-- **Ablauf:** (geplant, Ablauf folgt dem Ticket)
+- **Ablauf:** (geplant, Ablauf folgt dem Ticket; Entscheidung 15.11.2026: Die Ursachenansicht öffnet unter Konten › Prüfen.)
   1. Konten › Prüfen öffnen und eine Warnung zu Kurs oder Krypto-Bestand wählen.
   2. Die Ursachenansicht nennt erwartet und tatsächlich, Stichtag, Quelle, Instrument-ID, Kurswährung und betroffene Bewegungen.
   3. Bei Krypto erklärt eine nachvollziehbare Bestandsrechnung, ob Zuordnung, fehlende Bewegung oder ein echter Unterschied vorliegt.
@@ -320,6 +320,6 @@ Siehe K-13 (Wertpapierüberträge mit Kostenbasis, #520). Gleiche Funktion, dort
 - **Status:** geplant — **Verweis:** #520
 
 ### V-18 – Fremdwährungsüberträge begrenzt erfassen (neu, geplant)
-Siehe K-14 (Fremdwährungsüberträge, #519). Gleiche Funktion, dort beschrieben. Wird realisiert (Entscheidung 15.11.2026).
-- **Status:** offen — **Verweis:** #519
+Siehe K-14 (Fremdwährungsüberträge, #519). Gleiche Funktion, dort beschrieben. Entschieden 15.11.2026: keine neue Funktion nötig, Vorgehen dort dokumentiert.
+- **Status:** live — **Verweis:** #519
 

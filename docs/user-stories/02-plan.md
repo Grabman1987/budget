@@ -127,7 +127,25 @@ Bereich: Plan (`/plan/monat`, `/plan/jahr`, `/plan/erwartet`, `/plan/sparziele`,
   3. Ein ungedeckter Kauf erscheint als „davon neue Kartenschuld“ im Panel.
   4. Ohne Karte lässt sich keine Zahlungskategorie anlegen.
 - **Status:** teilweise — **Verweis:** Y08
-- Fehlt noch: Abgleich mit echten Karten und Zahlungssalden (Gate 2); Barvorschüsse sind im Plan nicht eigens beschriftet. Offene Frage: Barvorschuss = Bargeld mit der Kreditkarte abheben. Nutzt der Nutzer das? Wenn nein, entfällt der Begriff.
+- Fehlt noch: Abgleich mit echten Karten und Zahlungssalden (Gate 2). Barvorschuss siehe P-07b.
+
+### P-07b – Barvorschuss mit Gebühr
+- **Story:** Als Nutzer möchte ich einen Barvorschuss mit der Kreditkarte als Umbuchung auf die Geldbörse erfassen, damit die Gebühr als Bankkosten getrennt steht.
+- **Ausgangslage:** Ich habe mit der Kreditkarte Bargeld abgehoben. Die Bank hat eine Gebühr berechnet.
+- **Ablauf:**
+  1. Ich lege auf der Kreditkarte eine Buchung an und teile sie auf.
+  2. Teil 1: Umbuchung auf die Geldbörse (Zielkonto wählen).
+  3. Teil 2: die Gebühr, Kategorie aus der Gruppe „Bank und Gebühren“.
+  4. Ich speichere.
+- **Beispiel:** 200 € abgehoben, 4 € Gebühr. Die Karte bucht 204 €. 200 € gehen als Umbuchung auf die Geldbörse, 4 € stehen unter „Bank und Gebühren“.
+- **Ergebnis:** Die Kartenschuld steigt um 204 €, die Geldbörse um 200 €, die Gebühr zählt als Ausgabe.
+- **Abnahmekriterien:**
+  1. Die Kartenschuld steigt um die Summe (204 €).
+  2. Die Geldbörse steigt um den Barbetrag (200 €).
+  3. Die Gebühr (4 €) erscheint unter „Bank und Gebühren“.
+  4. Ein „Rückgängig“ nimmt beide Teile zurück.
+- **Status:** live
+- Code: Aufteilungszeilen können ein Zielkonto tragen (Umbuchungsteil, `transferAccountId` in `apps/web/src/ledger/api.ts`) und neben Kategorie-Teilen stehen. Keine neue Funktion nötig.
 
 ### P-08 – Monat als Wasserfall mit Triage
 - **Story:** Als Nutzer möchte ich den Monat als Wasserfall (neun Stufen) mit Triage sehen, damit ich erkenne, welche Stufe als Nächstes Geld braucht und was dringend ist.

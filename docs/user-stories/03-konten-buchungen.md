@@ -264,21 +264,22 @@ Bereich: Konten (`/konten`, `/konten/$id`), Alle Buchungen (`/konten/buchungen`)
 - Fehlt noch: Nachweis der Erhaltung (Stufe A), danach Speicherung, Schnittstelle und Oberfläche.
 
 ### K-14 – Fremdwährungsüberträge
-- **Story:** Als Nutzer möchte ich Überträge in Fremdwährung begrenzt vorbereiten, damit Kurs, Betrag und Gebühr nachvollziehbar gebucht sind und nichts erraten wird.
-- **Ausgangslage:** Ich überweise Geld in oder aus einer Fremdwährung.
-- **Ablauf:** (offen, zu realisieren)
-  1. Ich öffne die Erfassung eines Fremdwährungsübertrags (Ort offen, siehe unten).
-  2. Ich gebe Quellkonto und Quellbetrag mit Währung, Zielkonto und Zielbetrag, den Kurs mit Herkunft und die Gebühr getrennt ein.
-  3. Die App speichert beide Seiten und die Gebühr gemeinsam; fehlt Betrag oder Kurs, wird nichts geschätzt.
-- **Beispiel:** 1.000 USD werden zu 920 € mit 5 € Gebühr. Das Dollar-Konto verliert 1.000 USD, das Euro-Konto erhält 920 €, die Gebühr von 5 € steht getrennt. Der Kurs ergibt sich aus den beiden Beträgen (0,92 €/USD) und wird nicht gerundet oder erraten.
-- **Ergebnis:** Beide Seiten und die Gebühr werden gemeinsam gespeichert.
+- **Story:** Als Nutzer möchte ich einen Währungstausch als normale Euro-Buchung erfassen, damit Betrag und Gebühr in Euro stimmen und der Fremdwährungsbetrag nachlesbar bleibt.
+- **Ausgangslage:** Ich habe Geld in oder aus einer Fremdwährung getauscht. Alles wird in Euro geführt.
+- **Ablauf:**
+  1. Ich buche den erhaltenen Euro-Betrag auf das Zielkonto.
+  2. Ich schreibe den Fremdwährungsbetrag in die Notiz der Buchung.
+  3. Ich buche die Gebühr getrennt als Bankgebühr (Kategoriegruppe „Bank und Gebühren“).
+  4. Es gibt keine eigenen Fremdwährungsteile und keinen gespeicherten Kurs.
+- **Beispiel:** 1.000 USD werden zu 920 € mit 5 € Gebühr. Das Zielkonto erhält 920 €, die Notiz lautet „1.000 USD“. Die Gebühr von 5 € steht getrennt unter „Bank und Gebühren“.
+- **Ergebnis:** Nur Euro-Beträge sind gespeichert; der Fremdwährungsbetrag steht in der Notiz.
 - **Abnahmekriterien:**
-  1. Übertrag mit Währung, Kurs und Gebühr, im Umfang des Issues.
-  2. Fehlende Beträge oder Kurse werden nicht erraten.
-  3. Beide Seiten und Gebühr lassen sich gemeinsam rückgängig machen.
-  4. Nicht unterstützte Fälle bleiben manuell.
-- **Status:** offen — **Verweis:** #519
-- Fehlt noch: Fixtures, Speicherung und Oberfläche. Entscheidung 15.11.2026: wird realisiert. Offene Frage: Wo wird der Übertrag erfasst (Konten › Buchungen oder Konto-Detail)? Gleiche Funktion wie V-18.
+  1. Alle Beträge sind in Euro.
+  2. Der Fremdwährungsbetrag steht in der Notiz und ist über die Suche auffindbar.
+  3. Die Gebühr steht getrennt unter „Bank und Gebühren“.
+  4. „Rückgängig“ nimmt alle Teile zurück.
+- **Status:** live — keine neue Funktion nötig; Vorgehen dokumentiert. **Verweis:** #519
+- Entschieden 15.11.2026. Gleiche Funktion wie V-18.
 
 ### K-15 – Bankzeilen automatisch lesen
 - **Story:** Als Nutzer möchte ich Bankzeilen automatisch lesen lassen, damit ich weniger abtippe und neue Umsätze zur Prüfung bereitstehen.
