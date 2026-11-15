@@ -180,7 +180,7 @@ it.each(['EUR', 'USD'])('keeps the %s unit beside the empty balance field', (cur
 
 it('does not suggest today’s balance or bypass the month-close confirmation context', () => {
   const confirm = vi.fn();
-  show({ clearedCents: 1234, balanceCents: 1234 }, undefined, {
+  show({ clearedCents: 1234, balanceCents: 1234, bankBalance: null }, undefined, {
     asOf: '2026-09-30',
     confirm,
     onReload: vi.fn(),
@@ -191,6 +191,62 @@ it('does not suggest today’s balance or bypass the month-close confirmation co
   expect(confirm).not.toHaveBeenCalled();
   expect(sends).toEqual([]);
 });
+
+it.each([1234, -1234, 0])(
+  'prefills a same-day bank balance of %s without writing',
+  async (balance) => {
+    bookedBalanceCents = balance + 1;
+    show({
+      bankBalance: {
+        ...account.bankBalance!,
+        amountCents: balance,
+        effectiveDate: todayInVienna(),
+        canLock: false,
+      },
+    });
+    expect((screen.getByLabelText('Saldo laut Bank') as HTMLInputElement).value).toBe(
+      balance === 0 ? '0,00' : balance < 0 ? '−12,34' : '12,34',
+    );
+    await screen.findByRole('button', { name: 'Differenz ausgleichen' });
+    expect(screen.queryByRole('button', { name: 'Abgleich sperren bis heute' })).toBeNull();
+    expect(sends).toEqual([]);
+  },
+);
+
+it('prefills the month-close bank balance and confirms through the captured close context', async () => {
+  bookedBalanceCents = -1234;
+  const confirm = vi.fn(async () => ({
+    result: { groupId: 'synthetic', reconciledCount: 0 } as never,
+  }));
+  show({}, '2026-09-30', {
+    asOf: '2026-09-30',
+    confirm,
+    onReload: vi.fn(),
+    onBusy: vi.fn(),
+  });
+  expect((screen.getByLabelText('Saldo laut Bank') as HTMLInputElement).value).toBe('−12,34');
+  const button = await screen.findByRole('button', { name: 'Kontostand stimmt' });
+  expect(confirm).not.toHaveBeenCalled();
+  fireEvent.click(button);
+  await waitFor(() =>
+    expect(confirm).toHaveBeenCalledWith({ date: '2026-09-30', statementBalanceCents: -1234 }),
+  );
+  expect(sends).toEqual([]);
+});
+
+it.each([null, '2026-09-29', '2026-10-01'])(
+  'does not prefill a month-close bank balance dated %s',
+  (effectiveDate) => {
+    show({ bankBalance: { ...account.bankBalance!, effectiveDate } }, '2026-09-30', {
+      asOf: '2026-09-30',
+      confirm: vi.fn(),
+      onReload: vi.fn(),
+      onBusy: vi.fn(),
+    });
+    expect((screen.getByLabelText('Saldo laut Bank') as HTMLInputElement).value).toBe('');
+    expect(sends).toEqual([]);
+  },
+);
 
 it('takes a historical bank amount but checks and adjusts on today without date inputs', async () => {
   show();
@@ -412,4 +468,31 @@ it('refreshes the day and preview at Vienna midnight before committing an adjust
   await waitFor(() =>
     expect(sends).toEqual([{ date: '2026-10-02', statementBalanceCents: -1234, adjust: true }]),
   );
+});
+
+it('retains the Vienna midnight guard for a prefilled bank-lock confirmation', async () => {
+  vi.setSystemTime(new Date('2026-10-01T21:59:00Z'));
+  bookedBalanceCents = -1234;
+  show({ bankBalance: { ...account.bankBalance!, effectiveDate: '2026-10-01' } });
+  const button = await screen.findByRole('button', { name: 'Abgleich sperren bis heute' });
+  vi.setSystemTime(new Date('2026-10-01T22:01:00Z'));
+  fireEvent.click(button);
+  expect(screen.getByText(/Der Tag hat gewechselt/)).toBeTruthy();
+  expect(sends).toEqual([]);
+  expect(vi.mocked(fetch).mock.calls.some(([url]) => String(url).endsWith('/bank-lock'))).toBe(
+    false,
+  );
+});
+
+it('does not prefill a bank amount in another currency', () => {
+  show({
+    bankBalance: {
+      ...account.bankBalance!,
+      effectiveDate: todayInVienna(),
+      currency: 'USD',
+      canLock: false,
+    },
+  });
+  expect((screen.getByLabelText('Saldo laut Bank') as HTMLInputElement).value).toBe('');
+  expect(sends).toEqual([]);
 });

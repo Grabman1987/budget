@@ -8,13 +8,19 @@ import {
   useToast,
   maskMoneyText,
 } from '@budget/ui';
-import { formatDecimal, parseAmount, type Cents } from '@budget/domain';
+import {
+  formatDecimal,
+  parseAmount,
+  type Cents,
+  type TradeConfirmationIntake,
+} from '@budget/domain';
 import { confirmSavings, type SavingsExecutionProposal } from './savings-api';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { useBlocker } from '@tanstack/react-router';
 import { ApiError } from '../api/http';
 import { undoGroup } from '../ledger/api';
+import { longDay } from '../ledger/format';
 import { errorText } from '../ledger/labels';
 import { accountsQuery, LEDGER_KEY, lookupsQuery } from '../ledger/queries';
 import { ErrorNote, LoadingNote } from '../ledger/states';
@@ -22,6 +28,7 @@ import type { AccountRow } from '../ledger/types';
 import { instrumentsQuery, type SecurityRecord } from './portfolio-api';
 import { removeTrade, saveTrade, sourceMoney, tradeQuery, type TradeRow } from './trade-api';
 import {
+  applyTradePrefill,
   hasUnits,
   hasDeductions,
   TRADE_LABELS,
@@ -35,12 +42,18 @@ export function TradePanel({
   id,
   securityId,
   proposal,
+  prefill,
+  prefillNote,
   onClose,
   onSaved,
 }: {
   id: string;
   securityId?: string | undefined;
   proposal?: SavingsExecutionProposal | undefined;
+  /** Values read from an uploaded broker trade confirmation; saved only on confirmation. */
+  prefill?: TradeConfirmationIntake | undefined;
+  /** Extra line under the prefill note, e.g. why no savings plan was linked. */
+  prefillNote?: string | undefined;
   onClose: () => void;
   onSaved: (securityId: string) => void;
 }) {
@@ -149,6 +162,8 @@ export function TradePanel({
             date={accounts.data!.asOf}
             securityId={securityId}
             proposal={proposal}
+            prefill={prefill}
+            prefillNote={prefillNote}
             accounts={accounts.data!.accounts}
             eligible={eligible ?? []}
             securities={securities.data!.securities}
@@ -199,6 +214,8 @@ function TradeForm({
   date,
   securityId,
   proposal,
+  prefill,
+  prefillNote,
   accounts,
   eligible,
   securities,
@@ -211,6 +228,8 @@ function TradeForm({
   date: string;
   securityId?: string | undefined;
   proposal?: SavingsExecutionProposal | undefined;
+  prefill?: TradeConfirmationIntake | undefined;
+  prefillNote?: string | undefined;
   accounts: AccountRow[];
   eligible: AccountRow[];
   securities: SecurityRecord[];
@@ -220,25 +239,54 @@ function TradeForm({
   onSaved: (securityId: string) => void;
 }) {
   useAmountPrivacy();
-  const [original] = useState(() => ({
-    ...tradeDraft(date, securityId, eligible.length === 1 ? eligible[0]!.id : '', trade),
-    ...(proposal
-      ? {
-          accountId: proposal.accountId,
-          securityId: proposal.securityId,
-          date: proposal.date,
-          amount: formatDecimal(proposal.amountCents as Cents),
-        }
-      : {}),
-  }));
+  const [prefilled] = useState(() => {
+    const base = {
+      ...tradeDraft(date, securityId, eligible.length === 1 ? eligible[0]!.id : '', trade),
+      ...(proposal
+        ? {
+            accountId: proposal.accountId,
+            securityId: proposal.securityId,
+            date: proposal.date,
+            amount: formatDecimal(proposal.amountCents as Cents),
+          }
+        : {}),
+    };
+    return prefill && !trade
+      ? applyTradePrefill(base, prefill, eligible, !!proposal)
+      : { draft: base, open: [] };
+  });
+  const original = prefilled.draft;
   const [draft, setDraft] = useState(original);
   const [errors, setErrors] = useState<TradeErrors>({});
   const [busy, setBusy] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  // Counter booking (#1099): only offered for a proposal from a broker confirmation. The owner's
+  // pick wins; untouched, the depot's stored Verrechnungskonto is preselected, else none.
+  const [settlementPick, setSettlementPick] = useState<string | null>(null);
+  // A probable duplicate (same figures, other source) is booked only on the owner's say-so.
+  const [duplicateAck, setDuplicateAck] = useState(false);
+  const probable = prefill && !trade ? prefill.probableDuplicate : null;
   const saving = useRef(false);
   const qc = useQueryClient();
   const toast = useToast();
   const account = accounts.find((account) => account.id === draft.accountId);
+  const settlementOptions =
+    prefill && !trade
+      ? accounts.filter(
+          (row) =>
+            row.id !== account?.id &&
+            !row.closedAt &&
+            row.currency === account?.currency &&
+            // Other depots are no usual Verrechnungskonto, unless stored on this depot.
+            (row.role !== 'investment' || row.id === account?.referenceAccountId),
+        )
+      : [];
+  const storedSettlement = account?.referenceAccountId ?? '';
+  const settlementId = settlementOptions.some(
+    (row) => row.id === (settlementPick ?? storedSettlement),
+  )
+    ? (settlementPick ?? storedSettlement)
+    : '';
   const changed = JSON.stringify(draft) !== JSON.stringify(original);
   const update = (key: keyof TradeDraft, value: string) => {
     const next = {
@@ -265,7 +313,7 @@ function TradeForm({
     );
   const save = async (event: FormEvent) => {
     event.preventDefault();
-    if (saving.current || deleting || (trade && !changed)) return;
+    if (saving.current || deleting || (trade && !changed) || (probable && !duplicateAck)) return;
     const validated = validateTrade(draft);
     setErrors(validated.errors);
     if (!validated.values) return;
@@ -273,18 +321,33 @@ function TradeForm({
     setBusy(true);
     onBusy(true);
     try {
+      const extra = {
+        ...(prefill && !trade ? { importKey: prefill.importKey } : {}),
+        ...(settlementId ? { settlementAccountId: settlementId } : {}),
+      };
       const result = proposal
-        ? await confirmSavings(proposal, validated.values)
-        : await saveTrade(validated.values, trade?.id);
+        ? await confirmSavings(proposal, validated.values, extra)
+        : await saveTrade(validated.values, trade?.id, trade ? {} : extra);
+      if ('duplicate' in result && result.duplicate) {
+        // The import key was taken meanwhile: the server wrote nothing.
+        setErrors({
+          form: 'Diese Abrechnung ist bereits als Handel erfasst. Es wurde nichts gespeichert.',
+        });
+        return;
+      }
       onDirty(false);
       await refresh();
       onSaved(result.trade.securityId);
       toast.show({
         message: proposal
-          ? 'Sparplanausführung erfasst.'
+          ? settlementId
+            ? 'Sparplanausführung und Gegenbuchung erfasst.'
+            : 'Sparplanausführung erfasst.'
           : trade
             ? 'Handel gespeichert.'
-            : 'Handel erfasst.',
+            : settlementId
+              ? 'Handel und Gegenbuchung erfasst.'
+              : 'Handel erfasst.',
         actionLabel: 'Rückgängig',
         onAction: () => reverse(result.groupId),
       });
@@ -352,6 +415,48 @@ function TradeForm({
               : 'Eine Einzahlung separat prüfen.'}{' '}
             Kein Bankauftrag und keine automatische Umbuchung.
           </p>
+        )}
+        {prefill && !trade && (
+          <>
+            <p className="vnote">
+              Vorschlag aus der Wertpapierabrechnung
+              {prefill.proposal.instrument
+                ? ` (${prefill.proposal.instrument.name}, ISIN ${prefill.proposal.instrument.isin})`
+                : ''}
+              . Bitte mit der Abrechnung vergleichen; gespeichert wird erst mit der Bestätigung.
+            </p>
+            {prefilled.open.length > 0 && (
+              <p className="vnote" role="status">
+                Nicht sicher gelesen und deshalb leer, bitte selbst eintragen:{' '}
+                {prefilled.open.join(', ')}.
+              </p>
+            )}
+            {prefill.proposal.unchecked && (
+              <p className="vnote">
+                Stück und Betrag stehen so in der Abrechnung; wegen des gerundeten Kurses ließ sich
+                Stück × Kurs nicht gegen den Betrag prüfen.
+              </p>
+            )}
+            {prefillNote && <p className="vnote">{prefillNote}</p>}
+            {probable && (
+              <div className="vnote" role="alert">
+                <p>
+                  Möglicherweise schon erfasst: Es gibt einen Handel vom {longDay(probable.date)}{' '}
+                  mit gleichem Instrument, Stück und Betrag (etwa aus dem
+                  Portfolio-Performance-Import). Es wird nur gebucht, wenn du das ausdrücklich
+                  bestätigst.
+                </p>
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={duplicateAck}
+                    onChange={(event) => setDuplicateAck(event.target.checked)}
+                  />{' '}
+                  Trotzdem als weiteren Handel erfassen
+                </label>
+              </div>
+            )}
+          </>
         )}
         <Field label="Handelsart">
           {({ id }) => (
@@ -508,6 +613,41 @@ function TradeForm({
             Kontobuchung: {sourceMoney(preview.settlement, account.currency)}
           </p>
         )}
+        {settlementOptions.length > 0 &&
+          preview.settlement !== undefined &&
+          preview.settlement !== 0 && (
+            <>
+              <Field
+                label="Verrechnungskonto (Gegenbuchung)"
+                hint={
+                  prefill?.proposal.settlementHint
+                    ? `Auf der Abrechnung steht ein Konto mit Endung ${prefill.proposal.settlementHint}. Die App ordnet es nicht selbst zu.`
+                    : undefined
+                }
+              >
+                {({ id, describedBy }) => (
+                  <Select
+                    id={id}
+                    value={settlementId}
+                    aria-describedby={describedBy}
+                    onChange={(event) => setSettlementPick(event.target.value)}
+                  >
+                    <option value="">Keine Gegenbuchung</option>
+                    {settlementOptions.map((row) => (
+                      <option key={row.id} value={row.id}>
+                        {row.name} ({row.currency})
+                      </option>
+                    ))}
+                  </Select>
+                )}
+              </Field>
+              <p className="vnote" role="status">
+                {settlementId
+                  ? `Beim Bestätigen entsteht zusätzlich eine Umbuchung über ${sourceMoney(Math.abs(preview.settlement), account!.currency)} ${preview.settlement < 0 ? 'von' : 'auf'} ${settlementOptions.find((row) => row.id === settlementId)!.name}; Rückgängig nimmt Handel und Umbuchung zusammen zurück. Steht diese Zahlung schon als Buchung auf dem Verrechnungskonto (etwa aus dem Bankabruf), keine Gegenbuchung wählen.`
+                  : 'Ohne Auswahl entsteht nur der Handel, das Verrechnungskonto bleibt unverändert.'}
+              </p>
+            </>
+          )}
         <Field label="Notiz" hint="Optional, etwa eine Belegreferenz.">
           {({ id, describedBy }) => (
             <TextInput
@@ -526,7 +666,14 @@ function TradeForm({
         )}
         <Button
           type="submit"
-          disabled={busy || deleting || !account || !securities.length || (!!trade && !changed)}
+          disabled={
+            busy ||
+            deleting ||
+            !account ||
+            !securities.length ||
+            (!!trade && !changed) ||
+            (!!probable && !duplicateAck)
+          }
         >
           {busy
             ? 'Wird gespeichert …'
@@ -545,8 +692,11 @@ function TradeForm({
           <div className="instrument-discard" role="alert">
             <p>
               Handel löschen? Die zugehörige Kontobuchung wird gemeinsam entfernt. Separate
-              Einzahlungen oder Umbuchungen bleiben bestehen. Ungespeicherte Angaben werden
-              verworfen.
+              Einzahlungen oder Umbuchungen bleiben bestehen.
+              {trade?.importKey
+                ? ' Eine mit der Abrechnung angelegte Umbuchung vom Verrechnungskonto wird mitgelöscht.'
+                : ''}{' '}
+              Ungespeicherte Angaben werden verworfen.
             </p>
             <Button type="button" variant="alert" onClick={() => void remove()}>
               Löschen bestätigen

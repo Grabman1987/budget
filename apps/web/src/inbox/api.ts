@@ -79,9 +79,22 @@ export interface InboxEnvelope {
   urgent: true;
 }
 export type InboxEntry = InboxBooking | InboxStored | InboxEnvelope | SavingsExecutionProposal;
+/** A fetch-failure warning the market run closed by itself after a successful fetch. */
+export interface AutoResolvedWarning {
+  id: string;
+  title: string;
+  detail: string | null;
+  refType: string | null;
+  refId: string | null;
+  createdAt: string;
+  resolvedAt: string;
+  resolution: string;
+}
 export interface InboxView {
   asOf: string;
   count: number;
+  /** Entry history of automatically closed warnings; not part of `count`. */
+  autoResolved?: AutoResolvedWarning[];
   bankProgress?: { reviewed: number; total: number };
   entries: InboxEntry[];
   readSourceSummaries: { sourceId: string | null; name: string; count: number }[];

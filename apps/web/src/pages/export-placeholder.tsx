@@ -1,6 +1,7 @@
 import { Button, SectionHead, maskMoneyText, useAmountPrivacy } from '@budget/ui';
+import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
-import { ApiError } from '../api/http';
+import { ApiError, request } from '../api/http';
 import { authErrorMessage, withStepUp } from '../auth/webauthn';
 import { CSV_EXPORT_META } from '../nav/pages';
 import { PageFrame } from './placeholder-page';
@@ -39,6 +40,70 @@ async function downloadFile(backup: boolean): Promise<string> {
   link.remove();
   window.setTimeout(() => URL.revokeObjectURL(url), 1000);
   return filename;
+}
+
+interface RestoreTestStatus {
+  status: 'never' | 'ok' | 'failed' | 'skipped';
+  checkedAt: string | null;
+  backupName: string | null;
+  message: string | null;
+  lastOkAt: string | null;
+  overdue: boolean;
+}
+
+const dayFormat = new Intl.DateTimeFormat('de-AT', {
+  dateStyle: 'medium',
+  timeZone: 'Europe/Vienna',
+});
+const formatDay = (iso: string | null) => {
+  const date = iso ? new Date(iso) : undefined;
+  return date && !Number.isNaN(date.getTime()) ? dayFormat.format(date) : '–';
+};
+
+/** Result of the monthly automatic restore test (docs/ops.md section 8.4); fixed texts only. */
+function RestoreTestRow() {
+  const query = useQuery({
+    queryKey: ['restore-test-status'],
+    queryFn: () => request<RestoreTestStatus>('GET', '/api/export/restore-test'),
+  });
+  const status = query.data;
+  let headline = 'Wiederherstellung noch nicht geprüft';
+  let detail = 'Die Probe läuft automatisch einmal im Monat, nachts nach der Sicherung.';
+  if (query.isError) {
+    headline = 'Wiederherstellungsprobe nicht abrufbar';
+    detail = 'Bitte später erneut versuchen.';
+  } else if (status && status.status !== 'never') {
+    const when = formatDay(status.checkedAt);
+    if (status.status === 'ok') {
+      headline = `Wiederherstellung zuletzt geprüft am ${when}, in Ordnung`;
+      detail = status.backupName
+        ? `Stand im Sicherungsspeicher wiederhergestellt und verglichen; Nachtkopie ${status.backupName} lesbar.`
+        : detail;
+    } else {
+      headline = `Wiederherstellung zuletzt geprüft am ${when}, ${
+        status.status === 'failed' ? 'fehlgeschlagen' : 'nicht durchgeführt'
+      }`;
+      detail = [
+        status.message,
+        status.lastOkAt && `Zuletzt in Ordnung: ${formatDay(status.lastOkAt)}`,
+      ]
+        .filter(Boolean)
+        .join(' · ');
+    }
+    if (status.overdue)
+      detail = `${detail} Die letzte erfolgreiche Probe ist mehr als 40 Tage her.`.trim();
+  }
+  return (
+    <div className="settings-row" data-testid="restore-test-status">
+      <div className="settings-security-copy">
+        <ShieldCheck size={20} aria-hidden="true" />
+        <div>
+          <strong>{headline}</strong>
+          <small>{detail}</small>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export function ExportPlaceholderPage() {
@@ -115,6 +180,16 @@ export function ExportPlaceholderPage() {
               </Button>
             </div>
           </div>
+          <div className="settings-surface">
+            <RestoreTestRow />
+          </div>
+          <p className="settings-source-stamp">
+            Die App prüft einmal im Monat, ob sich die Sicherung zurückspielen lässt: Der Stand im
+            Sicherungsspeicher wird in eine Prüfkopie wiederhergestellt, mit den aktuellen Daten
+            verglichen und die Kopie sofort gelöscht. Die verschlüsselten Nachtkopien kann die App
+            nicht entschlüsseln; ihre vollständige Lesbarkeit wird geprüft, die Entschlüsselung
+            bleibt deine halbjährliche Probe mit dem privaten Schlüssel.
+          </p>
           <p className="settings-source-stamp">
             Der CSV-Export ist ein Datenauszug. Er ersetzt keine vollständige verschlüsselte
             Sicherung zur Wiederherstellung.
