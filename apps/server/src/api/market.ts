@@ -8,10 +8,10 @@ import {
   setManualPrice,
   type Db,
 } from '@budget/db';
-import { parseMicro } from '@budget/domain';
-import type { MarketSources } from '@budget/market';
+import { addDays, parseMicro } from '@budget/domain';
+import { errorKind, type MarketSources } from '@budget/market';
 import { randomUUID } from 'node:crypto';
-import { eq } from 'drizzle-orm';
+import { and, eq, isNull, lte } from 'drizzle-orm';
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { refreshMarket } from '../market/timer';
@@ -74,6 +74,63 @@ export function marketRoutes(db: Db, today: () => string, sources: MarketSources
       currency: sec.currency,
       prices: priceSeries(db, sec.id, from, to),
     });
+  });
+
+  // A diagnostic read of the current mapping. Never stores quotes or resolves inbox items.
+  app.get('/securities/:id/quote-diagnostics', (c) => {
+    const sec = requireSecurity(c.req.param('id'));
+    const latest = priceSeries(db, sec.id, undefined, today()).at(-1) ?? null;
+    const movements = db
+      .select({ id: schema.trade.id, date: schema.trade.date, kind: schema.trade.kind })
+      .from(schema.trade)
+      .where(
+        and(
+          eq(schema.trade.securityId, sec.id),
+          isNull(schema.trade.deletedAt),
+          lte(schema.trade.date, today()),
+        ),
+      )
+      .orderBy(schema.trade.date, schema.trade.id)
+      .all();
+    return c.json({
+      securityId: sec.id,
+      name: sec.name,
+      currency: sec.currency,
+      symbol: sec.symbol,
+      coingeckoId: sec.coingeckoId,
+      hasQuoteUrl: !!sec.quoteUrl,
+      asOf: today(),
+      latest,
+      movements,
+    });
+  });
+
+  app.post('/securities/:id/quote-preview', async (c) => {
+    await readBody(c, z.object({}).strict());
+    const sec = requireSecurity(c.req.param('id'));
+    const to = today();
+    const from = addDays(to, -30);
+    const ref = { ...sec, adjusted: sec.quoteAdjusted };
+    const chain = [
+      sources.quotes,
+      ...(sources.moreQuotes ?? []),
+      ...(sources.fallbackQuotes ? [sources.fallbackQuotes] : []),
+    ];
+    const attempts = [];
+    for (const source of chain) {
+      if (!(source.supports?.(ref) ?? true)) {
+        attempts.push({ source: source.id, error: 'not_configured', latest: null });
+        continue;
+      }
+      try {
+        const quotes = await source.history(ref, from, to);
+        const latest = quotes.at(-1) ?? null;
+        attempts.push({ source: source.id, error: latest ? null : 'empty', latest });
+      } catch (error) {
+        attempts.push({ source: source.id, error: errorKind(error), latest: null });
+      }
+    }
+    return c.json({ securityId: sec.id, currency: sec.currency, from, to, attempts });
   });
 
   app.put('/securities/:id/prices/:date', async (c) => {
