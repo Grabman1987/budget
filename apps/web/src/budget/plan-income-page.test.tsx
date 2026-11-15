@@ -177,6 +177,29 @@ it('ON Plan income head uses budget-month income while received/expected remain 
   expect(calls.every((call) => call.startsWith('GET '))).toBe(true);
 });
 
+it('ON returns from income to the same Plan month through history and the in-app link', async () => {
+  const { router, calls } = renderIncome({ at: '/plan/monat?monat=2026-11' });
+  await screen.findByTestId('to-be-assigned');
+  for (const returnPath of ['history', 'link']) {
+    await act(async () =>
+      router.navigate({
+        to: '/plan/monat/einnahmen',
+        search: { monat: '2026-11' },
+        state: { planDetailOpenedInApp: true },
+      }),
+    );
+    const back = await screen.findByRole('link', { name: 'Zurück zum Monat' });
+    await act(async () => {
+      if (returnPath === 'history') router.history.back();
+      else back.click();
+    });
+    await screen.findByTestId('to-be-assigned');
+    expect(router.state.location.pathname).toBe('/plan/monat');
+    expect(router.state.location.search.monat).toBe('2026-11');
+  }
+  expect(calls.every((call) => call.startsWith('GET '))).toBe(true);
+});
+
 it('OFF retains the received-income head and the distinct budget-month explanation', async () => {
   redesign.enabled = false;
   const { container } = renderIncome();

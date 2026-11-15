@@ -11,6 +11,7 @@ Bereich: Plan (`/plan/monat`, `/plan/jahr`, `/plan/erwartet`, `/plan/sparziele`,
   3. Ich wechsle den Monat mit dem Monatswähler; Verfügbar enthält den Übertrag aus dem Vormonat.
   4. Ich tippe eine Kategorie an. Der Plan-Inspektor öffnet sich mit Zugewiesen, Aktivität, Übertrag und Ziel.
   5. Ich ändere „Zugewiesen“ und bestätige mit „Zuweisen“ (Enter). „Zu verteilen“ und „Verfügbar“ ändern sich sofort.
+  6. Ich öffne die Einnahmen-Details und kehre über den Browser oder „Zurück zum Monat“ zum selben Monat zurück.
 - **Ergebnis:** Die Zuweisung ist gespeichert; Summen im Kopf, in Gruppen und im Inspektor stimmen neu. „Rückgängig“ nimmt sie zurück.
 - **Abnahmekriterien:**
   1. Jede Zeile zeigt Zugewiesen, Aktivität, Verfügbar; die Summe je Gruppe und im Kopf stimmt auf den Cent.
@@ -18,7 +19,8 @@ Bereich: Plan (`/plan/monat`, `/plan/jahr`, `/plan/erwartet`, `/plan/sparziele`,
   3. Weise ich mehr zu, als zu verteilen ist, steht „Zu viel zugewiesen“ in Rot.
   4. Ein ungültiger Betrag wird mit „Das lässt sich nicht als Betrag lesen.“ abgelehnt.
   5. „Rückgängig“ stellt den alten Wert wieder her.
-- **Status:** live — **Verweis:** Y07
+  6. Nach beiden Rückwegen bleiben Position, Größe, Hintergrund und Rahmen von „Zu verteilen“ und dem Einnahmenblock unverändert, hell und dunkel auf Desktop und Telefon. Auch die Einnahmen-Detailseite verwendet durchgehend den Redesign-Kopf und dessen Abstände. Der Einnahmenblock bleibt am Desktop rechtsbündig; am Telefon bleibt er ausgeblendet und über die Maßkette erreichbar.
+- **Status:** live; Rückweg-Korrektur #1110 im PR #1114, visuelle Detailseiten-Erwartung migriert; CI und Live-Abnahme offen — **Verweis:** Y07, #1110
 
 ### P-02 – Kategorien, Gruppen und Klassen pflegen
 - **Story:** Als Nutzer möchte ich Kategorien und Gruppen anlegen, ordnen und als Bedarf, Wunsch oder Zukunft einstufen, damit die 50/30/20-Sicht in Plan und Reports meine echte Ausgabenstruktur zeigt.
