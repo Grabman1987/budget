@@ -181,6 +181,14 @@ Bereich: Plan (`/plan/monat`, `/plan/jahr`, `/plan/erwartet`, `/plan/sparziele`,
   5. Eine Version „Gilt ab“ ändert nur künftige Termine.
 - **Status:** live — **Verweis:** Y11
 
+### P-09a – Close an unpaid income occurrence (#1109)
+
+- **Story:** As a user, I want to mark an expected income occurrence as “Kommt nicht mehr” so that an inflow that will not arrive stops inflating my forecast.
+- **Flow:** Open Plan › Monat › Einnahmen (also reachable from Plan › Zahlungen), choose “Kommt nicht mehr” on an unlinked occurrence, and inspect its retained “Fehlbetrag”. “Rückgängig” restores the expectation through the existing audited action.
+- **Acceptance:** The closed occurrence is excluded from expected totals, Heute's free-until-payday inflows and the liquidity forecast. Its original expected cents remain visible as a shortfall, including amount privacy. Other occurrences, bookings, balances, net worth and “Zu verteilen” are unchanged. A linked booking cannot be cancelled through this action.
+- **Status:** First implementation slice for review; not live-accepted. Uses the existing single-occurrence cancellation within its supported window (previous month through twelve months ahead); no migration.
+- **Remaining #1109:** Combined-payment proposal and confirmation, automatic regular/special payslip settlement, closing a linked partial payment, received-plus-open summary semantics for settled deviations, and outstanding monthly contact compensation claims. These are not delivered by this slice.
+
 ### P-10 – Sparziele und Rücklagen
 - **Story:** Als Nutzer möchte ich Sparziele und Rücklagen führen und Kategorieziele übernehmen, damit ich sehe, wie weit ich bin und wie viel ich monatlich zurücklegen muss.
 - **Ausgangslage:** Ich spare auf etwas mit Betrag und Datum.

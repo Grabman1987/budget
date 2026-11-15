@@ -921,6 +921,49 @@ describe('booking lifecycle for expected payments', () => {
 });
 
 describe('skipping one occurrence (gestrichen)', () => {
+  it('preserves the native currency of a closed shortfall (#1109)', () => {
+    const p = createExpectedPayment(
+      db,
+      {
+        name: 'Synthetic USD income',
+        kind: 'inflow',
+        accountId: 'giro',
+        dueDay: 20,
+      },
+      { validFrom: '2026-03-01', amountCents: 10_001, currency: 'USD' },
+      ctx,
+      TODAY,
+    ).payment;
+    skipOccurrence(db, p.id, '2026-03-20', ctx, TODAY);
+    expect(monthIncomeBooked(db, TODAY, '2026-03')).toMatchObject({
+      expectedCents: 0,
+      closedPayments: [{ expectedCents: 10_001, receivedCents: 0, currency: 'USD' }],
+    });
+  });
+
+  it('retains closed income as a shortfall outside expected totals and undo restores it (#1109)', () => {
+    const p = salary();
+    const before = monthIncomeBooked(db, TODAY, '2026-03');
+    expect(before.expectedCents).toBe(300_000);
+    const result = skipOccurrence(db, p.id, '2026-03-15', ctx, TODAY);
+    const closed = monthIncomeBooked(db, TODAY, '2026-03');
+    expect(closed).toMatchObject({ expectedCents: 0, receivedCents: 0, byPayment: [] });
+    expect(closed).toHaveProperty('closedPayments', [
+      expect.objectContaining({
+        paymentId: p.id,
+        dueDate: '2026-03-15',
+        expectedCents: 300_000,
+        receivedCents: 0,
+      }),
+    ]);
+    expect(monthIncomeBooked(db, TODAY, '2026-04').expectedCents).toBe(300_000);
+    undo(db, { groupId: result.groupId }, ctx);
+    expect(monthIncomeBooked(db, TODAY, '2026-03')).toMatchObject({
+      expectedCents: 300_000,
+      closedPayments: [],
+    });
+  });
+
   /** A salary on the 15th, 3.000,00 €, next to the rent on the 1st. */
   const salary = () =>
     createExpectedPayment(
