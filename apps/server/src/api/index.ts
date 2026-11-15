@@ -169,7 +169,7 @@ export function createLedgerApi({
   api.route('/payslips', payrollRoutes(db, today));
   api.route('/payslip-intake', payslipIntakeRoutes(db, receiptsDir));
   api.route('/statement-intake', statementIntakeRoutes(db, receiptsDir));
-  api.route('/document-intake', documentIntakeRoutes(db));
+  api.route('/document-intake', documentIntakeRoutes(db, receiptsDir));
   api.route('/statement-settlements', statementSettlementRoutes(db, receiptsDir));
   api.route('/projects', projectRoutes(db, today));
   api.route('/income-month-rules', incomeMonthRoutes(db));

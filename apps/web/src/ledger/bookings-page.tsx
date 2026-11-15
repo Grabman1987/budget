@@ -109,6 +109,7 @@ export function BookingsPage() {
   if (filterKey !== seenFilter) {
     setSeenFilter(filterKey);
     setSelected(new Set());
+    setPanel(null);
   }
 
   const items = useMemo(() => list.data?.pages.flatMap((p) => p.items) ?? [], [list.data]);
@@ -463,7 +464,7 @@ export function BookingsPage() {
           )}
         />
       </div>
-      <BookingPanel state={panel} onClose={() => setPanel(null)} />
+      <BookingPanel key={filterKey} state={panel} onClose={() => setPanel(null)} />
     </KontenFrame>
   );
 }

@@ -1,3 +1,4 @@
+import { setTheme } from './theme';
 import { captureSaveControl } from './ledger-helpers';
 import { expect } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
@@ -140,6 +141,7 @@ test('guided month close walks all five steps, undoes the whole plan and keeps a
   }
   for (const scheme of ['light', 'dark'] as const) {
     await page.emulateMedia({ colorScheme: scheme });
+    await setTheme(page, scheme);
     const axe = await new AxeBuilder({ page }).analyze();
     expect(axe.violations).toEqual([]);
     expect(
@@ -164,6 +166,7 @@ test('guided month close walks all five steps, undoes the whole plan and keeps a
   await page.getByRole('button', { name: 'Plan übernehmen · alle', exact: true }).click();
   for (const scheme of ['light', 'dark'] as const) {
     await page.emulateMedia({ colorScheme: scheme });
+    await setTheme(page, scheme);
     expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
     expect(
       await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
@@ -182,6 +185,7 @@ test('guided month close walks all five steps, undoes the whole plan and keeps a
   await expect(page.getByTestId('month-close-verdict')).toBeVisible();
   for (const scheme of ['light', 'dark'] as const) {
     await page.emulateMedia({ colorScheme: scheme });
+    await setTheme(page, scheme);
     expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
     expect(
       await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
@@ -350,6 +354,7 @@ test('quiet accounts are reviewed and confirmed together with one exact grouped 
   await expect(row).toContainText('678,90');
   for (const scheme of ['light', 'dark'] as const) {
     await page.emulateMedia({ colorScheme: scheme });
+    await setTheme(page, scheme);
     expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
     expect(
       await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),

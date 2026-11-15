@@ -35,7 +35,7 @@ for (const theme of ['light', 'dark']) {
     await expect(field).toHaveCSS('border-radius', '8px');
     await expect(basics.getByRole('textbox', { name: 'Kategorie', exact: true })).toHaveCSS(
       'border-color',
-      theme === 'light' ? 'rgb(196, 42, 31)' : 'rgb(255, 139, 123)',
+      theme === 'light' ? 'rgb(196, 42, 31)' : 'rgb(255, 149, 134)',
     );
     await expect(field).toHaveCSS(
       'border-color',

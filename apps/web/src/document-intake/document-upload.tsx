@@ -2,6 +2,7 @@ import { Button, Field, Select, TextInput, WideDialog } from '@budget/ui';
 import { FileUp } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { useRef, useState } from 'react';
+import { NoticeArchive } from './notice-archive';
 import { ApiError } from '../api/http';
 import { useBudgetWrite } from '../budget/use-category-writes';
 import { accountsQuery } from '../ledger/queries';
@@ -14,7 +15,7 @@ import { proposalToEdit, ReceiptProposalPanel, type ReceiptEdit } from './receip
 import './document-upload.css';
 
 export type DetectedType =
-  'card_statement' | 'bank_statement' | 'payslip' | 'receipt' | 'unreadable';
+  'card_statement' | 'bank_statement' | 'payslip' | 'bonus' | 'pension' | 'receipt' | 'unreadable';
 export type Classification = {
   type: DetectedType;
   confidence: 'certain' | 'probable' | 'unknown';
@@ -24,12 +25,15 @@ export type Classification = {
   receipt?: ReceiptProposal;
 };
 /** What the owner can choose; unreadable documents are offered as receipts only. */
-export type Target = 'card_statement' | 'bank_statement' | 'payslip' | 'receipt';
+export type Target =
+  'card_statement' | 'bank_statement' | 'payslip' | 'bonus' | 'pension' | 'receipt';
 const LABEL: Record<Target, string> = {
   card_statement: 'Kreditkartenabrechnung',
   bank_statement: 'Kontoauszug',
   payslip: 'Gehaltszettel',
   receipt: 'Beleg',
+  bonus: 'Bonus-Mitteilung',
+  pension: 'Pensionskassen-Mitteilung',
 };
 const NEXT: Record<Target, string> = {
   card_statement:
@@ -38,6 +42,10 @@ const NEXT: Record<Target, string> = {
     'Die PDF wird für das gewählte Konto gespeichert und ausgewertet; du prüfst die erkannten Angaben in der Vorschau. Nur wenn für dieses Konto die automatische Abrechnung eingerichtet ist, werden eindeutig belegte Buchungen von selbst erfasst, Unklares bleibt unter Prüfen.',
   payslip:
     'Der Gehaltszettel wird gespeichert und ausgewertet. Sind Gehaltskonto und Arbeitgeber eingerichtet und alles eindeutig, wird die Auszahlung automatisch erfasst oder mit der vorhandenen verknüpft (rückgängig machbar); sonst bleibt sie unter Prüfen.',
+  bonus:
+    'Das Original bleibt mit seiner Klassifikation im Mitteilungsarchiv auffindbar. Der Gehaltsimport-Vorschlag wird verworfen. Es wird nichts gebucht.',
+  pension:
+    'Das Original bleibt mit seiner Klassifikation im Mitteilungsarchiv auffindbar. Der Gehaltsimport-Vorschlag wird verworfen. Es wird nichts gebucht.',
   receipt: 'Die Datei wird als Beleg unter Prüfen abgelegt. Es wird nichts gebucht.',
 };
 const isStatement = (t: Target) => t === 'card_statement' || t === 'bank_statement';
@@ -170,6 +178,35 @@ function UploadFlow({
   }
   async function proceed() {
     if (!file || busy) return;
+    if (target === 'bonus' || target === 'pension') {
+      setBusy(true);
+      await write(
+        async () => {
+          const body = new FormData();
+          body.set('file', file);
+          if (password) body.set('password', password);
+          const response = await fetch('/api/document-intake/notices', {
+            method: 'POST',
+            body,
+            credentials: 'same-origin',
+          });
+          if (!response.ok) throw new ApiError(response.status, 'archive_failed');
+          const reply = (await response.json()) as { groupId: string };
+          setDone({
+            label: LABEL[target],
+            lines: [
+              'Original: im Mitteilungsarchiv gespeichert.',
+              `Klassifikation: ${LABEL[target]}.`,
+              'Gehaltsimport-Vorschlag: verworfen. Es wurde nichts gebucht.',
+            ],
+          });
+          return reply;
+        },
+        () => 'Mitteilung archiviert.',
+      );
+      setBusy(false);
+      return;
+    }
     if (target === 'receipt') {
       setBusy(true);
       let saved = false;
@@ -205,7 +242,9 @@ function UploadFlow({
   const needsAccount = isStatement(target) && !account;
   // Statements and payslips are PDF-only; a photo can only be filed as a receipt.
   const targets = (Object.keys(LABEL) as Target[]).filter(
-    (key) => key === 'receipt' || result?.hints.mime === 'application/pdf',
+    (key) =>
+      ((key !== 'bonus' && key !== 'pension') || result?.type === key) &&
+      (key === 'receipt' || result?.hints.mime === 'application/pdf'),
   );
   const detected = result && result.type !== 'unreadable' ? LABEL[result.type] : null;
   return (
@@ -263,6 +302,7 @@ function UploadFlow({
               {busy && <p role="status">Dokument wird geprüft …</p>}
             </div>
           )}
+          <NoticeArchive enabled={open} />
           {error && <p role="alert">{error}</p>}
           {done && (
             <>
@@ -364,7 +404,9 @@ function UploadFlow({
               <p className="document-upload-next">{NEXT[target]}</p>
               <div className="document-upload-actions">
                 <Button disabled={busy || needsAccount} onClick={() => void proceed()}>
-                  Weiter
+                  {target === 'bonus' || target === 'pension'
+                    ? 'Als Bonus-/Pensionsmitteilung archivieren; keinen Gehaltsimport erstellen'
+                    : 'Weiter'}
                 </Button>
                 <Button variant="ghost" disabled={busy} onClick={reset}>
                   Andere Datei

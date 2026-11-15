@@ -311,7 +311,10 @@
     position: absolute;
     inset: auto 12px 0 48px;
     height: 1px;
-    background: var(--rule);
+    /* A long pseudo background makes axe treat even small glyphs above it as obscured.
+       A border draws the same inset separator without declaring a text backdrop. */
+    background: transparent;
+    border-bottom: var(--stroke-hairline) solid var(--rule);
     pointer-events: none;
   }
 }

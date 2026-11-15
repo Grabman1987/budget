@@ -1,3 +1,4 @@
+import { setTheme } from './theme';
 import { openHeuteReview } from './heute-visual-fixture';
 import { showDebtCalculation } from './wealth-navigation';
 import AxeBuilder from '@axe-core/playwright';
@@ -123,10 +124,8 @@ test('terms row and Schulden page: no red, no overflow, Axe clean, 44 px targets
         page.locator('.debt-accounts').getByRole('heading', { name: 'Schulden nach Konto' }),
       ).toBeVisible();
     }
-    for (const theme of ['light', 'dark']) {
-      await page.evaluate((value) => {
-        document.documentElement.dataset['theme'] = value;
-      }, theme);
+    for (const theme of ['light', 'dark'] as const) {
+      await setTheme(page, theme);
       await page.evaluate(() => document.fonts.ready);
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
         true,

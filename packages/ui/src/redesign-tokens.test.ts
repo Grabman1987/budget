@@ -34,6 +34,8 @@ describe('S2 generated ON roles', () => {
     'rule-strong': '#6786ac',
     warning: '#8a5300',
     'warning-soft': '#fff3d6',
+    'ink-3': '#4d6a89',
+    red: '#c42a1f',
   };
   const dark = {
     rule: '#1f4d7c',
@@ -41,6 +43,8 @@ describe('S2 generated ON roles', () => {
     'rule-strong': '#4987bc',
     warning: '#ffd37a',
     'warning-soft': '#473d2b',
+    'ink-3': '#a4c8e2',
+    red: '#ff9586',
   };
 
   it('maps the current source boundary and amber roles in light, system-dark, dark and print', () => {

@@ -128,7 +128,7 @@ const THEME_ROLES = {
 } as const;
 const REDESIGN_SEMANTIC = {
   light: ['rgb(58, 78, 110)', 'rgb(58, 78, 110)', 'rgb(196, 42, 31)'],
-  dark: ['rgb(185, 208, 227)', 'rgb(185, 208, 227)', 'rgb(255, 139, 123)'],
+  dark: ['rgb(185, 208, 227)', 'rgb(185, 208, 227)', 'rgb(255, 149, 134)'],
 } as const;
 
 for (const profile of ['desktop', 'phone'] as const) {

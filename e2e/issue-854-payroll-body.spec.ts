@@ -1,3 +1,4 @@
+import { setTheme } from './theme';
 import AxeBuilder from '@axe-core/playwright';
 import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
@@ -78,8 +79,8 @@ test('854 payroll: recorded cents, recent curve, complete history, selected slip
       await expect(page.locator('.pp-history li').first()).toContainText('Aug 2026');
       await expect(page.locator('.pp-history li').last()).toContainText('Sep 2024');
     }
-    for (const theme of ['light', 'dark']) {
-      await page.evaluate((value) => (document.documentElement.dataset['theme'] = value), theme);
+    for (const theme of ['light', 'dark'] as const) {
+      await setTheme(page, theme);
       expect((await new AxeBuilder({ page }).include('main').analyze()).violations).toEqual([]);
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
         true,
