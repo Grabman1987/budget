@@ -1,3 +1,4 @@
+import { payrollSource, type SalaryPayslip } from '@budget/domain';
 import { captureSaveControl } from './ledger-helpers';
 import { expect } from '@playwright/test';
 import { test } from './isolated-ledger';
@@ -81,11 +82,11 @@ test('captured salary through the real API, with undo and mobile/desktop evidenc
   await edit.getByRole('button', { name: 'Speichern', exact: true }).click();
   await expect(edit).not.toBeVisible();
   await expect(page.getByTestId('payroll-report')).toContainText(
-    'Gehaltsanteil weicht von der Buchung ab: −0,01',
+    'Auszahlung weicht von den zugeordneten Bankanteilen ab: −0,01',
   );
   await toast(page).getByRole('button', { name: 'Rückgängig', exact: true }).click();
   await expect(page.getByTestId('payroll-report')).toContainText(
-    'Gehaltsanteil stimmt mit den Gehaltsanteilen der Buchung überein.',
+    'Auszahlung stimmt mit den zugeordneten Bankanteilen überein.',
   );
   await inspectReport(page, info, 'salary');
   await page.getByRole('button', { name: 'Bearbeiten', exact: true }).click();
@@ -255,4 +256,149 @@ test('salary history deep links, form cancellation, focus return and upload reta
   await expect(page.getByTestId('payroll-report')).toContainText(
     'Dieser Gehaltszettel ist nicht verfügbar.',
   );
+});
+
+// The API regression covers persisted wage reads; this response fixture exercises their ON view.
+test('combined source shows unknown net and editable bank income parts', async ({
+  page,
+  request,
+  baseURL,
+}, info) => {
+  const accountResponse = await request.post('/api/accounts', {
+    headers: { origin: baseURL! },
+    data: {
+      name: 'Synthetic combined salary',
+      type: 'checking',
+      role: 'budget',
+      onBudget: true,
+      openingDate: '2026-01-01',
+      openingBalanceCents: 0,
+    },
+  });
+  expect(accountResponse.ok()).toBe(true);
+  const account = (await accountResponse.json()).account;
+  const bookingResponse = await request.post('/api/bookings', {
+    headers: { origin: baseURL! },
+    data: {
+      type: 'booking',
+      accountId: account.id,
+      date: '2026-11-30',
+      amountCents: 590000,
+      splits: [
+        { amountCents: 580000, incomeTypeId: 'income-salary' },
+        { amountCents: 10000, incomeTypeId: 'income-refund' },
+      ],
+    },
+  });
+  expect(bookingResponse.ok()).toBe(true);
+  const bookingId = (await bookingResponse.json()).id;
+  const draft = {
+    month: '2026-11',
+    kind: 'regular',
+    specialType: null,
+    grossCents: 800000,
+    svCents: 120000,
+    taxCents: 100000,
+    netCents: 590000,
+    bookingId,
+    receiptId: null,
+    lines: [{ section: 'reimbursement', label: 'Synthetic expenses', amountCents: 10000 }],
+  };
+  const created = await request.post('/api/payslips', {
+    headers: { origin: baseURL! },
+    data: draft,
+  });
+  expect(created.ok()).toBe(true);
+  const id = (await created.json()).payslip.id;
+  const slip: SalaryPayslip = {
+    ...draft,
+    id,
+    kind: 'regular',
+    employerContactId: null,
+    lines: [{ section: 'reimbursement', label: 'Synthetic expenses', amountCents: 10000 }],
+    wage: {
+      lineCheck: 'ok',
+      split: null,
+      lines: [
+        {
+          code: '100',
+          label: 'Synthetic base',
+          section: 'earning',
+          amountCents: 400000,
+          referenceMonth: null,
+        },
+        {
+          code: '200',
+          label: 'Synthetic special',
+          section: 'earning',
+          amountCents: 400000,
+          referenceMonth: null,
+        },
+        {
+          code: '300',
+          label: 'Synthetic expenses',
+          section: 'reimbursement',
+          amountCents: 10000,
+          referenceMonth: null,
+        },
+      ],
+    },
+  };
+  await page.route('**/api/payslips?month=2026-11', async (route) => {
+    const response = await route.fetch();
+    const data = await response.json();
+    data.sources = [payrollSource(slip, [])];
+    data.years = data.years.map((row: { year: string }) => ({ ...row, specialGrossCents: null }));
+    data.salaries[10] = {
+      ...data.salaries[10],
+      netCents: null,
+      salaryNetCents: null,
+      netSplitUnknown: true,
+    };
+    data.timeline = data.timeline.map((row: { month: string }) => ({
+      ...row,
+      netSplitUnknown: row.month === '2026-11',
+    }));
+    await route.fulfill({ response, json: data });
+  });
+  await page.goto('/reports/gehalt?monat=2026-11');
+  await expect(page.getByText(/Nettoaufteilung aus der Quelle nicht bestimmbar/)).toBeVisible();
+  await expect(page.locator('.pp-warning').filter({ hasText: '200' })).toContainText(
+    'Synthetic special',
+  );
+  await expect(
+    page.getByText(/^Bankanteil \u00b7/).filter({ hasText: 'Erstattung' }),
+  ).toBeVisible();
+  await expect(page.getByRole('row', { name: /Nov.*nicht bestimmbar/ })).toContainText('100,00');
+  await expect(page.locator('.pp-dot')).toHaveCount(0);
+  await page.getByText('Einnahmenarten der Bankanteile bearbeiten', { exact: true }).click();
+  await page
+    .getByRole('combobox', { name: 'Einnahmenart Bankanteil 1', exact: true })
+    .selectOption('income-special');
+  await page.getByRole('button', { name: 'Einnahmenarten speichern', exact: true }).click();
+  await expect(
+    page
+      .getByText(/^Bankanteil \u00b7/)
+      .filter({ hasText: 'Sonderzahlung' })
+      .first(),
+  ).toBeVisible();
+  const updated = await (await request.get(`/api/bookings/${bookingId}`)).json();
+  expect(updated.booking.amountCents).toBe(590000);
+  expect(
+    updated.booking.splits.map((part: { amountCents: number; incomeTypeId: string }) => [
+      part.amountCents,
+      part.incomeTypeId,
+    ]),
+  ).toEqual([
+    [580000, 'income-special'],
+    [10000, 'income-refund'],
+  ]);
+  await toast(page).getByRole('button', { name: 'R\u00fcckg\u00e4ngig', exact: true }).click();
+  await expect(
+    page
+      .getByText(/^Bankanteil \u00b7/)
+      .filter({ hasText: 'Laufendes Gehalt' })
+      .first(),
+  ).toBeVisible();
+  await inspectReport(page, info, 'salary-combined-source');
 });

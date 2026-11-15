@@ -127,7 +127,12 @@ export function payrollTotals(slips: PayslipInput[]) {
 }
 
 /** Recorded amounts only: no extrapolation to fourteen payments or invented missing months. */
-export function payrollReport(slips: CapturedPayslip[], month: string) {
+export function payrollReport(
+  slips: CapturedPayslip[],
+  month: string,
+  unknownNetIds: ReadonlySet<string> = new Set(),
+  sourceSpecialGross: ReadonlyMap<string, number | null> = new Map(),
+) {
   const selected = slips.filter((p) => p.month === month);
   const year = month.slice(0, 4);
   const years = [...new Set(slips.map((p) => p.month.slice(0, 4)))].sort().map((y) => {
@@ -146,11 +151,20 @@ export function payrollReport(slips: CapturedPayslip[], month: string) {
       );
     const totals = payrollTotals(current),
       baseline = covered ? payrollTotals(prior).grossCents : null;
+    const specialAmounts = current.map((p) =>
+      sourceSpecialGross.has(p.id)
+        ? sourceSpecialGross.get(p.id)!
+        : p.kind === 'special'
+          ? payrollTotals([p]).grossCents
+          : 0,
+    );
     return {
       year: y,
       months: new Set(current.map((p) => p.month)).size,
       ...totals,
-      specialGrossCents: payrollTotals(current.filter((p) => p.kind === 'special')).grossCents,
+      specialGrossCents: specialAmounts.some((value) => value === null)
+        ? null
+        : specialAmounts.reduce<number>((sum, value) => sum + (value ?? 0), 0),
       changeCents: baseline === null ? null : totals.grossCents - baseline,
       changeRatio: baseline ? (totals.grossCents - baseline) / baseline : null,
     };
@@ -165,8 +179,15 @@ export function payrollReport(slips: CapturedPayslip[], month: string) {
     );
     return {
       position: i + 1,
-      netCents: matched.length ? payrollTotals(matched).netCents : null,
-      salaryNetCents: matched.length ? payrollTotals(matched).salaryNetCents : null,
+      netCents:
+        matched.length && !matched.some((p) => unknownNetIds.has(p.id))
+          ? payrollTotals(matched).netCents
+          : null,
+      salaryNetCents:
+        matched.length && !matched.some((p) => unknownNetIds.has(p.id))
+          ? payrollTotals(matched).salaryNetCents
+          : null,
+      netSplitUnknown: matched.some((p) => unknownNetIds.has(p.id)),
       reimbursementsCents: matched.length ? payrollTotals(matched).reimbursementsCents : null,
       ids: matched.map((p) => p.id),
     };
@@ -197,6 +218,9 @@ export function payrollReport(slips: CapturedPayslip[], month: string) {
       month: m,
       ...payrollTotals(slips.filter((p) => p.month === m && p.kind === 'regular')),
       recorded: slips.some((p) => p.month === m && p.kind === 'regular'),
+      netSplitUnknown: slips.some(
+        (p) => p.month === m && p.kind === 'regular' && unknownNetIds.has(p.id),
+      ),
     })),
   };
 }

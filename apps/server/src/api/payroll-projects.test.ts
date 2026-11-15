@@ -8,6 +8,8 @@ import {
   INCOME_TYPES,
   schema,
   undo,
+  storePayslipWageRead,
+  saveWageComponentMapping,
   type Db,
 } from '@budget/db';
 import type { Hono } from 'hono';
@@ -53,6 +55,233 @@ beforeEach(() => {
   );
 });
 describe('payslip API and grouped audit', () => {
+  it('reconciles a combined month paid as one salary receipt, without a net split or false expense difference', async () => {
+    const bookingId = createBooking(
+      db,
+      {
+        accountId: 'cash',
+        date: '2026-11-30',
+        amountCents: 590000,
+        splits: [{ amountCents: 590000, incomeTypeId: INCOME_TYPES.salary.id }],
+      },
+      { actor: 'tester' },
+    );
+    const draft = {
+      ...input,
+      month: '2026-11',
+      grossCents: 800000,
+      svCents: 120000,
+      taxCents: 100000,
+      netCents: 590000,
+      bookingId,
+      lines: [{ section: 'reimbursement', label: 'Synthetic expenses', amountCents: 10000 }],
+    };
+    const created = await call('POST', '/payslips', draft);
+    expect(created.status).toBe(201);
+    storePayslipWageRead(
+      db,
+      created.body.payslip.id,
+      {
+        documentType: 'payslip',
+        periodSource: 'content',
+        payoutDate: '2026-11-30',
+        draft: {
+          ...draft,
+          kind: 'regular',
+          lines: [{ section: 'reimbursement', label: 'Synthetic expenses', amountCents: 10000 }],
+        },
+        differenceCents: 0,
+        warnings: [],
+        statutorySplit: null,
+        wageLines: [
+          {
+            order: 0,
+            code: '100',
+            label: 'Synthetic base',
+            section: 'earning',
+            amountCents: 400000,
+            referenceMonth: null,
+            quantity: null,
+            rate: null,
+          },
+          {
+            order: 1,
+            code: '200',
+            label: 'Synthetic special',
+            section: 'earning',
+            amountCents: 400000,
+            referenceMonth: null,
+            quantity: null,
+            rate: null,
+          },
+          {
+            order: 2,
+            code: '300',
+            label: 'Synthetic expenses',
+            section: 'reimbursement',
+            amountCents: 10000,
+            referenceMonth: null,
+            quantity: null,
+            rate: null,
+          },
+        ],
+      },
+      { origin: 'intake', receiptId: null },
+      { actor: 'tester' },
+    );
+    const report = (await call('GET', '/payslips?month=2026-11')).body;
+    expect(report.month.netCents).toBe(590000);
+    expect(report.sources[0].netSplitUnknown).toBe(true);
+    expect(report.sources[0].unmapped[1]).toMatchObject({
+      code: '200',
+      label: 'Synthetic special',
+      amountCents: 400000,
+    });
+    expect(report.salaries[10]).toMatchObject({ netCents: null, salaryNetCents: null });
+    expect(report.links[0]).toMatchObject({
+      status: 'ok',
+      differenceCents: 0,
+      parts: [{ amountCents: 590000, incomeTypeId: INCOME_TYPES.salary.id }],
+    });
+    for (const [wageCode, component] of [
+      ['100', 'base'],
+      ['200', 'special'],
+    ] as const)
+      saveWageComponentMapping(
+        db,
+        { employerContactId: null, wageCode, label: null, component },
+        { actor: 'tester' },
+      );
+    const classified = (await call('GET', '/payslips?month=2026-11')).body;
+    expect(classified.sources[0].paid).toMatchObject({
+      base: 400000,
+      special: 400000,
+      reimbursement: 10000,
+    });
+    expect(classified.years[0].specialGrossCents).toBe(400000);
+    expect(classified.sources[0].unmapped).toEqual([]);
+    expect(db.select().from(schema.booking).all()).toHaveLength(1);
+    await call('PUT', `/payslips/${created.body.payslip.id}`, {
+      ...draft,
+      taxCents: 99999,
+      netCents: 590001,
+    });
+    expect((await call('GET', '/payslips?month=2026-11')).body.links[0].differenceCents).toBe(-1);
+  });
+  it('does not hide an explicitly incorrect reimbursement split behind a matching payout total', async () => {
+    const bookingId = createBooking(
+      db,
+      {
+        accountId: 'cash',
+        date: '2026-09-30',
+        amountCents: 289500,
+        splits: [
+          { amountCents: 1, incomeTypeId: INCOME_TYPES.salary.id },
+          { amountCents: 289499, incomeTypeId: INCOME_TYPES.refund.id },
+        ],
+      },
+      { actor: 'tester' },
+    );
+    await call('POST', '/payslips', {
+      ...input,
+      bookingId,
+      netCents: 289500,
+      lines: [
+        ...input.lines,
+        { section: 'reimbursement', label: 'Synthetic expenses', amountCents: 10000 },
+      ],
+    });
+    const report = (await call('GET', '/payslips?month=2026-09')).body;
+    expect(report.links[0]).toMatchObject({ status: 'mismatch', differenceCents: -279499 });
+  });
+  it('edits individual bank income types with unchanged cents, stale guards, undo and reconciled locks', async () => {
+    const bookingId = createBooking(
+      db,
+      {
+        accountId: 'cash',
+        date: '2026-09-30',
+        amountCents: 289500,
+        splits: [
+          {
+            amountCents: 279500,
+            incomeTypeId: INCOME_TYPES.salary.id,
+            memo: 'Synthetic salary memo',
+          },
+          {
+            amountCents: 10000,
+            incomeTypeId: INCOME_TYPES.refund.id,
+            memo: 'Synthetic expense memo',
+          },
+        ],
+      },
+      { actor: 'tester' },
+    );
+    const created = await call('POST', '/payslips', {
+      ...input,
+      bookingId,
+      netCents: 289500,
+      lines: [
+        ...input.lines,
+        { section: 'reimbursement', label: 'Synthetic expenses', amountCents: 10000 },
+      ],
+    });
+    const url = `/payslips/${created.body.payslip.id}/bank-parts`;
+    const parts = (await call('GET', '/payslips?month=2026-09')).body.links[0].parts;
+    const before = db.select().from(schema.booking).all()[0]!;
+    const initialAuditCount = db.select().from(schema.auditLog).all().length;
+    expect(
+      (
+        await call('PUT', url, {
+          expectedParts: [...parts, parts[0]],
+          incomeTypeIds: ['income-special', 'income-refund'],
+        })
+      ).status,
+    ).toBe(409);
+    expect(db.select().from(schema.auditLog).all()).toHaveLength(initialAuditCount);
+    const changed = await call('PUT', url, {
+      expectedParts: parts,
+      incomeTypeIds: ['income-special', 'income-refund'],
+    });
+    expect(changed.status).toBe(200);
+    expect(db.select().from(schema.booking).all()[0]).toMatchObject({
+      amountCents: before.amountCents,
+      date: before.date,
+      accountId: before.accountId,
+      status: before.status,
+    });
+    expect(
+      db
+        .select()
+        .from(schema.bookingSplit)
+        .all()
+        .map((s) => [s.amountCents, s.incomeTypeId, s.memo]),
+    ).toEqual([
+      [279500, 'income-special', 'Synthetic salary memo'],
+      [10000, 'income-refund', 'Synthetic expense memo'],
+    ]);
+    expect(
+      (
+        await call('PUT', url, {
+          expectedParts: parts,
+          incomeTypeIds: ['income-salary', 'income-refund'],
+        })
+      ).status,
+    ).toBe(409);
+    expect((await call('POST', '/undo', { groupId: changed.body.groupId })).status).toBe(200);
+    const restored = (await call('GET', '/payslips?month=2026-09')).body.links[0];
+    expect(restored.parts[0].incomeTypeId).toBe('income-salary');
+    db.run(sql`UPDATE booking SET status = 'reconciled' WHERE id = ${bookingId}`);
+    const auditCount = db.select().from(schema.auditLog).all().length;
+    expect(
+      (
+        await call('PUT', url, {
+          expectedParts: restored.parts,
+          incomeTypeIds: ['income-special', 'income-refund'],
+        })
+      ).status,
+    ).toBe(409);
+    expect(db.select().from(schema.auditLog).all()).toHaveLength(auditCount);
+  });
   it('persists reimbursements and signed corrections through edit, undo and redo', async () => {
     const created = await call('POST', '/payslips', input);
     const corrected = {

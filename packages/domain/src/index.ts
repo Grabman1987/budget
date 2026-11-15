@@ -24,6 +24,7 @@ export * from './overview/explorer-saved-views';
 export * from './spending';
 export * from './report-tables';
 export * from './reports/payroll-projects';
+export * from './reports/payroll-source';
 export * from './bank-sync';
 export * from './read-source';
 export * from './read-source-match';
