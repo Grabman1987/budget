@@ -18,6 +18,7 @@ import type { OnePagerData } from './month-api';
 import type { YearReportRead } from './overview-api';
 import { bpText, monthShort } from './overview-format';
 import { PeriodPresentation } from './period-presentation';
+import { YearWealthChange } from './year-wealth-change';
 import './period-report-summary.css';
 
 function Kpis({ rows }: { rows: readonly [string, ReactNode][] }) {
@@ -445,18 +446,22 @@ export function YearSummary({ data }: { data: YearReportRead }) {
         </div>
         <h3 className="period-summary-label">Vermögensreport</h3>
         <dl className="period-wealth-rows">
-          {[
-            ['Nettovermögen', n ? eur(n.endCents) : '—'],
-            ['Eigenleistung', n ? eur(n.ownCents) : '—'],
-            ['Markteffekt', n ? eur(n.marketCents) : '—'],
-            ['Kapitalerträge · separat', eur(t.capitalCents)],
+          {(
             [
-              'Finanz-Check',
-              data.rules
-                ? `${data.rules.okCount} von ${data.rules.total} erfüllt`
-                : 'Nicht verfügbar',
-            ],
-          ].map(([label, value]) => (
+              ['Anfangsvermögen', n ? eur(n.startCents) : 'nicht ermittelbar'],
+              ['Nettovermögen', n ? eur(n.endCents) : '—'],
+              ['Vermögensänderung', n ? <YearWealthChange netWorth={n} /> : 'nicht ermittelbar'],
+              ['Eigenleistung', n ? eur(n.ownCents) : '—'],
+              ['Markteffekt', n ? eur(n.marketCents) : '—'],
+              ['Kapitalerträge · separat', eur(t.capitalCents)],
+              [
+                'Finanz-Check',
+                data.rules
+                  ? `${data.rules.okCount} von ${data.rules.total} erfüllt`
+                  : 'Nicht verfügbar',
+              ],
+            ] satisfies [string, ReactNode][]
+          ).map(([label, value]) => (
             <div key={label}>
               <dt>{label}</dt>
               <dd>{value}</dd>

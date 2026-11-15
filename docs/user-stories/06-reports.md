@@ -472,13 +472,16 @@ Alle Reports mit Nummer laut `docs/FEATURES.md` (34 Reports, 1.1 bis 5.6). Jede 
 - **Ablauf:**
   1. Reports › Jahresreport öffnen, „Jahr“ wählen.
   2. Blatt 1 und 2 lesen: Nettovermögenskette, Einkommen, Konsum, Zukunft, Sparquote, Kapitalerträge, Cashflow je Monat, größte Kategorien, 50/30/20, Finanz-Check, Befunde.
+     The summary shows starting net worth and the change in euros and percent; the A4 detail shows the change beside the existing net worth chain.
   3. „Drucken“ und „Als PDF speichern“ über den Druckdialog.
 - **Ergebnis:** Ein zweiseitiges Jahresblatt.
 - **Abnahmekriterien:**
   - Der Druck ergibt genau zwei A4-Seiten.
   - Nettovermögenskette entspricht Vermögen › Nettovermögen; Sparquote entspricht Sparquote und Geldalter.
+  - Wealth change is end minus start from the same net worth series, with exact cents and the shared ratio calculation. With starting net worth ≤ 0, the euro change remains available and the percentage says “nicht ermittelbar” with its reason. Missing valuations retain their specific reason without substituting zero.
+  - Amount privacy also hides the wealth-change percentage. Full and partial years still print on two A4 pages.
   - Randfall: Nur volle Monate zählen; ein laufendes Jahr ist als Teiljahr erkennbar; Gehaltserhöhungen und Preisänderungen gibt es noch nicht als Befunde.
-- **Status:** live · **Verweis:** 5.1
+- **Status:** existing report live; wealth-change extension implemented, review/live acceptance pending (#1118). Investments/trading, with/without market, split savings rate, complete prior-year comparisons and context from #1118 remain open. · **Verweis:** 5.1
 
 ### RP-21a – Finanz-Check-Verlauf
 - **Story:** Als Nutzer möchte ich sehen, welche Regeln verletzt sind und seit wann, damit ich zuerst die offene Regel der aktuellen Stufe behebe.
