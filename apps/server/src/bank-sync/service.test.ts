@@ -4,7 +4,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   bookedBalance,
   createBooking,
+  createExpectedPayment,
   createTestDatabase,
+  learnBankPayee,
+  matchOccurrences,
   readInbox,
   resolveInboxItem,
   schema,
@@ -377,6 +380,55 @@ describe('bank sync workflow', () => {
     expect(
       accountBalances(opened.db, '2026-10-02').find((a) => a.accountId === 'giro')?.balanceCents,
     ).toBe(98498);
+  });
+  it('links an unambiguous recurring debit from a new bank line and undoes it in one step (#1102)', async () => {
+    service.setPolicy(consentId, true);
+    createExpectedPayment(
+      opened.db,
+      {
+        name: 'Abo A',
+        accountId: 'giro',
+        payeeId: 'p1',
+        categoryId: 'essen',
+        dueDay: 30,
+        startDate: '2026-09-01',
+      },
+      { validFrom: '2026-09-01', amountCents: 1201 },
+      { actor: 'tester' },
+      '2026-10-01',
+    );
+    learnBankPayee(opened.db, linkId, 'Shop A', 'p1', { actor: 'tester' });
+    await service.tick();
+    const linked = opened.db
+      .select()
+      .from(schema.expectedOccurrence)
+      .all()
+      .filter((o) => o.bookingId !== null);
+    expect(linked).toHaveLength(1);
+    expect(linked[0]).toMatchObject({ dueDate: '2026-09-30', status: 'received' });
+    const entry = opened.db
+      .select()
+      .from(schema.auditLog)
+      .where(eq(schema.auditLog.entityId, linked[0]!.id))
+      .all()
+      .find((e) => e.actor === 'bank-sync' && e.action === 'update')!;
+    undo(opened.db, { groupId: entry.groupId! }, { actor: 'tester' });
+    expect(
+      opened.db
+        .select()
+        .from(schema.expectedOccurrence)
+        .all()
+        .filter((o) => o.bookingId !== null),
+    ).toHaveLength(0);
+    // The next run does not link the same booking again.
+    matchOccurrences(opened.db, '2026-10-01');
+    expect(
+      opened.db
+        .select()
+        .from(schema.expectedOccurrence)
+        .all()
+        .filter((o) => o.bookingId !== null),
+    ).toHaveLength(0);
   });
   it('promotes a stable pending identity once and does not resurrect a deleted booking', async () => {
     service.setPolicy(consentId, true);

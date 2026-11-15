@@ -1,0 +1,190 @@
+import { eq } from 'drizzle-orm';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { createTestDatabase, type OpenedDatabase } from '../client';
+import { auditLog, booking, expectedOccurrence, inboxItem } from '../schema';
+import { undo } from './audit';
+import { createBooking } from './bookings';
+import { createExpectedPayment, linkOccurrence, matchOccurrences } from './expected';
+import { LINK_PROPOSAL_REF } from './expected-auto-link';
+import { heute } from './heute';
+import { readInbox, resolveInboxItem } from './inbox';
+import { forecastInputs, loadFacts } from './rule-inputs';
+import { seedBasics, testCtx as ctx } from './test-helpers';
+
+let opened: OpenedDatabase;
+let db: OpenedDatabase['db'];
+const TODAY = '2026-03-20';
+
+beforeEach(() => {
+  opened = createTestDatabase();
+  db = opened.db;
+  seedBasics(db);
+});
+afterEach(() => opened.close());
+
+const payment = (name: string, amountCents: number, over = {}) =>
+  createExpectedPayment(
+    db,
+    {
+      name,
+      accountId: 'giro',
+      payeeId: 'p1',
+      categoryId: 'miete',
+      dueDay: 22,
+      startDate: '2026-03-01',
+      ...over,
+    },
+    { validFrom: '2026-01-01', amountCents },
+    ctx,
+    TODAY,
+  ).payment;
+
+const debit = (date: string, amountCents: number) =>
+  createBooking(
+    db,
+    {
+      accountId: 'giro',
+      date,
+      amountCents,
+      payeeId: 'p1',
+      splits: [{ amountCents, categoryId: 'miete' }],
+    },
+    ctx,
+  );
+
+const march = (paymentId: string) =>
+  db
+    .select()
+    .from(expectedOccurrence)
+    .where(eq(expectedOccurrence.expectedPaymentId, paymentId))
+    .all()
+    .find((o) => o.dueDate === '2026-03-22')!;
+const proposals = () =>
+  db
+    .select()
+    .from(inboxItem)
+    .all()
+    .filter((i) => i.refType === LINK_PROPOSAL_REF);
+const openOutflowCents = () => heute(db, { today: TODAY }).lead.openCents;
+const forecastDays = (label: string) =>
+  forecastInputs(loadFacts(db, TODAY), TODAY, { byAccount: { giro: 100_000 } })
+    .items.filter((i) => i.label === label)
+    .map((i) => i.day);
+
+describe('automatic link of recurring debits (#1102)', () => {
+  it('links an unambiguous debit, marks it paid and undoes in one step', () => {
+    const rent = payment('Miete', 40_000);
+    const bookingId = debit('2026-03-20', -40_000);
+    expect(openOutflowCents()).toBe(40_000);
+    expect(forecastDays('Miete')).toContain('2026-03-22');
+
+    const summary = matchOccurrences(db, TODAY);
+    expect(summary).toMatchObject({ received: 1, proposed: 0 });
+    expect(summary.links).toHaveLength(1);
+    expect(march(rent.id)).toMatchObject({ status: 'received', bookingId });
+    expect(proposals()).toEqual([]);
+
+    // Heute "Frei bis Gehalt" and the liquidity forecast no longer count the paid occurrence.
+    expect(openOutflowCents()).toBe(0);
+    expect(forecastDays('Miete')).not.toContain('2026-03-22');
+    expect(forecastDays('Miete')).toContain('2026-04-22');
+
+    // Audited with its own group; one undo step reopens it.
+    const { groupId } = summary.links[0]!;
+    const entries = db.select().from(auditLog).where(eq(auditLog.groupId, groupId)).all();
+    expect(entries.map((e) => e.entityType)).toEqual(['expected_occurrence']);
+    undo(db, { groupId }, ctx);
+    expect(march(rent.id)).toMatchObject({ status: 'expected', bookingId: null });
+    expect(openOutflowCents()).toBe(40_000);
+    expect(forecastDays('Miete')).toContain('2026-03-22');
+
+    // The system never re-links a pairing the owner undid.
+    expect(matchOccurrences(db, TODAY).links).toEqual([]);
+    expect(march(rent.id).bookingId).toBeNull();
+    expect(proposals()).toEqual([]);
+    expect(db.select().from(booking).all()).toHaveLength(1);
+  });
+
+  it('keeps an ambiguous pairing a proposal under Prüfen until the owner confirms', () => {
+    const a = payment('Abo A', 2_800);
+    const b = payment('Abo B', 2_800);
+    const bookingId = debit('2026-03-22', -2_800);
+
+    const summary = matchOccurrences(db, TODAY);
+    expect(summary).toMatchObject({ received: 0, deviating: 0, proposed: 1, links: [] });
+    expect(march(a.id).bookingId).toBeNull();
+    expect(march(b.id).bookingId).toBeNull();
+    expect(openOutflowCents()).toBe(5_600);
+
+    const [proposal] = proposals();
+    expect(proposal).toMatchObject({ kind: 'expected_payment', resolvedAt: null });
+    const listed = readInbox(db, TODAY).entries.filter((e) => e.id === proposal!.id);
+    expect(listed).toHaveLength(1);
+    // A second run does not open the same proposal twice.
+    expect(matchOccurrences(db, TODAY).proposed).toBe(0);
+    expect(proposals()).toHaveLength(1);
+
+    // Confirming one occurrence links it and closes the proposal in the same audit group.
+    const target = proposal!.refId!;
+    const { groupId } = linkOccurrence(db, target, bookingId, ctx);
+    expect(proposals()[0]).toMatchObject({ resolution: 'Verknüpft.' });
+    expect(openOutflowCents()).toBe(2_800);
+    undo(db, { groupId }, ctx);
+    expect(proposals()[0]!.resolvedAt).toBeNull();
+  });
+
+  it('proposes a debit whose amount is outside the tolerance instead of linking it', () => {
+    const rent = payment('Miete', 40_000);
+    debit('2026-03-20', -42_000);
+    const summary = matchOccurrences(db, TODAY);
+    expect(summary).toMatchObject({ received: 0, deviating: 0, proposed: 1, links: [] });
+    expect(march(rent.id)).toMatchObject({ status: 'expected', bookingId: null });
+    expect(openOutflowCents()).toBe(40_000);
+  });
+
+  it('links within the configured tolerance', () => {
+    const rent = payment('Miete', 40_000, { amountToleranceCents: 100 });
+    debit('2026-03-20', -40_050);
+    expect(matchOccurrences(db, TODAY).links).toHaveLength(1);
+    expect(march(rent.id).status).toBe('received');
+  });
+
+  it('shows the proposal in Prüfen with its pairing and remembers a dismissal', () => {
+    payment('Abo A', 2_800);
+    payment('Abo B', 2_800);
+    const bookingId = debit('2026-03-22', -2_800);
+    matchOccurrences(db, TODAY);
+    const [proposal] = proposals();
+    const entry = readInbox(db, TODAY).entries.find((e) => e.id === proposal!.id);
+    expect(entry).toMatchObject({
+      type: 'stored',
+      refType: LINK_PROPOSAL_REF,
+      linkProposal: { occurrenceId: proposal!.refId, bookingId },
+    });
+
+    // "Nicht zuordnen": the owner's no is not asked again, the other occurrence may still be.
+    resolveInboxItem(db, proposal!.id, ctx);
+    expect(matchOccurrences(db, TODAY)).toMatchObject({ links: [], proposed: 1 });
+    expect(proposals().filter((p) => p.resolvedAt === null)).toHaveLength(1);
+    expect(proposals().find((p) => p.resolvedAt === null)!.refId).not.toBe(proposal!.refId);
+  });
+
+  it('leaves recurring income to the existing matching (no proposal, no own group)', () => {
+    const salary = payment('Gehalt', 200_000, { kind: 'inflow', categoryId: null, payeeId: 'p1' });
+    createBooking(
+      db,
+      {
+        accountId: 'giro',
+        date: '2026-03-21',
+        amountCents: 200_000,
+        payeeId: 'p1',
+        splits: [{ amountCents: 200_000, categoryId: null }],
+      },
+      ctx,
+    );
+    const summary = matchOccurrences(db, TODAY);
+    expect(summary.links).toEqual([]);
+    expect(proposals()).toEqual([]);
+    expect(salary.id).toBeTruthy();
+  });
+});

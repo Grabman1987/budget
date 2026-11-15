@@ -173,14 +173,25 @@ describe('occurrences, refresh, link, unlink, missed', () => {
   it('refresh plans and matches; the list carries status, amounts and the suggestion', async () => {
     await call('POST', '/expected', rent);
     book('2026-03-01', -40_000);
-    book('2026-02-01', -43_000);
+    const deviating = book('2026-02-01', -43_000);
     const refresh = await call('POST', '/expected/refresh');
     expect(refresh.status).toBe(200);
-    expect(refresh.body.match).toMatchObject({ received: 1, deviating: 1 });
+    // A deviating amount waits as a proposal (#1102); the owner confirms it by linking.
+    expect(refresh.body.match).toMatchObject({ received: 1, deviating: 0, proposed: 1 });
     expect((await call('POST', '/expected/refresh')).body).toMatchObject({
       refresh: { created: 0, updated: 0, removed: 0 },
-      match: { received: 0, deviating: 0, missed: 0 },
+      match: { received: 0, deviating: 0, missed: 0, proposed: 0 },
     });
+    const february = (
+      await call('GET', '/expected/occurrences?from=2026-02-01&to=2026-02-28&kind=outflow')
+    ).body.occurrences[0];
+    expect(
+      (
+        await call('POST', `/expected/occurrences/${february.occurrenceId}/link`, {
+          bookingId: deviating,
+        })
+      ).status,
+    ).toBe(200);
 
     const list = await call(
       'GET',

@@ -173,15 +173,17 @@ Bereich: Plan (`/plan/monat`, `/plan/jahr`, `/plan/erwartet`, `/plan/sparziele`,
   2. Ich wähle „Wiederkehrende Zahlung anlegen“, fülle „Art der Zahlung“ (Ausgabe/Einnahme), Betrag, Konto, Kategorie, „Rhythmus“ und „Start“ und speichere.
   3. Ich öffne eine Zahlung: „Nächste Termine“ und „Letzte Fälligkeiten“ erscheinen.
   4. Ich wähle „Neue Version“ (Betrag „Gilt ab“), „Zahlung pausieren“ oder „Zahlung beenden“.
-  5. Bei Abbuchung ordne ich mit „Buchung verknüpfen“ eine Buchung zu.
-- **Ergebnis:** Die Zahlung steht im Plan und in der Prognose; die Aktion ist als Ganzes „Rückgängig“ machbar.
+  5. Eine eindeutige Abbuchung wird automatisch verknüpft (Konto, Gegenpart bzw. Bankname, Betrag innerhalb der Toleranz, Fälligkeit innerhalb des Datumsfensters); die Fälligkeit gilt als bezahlt. Ist die Zuordnung nicht eindeutig, steht unter „Konten › Prüfen“ der Vorschlag „Abbuchung zuordnen“ mit „Zuordnen“ und „Nicht zuordnen“. Von Hand geht es weiter mit „Buchung verknüpfen“.
+- **Ergebnis:** Die Zahlung steht im Plan und in der Prognose; die Aktion ist als Ganzes „Rückgängig“ machbar. Jede automatische Verknüpfung ist ein eigener Schritt im Verlauf und mit einem „Rückgängig“ zurückzunehmen.
 - **Abnahmekriterien:**
   1. Anlegen, ändern, beenden funktionieren; „Zahlung löschen“ fragt nach.
   2. Eine zugeordnete Buchung und eine verpasste Zahlung sind sichtbar (Soll/Ist/Abweichung).
   3. Ein Betrag ≤ 0 wird mit „Bitte einen Betrag über 0 eintragen.“ abgelehnt.
   4. Fälligkeitstag 31 gilt als letzter Tag des Monats.
   5. Eine Version „Gilt ab“ ändert nur künftige Termine.
-- **Status:** live — **Verweis:** Y11
+  6. Automatisch verknüpft wird nur bei Ausgaben und nur eindeutig: genau eine passende Buchung, kein anderer Termin könnte sie beanspruchen, Betrag innerhalb der Toleranz. Weicht der Betrag ab oder passen mehrere Buchungen bzw. Termine, bleibt es ein Vorschlag in „Prüfen“ (kein Betrag ändert sich still).
+  7. Eine verknüpfte Fälligkeit zählt weder in „Frei bis Gehalt“ (Heute) noch in der Liquiditätsprognose als offen. Macht der Nutzer eine Verknüpfung rückgängig oder lehnt einen Vorschlag ab, verknüpft die App dieselbe Buchung nicht noch einmal von selbst.
+- **Status:** live; automatische Verknüpfung von Abbuchungen (#1102) im Review, nicht abgenommen. Einnahmen verknüpfen weiter wie bisher (siehe P-09a). — **Verweis:** Y11
 
 ### P-09a – Close an unpaid income occurrence (#1109)
 

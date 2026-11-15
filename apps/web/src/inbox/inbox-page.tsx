@@ -11,6 +11,7 @@ import {
   BankReview,
   type PreparedBankSuggestion,
 } from './bank-candidate';
+import { LinkProposalAction } from './link-proposal';
 import { BankBulkActions, isBankInboxRow } from './bank-bulk-actions';
 import { BankSyncRecap } from './bank-sync-recap';
 import { GuidedReview } from './guided-review';
@@ -1433,11 +1434,14 @@ function InboxRow({
                   Warnung erklären
                 </AppLink>
               )}
+              <LinkProposalAction item={item} disabled={busy} />
               <SourceLink item={item} />
               <Button size="sm" variant="ghost" disabled={busy} onClick={onResolve}>
                 {item.refType === 'bank-sync-candidate'
                   ? 'Nicht übernehmen'
-                  : 'Als erledigt markieren'}
+                  : item.refType === 'expected_occurrence'
+                    ? 'Nicht zuordnen'
+                    : 'Als erledigt markieren'}
               </Button>
             </>
           )}

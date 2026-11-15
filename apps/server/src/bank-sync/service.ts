@@ -13,6 +13,7 @@ import {
   bookingIncomeDefault,
   importBooking,
   linkBankReference,
+  matchOccurrences,
   unlinkedBankTargets,
   createEntity,
   getEntity,
@@ -199,6 +200,19 @@ export class BankSync {
       }
     }
     return linked;
+  }
+
+  /**
+   * New bank bookings may settle a recurring debit (#1102). Only unambiguous pairings are linked,
+   * each as its own undoable step; the rest becomes a proposal under Prüfen. A failure here must
+   * never block the bank sync, so the savepoint is rolled back and the run goes on.
+   */
+  private matchRecurring(tx: Executor) {
+    try {
+      matchOccurrences(tx, todayInVienna(this.clock()), system);
+    } catch {
+      console.error('Bank sync: matching recurring payments skipped.');
+    }
   }
 
   private manualAvailability(c: typeof consent.$inferSelect, links: (typeof link.$inferSelect)[]) {
@@ -891,6 +905,7 @@ export class BankSync {
                 .all())
                 toPost.push(open.id);
               const linked = this.postBooked(tx, toPost, row.id);
+              this.matchRecurring(tx);
               if (batch.skippedInvalid || batch.skippedOutOfWindow)
                 this.warning(
                   tx,

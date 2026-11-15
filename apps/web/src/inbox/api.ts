@@ -52,6 +52,8 @@ export interface InboxStored {
   refId: string | null;
   urgent: boolean;
   createdAt: string;
+  /** Open proposal to link a bank booking to a recurring payment's occurrence (#1102). */
+  linkProposal?: { occurrenceId: string; bookingId: string };
   bankCandidate?:
     | {
         date: string;

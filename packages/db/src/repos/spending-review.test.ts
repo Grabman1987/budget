@@ -507,6 +507,8 @@ it('a contract whose recent occurrences are linked keeps its older unlinked hist
       rhythm: 'monthly',
       dueDay: 3,
       startDate: '2023-10-01',
+      // The 1,10 € months are a price rise inside the tolerance; only those link on their own.
+      amountToleranceCents: 100,
     },
     { validFrom: '2023-10-01', amountCents: 1_000 },
     ctx,
