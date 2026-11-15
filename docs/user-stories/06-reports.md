@@ -87,6 +87,8 @@ Alle Reports mit Nummer laut `docs/FEATURES.md` (34 Reports, 1.1 bis 5.6). Jede 
   - Eine nicht eingegangene erwartete Zahlung zeigt den Status offen.
   - Randfall: Keine Einnahmen im Zeitraum: „Keine Einnahmen im Zeitraum.“; ohne erwartete Einnahmen: „Für diesen Monat sind keine Einnahmen erwartet.“
   - Randfall: Noch nicht zugeordnete Vorkommen zeigen „nicht zugeordnet“.
+- **Acknowledgment continuation (#1109, P-09a):** In Plan's income detail, “Bereits erhalten” removes an unlinked occurrence from open expectations without displaying a shortfall or reducing the booked monthly result. The retained amount is a “Planwert”; no extra received income is invented. Undo restores the open expectation. Expected totals remain received household income plus genuinely open remainders.
+- **Continuation status:** Acknowledgment wording and presentation ready for review after local verification; optional receipt linking, combined/payslip settlement and contact compensation expectations remain open. The existing report body is unchanged and this continuation is not live-accepted.
 - **Status:** live · **Verweis:** 1.3
 
 ### RP-05b – Einnahmen und Cashflow
