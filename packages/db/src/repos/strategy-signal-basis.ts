@@ -79,11 +79,13 @@ function fromDecision(decision: StrategyDecision): StrategySignalBasisEntry {
   });
   if (figures.trend !== decision.trend)
     throw new RangeError('Retained strategy decision disagrees with its stored inputs');
+  const signalClose = decision.closes.find((close) => close.sessionDate === decision.signalDate);
+  if (!signalClose) throw new RangeError('Retained strategy decision lacks its signal close');
   return {
     status: 'available',
     sessionDate: decision.signalDate,
     effectiveDate: decision.effectiveDate,
-    observedAt: decision.closes.at(-1)!.observedAt,
+    observedAt: signalClose.observedAt,
     knownAt: decision.knownAt,
     sourceId: decision.sourceId,
     indexId: decision.indexId,

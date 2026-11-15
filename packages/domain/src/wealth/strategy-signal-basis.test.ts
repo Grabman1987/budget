@@ -112,6 +112,19 @@ describe('strategySignalFigures', () => {
     expect(close(100_005)).toBe(10_001);
   });
 
+  it('rounds the average display values half up at an exact tie', () => {
+    // 20_001_000 / 200 = 100_005 units = 100.005 points -> 100.01; 20_000_999 stays 100.00.
+    const sma = (currentSumCloseUnits: bigint) =>
+      strategySignalFigures({
+        closeUnits: 100_000,
+        unitsPerPoint: 1000,
+        currentSumCloseUnits,
+        pastSumCloseUnits: 1n,
+      }).currentSmaCentipoints;
+    expect(sma(20_001_000n)).toBe(10_001);
+    expect(sma(20_000_999n)).toBe(10_000);
+  });
+
   it('matches the trend calculation for closes 1..220', () => {
     const sessions = Array.from({ length: 220 }, (_, i) => {
       const date = new Date(Date.UTC(2020, 0, 1 + i)).toISOString().slice(0, 10);
