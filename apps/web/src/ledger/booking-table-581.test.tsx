@@ -3,7 +3,7 @@ import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { setAmountsHidden } from '@budget/ui';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { expect, it, vi } from 'vitest';
-import { BookingTable } from './booking-table';
+import { BookingTable, type Selection } from './booking-table';
 import { BookingLegend } from './booking-legend';
 import { accountsQuery, lookupsQuery } from './queries';
 import type { ListedBooking } from './types';
@@ -87,6 +87,7 @@ function setup(
   variant: 'account' | 'all' = 'account',
   upcoming?: UpcomingModel,
   overdraftLimitCents?: number | null,
+  selection?: Selection,
 ) {
   const client = new QueryClient({ defaultOptions: { queries: { enabled: false } } });
   client.setQueryData(lookupsQuery().queryKey, {
@@ -112,6 +113,7 @@ function setup(
         caption="Test register"
         variant={variant}
         onOpen={onOpen}
+        {...(selection ? { selection } : {})}
         {...(upcoming ? { upcoming } : {})}
         {...(overdraftLimitCents !== undefined ? { overdraftLimitCents } : {})}
       />
@@ -339,7 +341,7 @@ it.each([false, true])(
     patch.mutate.mockClear();
     patch.mutateAsync.mockClear();
     const { container, onOpen } = setup([booking], 'all');
-    expect(container.querySelector('.kbooking-edit-mark') !== null).toBe(enabled);
+    expect(container.querySelector('.kpayee-inline button') !== null).toBe(enabled);
     const category = screen.getByRole('button', { name: /^Kategorie ändern/ });
     category.focus();
     expect(screen.queryByRole('combobox')).toBeNull();
@@ -352,6 +354,25 @@ it.each([false, true])(
     expect(patch.mutateAsync).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole('button', { name: /bearbeiten ·/ }));
     expect(onOpen).toHaveBeenCalledWith(booking);
+    flags.REDESIGN_ENABLED = false;
+  },
+);
+
+it.each([false, true])(
+  'keeps bulk selection intact while inline editing (selection mode %s)',
+  (mode) => {
+    flags.REDESIGN_ENABLED = true;
+    const toggle = vi.fn();
+    const selected = new Set([booking.id]);
+    setup([booking], 'all', undefined, undefined, { selected, mode, toggle, toggleAll: vi.fn() });
+    const button = screen.queryByRole('button', { name: /^Empfänger ändern:/ });
+    expect(Boolean(button)).toBe(!mode);
+    if (button) {
+      fireEvent.click(button);
+      fireEvent.keyDown(screen.getByRole('combobox'), { key: 'Escape' });
+    }
+    expect(toggle).not.toHaveBeenCalled();
+    expect(selected.has(booking.id)).toBe(true);
     flags.REDESIGN_ENABLED = false;
   },
 );
