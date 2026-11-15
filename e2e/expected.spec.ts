@@ -154,7 +154,12 @@ test('Plan › Monat: the Einnahmen term opens received against expected', async
   await expect(page.getByRole('dialog')).toHaveCount(0);
   const panel = page.locator('.plan-detail');
   await expect(panel).toBeVisible();
-  await expect(panel.getByText(/von erwartet 4.612,00 €/)).toBeVisible();
+  // #1109: 76.50 received side income + 3,812.00 salary + 800.00 open contribution.
+  await expect(panel.getByText(/von erwartet 4.688,50 €/)).toBeVisible();
+  await expect(panel.getByTestId('income-received')).toHaveText('76,50 €');
+  await expect(
+    panel.getByRole('row', { name: 'Nebeneinkünfte 76,50 € 76,50 €', exact: true }),
+  ).toBeVisible();
   await expect(panel.getByRole('table', { name: /nach Art/ })).toContainText('Gehalt');
   await expect(panel.getByRole('table', { name: /nach Art/ })).toContainText('3.812,00 €');
   await expect(panel).toContainText('Erwartete Zahlungen sind Planwerte.');
