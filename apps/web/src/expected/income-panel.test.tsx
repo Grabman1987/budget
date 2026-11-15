@@ -76,22 +76,25 @@ it('labels October expected receipts separately from budget-relevant plan-month 
   ).toBeTruthy();
 });
 
-it('retains a closed occurrence as a shortfall with amount privacy', () => {
+it('retains an acknowledged receipt without a shortfall and respects amount privacy', () => {
   showOctoberIncome(true);
-  expect(screen.getByText('Fehlbetrag 300,00 €')).toBeTruthy();
+  expect(screen.getByRole('heading', { name: 'Bereits erhalten' })).toBeTruthy();
+  expect(screen.queryByText(/Fehlbetrag|Minderbetrag/)).toBeNull();
+  expect(screen.getByText(/von erwartet 0,00 €/)).toBeTruthy();
+  expect(screen.getByText('Planwert 300,00 €')).toBeTruthy();
   expect(screen.queryByRole('list', { name: 'Erwartete Einnahmen des Monats' })).toBeNull();
-  expect(screen.queryByRole('button', { name: 'Kommt nicht mehr' })).toBeNull();
+  expect(screen.queryByRole('button', { name: 'Bereits erhalten' })).toBeNull();
   act(() => setAmountsHidden(true));
-  expect(screen.getByText('Fehlbetrag ••• €')).toBeTruthy();
+  expect(screen.getByText('Planwert ••• €')).toBeTruthy();
   expect(screen.queryByText(/300,00 €|1\.000,00 €/)).toBeNull();
 });
 
 it('shows a closed foreign occurrence in its original currency, never as euros', () => {
   showOctoberIncome(true, 'USD');
-  expect(screen.getByText(/Fehlbetrag USD\s*300,00/)).toBeTruthy();
-  expect(screen.queryByText('Fehlbetrag 300,00 €')).toBeNull();
+  expect(screen.getByText(/Planwert USD\s*300,00/)).toBeTruthy();
+  expect(screen.queryByText('Planwert 300,00 €')).toBeNull();
   act(() => setAmountsHidden(true));
-  expect(screen.getByText('Fehlbetrag ••• USD')).toBeTruthy();
+  expect(screen.getByText('Planwert ••• USD')).toBeTruthy();
 });
 
 it('keeps the scope explanation while amount privacy masks expected and booked values', () => {
@@ -140,5 +143,5 @@ it('does not show "0 von X" for a line linked to a booking that does not count t
   );
   expect(screen.getByText(/Gebucht, zählt nicht in diesem Monat · erwartet 300,00 €/)).toBeTruthy();
   expect(screen.queryByText(/^von 300,00 €$/)).toBeNull();
-  expect(screen.queryByRole('button', { name: 'Kommt nicht mehr' })).toBeNull();
+  expect(screen.queryByRole('button', { name: 'Bereits erhalten' })).toBeNull();
 });

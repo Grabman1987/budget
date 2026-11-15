@@ -63,6 +63,7 @@ import { NavigationError } from './shell/navigation-outlet';
 import type { PageTitleData } from './shell/page-meta';
 import { isMonth } from './nav/month';
 import { isZeitraum } from './wealth/zeitraum';
+import { rememberedReportPeriod } from './reports/remembered-period';
 import { isPanelId, type PanelId } from './shell/panels';
 import {
   FINANZCHECK_HEADING_HASHES,
@@ -829,6 +830,17 @@ const reportRoute = createRoute({
   path: '/reports/$reportId',
   validateSearch: validateReportSearch,
   beforeLoad: ({ params, search, location }) => {
+    const remembered = REDESIGN_ENABLED
+      ? rememberedReportPeriod(params.reportId, search)
+      : undefined;
+    if (remembered)
+      throw redirect({
+        to: '/reports/$reportId',
+        params,
+        search: { ...search, zeitraum: remembered },
+        hash: location.hash,
+        replace: true,
+      });
     if (params.reportId === 'onepager' && normalizeHistoryPeriod(search))
       throw redirect({
         to: '/reports/onepager',
