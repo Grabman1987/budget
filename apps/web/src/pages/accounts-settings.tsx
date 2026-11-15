@@ -10,7 +10,14 @@ import {
   maskMoneyText,
   useAmountPrivacy,
 } from '@budget/ui';
-import { cents, formatDecimal, parseAmount } from '@budget/domain';
+import {
+  accountPurpose,
+  purposeHasOverdraft,
+  type AccountPurpose,
+  cents,
+  formatDecimal,
+  parseAmount,
+} from '@budget/domain';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { ApiError } from '../api/http';
@@ -18,7 +25,8 @@ import { useBudgetWrite } from '../budget/use-category-writes';
 import {
   AccountFormPanel,
   DispoField,
-  hasOverdraft,
+  PURPOSE_LABEL,
+  PurposeField,
   hasRate,
   percentToBp,
 } from '../ledger/account-form';
@@ -244,7 +252,9 @@ function RedesignAccountGroup({
                   <small>{termsSummary(account)}</small>
                 )}
               </div>
-              <span className="settings-account-type">{ACCOUNT_TYPE_LABEL[account.type]}</span>
+              <span className="settings-account-type">
+                {ACCOUNT_TYPE_LABEL[account.type]} · {PURPOSE_LABEL[accountPurpose(account)]}
+              </span>
               <span className="settings-account-value">
                 {account.valueEurCents === null ? 'Nicht verfügbar' : eur(account.valueEurCents)}
               </span>
@@ -538,6 +548,7 @@ function AccountEditForm({
   const [referenceAccountId, setReferenceAccountId] = useState(account.referenceAccountId ?? '');
   const [name, setName] = useState(account.name);
   const [type, setType] = useState<AccountType>(account.type);
+  const [purpose, setPurpose] = useState<AccountPurpose>(accountPurpose(account));
   const [onBudget, setOnBudget] = useState(account.onBudget);
   const [limit, setLimit] = useState(moneyText(account.creditLimitCents));
   const [overdraft, setOverdraft] = useState(moneyText(account.overdraftLimitCents));
@@ -556,6 +567,7 @@ function AccountEditForm({
   const dirty =
     name !== account.name ||
     type !== account.type ||
+    purpose !== accountPurpose(account) ||
     onBudget !== account.onBudget ||
     allocationClass !== (account.allocationAssetClassId ?? '') ||
     referenceAccountId !== (account.referenceAccountId ?? '') ||
@@ -575,6 +587,9 @@ function AccountEditForm({
 
   const changeType = (next: AccountType) => {
     setType(next);
+    const nextPurpose = accountPurpose({ type: next });
+    setPurpose(nextPurpose);
+    if (!purposeHasOverdraft(next, nextPurpose)) setOverdraft('');
     setOnBudget(DEFAULT_ON_BUDGET[next] ?? false);
     if (next !== 'brokerage' && next !== 'crypto') setReferenceAccountId('');
   };
@@ -583,6 +598,7 @@ function AccountEditForm({
     event.preventDefault();
     const found: Errors = {};
     const patch: Partial<AccountInput> = {};
+    if (purpose !== accountPurpose(account)) patch.purpose = purpose;
     if ((allocationClass || null) !== (account.allocationAssetClassId ?? null))
       patch.allocationAssetClassId = allocationClass || null;
     if ((referenceAccountId || null) !== (account.referenceAccountId ?? null))
@@ -617,8 +633,13 @@ function AccountEditForm({
       else if (parsed.cents !== prev) patch[field] = parsed.cents;
     };
     if (hasCreditLimit(type)) money(limit, 'limit', account.creditLimitCents, 'creditLimitCents');
-    if (hasOverdraft(type))
+    if (purposeHasOverdraft(type, purpose))
       money(overdraft, 'overdraft', account.overdraftLimitCents, 'overdraftLimitCents');
+    else if (
+      account.overdraftLimitCents !== null &&
+      (type !== account.type || purpose !== accountPurpose(account))
+    )
+      patch.overdraftLimitCents = null;
     if (hasFee(type)) money(fee, 'fee', account.monthlyFeeCents, 'monthlyFeeCents');
     if (hasRate(type)) {
       const bp = percentToBp(rate);
@@ -727,6 +748,13 @@ function AccountEditForm({
           </Select>
         )}
       </Field>
+      <PurposeField
+        value={purpose}
+        onChange={(next) => {
+          setPurpose(next);
+          if (!purposeHasOverdraft(type, next)) setOverdraft('');
+        }}
+      />
       {(type === 'brokerage' ||
         type === 'crypto' ||
         (type === account.type && account.referenceAccountId != null)) && (
@@ -809,8 +837,14 @@ function AccountEditForm({
       {hasCreditLimit(type) && (
         <AmountInput label="Kartenlimit" value={limit} onChange={setLimit} error={errors.limit} />
       )}
-      {hasOverdraft(type) && (
-        <DispoField value={overdraft} onChange={setOverdraft} error={errors.overdraft} />
+      {purposeHasOverdraft(type, purpose) && (
+        <DispoField
+          key={`${type}-${purpose}`}
+          settlement={purpose === 'settlement'}
+          value={overdraft}
+          onChange={setOverdraft}
+          error={errors.overdraft}
+        />
       )}
       {hasRate(type) && (
         <Field label="Zinssatz in Prozent" error={errors.rate}>
@@ -942,6 +976,7 @@ function accountMetadata(account: AccountRow) {
   return JSON.stringify([
     account.name,
     account.type,
+    account.purpose ?? null,
     account.onBudget,
     account.currency,
     account.closedAt,

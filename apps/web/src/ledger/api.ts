@@ -1,5 +1,5 @@
 import type { Rhythm } from '../expected/api';
-import type { LiquidityHorizon, LiquidityLeverId } from '@budget/domain';
+import type { AccountPurpose, LiquidityHorizon, LiquidityLeverId } from '@budget/domain';
 import { queryString, request } from '../api/http';
 import type {
   AccountList,
@@ -76,6 +76,7 @@ export const fetchSeriesBatch = (from: string, to: string, options?: { quality?:
   );
 
 export interface AccountInput {
+  purpose?: AccountPurpose;
   allocationAssetClassId?: string | null;
   name: string;
   type: string;

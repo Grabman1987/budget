@@ -74,6 +74,7 @@ export const account = sqliteTable(
     name: text('name').notNull(),
     type: text('type', { enum: ACCOUNT_TYPES }).notNull(),
     role: text('role', { enum: ACCOUNT_ROLES }).notNull(),
+    purpose: text('purpose', { enum: ['cash', 'salary', 'settlement', 'investment', 'other'] }),
     /**
      * Budget-Konto (true): its balance is money to distribute, "Zu verteilen" counts it. Tracking
      * account (false): counts only for net worth; a transfer to it needs a category.
@@ -119,6 +120,13 @@ export const account = sqliteTable(
     oneOf('account_allocation_scope_chk', t.allocationScope, ['default', 'included', 'excluded']),
     oneOf('account_type_chk', t.type, ACCOUNT_TYPES),
     oneOf('account_role_chk', t.role, ACCOUNT_ROLES),
+    oneOf('account_purpose_chk', t.purpose, [
+      'cash',
+      'salary',
+      'settlement',
+      'investment',
+      'other',
+    ]),
     check(
       'account_on_budget_chk',
       sql`${t.onBudget} = 0 OR ${t.type} NOT IN (${sql.raw(TRACKING_ONLY_TYPES.map((v) => `'${v}'`).join(', '))})`,

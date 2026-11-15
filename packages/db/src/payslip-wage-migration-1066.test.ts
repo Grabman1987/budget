@@ -12,16 +12,16 @@ import {
 const TAG = '0053_payslip_wage_lines';
 const NEW_TABLES = ['payslip_wage_line', 'payslip_wage_read', 'wage_component_mapping'];
 
-/** Migration folder that stops after 0052: the genuine predecessor schema. */
-function predecessorFolder(root: string): string {
+/** Scope this historical test to the genuine 0052 predecessor and 0053 target schemas. */
+function migrationFolder(root: string, inclusive: boolean): string {
   const source = defaultMigrationsFolder();
-  const folder = join(root, 'through-0052');
+  const folder = join(root, inclusive ? 'through-0053' : 'through-0052');
   mkdirSync(join(folder, 'meta'), { recursive: true });
   const journal = JSON.parse(readFileSync(join(source, 'meta', '_journal.json'), 'utf8')) as {
     entries: { tag: string }[];
   };
-  journal.entries = journal.entries.filter((e) => e.tag < TAG);
-  expect(journal.entries.at(-1)?.tag).toBe('0052_contact_merge');
+  journal.entries = journal.entries.filter((e) => (inclusive ? e.tag <= TAG : e.tag < TAG));
+  expect(journal.entries.at(-1)?.tag).toBe(inclusive ? TAG : '0052_contact_merge');
   writeFileSync(join(folder, 'meta', '_journal.json'), JSON.stringify(journal));
   for (const e of journal.entries)
     copyFileSync(join(source, `${e.tag}.sql`), join(folder, `${e.tag}.sql`));
@@ -56,7 +56,9 @@ it('#1066 migration 0053 on a populated 0052 database: additive only, rollback e
   let opened: OpenedDatabase | undefined;
   try {
     const db = (opened = openDatabase(join(root, 'predecessor.sqlite')));
-    migrateDatabase(opened.db, predecessorFolder(root));
+    const predecessor = migrationFolder(root, false);
+    const target = migrationFolder(root, true);
+    migrateDatabase(opened.db, predecessor);
     for (const t of NEW_TABLES) expect(tableNames(opened)).not.toContain(t);
     // Synthetic rows through raw SQL only; invented employer, wage types and amounts.
     opened.sqlite.exec(`
@@ -92,8 +94,8 @@ it('#1066 migration 0053 on a populated 0052 database: additive only, rollback e
       ),
     ).toEqual({ contact: 1, receipt: 2, payslip: 3, payslip_line: 4, audit_log: 2 });
 
-    migrateDatabase(opened.db); // applies exactly 0053
-    migrateDatabase(opened.db); // idempotent
+    migrateDatabase(opened.db, target); // applies exactly 0053
+    migrateDatabase(opened.db, target); // idempotent
     expect(applied(opened)).toBe(54);
     for (const t of NEW_TABLES) {
       expect(tableNames(opened)).toContain(t);
@@ -142,7 +144,7 @@ it('#1066 migration 0053 on a populated 0052 database: additive only, rollback e
     expect(tableNames(opened)).toEqual(predecessorTables);
     expect(dump(opened, predecessorTables)).toEqual(before);
     expect(schemaSql(opened, predecessorTables)).toEqual(beforeSchema);
-    migrateDatabase(opened.db);
+    migrateDatabase(opened.db, target);
     expect(applied(opened)).toBe(54);
 
     // Stored wage data refuses the downgrade atomically (bytes unchanged)...

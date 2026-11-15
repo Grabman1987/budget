@@ -1,4 +1,4 @@
-import { accountReminders, accountReviewSummaries } from '@budget/db';
+import { getPayslipSourceConfig, accountReminders, accountReviewSummaries } from '@budget/db';
 import {
   account,
   valuation,
@@ -31,6 +31,8 @@ import { z } from 'zod';
 import { randomUUID } from 'node:crypto';
 import { Hono, type Context } from 'hono';
 import {
+  accountPurpose,
+  purposeHasOverdraft,
   eachDay,
   isReconcileAdjustCategoryKind,
   worstQuality,
@@ -176,6 +178,8 @@ export function accountRoutes(db: Db, today: () => string): Hono {
     const provenance = currentValuationSources(db, asOf);
     const reviewModel = accountReviewSummaries(db, asOf);
     const latestValues = reviewModel.latestValuations;
+    const salaryAccountId = getPayslipSourceConfig(db).salaryAccountId;
+    const settlementIds = new Set(reviewModel.accounts.map((a) => a.referenceAccountId));
     return {
       netWorthEurCents: netWorth.totalCents,
       valuationSources: provenance.sources,
@@ -188,6 +192,10 @@ export function accountRoutes(db: Db, today: () => string): Hono {
           a.closedAt || asOf !== today() ? null : bankBalanceForAccount(db, a.id, today());
         return {
           ...a,
+          purpose: accountPurpose(a, {
+            salary: a.id === salaryAccountId,
+            settlement: settlementIds.has(a.id),
+          }),
           reviewStatus: reviewModel.reviews.get(a.id)!,
           valuationSources: provenance.sources.filter((source) => source.accountId === a.id),
           lastValuedOn: manual ? (latest?.date ?? null) : null,
@@ -268,6 +276,8 @@ export function accountRoutes(db: Db, today: () => string): Hono {
     const input = await readBody(c, accountCreate);
     validateReferenceAccount(db, input.referenceAccountId, undefined, input.type, input.currency);
     const defaults = DEFAULTS[input.type];
+    const purpose = accountPurpose({ ...input, role: input.role ?? defaults.role });
+    if (!purposeHasOverdraft(input.type, purpose)) input.overdraftLimitCents = null;
     const onBudget = input.onBudget ?? defaults.onBudget;
     if (onBudget && TRACKING_ONLY.has(input.type)) {
       throw new ApiError(
@@ -519,6 +529,22 @@ export function accountRoutes(db: Db, today: () => string): Hono {
       patch.type !== undefined && patch.type !== current.type && patch.role === undefined
         ? { ...patch, role: DEFAULTS[patch.type].role }
         : patch;
+    // Clear unavailable limits in the same audited write, including API-only edits.
+    if (
+      (patch.purpose !== undefined || typeChanged || patch.overdraftLimitCents !== undefined) &&
+      !purposeHasOverdraft(
+        type,
+        accountPurpose(
+          {
+            type,
+            role: patch.role ?? current.role,
+            purpose: patch.purpose ?? accounts.get(db, id)?.purpose,
+          },
+          { salary: current.purpose === 'salary', settlement: current.purpose === 'settlement' },
+        ),
+      )
+    )
+      next.overdraftLimitCents = null;
     accounts.update(db, id, defined(next), ctx);
     return c.json({ account: summary(id), groupId: ctx.groupId });
   });

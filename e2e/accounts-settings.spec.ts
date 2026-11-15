@@ -20,6 +20,67 @@ async function post(request: APIRequestContext, origin: string, path: string, da
 const names = async (list: Locator) =>
   await list.locator('.accounts-name strong, .settings-account-name strong').allInnerTexts();
 
+for (const [purpose, label] of [
+  ['salary', 'Gehaltskonto'],
+  ['settlement', 'Verrechnung'],
+  ['investment', 'Investmentkonto'],
+  ['other', 'Sonstiges'],
+  ['cash', 'Bargeld'],
+] as const) {
+  test(`selects ${label}, retains account classification and applies overdraft availability`, async ({
+    page,
+    request,
+    isolatedLedger,
+  }) => {
+    const origin = isolatedLedger.origin;
+    const created = (
+      await post(request, origin, '/accounts', {
+        name: 'Zweck Muster',
+        type: 'checking',
+        openingDate: '2026-09-01',
+        openingBalanceCents: 12345,
+        overdraftLimitCents: 10000,
+      })
+    ).account;
+    await page.goto('/einstellungen/konten');
+    await page.getByRole('button', { name: 'Zweck Muster bearbeiten' }).click();
+    const panel = page.getByRole('dialog');
+    await panel.getByLabel('Zweck', { exact: true }).selectOption(purpose);
+    if (purpose === 'cash') {
+      await expect(panel.getByRole('checkbox', { name: 'Dispo', exact: true })).toHaveCount(0);
+    } else {
+      const settlement = purpose === 'settlement';
+      await panel
+        .getByRole('checkbox', { name: settlement ? 'Lombardkredit' : 'Dispo', exact: true })
+        .check();
+      await panel
+        .getByLabel(settlement ? 'Lombardrahmen' : 'Überziehungsrahmen', { exact: true })
+        .fill('500');
+    }
+    await panel.getByRole('button', { name: 'Speichern', exact: true }).click();
+    await expect(panel).not.toBeVisible();
+    await page.reload();
+    await page.getByRole('button', { name: 'Zweck Muster bearbeiten' }).click();
+    await expect(panel.getByLabel('Zweck', { exact: true })).toHaveValue(purpose);
+    await expect(panel.getByLabel('Zweck', { exact: true }).locator('option:checked')).toHaveText(
+      label,
+    );
+    await panel.getByRole('button', { name: 'Abbrechen', exact: true }).click();
+    const response = await request.get(`${origin}/api/accounts`);
+    const stored = (await response.json()).accounts.find(
+      (a: { id: string }) => a.id === created.id,
+    );
+    expect(stored).toMatchObject({
+      type: 'checking',
+      role: 'budget',
+      onBudget: true,
+      balanceCents: 12345,
+      purpose,
+      overdraftLimitCents: purpose === 'cash' ? null : 50000,
+    });
+  });
+}
+
 test('lists, orders, edits loan terms, closes and reopens accounts', async ({
   page,
   request,

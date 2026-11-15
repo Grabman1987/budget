@@ -1,11 +1,19 @@
 // @vitest-environment jsdom
 import { ToastProvider } from '@budget/ui';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import {
+  createMemoryHistory,
+  createRootRoute,
+  createRoute,
+  createRouter,
+  RouterProvider,
+} from '@tanstack/react-router';
 import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AccountRow } from '../ledger/types';
 import { AccountsSettings } from './accounts-settings';
+import { REDESIGN_ENABLED } from '../shell/redesign-flag';
 
 const account = (over: Partial<AccountRow>): AccountRow => ({
   id: 'a',
@@ -134,10 +142,20 @@ afterEach(() => {
 
 function page() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const root = createRootRoute();
+  const route = createRoute({
+    getParentRoute: () => root,
+    path: '/einstellungen/konten',
+    component: AccountsSettings,
+  });
+  const router = createRouter({
+    routeTree: root.addChildren([route]),
+    history: createMemoryHistory({ initialEntries: ['/einstellungen/konten'] }),
+  });
   render(
     <QueryClientProvider client={client}>
       <ToastProvider>
-        <AccountsSettings />
+        <RouterProvider router={router} />
       </ToastProvider>
     </QueryClientProvider>,
   );
@@ -145,6 +163,45 @@ function page() {
 const writes = () => calls.filter((c) => c.method !== 'GET');
 
 describe('Einstellungen › Konten', () => {
+  it('creates an account with an explicit purpose and overdraft without retyping it', async () => {
+    page();
+    await userEvent.click(await screen.findByRole('button', { name: 'Konto anlegen' }));
+    await userEvent.type(screen.getByLabelText('Name'), 'Zweck Muster');
+    await userEvent.selectOptions(screen.getByLabelText('Zweck'), 'settlement');
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Lombardkredit' }));
+    await userEvent.type(screen.getByLabelText('Lombardrahmen'), '500');
+    await userEvent.click(
+      (await screen.findAllByRole('button', { name: 'Konto anlegen' })).at(-1)!,
+    );
+    await waitFor(() => expect(writes()).toHaveLength(1));
+    expect(writes()[0]?.body).toMatchObject({
+      type: 'checking',
+      purpose: 'settlement',
+      onBudget: true,
+      overdraftLimitCents: 50000,
+    });
+  });
+
+  it('preserves an old cash limit on an unrelated rename', async () => {
+    const legacy = account({
+      id: 'legacy-cash',
+      name: 'Legacy cash',
+      type: 'cash',
+      overdraftLimitCents: 50000,
+    });
+    ACCOUNTS.push(legacy);
+    try {
+      page();
+      await userEvent.click(await screen.findByRole('button', { name: 'Legacy cash bearbeiten' }));
+      await userEvent.type(screen.getByLabelText('Name'), ' renamed');
+      await userEvent.click(screen.getByRole('button', { name: 'Speichern' }));
+      await waitFor(() => expect(writes()).toHaveLength(1));
+      expect(writes()[0]?.body).toEqual({ name: 'Legacy cash renamed' });
+    } finally {
+      ACCOUNTS.pop();
+    }
+  });
+
   it.each(['Giro Muster', 'Karte Muster'])(
     'saves and validates the interest rate for %s',
     async (name) => {
@@ -193,9 +250,11 @@ describe('Einstellungen › Konten', () => {
     expect(loans.textContent).toContain('Rate 412,00 €');
     const closed = screen.getByRole('heading', { name: /Geschlossene Konten/ }).closest('section')!;
     expect(within(closed).getByText('Altes Konto')).toBeTruthy();
-    expect(screen.getByRole('link', { name: 'Datenquellen' }).getAttribute('href')).toBe(
-      '/einstellungen/datenquellen',
-    );
+    expect(
+      screen
+        .getByRole('link', { name: REDESIGN_ENABLED ? 'Verbindungen' : 'Datenquellen' })
+        .getAttribute('href'),
+    ).toBe('/einstellungen/datenquellen');
   });
 
   it('edits the separate depot cash relation through the existing account field', async () => {

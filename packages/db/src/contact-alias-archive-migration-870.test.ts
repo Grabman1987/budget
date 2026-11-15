@@ -1,7 +1,8 @@
-import { copyFileSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { cpSync, copyFileSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { expect, it } from 'vitest';
+import { expect, it, vi } from 'vitest';
+import type * as AccountSchema from './schema/accounts';
 import {
   defaultMigrationsFolder,
   migrateDatabase,
@@ -19,6 +20,15 @@ it('#870 migrates 0050/0051 on a copied fixture database: counts, content and st
   const folder = mkdtempSync(join(tmpdir(), 'synthetic-contact-870-'));
   const source = defaultMigrationsFolder();
   const rollback = (tag: string) => readFileSync(join(source, 'rollback', `${tag}.sql`), 'utf8');
+  // Keep this rollback protocol scoped through 0053; later account columns are tested separately.
+  const migrations = join(folder, 'through-0053');
+  cpSync(source, migrations, { recursive: true });
+  const journalPath = join(migrations, 'meta/_journal.json');
+  const journal = JSON.parse(readFileSync(journalPath, 'utf8')) as {
+    entries: { idx: number }[];
+  };
+  journal.entries = journal.entries.filter((entry) => entry.idx <= 53);
+  writeFileSync(journalPath, JSON.stringify(journal));
   const originalPath = join(folder, 'synthetic-original.sqlite');
   const copiedPath = join(folder, 'disposable-copy.sqlite');
   let original: OpenedDatabase | undefined;
@@ -27,7 +37,7 @@ it('#870 migrates 0050/0051 on a copied fixture database: counts, content and st
     opened.sqlite.transaction(() => opened.sqlite.exec(rollback(tag)))();
   try {
     original = openDatabase(originalPath);
-    migrateDatabase(original.db);
+    migrateDatabase(original.db, migrations);
     seedBasics(original.db);
     seedIdentityContacts(original.db);
     // Bring the fixture to the predecessor schema (empty new structures: rollback is allowed).
@@ -82,8 +92,8 @@ it('#870 migrates 0050/0051 on a copied fixture database: counts, content and st
 
     copyFileSync(originalPath, copiedPath);
     copy = openDatabase(copiedPath);
-    migrateDatabase(copy.db);
-    migrateDatabase(copy.db); // idempotent
+    migrateDatabase(copy.db, migrations);
+    migrateDatabase(copy.db, migrations); // idempotent
     expect(dump(copy, predecessorTables)).toEqual(before);
     expect(counts(copy, predecessorTables)).toEqual(beforeCounts);
     expect(copy.sqlite.prepare('SELECT count(*) AS n FROM contact_alias').get()).toEqual({ n: 0 });
@@ -105,7 +115,7 @@ it('#870 migrates 0050/0051 on a copied fixture database: counts, content and st
     run(copy, '0050_contact_alias');
     expect(dump(copy, predecessorTables)).toEqual(before);
     expect(counts(copy, predecessorTables)).toEqual(beforeCounts);
-    migrateDatabase(copy.db);
+    migrateDatabase(copy.db, migrations);
     expect(statements()).toEqual([
       ['ka', 4500, 0],
       ['kb', 0, 0],
@@ -122,7 +132,7 @@ it('#870 migrates 0050/0051 on a copied fixture database: counts, content and st
     run(copy, '0053_payslip_wage_lines');
     run(copy, '0052_contact_merge');
     refuses('0051_contact_archive'); // archived contact
-    migrateDatabase(copy.db);
+    migrateDatabase(copy.db, migrations);
     addContactAlias(copy.db, 'ka', 'Kontakt A (alt)', ctx());
     expect(statements()).toEqual([
       ['ka', 4500, 0],
@@ -135,4 +145,15 @@ it('#870 migrates 0050/0051 on a copied fixture database: counts, content and st
     original?.close();
     rmSync(folder, { recursive: true, force: true });
   }
+});
+
+// Keep the ORM account projection at the genuine historical schema level under test.
+vi.mock('./schema/accounts', async (importOriginal) => {
+  const original = await importOriginal<typeof AccountSchema>();
+  const { getTableColumns } = await import('drizzle-orm');
+  const columns = { ...getTableColumns(original.account) };
+  delete (columns as Partial<typeof columns>).purpose;
+  const account = Object.create(original.account);
+  account[Symbol.for('drizzle:Columns')] = columns;
+  return { ...original, account };
 });
