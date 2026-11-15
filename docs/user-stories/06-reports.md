@@ -6,6 +6,22 @@ Alle Reports mit Nummer laut `docs/FEATURES.md` (34 Reports, 1.1 bis 5.6). Jede 
 
 **Aufteilungen:** RP-05, RP-07, RP-11, RP-12, RP-13, RP-15, RP-16, RP-17, RP-18, RP-21 und RP-23 sind in a/b(/c) geteilt, weil sie unabhängige Berichte bündeln. Namen folgen dem Katalog der App: RP-05b „Einnahmen und Cashflow“ (früher „Einnahmen und Ausgaben“), RP-11a „Prognosegenauigkeit“ (in der alten Tabelle als Budgettreue geführt), RP-11b „Budgettreue“, RP-13a „Verträge und Kosten“, RP-18a „Portfolio-Auswertung“.
 
+### RP-00 – Zeitraum zwischen Reports behalten
+- **Story:** Als Nutzer möchte ich meinen Zeitraum beim Reportwechsel behalten, damit ich mehrere Berichte ohne erneute Auswahl lesen kann.
+- **Ausgangslage:** Redesign aktiv; ein Report mit frei wählbarem Zeitraum ist geöffnet.
+- **Ablauf:**
+  1. Einen Zeitraum über Segmente, Schnellauswahl, Monatsbereich oder Vor/Zurück wählen.
+  2. Über „Bericht wechseln“, den Katalog oder einen direkten Link ohne Zeitraum einen anderen Zeitraumbericht öffnen. Die Auswahl bleibt auf diesem Gerät gemerkt, auch nach erneutem Öffnen.
+  3. Die aktive Auswahl am Steuerelement lesen; ein eigener Monatsbereich steht zusätzlich ausgeschrieben darunter.
+  4. „Zeitraum zurücksetzen“ wählen: Die lokale Vorbelegung wird gelöscht und der bisherige Standard des aktuellen Reports angezeigt.
+- **Ergebnis:** Passende Reports übernehmen denselben Zeitraum. Ein Link mit explizitem `zeitraum` hat Vorrang und wird zur nächsten Vorbelegung.
+- **Abnahmekriterien:**
+  - Gilt gemeinsam für die Zeitraumberichte dieser Stories sowie freie Explorer-Auswertungen und Zeitraumvorlagen aus RP-23; Monatsansichten wie Einnahmen bleiben separat.
+  - Monats-, Jahres- und feste Berichte einschließlich Kontakte, Portfolio-Verteilung, Freiheit und Explorer-Jahresansicht behalten ihre bisherigen Zeitgrenzen. Gespeicherte Explorer-Ansichten behalten ihre eigene Definition.
+  - Ein Reset benötigt einen Klick, erhält andere Ansichtsfilter und setzt keine Buchungen oder gespeicherten Auswertungen zurück.
+  - Die Vorbelegung bleibt lokal im Browser; gesperrter Browserspeicher verhindert keine Reportanzeige. Finanzberechnungen, Audit und Rückgängig bleiben unverändert.
+- **Status:** implementiert für Review (#1100); CI und Live-Abnahme offen.
+
 ### RP-01 – Monats-One-Pager
 - **Story:** Als Nutzer möchte ich den Monat auf einem Blatt mit Ergebniskette und 50/30/20 sehen und drucken, damit ich am Monatsende ohne Suchen entscheide, ob der Monat gut lief und was ich im nächsten ändere.
 - **Ausgangslage:** Monatsende oder laufender Monat; Buchungen und Plan des Monats sind vorhanden.
