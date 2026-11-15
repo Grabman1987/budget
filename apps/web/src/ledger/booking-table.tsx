@@ -24,7 +24,7 @@ import {
 } from './upcoming-register';
 import { flashRows, useFlashing } from './flash';
 import { useLedgerWrites } from './mutations';
-import { lookupsQuery } from './queries';
+import { lookupsQuery, payeesQuery } from './queries';
 import type { BookingSort, ListedBooking } from './types';
 import { REDESIGN_ENABLED } from '../shell/redesign-flag';
 import './register-redesign.css';
@@ -90,6 +90,7 @@ export function BookingTable({
   const classes = useCategoryClasses();
   const writes = useLedgerWrites();
   const lookups = useQuery(lookupsQuery());
+  const payees = useQuery({ ...payeesQuery(), enabled: REDESIGN_ENABLED });
   const setCategory = (b: ListedBooking, categoryId: string | null) => {
     if (selection?.disabled || selection?.mode) return;
     if ((b.splits[0]?.categoryId ?? null) === categoryId) return;
@@ -220,6 +221,7 @@ export function BookingTable({
           onOpen={onOpen}
           onInspect={setInspected}
           categories={lookups.data?.categories ?? []}
+          payees={payees.data?.payees ?? []}
           groups={lookups.data?.groups ?? []}
           onCategory={setCategory}
           onPatch={(patch) =>
@@ -402,6 +404,7 @@ export function BookingTable({
                       onOpen={onOpen}
                       onInspect={setInspected}
                       categories={lookups.data?.categories ?? []}
+                      payees={payees.data?.payees ?? []}
                       groups={lookups.data?.groups ?? []}
                       onCategory={setCategory}
                       onPatch={(patch) => writes.patch.mutateAsync({ id: entry.id, patch })}
@@ -458,6 +461,7 @@ function Row({
   onOpen,
   onInspect,
   categories,
+  payees,
   groups,
   onCategory,
   onPatch,
@@ -476,6 +480,7 @@ function Row({
   onOpen: (b: ListedBooking) => void;
   onInspect: (b: ListedBooking) => void;
   categories: { id: string; name: string; groupId: string | null }[];
+  payees: { id: string; name: string }[];
   groups: { id: string; name: string }[];
   onCategory: (b: ListedBooking, categoryId: string | null) => void;
   onPatch: (patch: BookingPatch) => Promise<unknown>;
@@ -580,15 +585,21 @@ function Row({
                 ? { hideNote: true }
                 : {})}
           />
-          {REDESIGN_ENABLED && !selectionMode && (
-            <Pencil
-              className="icon kbooking-edit-mark"
-              size={14}
-              strokeWidth={1.75}
-              aria-hidden="true"
-            />
-          )}
         </button>
+        {REDESIGN_ENABLED && !selectionMode && (
+          <div className="kpayee-inline">
+            <InlineBookingCell
+              booking={b}
+              field="payeeId"
+              payees={payees}
+              disabled={busy || selection?.disabled === true}
+              onSave={onPatch}
+              onOpen={() => onOpen(b)}
+            >
+              <Pencil className="icon" size={16} strokeWidth={1.75} aria-hidden="true" />
+            </InlineBookingCell>
+          </div>
+        )}
         {REDESIGN_ENABLED && !selectionMode && (
           <button
             type="button"
@@ -642,6 +653,13 @@ function Row({
             autoFocus
             defaultValue={b.splits[0]?.categoryId ?? ''}
             onBlur={() => setEditing(false)}
+            onKeyDown={(e) => {
+              if (e.key === 'Escape') {
+                e.preventDefault();
+                e.stopPropagation();
+                setEditing(false);
+              }
+            }}
             onChange={(e) => {
               setEditing(false);
               flashRows([b.id]);
@@ -675,7 +693,19 @@ function Row({
             <Pencil className="icon kcat-edit" size={16} strokeWidth={1.75} aria-hidden="true" />
           </button>
         ) : (
-          <CategoryCell booking={b} classes={classes} showClass={false} />
+          <span
+            title={
+              b.transferId
+                ? 'Umbuchung: Kategorie im Buchungsdialog bearbeiten.'
+                : b.splits.length !== 1
+                  ? 'Aufgeteilte Buchung: Kategorien im Buchungsdialog bearbeiten.'
+                  : b.status === 'reconciled'
+                    ? 'Geprüft: im Dialog freigeben'
+                    : undefined
+            }
+          >
+            <CategoryCell booking={b} classes={classes} showClass={false} />
+          </span>
         )}
       </td>
       {REDESIGN_ENABLED && (

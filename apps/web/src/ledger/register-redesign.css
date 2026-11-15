@@ -342,6 +342,31 @@
 .ktx.ktx-redesign .kcol-note {
   width: 14%;
 }
+.ktx.ktx-redesign
+  tr[data-booking]
+  .kx-payee:has(.booking-inspect-trigger):has(.kpayee-inline)
+  .kname-btn {
+  width: calc(100% - 88px);
+}
+.ktx.ktx-redesign .kpayee-inline {
+  position: absolute;
+  right: var(--touch);
+  top: 0;
+}
+.ktx.ktx-redesign .kpayee-inline > .kcell-edit {
+  display: grid;
+  place-items: center;
+  width: var(--touch);
+  min-height: var(--touch);
+}
+.ktx.ktx-redesign .kpayee-inline:has(.kinline) {
+  left: 0;
+  z-index: 2;
+}
+.ktx.ktx-redesign .kpayee-inline .select {
+  width: 100%;
+  min-height: var(--touch);
+}
 .ktx.ktx-redesign .kcol-money {
   width: 100px;
 }
@@ -354,14 +379,6 @@
   .ktx.ktx-redesign .kname-btn > .kname-s {
     flex: 1;
     min-width: 0;
-  }
-  .ktx.ktx-redesign .kbooking-edit-mark {
-    flex-shrink: 0;
-  }
-}
-@media (max-width: 767px) {
-  .ktx.ktx-redesign .kbooking-edit-mark {
-    display: none;
   }
 }
 
@@ -489,11 +506,10 @@
   .ktx.ktx-redesign tr:not(.is-upcoming) .kstatus-btn {
     min-width: 38px;
   }
-  .ktx.ktx-redesign .kbooking-edit-mark,
   .ktx.ktx-redesign .kcat-edit {
     opacity: 0;
   }
-  .ktx.ktx-redesign tr:is(:hover, :focus-within) :is(.kbooking-edit-mark, .kcat-edit) {
+  .ktx.ktx-redesign tr:is(:hover, :focus-within) .kcat-edit {
     opacity: 1;
   }
 }

@@ -8,12 +8,27 @@ import {
   E2E_GROUPS,
   changedPaths,
   leafSpec,
+  packageLane,
   planChanges,
   verificationPassed,
 } from './change-plan.mjs';
 
 const fixtureEnvironment = () =>
   Object.fromEntries(Object.entries(process.env).filter(([name]) => !name.startsWith('GIT_')));
+
+describe('package mode quick lane', () => {
+  const full = planChanges(['packages/domain/src/index.ts']);
+  it('downgrades a full pull-request plan to quick, unless high risk or not a pull request', () => {
+    expect(full.lane).toBe('full');
+    expect(packageLane(full, 'pull_request', false)).toMatchObject({ lane: 'quick', specs: [] });
+    expect(packageLane(full, 'pull_request', true).lane).toBe('full');
+    expect(packageLane(full, 'push', false).lane).toBe('full');
+  });
+  it('leaves docs and ui lanes alone', () => {
+    const docs = planChanges(['README.md']);
+    expect(packageLane(docs, 'pull_request', false)).toBe(docs);
+  });
+});
 
 describe('verification lane selection', () => {
   it('covers price-history presentation and unions independent UI scopes', () => {
@@ -132,11 +147,11 @@ describe('required status aggregates', () => {
     plan: { result: 'success', outputs: { lane } },
     static: { result: 'success' },
     unit: { result: lane === 'docs' ? 'skipped' : 'success' },
-    e2e: { result: lane === 'docs' ? 'skipped' : 'success' },
+    e2e: { result: lane === 'docs' || lane === 'quick' ? 'skipped' : 'success' },
     visual: { result: lane === 'full' ? 'success' : 'skipped' },
     'windows-unit': { result: lane === 'full' ? 'success' : 'skipped' },
   });
-  it.each(['docs', 'ui', 'full'])('accepts exactly the documented %s coverage', (lane) => {
+  it.each(['docs', 'ui', 'quick', 'full'])('accepts exactly the documented %s coverage', (lane) => {
     expect(verificationPassed(needsFor(lane))).toBe(true);
     expect(verificationPassed(needsFor(lane), true)).toBe(true);
   });
@@ -339,7 +354,8 @@ describe('CLI leaf target evidence', () => {
         },
       );
       const plan = JSON.parse(output);
-      expect(plan.lane).toBe(lane);
+      // Package mode: a pull request that needs the full suite reports the quick lane (full on main).
+      expect(plan.lane).toBe(lane === 'full' ? 'quick' : lane);
       expect(plan.specs).toEqual(specs);
       expect(plan.deletedOnly === true).toBe(deletedOnly);
     } finally {

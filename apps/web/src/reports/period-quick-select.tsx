@@ -11,8 +11,11 @@ import {
 } from '@budget/domain';
 import { Button, Select, Segmented, Switch } from '@budget/ui';
 import { useNavigate, useSearch } from '@tanstack/react-router';
-import { CalendarRange, ChevronLeft, ChevronRight } from 'lucide-react';
+import { CalendarRange, ChevronLeft, ChevronRight, RotateCcw } from 'lucide-react';
 import { useEffect, useId, useRef, useState } from 'react';
+import { REDESIGN_ENABLED } from '../shell/redesign-flag';
+import { forgetReportPeriod } from './remembered-period';
+import { monthLong } from './overview-format';
 import './period-quick-select.css';
 
 /** The calendar months a period stands for; `undefined` for Alles. YTD is the calendar year of the last full month. */
@@ -49,6 +52,7 @@ export function shiftPeriod(
 export function ReportPeriodControl({
   trend = true,
   ytdYear,
+  onReset,
   ...props
 }: {
   label: string;
@@ -59,7 +63,10 @@ export function ReportPeriodControl({
   trend?: boolean;
   /** Override the last-full-month year for reports whose January YTD includes January. */
   ytdYear?: string;
+  /** Stateful custom readers restore their own default alongside the URL reset. */
+  onReset?: () => void;
 }) {
+  const navigate = useNavigate();
   const today = todayInVienna();
   const [open, setOpen] = useState(false);
   const root = useRef<HTMLDivElement>(null);
@@ -100,6 +107,11 @@ export function ReportPeriodControl({
         <ChevronLeft size={16} strokeWidth={1.75} aria-hidden="true" />
       </button>
       <Segmented {...props} />
+      {REDESIGN_ENABLED && isCalendarRange(props.value) && (
+        <span className="rpc-period-label">
+          {props.value.split('..').map(monthLong).join(' – ')}
+        </span>
+      )}
       <button
         type="button"
         className="rpc-step"
@@ -130,8 +142,34 @@ export function ReportPeriodControl({
               close();
             }}
             trend={trend}
+            reset={false}
           />
         </div>
+      )}
+      {REDESIGN_ENABLED && (
+        <button
+          type="button"
+          className="rpc-step rpc-reset"
+          aria-label="Zeitraum zurücksetzen"
+          title="Gemerkten Zeitraum löschen und Reportstandard anzeigen"
+          onClick={() => {
+            forgetReportPeriod();
+            onReset?.();
+            close();
+            void navigate({
+              to: '.',
+              search: ((prev: Record<string, unknown>) => ({
+                ...prev,
+                zeitraum: undefined,
+              })) as never,
+              replace: true,
+              // Resetting this view filter keeps any named Explorer draft intact.
+              ignoreBlocker: true,
+            });
+          }}
+        >
+          <RotateCcw size={16} strokeWidth={1.75} aria-hidden="true" />
+        </button>
       )}
     </div>
   );
@@ -142,10 +180,12 @@ export function PeriodQuickSelect({
   period: controlled,
   onChange,
   trend = true,
+  reset = true,
 }: {
   period?: Period;
   onChange?: (period: Period) => void;
   trend?: boolean;
+  reset?: boolean;
 }) {
   const search = useSearch({ strict: false }) as { zeitraum?: unknown; trend?: boolean };
   const navigate = useNavigate();
@@ -268,6 +308,25 @@ export function PeriodQuickSelect({
             }
           />
         </div>
+      )}
+      {REDESIGN_ENABLED && reset && (
+        <Button
+          variant="ghost"
+          onClick={() => {
+            forgetReportPeriod();
+            setCustom(false);
+            void navigate({
+              to: '.',
+              search: ((prev: Record<string, unknown>) => ({
+                ...prev,
+                zeitraum: undefined,
+              })) as never,
+              replace: true,
+            });
+          }}
+        >
+          Zeitraum zurücksetzen
+        </Button>
       )}
     </div>
   );

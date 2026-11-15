@@ -31,19 +31,9 @@
 .bookings-redesign .ktx-all tr[data-booking] > td {
   border-bottom-color: var(--rule);
 }
-.bookings-redesign .kbooking-edit-mark {
-  margin-inline-start: 6px;
-  color: var(--ink-2);
-  flex-shrink: 0;
-}
 .bookings-redesign :is(button, a, summary):focus-visible {
   outline: 2px solid var(--line);
   outline-offset: 2px;
-}
-@media (max-width: 767px) {
-  .bookings-redesign .kbooking-edit-mark {
-    display: none;
-  }
 }
 
 .bookings-redesign.kview {
