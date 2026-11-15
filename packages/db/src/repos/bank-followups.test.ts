@@ -282,6 +282,7 @@ describe('bank matching, transfer linking and reconciliation', () => {
   it('exposes dated bank balance and locks via existing reconciliation with undo', () => {
     observation();
     expect(bankBalanceForAccount(opened.db, 'giro', today)).toEqual({
+      currency: 'EUR',
       amountCents: 100000,
       date: today,
       effectiveDate: today,

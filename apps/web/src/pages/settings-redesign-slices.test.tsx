@@ -221,6 +221,31 @@ it('E7 ON distinguishes the CSV download from the encrypted restore backup', asy
   expect(screen.getByText(/privaten age-Schlüssel/)).toBeTruthy();
 });
 
+it('E7 ON shows the monthly restore test result without storage details', async () => {
+  mount(<ExportPlaceholderPage />, '/einstellungen/export');
+  await screen.findByText('Wiederherstellung noch nicht geprüft');
+  cleanup();
+  const result = {
+    status: 'failed',
+    checkedAt: '2026-11-15T03:15:00.000Z',
+    backupName: 'budget-2026-11-14.tar.age',
+    message: 'Die Wiederherstellung in eine Prüfkopie ist fehlgeschlagen.',
+    lastOkAt: '2026-10-15T03:15:00.000Z',
+    overdue: false,
+  };
+  mount(<ExportPlaceholderPage />, '/einstellungen/export');
+  // Serve the synthetic result for this one route; every other request keeps its handler.
+  const inner = vi.mocked(globalThis.fetch).getMockImplementation()!;
+  vi.mocked(globalThis.fetch).mockImplementation(async (input, init) =>
+    String(input) === '/api/export/restore-test'
+      ? new Response(JSON.stringify(result))
+      : (inner as (u: string, i?: RequestInit) => Promise<Response>)(String(input), init),
+  );
+  const row = await screen.findByTestId('restore-test-status');
+  await waitFor(() => expect(row.textContent).toContain('fehlgeschlagen'));
+  expect(row.textContent).toContain('Zuletzt in Ordnung');
+});
+
 it('E7 ON downloads the encrypted artifact separately and keeps failures retryable', async () => {
   mount(<ExportPlaceholderPage />, '/einstellungen/export');
   const button = await screen.findByRole('button', {

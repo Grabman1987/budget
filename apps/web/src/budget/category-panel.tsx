@@ -48,6 +48,7 @@ export type PanelState =
 
 import { REDESIGN_ENABLED } from '../shell/redesign-flag';
 import { SettingsDraftGuard } from '../pages/settings-draft-guard';
+import { apiErrorText } from '../api/error-text';
 
 const TITLE = {
   edit: 'Kategorie',
@@ -62,11 +63,15 @@ export function CategoryPanel({
   tree,
   onClose,
   onSwitch,
+  onCreated,
+  excludeIncome = false,
 }: {
   state: PanelState;
   tree: CategoryTree;
   onClose: () => void;
   onSwitch: (next: PanelState) => void;
+  onCreated?: (category: CategoryRow) => void;
+  excludeIncome?: boolean;
 }) {
   useAmountPrivacy();
   const [dirty, setDirty] = useState(false);
@@ -115,6 +120,8 @@ export function CategoryPanel({
             tree={tree}
             onDone={done}
             onSwitch={switchPanel}
+            onCreated={onCreated}
+            excludeIncome={excludeIncome}
           />
         )}
         {state?.mode === 'group' && <GroupForm group={state.group} onDone={done} />}
@@ -199,11 +206,15 @@ function CategoryForm({
   tree,
   onDone,
   onSwitch,
+  onCreated,
+  excludeIncome,
 }: {
   state: { groupId: string; category?: CategoryRow };
   tree: CategoryTree;
   onDone: () => void;
   onSwitch: (next: PanelState) => void;
+  onCreated?: ((category: CategoryRow) => void) | undefined;
+  excludeIncome: boolean;
 }) {
   useAmountPrivacy();
   const write = useBudgetWrite();
@@ -234,11 +245,21 @@ function CategoryForm({
   const [dueDate, setDueDate] = useState(current?.targetDate ?? '');
   const [error, setError] = useState<string>();
   const [stale, setStale] = useState(false);
+  const saving = useRef(false);
   const classless = CLASSLESS_KINDS.has(kind);
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
+    if (saving.current) return;
     const parsed = targetKind === 'none' ? null : parseAmount(amount || '0');
+    const normalizedName = (value: string) =>
+      value.replace(/\s+/g, ' ').trim().toLocaleLowerCase('de-AT');
+    if (
+      !c &&
+      tree.categories.some((category) => normalizedName(category.name) === normalizedName(name))
+    ) {
+      return setError(apiErrorText({ code: 'label_taken' }));
+    }
     if (parsed && !parsed.ok) return setError('Der Zielbetrag lässt sich nicht ausrechnen.');
     if (targetKind === 'by_date' && !dueDate) return setError('Bitte das Zieldatum wählen.');
     setError(undefined);
@@ -306,6 +327,7 @@ function CategoryForm({
         return;
       }
     }
+    saving.current = true;
     const done = await write(
       () =>
         c
@@ -313,7 +335,11 @@ function CategoryForm({
           : createCategory({ ...fields, ...withTarget }),
       (r) => (c ? `„${r.category.name}“ gespeichert.` : `Kategorie „${r.category.name}“ angelegt.`),
     );
-    if (done) onDone();
+    saving.current = false;
+    if (done) {
+      if (!c) onCreated?.(done.category);
+      onDone();
+    }
   };
 
   return (
@@ -388,7 +414,12 @@ function CategoryForm({
         <Field label="Art">
           {({ id }) => (
             <Select id={id} value={kind} onChange={(e) => setKind(e.target.value as CategoryKind)}>
-              {CATEGORY_KINDS.map((k) => (
+              {CATEGORY_KINDS.filter(
+                (k) =>
+                  (!excludeIncome || k !== 'income') &&
+                  // Special envelopes are not offered by booking category pickers.
+                  (!onCreated || (k !== 'advance' && k !== 'card_payment')),
+              ).map((k) => (
                 <option key={k} value={k}>
                   {KIND_LABEL[k]}
                 </option>
