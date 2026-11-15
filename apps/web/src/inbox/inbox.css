@@ -32,6 +32,29 @@
   border-top: 1px solid var(--rule);
   overflow-wrap: anywhere;
 }
+.inbox-auto-resolved {
+  margin: 16px 0;
+  border-top: 1px solid var(--rule);
+  overflow-wrap: anywhere;
+}
+.inbox-auto-resolved summary {
+  min-height: 44px;
+  align-content: center;
+  cursor: pointer;
+}
+.inbox-auto-resolved summary:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+.inbox-auto-resolved ul,
+.inbox-auto-resolved ol {
+  padding: 0;
+  list-style: none;
+}
+.inbox-auto-resolved ul > li {
+  padding: 12px 0;
+  border-top: 1px solid var(--rule);
+}
 .bank-bulk-actions,
 .bank-bulk-preview {
   display: flex;

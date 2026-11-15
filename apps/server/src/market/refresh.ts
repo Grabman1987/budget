@@ -81,6 +81,9 @@ export interface FxRefreshResult {
   failed: Array<{ currency: string; errors: MarketErrorKind[] }>;
 }
 
+/** `2026-09-30` as `30.09.2026`, for the stored resolution text (the as-of day, not the run day). */
+const dayText = (day: string): string => day.split('-').reverse().join('.');
+
 /** Whether `from`..`today` holds at least `STALE_AFTER_WEEKDAYS` weekdays. */
 const isGapStale = (from: string, today: string): boolean => {
   let n = 0;
@@ -120,7 +123,8 @@ const quoteChain = (sources: MarketSources): QuoteSource[] => [
  * - Writes go through `upsertPrice`: the source is stored, a manual price is never overwritten,
  *   changes are audited. Running it twice writes nothing new.
  * - When every source fails, one open `stale_value` inbox item per security and error class
- *   (no second one while it is open); the item closes when prices flow again.
+ *   (no second one while it is open). The next successful fetch for that security closes them,
+ *   audited, with the source and as-of day recorded in the entry; other warnings stay open.
  */
 export async function refreshPrices(
   db: Db,
@@ -187,7 +191,7 @@ export async function refreshPrices(
     const attempts = quoteChain(sources).filter((source) => source.supports?.(ref) ?? true);
     // No source knows how to look this security up: surfaced like any other failure.
     const errors: MarketErrorKind[] = attempts.length === 0 ? ['not_configured'] : [];
-    let written = false;
+    let written: QuoteSourceId | undefined;
     let gotNothing = false;
     for (const source of attempts) {
       try {
@@ -249,7 +253,7 @@ export async function refreshPrices(
         });
         result.bySource[source.id].securities++;
         result.bySource[source.id].rows += rows;
-        written = true;
+        written = source.id;
         break;
       } catch (error) {
         const kind = errorKind(error);
@@ -258,7 +262,12 @@ export async function refreshPrices(
       }
     }
     if (written) {
-      resolveStaleValueItems(db, 'security', row.id, 'Kurse werden wieder abgerufen.');
+      resolveStaleValueItems(
+        db,
+        'security',
+        row.id,
+        `Kursabruf über ${written} erfolgreich (Stand ${dayText(today)}).`,
+      );
     } else if (
       errors.length > 0 ||
       (gotNothing && (last === undefined || isGapStale(from, today)))
@@ -280,7 +289,8 @@ export async function refreshPrices(
 /**
  * Bring the ECB rates of every foreign currency in use (accounts, securities, expected payment
  * versions) up to `today`: the full history on the first run, then the days since the newest
- * stored rate. Idempotent; a failure opens one `stale_value` item per currency and error class.
+ * stored rate. Idempotent; a failure opens one `stale_value` item per currency and error class,
+ * which the next successful fetch for that currency closes (audited, reason in the entry).
  */
 export async function refreshFx(
   db: Db,
@@ -320,7 +330,12 @@ export async function refreshFx(
       }
       result.bySource.ecb.currencies++;
       result.bySource.ecb.rows += rows;
-      resolveStaleValueItems(db, 'fx', currency, 'Wechselkurse werden wieder abgerufen.');
+      resolveStaleValueItems(
+        db,
+        'fx',
+        currency,
+        `Wechselkursabruf über ecb erfolgreich (Stand ${dayText(today)}).`,
+      );
     } catch (error) {
       const kind = errorKind(error);
       log(`fx: ecb failed for a currency (${kind})`);
