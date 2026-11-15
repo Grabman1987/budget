@@ -1,7 +1,11 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { ReportPeriodControl, shiftPeriod } from './period-quick-select';
+import { PeriodQuickSelect, ReportPeriodControl, shiftPeriod } from './period-quick-select';
+import { rememberedReportPeriod, rememberReportPeriod } from './remembered-period';
+
+const flags = vi.hoisted(() => ({ REDESIGN_ENABLED: false }));
+vi.mock('../shell/redesign-flag', () => flags);
 
 const navigate = vi.fn();
 vi.mock('@tanstack/react-router', () => ({
@@ -9,7 +13,11 @@ vi.mock('@tanstack/react-router', () => ({
   useNavigate: () => navigate,
 }));
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  flags.REDESIGN_ENABLED = false;
+  localStorage.clear();
+});
 
 const TODAY = '2026-09-17';
 
@@ -92,5 +100,44 @@ describe('ReportPeriodControl', () => {
     fireEvent.change(screen.getByRole('combobox'), { target: { value: 'year' } });
     expect(onChange).toHaveBeenCalledTimes(1);
     expect(screen.queryByRole('combobox')).toBeNull();
+  });
+
+  it('ON resets the device preference and URL once, keeping unrelated filters', () => {
+    flags.REDESIGN_ENABLED = true;
+    rememberReportPeriod('3M');
+    navigate.mockClear();
+    const onChange = setup();
+    fireEvent.click(screen.getByRole('button', { name: 'Zeitraum zurücksetzen' }));
+    expect(rememberedReportPeriod('ausgaben', {})).toBeUndefined();
+    expect(navigate).toHaveBeenCalledTimes(1);
+    const navigation = navigate.mock.calls[0]![0];
+    expect(navigation.search({ zeitraum: '3M', trend: true, darstellung: 'gruppen' })).toEqual({
+      zeitraum: undefined,
+      trend: true,
+      darstellung: 'gruppen',
+    });
+    expect(onChange).not.toHaveBeenCalled();
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Zeitraum wählen' }));
+  });
+
+  it('ON shows an explicit custom range without opening its picker', () => {
+    flags.REDESIGN_ENABLED = true;
+    render(
+      <ReportPeriodControl
+        label="Zeitraum"
+        options={options}
+        value="2026-01..2026-03"
+        onChange={vi.fn()}
+      />,
+    );
+    expect(screen.getByText('Jänner 2026 – März 2026')).toBeTruthy();
+  });
+
+  it('ON also resets standalone quick selectors', () => {
+    flags.REDESIGN_ENABLED = true;
+    rememberReportPeriod('Alles');
+    render(<PeriodQuickSelect period="Alles" />);
+    fireEvent.click(screen.getByRole('button', { name: 'Zeitraum zurücksetzen' }));
+    expect(rememberedReportPeriod('gesamtuebersicht', {})).toBeUndefined();
   });
 });

@@ -80,6 +80,17 @@
   opacity: 0.55;
   cursor: not-allowed;
 }
+.rpc-reset {
+  width: var(--touch);
+  height: var(--touch);
+}
+[data-budget-redesign='1'] .report-period-control {
+  flex-wrap: wrap;
+}
+.rpc-period-label {
+  flex-basis: 100%;
+  order: 1;
+}
 .rpc-step[aria-expanded='true'] {
   background: var(--tint);
   color: var(--ink);
