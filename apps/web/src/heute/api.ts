@@ -86,15 +86,21 @@ export interface Heute extends WithValuationNotes {
     budgetBalanceCents: number;
   };
   lead: {
-    needCents: number;
-    wantCents: number;
+    balanceCents: number;
+    inflowCents: number;
     openCents: number;
+    overdraftCents: number;
     freeCents: number;
     daysToPayday: number;
     chain: Array<{ label: string; value: number; op?: '+' | '-' | '='; result?: boolean }>;
     items: {
-      need: Array<{ id: string; name: string; class: 'need' | 'want'; availableCents: number }>;
-      want: Array<{ id: string; name: string; class: 'need' | 'want'; availableCents: number }>;
+      accounts: Array<{
+        id: string;
+        name: string;
+        balanceCents: number;
+        overdraftLimitCents: number | null;
+      }>;
+      inflow: Array<{ id: string; label: string; day: string; cents: number }>;
       open: Array<{ id: string; label: string; day: string; cents: number }>;
     };
   };

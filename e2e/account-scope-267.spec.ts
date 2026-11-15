@@ -67,7 +67,7 @@ test('Heute explains sidebar, forecast and net-worth account scopes', async ({
   expect(heute.netWorth.investedCents).toBe(40_000);
   expect(heute.netWorth.debtCents).toBe(-20_000);
   expect(heute.netWorth.totalCents).toBe(170_000);
-  expect(heute.lead.freeCents).toBe(0);
+  expect(heute.lead.freeCents).toBe(80_000);
 
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await openHeuteReview(page, '/');

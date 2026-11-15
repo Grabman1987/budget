@@ -17,14 +17,15 @@ it.each([
     const lead = freeUntilPayday({
       today,
       payday: heute.nextPayday(today).day,
-      envelopes: [
+      accounts: [
         {
           id: 'synthetic',
-          name: 'Synthetic envelope',
-          class: 'need',
-          availableCents: freeCents + 101,
+          name: 'Synthetic account',
+          balanceCents: freeCents + 101,
+          overdraftLimitCents: null,
         },
       ],
+      expectedInflows: [],
       openOutflows: [{ id: 'bill', label: 'Synthetic bill', day: addDays(today, -1), cents: 101 }],
     });
     expect(lead.freeCents).toBe(freeCents);

@@ -154,7 +154,7 @@ export function Kennzahlen({
             }
             note={
               data && plan
-                ? `Verfügbar in allen Envelopes für Bedarf und Wunsch, abzüglich der Rechnungen, die vor dem Gehalt noch fällig sind. Ausgabenplan: ${eur(plan.spentCents)} ausgegeben von ${eur(plan.plannedCents)} · Plan-Rest ${eur(plan.remainingCents)}. Plan-Rest: geplante Monatsausgaben minus bisher ausgegeben, kein Kontoguthaben. ${
+                ? `Kontostand der Budget-Konten plus erwartete Eingänge, abzüglich der Rechnungen, die vor dem Gehalt noch fällig sind.${data.lead.overdraftCents > 0 ? ` Darin ${eur(data.lead.overdraftCents)} Dispo-Rahmen.` : ''} Ausgabenplan: ${eur(plan.spentCents)} ausgegeben von ${eur(plan.plannedCents)} · Plan-Rest ${eur(plan.remainingCents)}. Plan-Rest: geplante Monatsausgaben minus bisher ausgegeben, kein Kontoguthaben. ${
                     data.balance.salary
                       ? `Nächster erwarteter Geldeingang: ${shortDay(data.balance.salary.day)} · ${eur(data.balance.salary.cents)}`
                       : 'Kein Geldeingang im Prognosezeitraum erwartet.'

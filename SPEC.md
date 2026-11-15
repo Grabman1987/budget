@@ -225,7 +225,7 @@ Five main areas plus settings (profile menu). Registers are the second level; no
 
 | Area | Question | Registers / views (prototype file) |
 | --- | --- | --- |
-| Heute | Hält der Monat? | Leitmaß "frei verfügbar bis Gehalt", pace, upcoming payments, Finanz-Check KPI, net worth (`index.html`) |
+| Heute | Hält der Monat? | Leitmaß "frei verfügbar bis Gehalt" (cash-flow figure: cash balance of the budget cash accounts today + expected inflows before payday - open outflows due before payday + activated Dispo; owner decision 2026-11-14, #1084), pace, upcoming payments, Finanz-Check KPI, net worth (`index.html`) |
 | Plan | Jeder Euro hat einen Job | Monat · Jahr · Zahlungen · Ziele · Prognose (`/plan/prognose`, formerly `/reports/liquiditaet`); Monat with views Wasserfall / Zeit / Gruppen / Klassen / Triage, Geld verteilen (`plan.html`) |
 | Konten | Was ist passiert? | Übersicht · Buchungen · Prüfen (`/konten/pruefen`, legacy `/konten/posteingang` redirects, including details) · Kontakte; Einzelkonto with Kontostand prüfen (`konten.html`) |
 | Vermögen | Was besitze ich, was entscheide ich? | Nettovermögen, Portfolio (Soll/Ist, Rebalancing, Sparpläne), Schulden (Sondertilgung), Freiheitszahl with Soll-Pfad (`vermoegen.html`) |
