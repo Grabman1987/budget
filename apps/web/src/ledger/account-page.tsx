@@ -118,9 +118,9 @@ export function AccountPage({ id }: { id: string }) {
         {accounts.data && !account && <EmptyNote>Dieses Konto gibt es nicht (mehr).</EmptyNote>}
         {account &&
           (account.type === 'brokerage' || account.type === 'crypto' ? (
-            <DepotBody account={account} bankReview={bankReview} />
+            <DepotBody key={account.id} account={account} bankReview={bankReview} />
           ) : (
-            <AccountBody account={account} bankReview={bankReview} />
+            <AccountBody key={account.id} account={account} bankReview={bankReview} />
           ))}
         {account && REDESIGN_ENABLED && (
           <details className="account-documents-redesign">
