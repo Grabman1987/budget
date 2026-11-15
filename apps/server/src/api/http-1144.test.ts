@@ -1,11 +1,37 @@
 import { Hono } from 'hono';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { BookingInvariantError } from '@budget/db';
+import { ContactAllocationError, ContactInvariantError, contactStatement } from '@budget/domain';
 import { ApiError, errorAnswer, errorResponse } from './http';
 
 afterEach(() => vi.restoreAllMocks());
 
 describe('unhandled API diagnostics (#1144)', () => {
+  it('answers contradictory contact allocations with a German 422 and keeps arithmetic failures at 500', async () => {
+    const log = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const app = new Hono().onError(errorResponse);
+    app.post('/contact-conflict', () => {
+      contactStatement(
+        [],
+        [{ receiptSplitId: 'synthetic-missing', allocations: [], creditCents: 0 }],
+      );
+      return new Response();
+    });
+    const response = await app.request('/contact-conflict', { method: 'POST' });
+    expect(response.status).toBe(422);
+    expect(await response.json()).toEqual({
+      error: 'contact_allocation',
+      message: new ContactAllocationError('missing').message,
+    });
+    expect(log).not.toHaveBeenCalled();
+    expect(
+      errorAnswer(new ContactInvariantError('Contact balance exceeds integer range')).status,
+    ).toBe(500);
+    expect(log.mock.calls[0]?.[1]).toMatchObject({
+      name: 'ContactInvariantError',
+      message: 'Contact balance exceeds integer range',
+    });
+  });
   it('correlates a 500 with a safe message, method, route pattern and source stack', async () => {
     const log = vi.spyOn(console, 'error').mockImplementation(() => {});
     const app = new Hono().onError(errorResponse);

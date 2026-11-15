@@ -85,19 +85,11 @@ export function contactStatementOf(
   const movements = actualContactMovements(db, ids, asOf, records);
   if (movements.some((m) => m.currency !== 'EUR'))
     throw new BookingInvariantError('Contact statements require EUR movements');
-  const statement = (() => {
-    try {
-      return contactStatement(
-        movements,
-        savedContactSettlements(db, ids, asOf, records),
-        actualContactMovements(db, ids, undefined, records),
-      );
-    } catch (error) {
-      throw new BookingInvariantError(
-        error instanceof Error ? error.message : 'Invalid contact allocation',
-      );
-    }
-  })();
+  const statement = contactStatement(
+    movements,
+    savedContactSettlements(db, ids, asOf, records),
+    actualContactMovements(db, ids, undefined, records),
+  );
   const creditChoices = statement.receipts.flatMap((receipt) => {
     const remaining = statement.credits.find(
       (c) => c.receiptSplitId === receipt.receiptSplitId && !c.targetOutlaySplitId,

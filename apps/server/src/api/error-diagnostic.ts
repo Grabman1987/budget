@@ -16,7 +16,14 @@ const SAFE_MESSAGES = new Set([
   'Invalid contact balance',
   'Contact totals exceed integer range',
 ]);
-const SAFE_NAMES = new Set(['Error', 'TypeError', 'RangeError', 'ReferenceError', 'SyntaxError']);
+const SAFE_NAMES = new Set([
+  'Error',
+  'TypeError',
+  'RangeError',
+  'ReferenceError',
+  'SyntaxError',
+  'ContactInvariantError',
+]);
 
 /** Correlate a generic 500 with a bounded diagnostic, never the error object or request data. */
 export function logUnhandledError(

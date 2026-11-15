@@ -42,6 +42,7 @@ Grundlage: `docs/pwa.md`. Die App ist eine PWA: Hülle und Programmdateien liege
   7. Ziel für #1144 (noch offen): Netzwerkfehler und HTTP 502–504 bleiben wiederholbar; fachliche Ablehnungen und HTTP 500 mit `server_error` werden nicht endlos wiederholt.
 - **Status:** teilweise — **Verweis:** Y26, #1144
   Serverdiagnose als erster Teil von #1144: Unerwartete Ledger-API-Fehler liefern eine kurze Fehler-ID. Das Serverprotokoll verknüpft sie mit Methode, Routenmuster und bereinigten Stackpositionen. Nur bekannte, datenfreie Fehlermeldungen werden protokolliert; unbekannte Meldungen bleiben redigiert.
+  Kontakt-Replay-Fix in #1154: Rückdatierte Auslagen lassen gespeicherte automatische und ausdrückliche Verrechnungen unverändert. Neue Auslagen nutzen nur tatsächlich freies Kontaktguthaben; widersprüchliche Kontaktverrechnungen liefern eine deutsche 422-Antwort. Bereits gebundene Auslagen bleiben gegen wirtschaftliche Änderungen und Löschen geschützt. Der Fix ist durch DB- und API-Regressionstests geprüft; die Veröffentlichung ist damit noch nicht bestätigt.
   Fehlt noch: Durchgängige deutsche 422-Validierung, Anzeige/Kopieren der Fehler-ID, Entwürfe ohne Blockade späterer Einträge und der Drei-Buchungen-E2E-Test (#1144). Derzeit hält eine Ablehnung spätere Einträge weiterhin zurück. Außerdem Abnahme auf einem echten Gerät; getrennt davon der klare Status je Änderung (A-02).
 
 ### A-01b – Offline den letzten Stand lesen

@@ -14,7 +14,11 @@ import {
   MissingFxRateError,
   ReconciledLockedError,
 } from '@budget/db';
-import { ExchangeRateUnavailableError, PriceUnavailableError } from '@budget/domain';
+import {
+  ContactAllocationError,
+  ExchangeRateUnavailableError,
+  PriceUnavailableError,
+} from '@budget/domain';
 import type { Context } from 'hono';
 import { routePath } from 'hono/route';
 import { ZodError, type ZodType } from 'zod';
@@ -140,6 +144,9 @@ export function errorAnswer(
     return answer({ error: 'undo_refused', message: error.message }, 409);
   if (error instanceof BookingInvariantError) {
     return answer({ error: 'invariant', message: error.message }, 422);
+  }
+  if (error instanceof ContactAllocationError) {
+    return answer({ error: 'contact_allocation', message: error.message }, 422);
   }
   if (error instanceof AccountInvariantError) {
     return answer({ error: 'invariant', message: error.message }, 422);
