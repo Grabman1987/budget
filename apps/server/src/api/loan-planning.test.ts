@@ -294,7 +294,8 @@ describe('scenarios', () => {
     expect((await call('DELETE', `/loan/scenarios/${rate.body.id}`)).status).toBe(200);
     expect((await call('DELETE', `/loan/scenarios/${rate.body.id}`)).status).toBe(404);
     plan = (await call('GET', '/loan/plan')).body;
-    expect(plan.scenarios.map((s: any) => s.name)).toEqual(['Einmalig groß', 'Höhere Rate']);
+    // Same-millisecond creations tie on createdAt and fall back to the random id.
+    expect(plan.scenarios.map((s: any) => s.name).sort()).toEqual(['Einmalig groß', 'Höhere Rate']);
     expect(higher.status).toBe(201);
   });
 

@@ -110,7 +110,7 @@ function HeuteBody({
   useAmountPrivacy();
   const heuteFacts = useMemo(() => (data ? heuteVerdictFacts(data) : undefined), [data]);
   const [chainOpen, setChainOpen] = useState(false);
-  const [leadDetail, setLeadDetail] = useState<'need' | 'want' | 'open' | null>(null);
+  const [leadDetail, setLeadDetail] = useState<'balance' | 'inflow' | 'open' | null>(null);
   const [paceDetail, setPaceDetail] = useState<'spent' | 'plan' | 'forecast' | null>(null);
   const navigate = useNavigate();
   const source = useLocation({ select: (location) => location.href });
@@ -146,9 +146,9 @@ function HeuteBody({
   const leadTerms: DimensionChainTerm[] = (data?.lead.chain ?? []).map((term, index) => ({
     ...term,
     value: cents(term.value),
-    ...(index === 0 ? { onSelect: () => setLeadDetail('need') } : {}),
-    ...(term.label.toLowerCase().includes('wunsch')
-      ? { onSelect: () => setLeadDetail('want') }
+    ...(index === 0 ? { onSelect: () => setLeadDetail('balance') } : {}),
+    ...(term.label.toLowerCase().includes('eingänge')
+      ? { onSelect: () => setLeadDetail('inflow') }
       : {}),
     ...(term.label.toLowerCase().includes('offen')
       ? { onSelect: () => setLeadDetail('open') }
@@ -219,12 +219,15 @@ function HeuteBody({
               <div id="heute-lead-chain" className="heute-chain-area">
                 <h2 id="heute-lead-title">Spielraum bis Gehalt</h2>
                 <p>
-                  Verfügbar in allen Envelopes für Bedarf und Wunsch, abzüglich der Rechnungen, die
-                  vor dem Gehalt noch fällig sind.
+                  Kontostand der Budget-Konten plus erwartete Eingänge, abzüglich der Rechnungen,
+                  die vor dem Gehalt noch fällig sind
+                  {data.lead.overdraftCents > 0
+                    ? `; darin ${eur(data.lead.overdraftCents)} Dispo-Rahmen, also Geld, das die Bank nur überzieht.`
+                    : '.'}
                 </p>
                 <DimensionChain
                   terms={leadTerms}
-                  label="Maßkette: Bedarf plus Wunsch minus offene Rechnungen bis Gehalt"
+                  label="Maßkette: Kontostand plus erwartete Eingänge minus offene Rechnungen bis Gehalt plus Dispo-Rahmen"
                   precision="cent"
                 />
                 {REDESIGN_ENABLED && (
@@ -249,8 +252,8 @@ function HeuteBody({
                 )}
                 {leadDetail && <LeadDetail data={data} kind={leadDetail} />}
                 <p className="heute-note">
-                  Wähle Bedarf, Wunsch oder offen bis Gehalt für die zugehörigen Envelopes und
-                  Zahlungen.
+                  Wähle Kontostand, erwartete Eingänge oder offen bis Gehalt für die zugehörigen
+                  Konten und Zahlungen.
                 </p>
               </div>
             )}
@@ -846,7 +849,7 @@ function HeuteBody({
   );
 }
 
-/** Current-day envelope money; the selected-month Pace and fixed cash forecast keep their scopes. */
+/** Current-day cash flow; the selected-month Pace and fixed cash forecast keep their scopes. */
 function PrimaryLead({
   data,
   pending,
@@ -893,8 +896,8 @@ function PrimaryLead({
         </Button>
       </div>
       <p className="heute-note">
-        Envelope-Spielraum für Bedarf und Wunsch nach offenen Rechnungen; kein Kontostand und kein
-        Überziehungsrahmen.
+        Kontostand plus erwartete Eingänge, minus offene Rechnungen bis Gehalt, plus aktivierter
+        Dispo-Rahmen.
       </p>
       <p className="heute-note heute-primary-source">
         {data ? (
@@ -1106,7 +1109,7 @@ export function HeuteWealthLine({
   );
 }
 
-function LeadDetail({ data, kind }: { data: Heute; kind: 'need' | 'want' | 'open' }) {
+function LeadDetail({ data, kind }: { data: Heute; kind: 'balance' | 'inflow' | 'open' }) {
   useAmountPrivacy();
   if (kind === 'open')
     return (
@@ -1128,21 +1131,44 @@ function LeadDetail({ data, kind }: { data: Heute; kind: 'need' | 'want' | 'open
         )}
       </div>
     );
-  const list = data.lead.items[kind];
+  if (kind === 'inflow')
+    return (
+      <div className="heute-breakdown" aria-live="polite">
+        <h3>Erwartete Eingänge bis Gehalt</h3>
+        {data.lead.items.inflow.length ? (
+          <ul>
+            {data.lead.items.inflow.map((item) => (
+              <li key={item.id}>
+                <span>
+                  {longDay(item.day)} · {item.label}
+                </span>
+                <strong>{eur(item.cents)}</strong>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p>Keine erwarteten Eingänge vor dem Gehalt.</p>
+        )}
+      </div>
+    );
+  const list = data.lead.items.accounts;
   return (
     <div className="heute-breakdown" aria-live="polite">
-      <h3>Envelopes {kind === 'need' ? 'Bedarf' : 'Wunsch'}</h3>
+      <h3>Budget-Konten</h3>
       {list.length ? (
         <ul>
           {list.map((item) => (
             <li key={item.id}>
-              <span>{item.name}</span>
-              <strong>{eur(item.availableCents)}</strong>
+              <span>
+                {item.name}
+                {item.overdraftLimitCents ? ` · Dispo ${eur(item.overdraftLimitCents)}` : ''}
+              </span>
+              <strong>{eur(item.balanceCents)}</strong>
             </li>
           ))}
         </ul>
       ) : (
-        <p>Keine Envelopes in dieser Klasse.</p>
+        <p>Keine Budget-Konten.</p>
       )}
     </div>
   );

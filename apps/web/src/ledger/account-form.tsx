@@ -37,7 +37,8 @@ const DEFAULT_ON_BUDGET: Partial<Record<AccountType, boolean>> = {
   credit_card: true,
 };
 
-const hasOverdraft = (t: AccountType) => t === 'checking';
+/** Budget cash accounts that can have a Dispo (Überziehungsrahmen); cards have their own limit. */
+export const hasOverdraft = (t: AccountType) => t === 'checking' || t === 'cash' || t === 'savings';
 const hasCreditLimit = (t: AccountType) => t === 'credit_card';
 export const hasRate = (t: AccountType) =>
   ['checking', 'credit_card', 'savings', 'loan', 'other_liability'].includes(t);
@@ -50,6 +51,40 @@ export function percentToBp(text: string): number | null {
   if (clean === '') return null;
   if (!/^\d+(\.\d{1,2})?$/.test(clean)) return Number.NaN;
   return Math.round(Number(clean) * 100);
+}
+
+/**
+ * "Dispo" checkbox: ticked shows the limit field, unticked clears it (no limit = null). The limit
+ * counts as available money in Frei bis Gehalt.
+ */
+export function DispoField({
+  value,
+  onChange,
+  error,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  error?: string | undefined;
+}) {
+  const [on, setOn] = useState(value !== '');
+  return (
+    <>
+      <label>
+        <input
+          type="checkbox"
+          checked={on}
+          onChange={(e) => {
+            setOn(e.target.checked);
+            if (!e.target.checked) onChange('');
+          }}
+        />{' '}
+        Dispo
+      </label>
+      {on && (
+        <AmountInput label="Überziehungsrahmen" value={value} onChange={onChange} error={error} />
+      )}
+    </>
+  );
 }
 
 type Errors = Partial<
@@ -316,12 +351,7 @@ function AccountForm({
         <AmountInput label="Kartenlimit" value={limit} onChange={setLimit} error={errors.limit} />
       )}
       {hasOverdraft(type) && (
-        <AmountInput
-          label="Überziehungsrahmen"
-          value={overdraft}
-          onChange={setOverdraft}
-          error={errors.overdraft}
-        />
+        <DispoField value={overdraft} onChange={setOverdraft} error={errors.overdraft} />
       )}
       {hasRate(type) && (
         <Field label="Zinssatz in Prozent" error={errors.rate}>

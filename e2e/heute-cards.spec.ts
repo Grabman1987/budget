@@ -142,12 +142,13 @@ test('explains plan-rest behind the derivation of the negative payday room on ph
     day: 17,
     daysInMonth: 30,
   };
-  data.lead.needCents = 25_000;
-  data.lead.wantCents = 15_000;
+  data.lead.balanceCents = 25_000;
+  data.lead.inflowCents = 15_000;
+  data.lead.overdraftCents = 0;
   data.lead.openCents = 50_000;
   data.lead.chain = [
-    { label: 'Bedarf', value: 25_000 },
-    { label: 'Wunsch', value: 15_000, op: '+' },
+    { label: 'Kontostand', value: 25_000 },
+    { label: 'erwartete Eingänge', value: 15_000, op: '+' },
     { label: 'offen bis Gehalt', value: 50_000, op: '-' },
     { label: 'frei verfügbar', value: -10_000, op: '=', result: true },
   ];
@@ -190,7 +191,7 @@ test('explains plan-rest behind the derivation of the negative payday room on ph
   );
   await expect(note).toContainText('Ausgabenplan: 600,00 € ausgegeben von 1.000,00 €');
   await expect(note).toContainText(
-    'Verfügbar in allen Envelopes für Bedarf und Wunsch, abzüglich der Rechnungen, die vor dem Gehalt noch fällig sind',
+    'Kontostand der Budget-Konten plus erwartete Eingänge, abzüglich der Rechnungen, die vor dem Gehalt noch fällig sind',
   );
   await expect(note).toContainText('Plan-Rest 400,00 €');
   await expect(note).toContainText('kein Kontoguthaben');

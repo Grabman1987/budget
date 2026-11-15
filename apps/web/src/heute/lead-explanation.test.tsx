@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen, within } from '@testing-library/react';
+import { cleanup, render, screen } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
 import { afterEach, expect, it, vi } from 'vitest';
@@ -38,15 +38,23 @@ it.each(['occurrence', 'payment|2026-09-20'])(
       },
       dailyBudget: { remainingDays: 14, perDayCents: 79 },
       lead: {
-        needCents: 1001,
-        wantCents: 202,
+        balanceCents: 1001,
+        inflowCents: 202,
         openCents: 103,
+        overdraftCents: 0,
         freeCents: 1100,
         // Older API responses round their overview chain; the full explanation must retain cents.
-        chain: [{ label: 'Bedarf', value: 1000 }],
+        chain: [{ label: 'Kontostand', value: 1000 }],
         items: {
-          need: [{ id: 'need', name: 'Synthetic need', availableCents: 1001 }],
-          want: [{ id: 'want', name: 'Synthetic want', availableCents: 202 }],
+          accounts: [
+            {
+              id: 'giro',
+              name: 'Synthetic account',
+              balanceCents: 1001,
+              overdraftLimitCents: null,
+            },
+          ],
+          inflow: [{ id: 'in', label: 'Synthetic inflow', day: '2026-09-22', cents: 202 }],
           open: [{ id: identity, label: 'Synthetic payment', day: '2026-09-20', cents: 103 }],
         },
       },
@@ -91,11 +99,12 @@ it.each(['occurrence', 'payment|2026-09-20'])(
     expect(view.container.textContent).toContain('1,03 €');
     expect(view.container.textContent).toContain('11,00 €');
     expect(view.container.textContent).toContain('17.09.2026');
-    const need = within(screen.getByRole('region', { name: 'Bedarf' })).getByRole('link');
-    const target = new URL(need.getAttribute('href')!, 'https://budget.invalid');
-    expect(target.pathname).toBe('/plan/monat/envelope/need');
-    expect(target.searchParams.get('monat')).toBe('2026-09');
-    expect(target.searchParams.get('von')).toBe(href);
+    expect(screen.getByRole('region', { name: 'Kontostand' }).textContent).toContain(
+      'Synthetic account',
+    );
+    expect(screen.getByRole('region', { name: 'Erwartete Eingänge' }).textContent).toContain(
+      'Synthetic inflow',
+    );
     expect(screen.getByRole('link', { name: /Synthetic payment/ }).getAttribute('href')).toContain(
       '/plan/erwartet/payment?',
     );

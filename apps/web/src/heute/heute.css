@@ -1471,6 +1471,13 @@
 .heute--redesign .heute-primary-source {
   min-block-size: 1lh;
 }
+@media (max-width: 767px) {
+  /* Keep loading and loaded amounts on the same two rows, regardless of amount width. */
+  .heute--redesign .heute-primary-answer {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
 .heute--redesign .heute-kennzahl {
   grid-template-rows: minmax(var(--touch), auto);
 }
