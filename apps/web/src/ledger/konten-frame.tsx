@@ -9,6 +9,7 @@ import { REDESIGN_ENABLED } from '../shell/redesign-flag';
 import { useIsPhone } from '@budget/ui';
 import './konten-frame.css';
 import { longDay } from './format';
+import { RegisterNavigationBoundary } from '../shell/navigation-outlet';
 
 type KontenFrameProps = PageFrameProps & {
   view: 'overview' | 'account' | 'bookings' | 'inbox';
@@ -27,7 +28,7 @@ export function KontenFrame({
   headerSummary,
   ...props
 }: KontenFrameProps) {
-  return REDESIGN_ENABLED ? (
+  const frame = REDESIGN_ENABLED ? (
     <RedesignKontenFrame
       {...props}
       view={view}
@@ -38,6 +39,11 @@ export function KontenFrame({
     />
   ) : (
     <PageFrame {...props} />
+  );
+  return view === 'overview' ? (
+    frame
+  ) : (
+    <RegisterNavigationBoundary>{frame}</RegisterNavigationBoundary>
   );
 }
 

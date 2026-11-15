@@ -1,12 +1,59 @@
 ﻿// @vitest-environment jsdom
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { useState } from 'react';
 import { expect, it, vi } from 'vitest';
 import { ToastProvider } from '@budget/ui';
 import * as ledgerApi from './api';
 import { SplitEditor } from './split-editor';
 import { buildCreate, emptyDraft, newSplit, type BookingDraft } from './booking-model';
+
+it.each([false, true])('adding a line respects intervening category focus (%s)', (moveFocus) => {
+  const frames: FrameRequestCallback[] = [];
+  const raf = vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => {
+    frames.push(callback);
+    return frames.length;
+  });
+  function Form() {
+    const [draft, setDraft] = useState(emptyDraft('account-example', '2026-10-01'));
+    return (
+      <SplitEditor
+        draft={draft}
+        setDraft={setDraft}
+        categories={[]}
+        accounts={[]}
+        accountId="account-example"
+        contacts={[{ id: 'contact-example', name: 'Kontakt Muster' }]}
+        hasAdvanceCategory
+        locked={false}
+        error={undefined}
+        compact
+      />
+    );
+  }
+  try {
+    render(<Form />);
+    const add = screen.getByRole('button', { name: 'Kategorie hinzufügen' });
+    add.focus();
+    fireEvent.click(add);
+    const focusNewLine = frames.shift()!;
+    const category = screen.getByLabelText('Kategorie 2') as HTMLInputElement;
+    if (moveFocus) {
+      act(() => category.focus());
+      fireEvent.change(category, { target: { value: 'Kontakt Muster' } });
+    }
+    act(() => focusNewLine(0));
+    expect(document.activeElement).toBe(moveFocus ? category : screen.getByLabelText('Betrag 2'));
+    if (moveFocus) {
+      expect(category.value).toBe('Kontakt Muster');
+      expect(
+        screen.getByRole('option', { name: 'Für Kontakt auslegen → Kontakt Muster' }),
+      ).toBeTruthy();
+    }
+  } finally {
+    raf.mockRestore();
+  }
+});
 
 it('shares a category by percent, keeps cents exact, and guards an unfinished second line', () => {
   function Form() {

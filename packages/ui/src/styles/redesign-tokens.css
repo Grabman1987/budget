@@ -7,6 +7,8 @@
   --rule-strong: #6786ac;
   --warning: #8a5300;
   --warning-soft: #fff3d6;
+  --ink-3: #4d6a89;
+  --red: #c42a1f;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -16,6 +18,8 @@
     --rule-strong: #4987bc;
     --warning: #ffd37a;
     --warning-soft: #473d2b;
+    --ink-3: #a4c8e2;
+    --red: #ff9586;
   }
 }
 
@@ -25,6 +29,8 @@
   --rule-strong: #4987bc;
   --warning: #ffd37a;
   --warning-soft: #473d2b;
+  --ink-3: #a4c8e2;
+  --red: #ff9586;
 }
 
 @media print {
@@ -34,5 +40,7 @@
     --rule-strong: #6786ac;
     --warning: #8a5300;
     --warning-soft: #fff3d6;
+    --ink-3: #4d6a89;
+    --red: #c42a1f;
   }
 }
