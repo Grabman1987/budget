@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import type { ReactNode } from 'react';
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
@@ -27,9 +27,26 @@ vi.mock('../receipts/receipt-section', () => ({
   },
 }));
 vi.mock('../statement-intake/statement-review-726', () => ({
-  AccountStatementIntake: (props: { accountId: string; handoff: { file: File } }) => {
+  AccountStatementIntake: (props: {
+    accountId: string;
+    handoff: { file: File };
+    onHandoffClose: () => void;
+  }) => {
     statement(props);
-    return <p>statement flow</p>;
+    return (
+      <>
+        <button onClick={props.onHandoffClose}>Close statement flow</button>
+        <a
+          href="/konten/pruefen"
+          onClick={(event) => {
+            event.preventDefault();
+            if (allowStatementClose) props.onHandoffClose();
+          }}
+        >
+          Zu Prüfen im Einzelablauf
+        </a>
+      </>
+    );
   },
 }));
 vi.mock('../reports/payslip-panel', () => ({
@@ -50,6 +67,7 @@ let noticeItems: {
 }[] = [];
 let archiveRequests: unknown[] = [];
 let failReceipt = false;
+let allowStatementClose = true;
 let result: Classification;
 let classifyBodies: FormData[];
 beforeEach(() => {
@@ -57,6 +75,7 @@ beforeEach(() => {
   noticeItems = [];
   archiveRequests = [];
   failReceipt = false;
+  allowStatementClose = true;
   // jsdom has no showModal and no matchMedia (desktop layout).
   HTMLDialogElement.prototype.showModal ??= function showModal(this: HTMLDialogElement) {
     this.setAttribute('open', '');
@@ -155,7 +174,7 @@ it('lets the owner correct the type: payslip hands the same file to the payslip 
   expect(statement).not.toHaveBeenCalled();
 });
 
-it('requires an account for a statement chosen without context', async () => {
+it('proposes the only matching account and lets the owner change it', async () => {
   result = {
     type: 'bank_statement',
     confidence: 'probable',
@@ -166,8 +185,9 @@ it('requires an account for a statement chosen without context', async () => {
   const user = await pick(pdf());
   await screen.findByText(/Erkannt: Kontoauszug/);
   const next = screen.getByRole('button', { name: 'Weiter' }) as HTMLButtonElement;
-  expect(next.disabled).toBe(true);
-  await user.selectOptions(await screen.findByLabelText('Konto'), 'synthetic-giro');
+  expect(next.disabled).toBe(false);
+  expect((screen.getByLabelText('Konto') as HTMLSelectElement).value).toBe('synthetic-giro');
+  await user.selectOptions(await screen.findByLabelText('Konto'), ACCOUNT);
   expect(next.disabled).toBe(false);
 });
 
@@ -272,4 +292,119 @@ it('previews each stored notice before sending one explicit batch decision', asy
       },
     ]),
   );
+});
+
+it('keeps separate rows and retries only a failed file without writing any document', async () => {
+  result = {
+    type: 'card_statement',
+    confidence: 'certain',
+    hints: { mime: 'application/pdf' },
+    needsPassword: false,
+  };
+  const baseFetch = fetch;
+  let fail = true;
+  vi.stubGlobal('fetch', async (input: string, init?: RequestInit) => {
+    if (
+      String(input).endsWith('/classify') &&
+      (init?.body as FormData).get('file') instanceof File
+    ) {
+      const file = (init?.body as FormData).get('file') as File;
+      if (file.name === 'failed.pdf' && fail) {
+        classifyBodies.push(init?.body as FormData);
+        return Response.json(
+          { error: 'synthetic_failure', message: 'Prüfung fehlgeschlagen.' },
+          { status: 422 },
+        );
+      }
+    }
+    return baseFetch(input, init);
+  });
+  renderButton();
+  const user = userEvent.setup();
+  await user.click(screen.getByRole('button', { name: 'Dokument hochladen' }));
+  await user.upload(screen.getByLabelText('Dokument auswählen'), [
+    new File(['pdf'], 'good.pdf', { type: 'application/pdf' }),
+    new File(['pdf'], 'failed.pdf', { type: 'application/pdf' }),
+  ]);
+  const good = within(screen.getByRole('region', { name: 'good.pdf' }));
+  const failed = within(screen.getByRole('region', { name: 'failed.pdf' }));
+  await good.findByText('Erkannt: Kreditkartenabrechnung');
+  await failed.findByRole('alert');
+  expect((good.getByLabelText('Konto') as HTMLSelectElement).value).toBe(ACCOUNT);
+  await user.selectOptions(good.getByLabelText('Konto'), 'synthetic-giro');
+  fail = false;
+  await user.click(failed.getByRole('button', { name: 'Erneut versuchen' }));
+  await failed.findByText('Erkannt: Kreditkartenabrechnung');
+  expect(classifyBodies.map((body) => (body.get('file') as File).name)).toEqual([
+    'good.pdf',
+    'failed.pdf',
+    'failed.pdf',
+  ]);
+  expect((good.getByLabelText('Konto') as HTMLSelectElement).value).toBe('synthetic-giro');
+  expect(receipt).not.toHaveBeenCalled();
+  expect(statement).not.toHaveBeenCalled();
+  expect(payslip).not.toHaveBeenCalled();
+  await user.click(good.getByRole('button', { name: 'Weiter' }));
+  await waitFor(() => expect(statement).toHaveBeenCalled());
+  expect(statement.mock.calls[0]![0].accountId).toBe('synthetic-giro');
+  await user.click(screen.getByRole('button', { name: 'Close statement flow' }));
+  expect(good.getByText(/Einzelprüfung geschlossen/)).toBeTruthy();
+  expect(failed.getByText('Erkannt: Kreditkartenabrechnung')).toBeTruthy();
+  await user.upload(
+    screen.getByLabelText('Dokument auswählen'),
+    new File(['pdf'], 'next.pdf', { type: 'application/pdf' }),
+  );
+  const next = within(screen.getByRole('region', { name: 'next.pdf' }));
+  await next.findByText('Erkannt: Kreditkartenabrechnung');
+  expect((next.getByLabelText('Konto') as HTMLSelectElement).value).toBe('synthetic-giro');
+});
+
+it('leaves an ambiguous account proposal empty until the owner chooses', async () => {
+  result = {
+    type: 'bank_statement',
+    confidence: 'certain',
+    hints: { mime: 'application/pdf' },
+    needsPassword: false,
+  };
+  const baseFetch = fetch;
+  vi.stubGlobal('fetch', async (input: string, init?: RequestInit) => {
+    if (String(input).endsWith('/api/accounts'))
+      return Response.json({
+        accounts: [
+          { id: 'synthetic-one', name: 'Muster Eins', type: 'checking' },
+          { id: 'synthetic-two', name: 'Muster Zwei', type: 'checking' },
+        ],
+      });
+    return baseFetch(input, init);
+  });
+  renderButton();
+  const user = await pick(pdf());
+  await screen.findByText('Erkannt: Kontoauszug');
+  expect((screen.getByLabelText('Konto') as HTMLSelectElement).value).toBe('');
+  expect((screen.getByRole('button', { name: 'Weiter' }) as HTMLButtonElement).disabled).toBe(true);
+  await user.selectOptions(screen.getByLabelText('Konto'), 'synthetic-two');
+  expect((screen.getByRole('button', { name: 'Weiter' }) as HTMLButtonElement).disabled).toBe(
+    false,
+  );
+});
+
+it('keeps the batch until the nested review allows outcome navigation', async () => {
+  result = {
+    type: 'card_statement',
+    confidence: 'certain',
+    hints: { mime: 'application/pdf' },
+    needsPassword: false,
+  };
+  renderButton(ACCOUNT);
+  const user = await pick(pdf());
+  await screen.findByText('Erkannt: Kreditkartenabrechnung');
+  await user.click(screen.getByRole('button', { name: 'Weiter' }));
+  const link = await screen.findByRole('link', { name: 'Zu Prüfen im Einzelablauf' });
+  allowStatementClose = false;
+  await user.click(link);
+  expect(screen.getByRole('button', { name: 'Close statement flow' })).toBeTruthy();
+  expect(screen.getByRole('region', { name: 'synthetic.pdf' })).toBeTruthy();
+  allowStatementClose = true;
+  await user.click(link);
+  await waitFor(() => expect(screen.queryByRole('region', { name: 'synthetic.pdf' })).toBeNull());
 });
