@@ -402,8 +402,8 @@ Gemeinsamer Weg je Regel: Einstellungen › Regelwerk öffnen, die Zeile der Reg
   1. Jede Angabe ist freiwillig; Unvollständiges bleibt „unbekannt“, nie „mittel“.
   2. Das Speichern ist rückgängig machbar.
   3. Eine gleichzeitige Änderung wird gemeldet und nicht überschrieben.
-- **Status:** geplant — **Verweis:** #812
-  Fehlt noch: Katalog und Issue führen die Story als geplant bzw. offen; im Code zeigt Einstellungen › Profil den Abschnitt bereits. Zu klären: Ist die Anzeige im Portfolio und die Server-Speicherung fertig, damit der Status auf teilweise steigen kann?
+- **Status:** live — **Verweis:** #812, PR #1044
+  Fehlt noch: Sichtabnahme durch den Nutzer.
 
 ### F-04 – Familiensituation und Verpflichtungen angeben
 - **Story:** Als Nutzer möchte ich meine Familiensituation freiwillig hinterlegen, damit Hinweise zu Rücklage und Risiko zu meiner Lage passen.
@@ -419,5 +419,5 @@ Gemeinsamer Weg je Regel: Einstellungen › Regelwerk öffnen, die Zeile der Reg
   2. Es werden keine Namen oder Geburtsdaten von Angehörigen abgefragt.
   3. Familienstatus allein ändert keine Rücklage oder Zielanteile.
   4. Speichern ist rückgängig machbar.
-- **Status:** geplant — **Verweis:** #813
-  Fehlt noch: Wie bei F-03 zeigt der Code die Eingabe bereits; Anbindung an Hinweise und Abnahme sind zu klären.
+- **Status:** live — **Verweis:** #813, PR #1044
+  Fehlt noch: Sichtabnahme durch den Nutzer.

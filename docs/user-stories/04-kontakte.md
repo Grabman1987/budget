@@ -106,5 +106,5 @@ Bereich: „Konten › Kontakte“ (`/konten/kontakte`, Kontoblatt je Person unt
   3. Lassen sich die Salden nicht sicher zusammenführen, bricht die App ab: „Die Salden beider Kontakte lassen sich nicht sicher zusammenführen.“ (kein stilles Verrechnen).
   4. Haben sich Daten zwischenzeitlich geändert, verlangt die App eine neue Vorschau.
   5. Rückgängig stellt beide Kontakte mit ihren Salden her.
-- **Status:** geplant — **Verweis:** #871, #869
+- **Status:** teilweise — **Verweis:** #871, #869
 - Hinweis: Im Code ist ein Dialog bereits vorhanden (PR #1046, „Contact merge: preview, commit, Undo“); #871 und #869 sind offen. Status vor Abnahme klären, ob „geplant“ noch stimmt. Ohne diese Klärung gilt oben der im Code vorgefundene Ablauf.
