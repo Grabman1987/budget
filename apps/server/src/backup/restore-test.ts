@@ -9,7 +9,8 @@ import {
 import { todayInVienna } from '@budget/domain';
 import { and, eq, isNull } from 'drizzle-orm';
 import { spawn } from 'node:child_process';
-import { createRequire } from 'node:module';
+// Aliased: the server bundle's esbuild banner already declares `createRequire`.
+import { createRequire as moduleRequire } from 'node:module';
 import { randomUUID } from 'node:crypto';
 import { chmod, mkdir, mkdtemp, readFile, readdir, rm, stat, statfs } from 'node:fs/promises';
 import { freemem } from 'node:os';
@@ -234,7 +235,7 @@ process.stdout.write(JSON.stringify(report));
  */
 export const childCopyChecker: CopyChecker = (path, signal) =>
   new Promise((resolve, reject) => {
-    const driver = createRequire(import.meta.url).resolve('better-sqlite3');
+    const driver = moduleRequire(import.meta.url).resolve('better-sqlite3');
     const chunks: Buffer[] = [];
     let bytes = 0;
     const child = spawn(
