@@ -93,3 +93,27 @@ test('central upload: a card statement ends in a result summary with a link to P
   await expect(summary).toContainText('noch nichts gebucht');
   await expect(summary.getByRole('link', { name: 'Zu Prüfen' })).toBeVisible();
 });
+
+test('central upload: notices are archived separately and originals remain findable', async ({
+  page,
+}) => {
+  await page.goto('/konten/pruefen');
+  const dialog = await openCentralUpload(page);
+  const bytes = await syntheticPayslipPdf(['Pensionskasse Mitteilung'], '');
+  await dialog
+    .getByLabel('Dokument auswählen')
+    .setInputFiles({ name: 'synthetic-pension.pdf', mimeType: 'application/pdf', buffer: bytes });
+  await expect(dialog.getByText('Erkannt: Pensionskassen-Mitteilung')).toBeVisible();
+  await dialog
+    .getByRole('button', {
+      name: 'Als Bonus-/Pensionsmitteilung archivieren; keinen Gehaltsimport erstellen',
+    })
+    .click();
+  await expect(dialog.getByText('Original: im Mitteilungsarchiv gespeichert.')).toBeVisible();
+  await expect(
+    dialog.getByText('Gehaltsimport-Vorschlag: verworfen. Es wurde nichts gebucht.'),
+  ).toBeVisible();
+  await dialog.getByText('Mitteilungsarchiv und offene Importvorschläge', { exact: true }).click();
+  await expect(dialog.getByRole('link', { name: 'synthetic-pension.pdf' })).toBeVisible();
+  await expect(page.getByRole('dialog', { name: /^Gehaltszettel prüfen/ })).toHaveCount(0);
+});

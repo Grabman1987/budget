@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { PAYSLIP_PARSER_VERSION, parsePayrollDocument } from './payslip-intake';
+import { PAYSLIP_PARSER_VERSION, parsePayrollDocument, isPayrollNotice } from './payslip-intake';
 
 // Synthetic text only: invented company, wage types and amounts in the layout of a columnar form.
 const config = { salaryAccountId: null, wageTypes: {} };
@@ -203,4 +203,18 @@ describe('other payroll documents', () => {
       { section: 'reimbursement', label: 'Fahrtkostenersatz Kilometergeld', amountCents: 3_000 },
     ]);
   });
+});
+
+it('keeps an incomplete bonus payroll in review instead of treating it as an archival notice', () => {
+  const parsed = parsePayrollDocument(
+    'Mitarbeiterbonus\nLohnart Betrag\nBrutto 123,00',
+    'synthetic.pdf',
+    config,
+  );
+  expect(parsed.documentType).toBe('bonus');
+  expect(parsed.draft).toBeNull();
+  expect(isPayrollNotice(parsed)).toBe(false);
+  expect(
+    isPayrollNotice(parsePayrollDocument('Bonus brutto 123,00', 'synthetic.pdf', config)),
+  ).toBe(true);
 });
