@@ -63,6 +63,7 @@ Bereich: Konten (`/konten`, `/konten/$id`), Alle Buchungen (`/konten/buchungen`)
   2. Ich wähle „Art der Buchung“ (Ausgabe, Einnahme, Umbuchung), „Konto“, „Datum“ und „Betrag“.
   3. Ich wähle „Empfänger“ (Suchen oder neu anlegen) und Kategorie; optional „Projekt“, Notiz, „Belege“.
      Fehlt die Kategorie, wähle ich „Neue Kategorie …“, fülle Name und Gruppe im bestehenden Formular aus und speichere. Die Kategorie wird ausgewählt; der Buchungsentwurf bleibt erhalten.
+     Under “Bezahlt für”, I add a contact share. First use starts in “Betrag” mode with an empty amount; subsequent new shares use the last unit (% or Betrag) chosen on this device.
   4. Bei einem Bargeld-Konto steht „Bargeldbuchungen sind sofort bestätigt“, sonst startet die Buchung „Vorgemerkt“.
   5. Optional wähle ich bei „Wiederholen“ Wöchentlich, Monatlich, Vierteljährlich oder Jährlich; die App legt eine wiederkehrende Zahlung an.
   6. Ich tippe „Buchung speichern“.
@@ -75,7 +76,9 @@ Bereich: Konten (`/konten`, `/konten/$id`), Alle Buchungen (`/konten/buchungen`)
   5. Die Buchung ist über „Rückgängig“ bzw. „Buchung löschen?“ wieder entfernbar.
   6. Neue Kategorien lassen sich auch bei der Inline-Kategorieänderung und beim Bearbeiten unter Prüfen anlegen und auswählen. Doppelte Namen zeigen „Dieser Name wird schon verwendet.“; Abbrechen erhält den Entwurf und gibt den Fokus zurück.
   7. Die Kategorieanlage ist separat rückgängig machbar, solange die Kategorie unbenutzt ist. Erst das explizite Speichern der Buchung ordnet ihr Geld zu.
+  8. The share unit survives closing and reloading on this device. Only the unit is remembered: new percentage shares start at 50 %, amount shares empty. Existing shares and saved bookings remain unchanged. Editing still works when device storage is blocked.
 - **Status:** Grundfunktion live; Kategorieanlage im Wähler #1104 implementiert, PR-/CI-Prüfung und Live-Abnahme offen — **Verweis:** Y03, #1104
+  Share-mode slice of #1146 implemented; PR review/CI and live acceptance pending. Fixed footer, register position and collapsed change log from #1146 remain open.
 
 ### K-05a – Splitbuchung
 - **Story:** Als Nutzer möchte ich eine Buchung auf mehrere Kategorien aufteilen, damit ein Einkauf mit gemischtem Inhalt in den richtigen Envelopes landet.
