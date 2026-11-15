@@ -849,7 +849,7 @@ function HeuteBody({
   );
 }
 
-/** Current-day envelope money; the selected-month Pace and fixed cash forecast keep their scopes. */
+/** Current-day cash flow; the selected-month Pace and fixed cash forecast keep their scopes. */
 function PrimaryLead({
   data,
   pending,
@@ -896,8 +896,8 @@ function PrimaryLead({
         </Button>
       </div>
       <p className="heute-note">
-        Envelope-Spielraum für Bedarf und Wunsch nach offenen Rechnungen; kein Kontostand und kein
-        Überziehungsrahmen.
+        Kontostand plus erwartete Eingänge, minus offene Rechnungen bis Gehalt, plus aktivierter
+        Dispo-Rahmen.
       </p>
       <p className="heute-note heute-primary-source">
         {data ? (
