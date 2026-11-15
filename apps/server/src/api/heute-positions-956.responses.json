@@ -3,15 +3,15 @@
   "responses": [
     {
       "path": "/heute?period=month",
-      "digest": "52563:8464dce95cd93e36c589d8acfa95d0ed2c1cce48730dd2d6222022dd55aba55e"
+      "digest": "52461:c51e6b878cc6d84745769ae7dff533ec630543db947f088a9bed1a231d725c2d"
     },
     {
       "path": "/heute?period=payday",
-      "digest": "55064:a68c5ccc8cfdb91fcdff883e4c6693ea9f640d69dfd306014c2aec3c98d365b2"
+      "digest": "54962:0794ff4aaf23258719ce1bd7bb21f0e6b735f51826491196fca552f0bb0edaff"
     },
     {
       "path": "/heute?period=month&month=2026-08",
-      "digest": "49977:0176dbf59e8c9ea21b0f2c9b063c0124c35da22e204a19141d30ffe4ad3090e6"
+      "digest": "49875:3aca904ca3d85cdcd865e47166435790cc904f40766377f542c1948b4ae67299"
     },
     {
       "path": "/portfolio/positions",

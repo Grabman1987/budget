@@ -53,7 +53,8 @@ export {
 } from './pace';
 export {
   freeUntilPayday,
-  type FreeEnvelope,
+  type ExpectedInflow,
+  type FreeAccount,
   type FreeUntilPayday,
   type FreeUntilPaydayInput,
   type OpenOutflow,

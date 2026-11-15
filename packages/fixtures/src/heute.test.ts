@@ -148,13 +148,15 @@ describe('prototype figures reproduced', () => {
 describe('figures that differ from the prototype, by design of the ledger', () => {
   // The prototype's envelopes are hand-set (Frei verfuegbar 1.084,60, Pace -178, Tiefpunkt 612).
   // The ledger derives them from 36 months of bookings, so these are the real figures.
-  it('free until payday follows the ledger envelopes, the chain adds up', () => {
-    expect(month.lead.freeCents).toBe(98_826);
-    expect(month.lead.needCents + month.lead.wantCents - month.lead.openCents).toBe(
-      month.lead.freeCents,
+  it('free until payday is the cash-flow figure, the chain adds up', () => {
+    const lead = month.lead;
+    expect(lead.freeCents).toBe(706_279);
+    expect(lead.balanceCents + lead.inflowCents - lead.openCents + lead.overdraftCents).toBe(
+      lead.freeCents,
     );
-    const [need, want, open, free] = month.lead.chain.map((t) => t.value);
-    expect((need ?? 0) + (want ?? 0) - (open ?? 0)).toBe(free);
+    const terms = lead.chain.slice(0, -1);
+    const sum = terms.reduce((a, t) => a + (t.op === '-' ? -t.value : t.value), 0);
+    expect(sum).toBe(lead.chain.at(-1)?.value);
   });
 
   it('pace: known fixed payments are timed once; the forecast curve ends at the forecast', () => {

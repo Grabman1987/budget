@@ -206,7 +206,7 @@ Datenquellen: Enable Banking (PSD2) für österreichische Banken, Bitpanda-Lese-
 
 | Bereich | Leitfrage |
 | --- | --- |
-| Heute | Hält der Monat? (Leitzahl: frei verfügbar bis Gehalt) |
+| Heute | Hält der Monat? (Leitzahl: frei verfügbar bis Gehalt, eine Cashflow-Zahl: Kontostand der Budget-Konten + erwartete Eingänge vor dem Gehalt − offene Zahlungen vor dem Gehalt + aktivierter Dispo-Rahmen) |
 | Plan | Jeder Euro hat einen Job |
 | Konten | Was ist passiert? |
 | Vermögen | Was besitze ich? |
