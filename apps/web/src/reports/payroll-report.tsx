@@ -17,6 +17,8 @@ import { MonthReportFrame, shortMonth, useReportMonth } from './month-frame';
 import { payrollQuery, type PayrollData } from './payroll-projects-api';
 import { PayrollProjectChart } from './payroll-project-chart';
 import { PayslipPanel } from './payslip-panel';
+import { PayrollSource } from './payroll-source';
+import { PayrollBankParts } from './payroll-bank-parts';
 import { ReportDetailNav } from './report-detail-nav';
 import './payroll-projects.css';
 
@@ -102,7 +104,6 @@ export function PayrollReport({
     position <= 12
       ? shortMonth(`${month.slice(0, 4)}-${String(position).padStart(2, '0')}`)
       : `${position}. Gehalt`;
-  const missingSalaries = data?.salaries.filter((salary) => !salary.ids.length) ?? [];
   const details = data && (
     <section className="mr-card">
       <div className="tbd-head">
@@ -157,6 +158,9 @@ export function PayrollReport({
               </tr>
             </tbody>
           </table>
+          {data.sources?.find((source) => source.id === p.id) && (
+            <PayrollSource source={data.sources.find((source) => source.id === p.id)!} level="h4" />
+          )}
           <LinkStatus data={data} id={p.id} />
           <Button variant="ghost" size="sm" onClick={(event) => open(p.id, event.currentTarget)}>
             Bearbeiten
@@ -271,6 +275,17 @@ export function PayrollReport({
             </>
           ) : (
             <>
+              {data.slips.map((p) => {
+                const source = data.sources?.find((row) => row.id === p.id);
+                return (
+                  source && (
+                    <section className="mr-card mr-wide" key={p.id}>
+                      <PayrollSource source={source} />
+                      <LinkStatus data={data} id={p.id} />
+                    </section>
+                  )
+                );
+              })}
               {REDESIGN_ENABLED && (
                 <section
                   className="mr-card mr-wide r9-salary-trend"
@@ -283,17 +298,25 @@ export function PayrollReport({
                         : 'Netto im Verlauf'}
                     </h2>
                   </div>
-                  {recent.some((row) => row.recorded) ? (
+                  {recent.some((row) => row.recorded && !row.netSplitUnknown) ? (
                     <PayrollProjectChart
                       focusSalary
                       table
                       height={phone ? 176 : 240}
                       months={recent.map((r) => r.month)}
-                      values={recent.map((r) => (r.recorded ? r.salaryNetCents : null))}
-                      gross={recent.map((r) => (r.recorded ? r.grossCents : null))}
+                      values={recent.map((r) =>
+                        r.recorded && !r.netSplitUnknown ? r.salaryNetCents : null,
+                      )}
+                      gross={recent.map((r) =>
+                        r.recorded && !r.netSplitUnknown ? r.grossCents : null,
+                      )}
                     />
                   ) : (
-                    <EmptyNote>Noch keine laufenden Gehälter erfasst.</EmptyNote>
+                    <EmptyNote>
+                      {recent.some((row) => row.recorded)
+                        ? 'Laufendes Nettogehalt aus der Quelle nicht getrennt bestimmbar.'
+                        : 'Noch keine laufenden Gehälter erfasst.'}
+                    </EmptyNote>
                   )}
                   <p className="r9-meta">
                     Laufendes Nettogehalt ohne steuerfreie Erstattungen · fehlende Zettel bleiben
@@ -404,12 +427,22 @@ export function PayrollReport({
                   <div className="tbd-head">
                     <h2>Verlauf · laufendes Gehalt</h2>
                   </div>
-                  <PayrollProjectChart
-                    table={REDESIGN_ENABLED}
-                    months={data.timeline.map((r) => r.month)}
-                    values={data.timeline.map((r) => (r.recorded ? r.salaryNetCents : null))}
-                    gross={data.timeline.map((r) => (r.recorded ? r.grossCents : null))}
-                  />
+                  {data.timeline.some((row) => row.recorded && !row.netSplitUnknown) ? (
+                    <PayrollProjectChart
+                      table={REDESIGN_ENABLED}
+                      months={data.timeline.map((r) => r.month)}
+                      values={data.timeline.map((r) =>
+                        r.recorded && !r.netSplitUnknown ? r.salaryNetCents : null,
+                      )}
+                      gross={data.timeline.map((r) =>
+                        r.recorded && !r.netSplitUnknown ? r.grossCents : null,
+                      )}
+                    />
+                  ) : (
+                    <EmptyNote>
+                      Laufendes Nettogehalt aus der Quelle nicht getrennt bestimmbar.
+                    </EmptyNote>
+                  )}
                   <p className="vnote">
                     Tusche: Nettogehalt ohne steuerfreie Erstattungen · blasse Tusche: Brutto inkl.
                     Zusätze. Fehlende Zettel bleiben Lücken.
@@ -493,7 +526,7 @@ export function PayrollReport({
                               y.netCents,
                             ].map((v, i) => (
                               <td className="n" key={i}>
-                                {eur(v)}
+                                {v === null ? 'nicht bestimmbar' : eur(v)}
                               </td>
                             ))}
                             <td className="n">{pct(y.deductionRatio)}</td>
@@ -536,7 +569,11 @@ export function PayrollReport({
                               {[s.salaryNetCents, s.reimbursementsCents, s.netCents].map(
                                 (value, i) => (
                                   <td className="n" key={i}>
-                                    {value === null ? 'nicht erfasst' : eur(value)}
+                                    {value === null
+                                      ? s.netSplitUnknown
+                                        ? 'nicht bestimmbar'
+                                        : 'nicht erfasst'
+                                      : eur(value)}
                                   </td>
                                 ),
                               )}
@@ -563,12 +600,6 @@ export function PayrollReport({
                       </tbody>
                     </table>
                   </ScrollRegion>
-                  {missingSalaries.length > 0 && (
-                    <p className="vnote">
-                      fehlt:{' '}
-                      {missingSalaries.map((salary) => salaryPosition(salary.position)).join(', ')}
-                    </p>
-                  )}
                   <p className="vnote">
                     Sonstige Sonderzahlungen separat: {eur(data.otherSpecialCents)}. Steuerwerte
                     laut Zettel; keine Steuerberechnung.
@@ -599,6 +630,28 @@ function LinkStatus({ data, id }: { data: PayrollData; id: string }) {
   const link = data.links.find((l) => l.id === id);
   return (
     <div>
+      {link &&
+        'parts' in link &&
+        link.parts?.map((part, index) => (
+          <p className="vnote" key={index}>
+            Bankanteil ·{' '}
+            {part.incomeTypeId === 'income-salary'
+              ? 'Laufendes Gehalt'
+              : part.incomeTypeId === 'income-special'
+                ? 'Sonderzahlung'
+                : part.incomeTypeId === 'income-refund'
+                  ? 'Erstattung'
+                  : 'Andere Einnahmenart'}{' '}
+            · {eur(part.amountCents)}
+          </p>
+        ))}
+      {link &&
+        'parts' in link &&
+        link.parts &&
+        link.parts.length > 0 &&
+        link.parts.every((part) =>
+          ['income-salary', 'income-special', 'income-refund'].includes(part.incomeTypeId ?? ''),
+        ) && <PayrollBankParts key={JSON.stringify(link.parts)} id={id} parts={link.parts} />}
       {link?.status === 'unlinked' ? (
         <p className="vnote">Noch keine Gehaltsbuchung verknüpft.</p>
       ) : (
@@ -615,14 +668,12 @@ function LinkStatus({ data, id }: { data: PayrollData; id: string }) {
           )}
           {link?.status === 'mismatch' && (
             <p className="pp-warning">
-              Gehaltsanteil weicht von der Buchung ab:{' '}
+              Auszahlung weicht von den zugeordneten Bankanteilen ab:{' '}
               {eur(link.differenceCents ?? 0, { sign: true })}. Verknüpfte Zettel prüfen.
             </p>
           )}
           {link?.status === 'ok' && (
-            <p className="vnote">
-              Gehaltsanteil stimmt mit den Gehaltsanteilen der Buchung überein.
-            </p>
+            <p className="vnote">Auszahlung stimmt mit den zugeordneten Bankanteilen überein.</p>
           )}
         </>
       )}
