@@ -42,6 +42,26 @@
     margin: 4px 0 0;
     font-variant-numeric: tabular-nums;
   }
+  .strategy-signals {
+    display: grid;
+    gap: 20px;
+  }
+  .strategy-signal {
+    display: grid;
+    gap: 12px;
+    min-width: 0;
+    padding-top: 16px;
+    border-top: 1px solid var(--rule);
+  }
+  .strategy-signal h3 {
+    font-size: var(--fs-title);
+  }
+  .strategy-signal :is(p, dl) {
+    margin: 0;
+  }
+  .strategy-signal dd {
+    overflow-wrap: anywhere;
+  }
   .strategy-page summary {
     min-height: 44px;
     display: flex;
