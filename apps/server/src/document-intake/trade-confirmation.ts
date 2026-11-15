@@ -52,6 +52,9 @@ export function tradeConfirmationIntake(
       (row) =>
         row.importKey === proposal.reference || row.importKey?.startsWith(`${proposal.reference}#`),
     );
+  // Next free suffix: one above the highest used, not the count.
+  const used = keyed.map((row) => Number(row.importKey!.split('#')[1] ?? 1));
+  const nextSuffix = Math.max(0, ...used.filter(Number.isInteger)) + 1;
   let live: { id: string; securityId: string; date: string } | undefined = keyed.find(
     (row) => row.deletedAt === null,
   );
@@ -74,13 +77,16 @@ export function tradeConfirmationIntake(
           eq(trade.unitsE8, proposal.kind === 'sell' ? -proposal.unitsE8 : proposal.unitsE8),
           eq(trade.amountCents, proposal.amountCents),
           isNull(trade.deletedAt),
+          // A trade with an import key records another confirmation; only hand-entered trades
+          // and confirmed savings plan executions (no key) are matched by their figures.
+          isNull(trade.importKey),
         ),
       )
       .get();
   return {
     proposal,
     securityId,
-    importKey: keyed.length ? `${proposal.reference}#${keyed.length + 1}` : proposal.reference,
+    importKey: keyed.length ? `${proposal.reference}#${nextSuffix}` : proposal.reference,
     duplicate: live ? { tradeId: live.id, securityId: live.securityId, date: live.date } : null,
   };
 }

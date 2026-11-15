@@ -122,6 +122,16 @@ describe('trade form proposal from a broker trade confirmation (#1099)', () => {
     expect(result).toMatchObject({ kind: 'buy', date: '2026-11-09', feeCents: 0, taxCents: 0 });
   });
 
+  it('leaves units and money empty when the trade type cannot be read', () => {
+    const result = proposal(
+      order('Verkauf', { sentence: 'Market-Order Verkauf, Zeitpunkt nicht gedruckt.' }),
+    );
+    expect(result.kind).toBeNull();
+    expect(result.unitsE8).toBeNull();
+    expect(result.amountCents).toBeNull();
+    expect(result.open).toEqual(['kind', 'date', 'units', 'amount', 'fee', 'tax']);
+  });
+
   it('leaves the costs empty for an unknown cost line, never a guess of zero', () => {
     const result = proposal(
       order('Kauf', {

@@ -232,6 +232,14 @@ it('detects a trade with the same figures that was entered by hand', async () =>
   expect(different.trade?.duplicate).toBeNull();
 });
 
+it('does not mistake another keyed execution with the same figures for a duplicate', async () => {
+  const first = await classify(await confirmation({ execution: '1a1a-1a1a' }));
+  expect((await book({ importKey: first.trade!.importKey })).status).toBe(201);
+  const second = await classify(await confirmation({ execution: '2b2b-2b2b' }));
+  expect(second.trade?.duplicate).toBeNull();
+  expect((await book({ importKey: second.trade!.importKey })).status).toBe(201);
+});
+
 it('offers a deleted confirmation again under a fresh key', async () => {
   const first = await classify(await confirmation());
   const saved = await book({ importKey: first.trade!.importKey });

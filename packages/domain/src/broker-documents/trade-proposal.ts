@@ -140,6 +140,9 @@ export function tradeProposalFromConfirmation(doc: TradeConfirmation): Confirmat
     const cleared = reason.startsWith('header_') ? [] : (CLEARS[reason] ?? FIELDS);
     for (const field of cleared) value[field] = null;
   }
+  // Without the trade type, units and money cannot be told apart from the opposite trade: the
+  // form must not show a default type next to filled figures.
+  if (value.kind === null) value.units = value.amount = value.fee = value.tax = null;
   return {
     reference: doc.executionId ? `wpa:${doc.executionId}` : `wpa-sha256:${doc.sha256}`,
     source: doc.kind,
