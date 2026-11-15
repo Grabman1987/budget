@@ -1448,6 +1448,7 @@ export function CaptureForm({
             <div className="bk-col-lines">
               {isTransfer && showCategory && (
                 <CategoryCombobox
+                  allowCreate
                   label="Kategorie"
                   capturePicker
                   categories={pickable}

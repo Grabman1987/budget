@@ -28,6 +28,14 @@ import {
 } from '@budget/db';
 import { todayInVienna } from '@budget/domain';
 import { mappingSchema } from '@budget/import-ynab';
+import { backupConfigFromEnv } from '../backup/backup';
+import {
+  litestreamRestorer,
+  recordRestoreTest,
+  restoreTestLogLine,
+  restoreTestMessage,
+  runRestoreTest,
+} from '../backup/restore-test';
 import { deleteRun, saveMapping } from './staging';
 import { applyBankInboxEntries, listBankInbox, parseBankInboxFile } from './operator-bank-inbox';
 import { findRun, runTask, type ImportTask } from './tasks';
@@ -54,6 +62,7 @@ import { applyRestructure, parseRestructureFile } from './operator-restructure';
  *   node migrate-cli.js owner-trades --file <json> [--dry-run] [--details]
  *   node migrate-cli.js bank-inbox list [--source <bankSyncAccountId>] [--out <file>]
  *   node migrate-cli.js bank-inbox apply --file <json> [--dry-run]
+ *   node migrate-cli.js restore-test
  *
  * Output is aggregates only (counts, problem codes, number of differences); `--details` adds the
  * differences themselves for the operator's terminal. Nothing is logged to files.
@@ -699,9 +708,28 @@ try {
       } else throw new Error('usage: bank-inbox list|apply (see docs/ops.md)');
       break;
     }
+    case 'restore-test': {
+      // The monthly restore test on demand (docs/ops.md section 8.4). Reads the live database,
+      // restores the replica into a temp folder that is removed again, stores the result like the
+      // nightly run. Exit code 1 = failed, 3 = skipped (no space, database changed meanwhile).
+      const config = backupConfigFromEnv();
+      if (!config) throw new Error('restore-test needs the backup environment (docs/ops.md)');
+      const outcome = await runRestoreTest({
+        db,
+        databasePath,
+        config,
+        restorer: litestreamRestorer({ databasePath }),
+      });
+      recordRestoreTest(db, outcome, new Date());
+      console.log(restoreTestLogLine(outcome));
+      const message = restoreTestMessage(outcome);
+      if (message) console.log(message);
+      if (outcome.status !== 'ok') process.exitCode = outcome.status === 'failed' ? 1 : 3;
+      break;
+    }
     default:
       console.log(
-        'usage: migrate-cli.js stage|dry-run|report|commit|revert|delete|order-accounts|list-groups|undo-group|move-money|book|payslips|instrument-facts|owner-config|contact-allocate|restructure|owner-trades|source-rebuild|bank-inbox [options]',
+        'usage: migrate-cli.js stage|dry-run|report|commit|revert|delete|order-accounts|list-groups|undo-group|move-money|book|payslips|instrument-facts|owner-config|contact-allocate|restructure|owner-trades|source-rebuild|bank-inbox|restore-test [options]',
       );
       process.exitCode = 2;
   }

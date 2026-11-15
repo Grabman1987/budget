@@ -41,6 +41,21 @@ export function fullPlan(reason) {
   return { lane: 'full', shards: FULL_SHARDS, specs: [], reason };
 }
 
+// Package mode (owner decision 2026-11-15): a pull request that would need the full suite runs the
+// quick lane instead (typecheck, lint, unit tests, docker, restore-test). The full suite (all E2E
+// shards, screenshots, Windows) runs on main, which is what a release is cut from. The label
+// `ci:full` forces the full suite on the pull request itself (`risk:high` is a review class only).
+export function packageLane(plan, event, highRisk) {
+  return event === 'pull_request' && !highRisk && plan.lane === 'full'
+    ? {
+        lane: 'quick',
+        shards: [1],
+        specs: [],
+        reason: `Quick lane; full suite runs on main. (${plan.reason})`,
+      }
+    : plan;
+}
+
 export function planChanges(paths, event = 'pull_request', highRisk = false) {
   if (highRisk) return fullPlan('High-risk review classification requires full coverage.');
   if (event !== 'pull_request') return fullPlan('Only pull requests may use a focused lane.');
@@ -125,14 +140,17 @@ function validateSpecTargets(plan, base, head, cwd = process.cwd()) {
 export function verificationPassed(needs, windows = false) {
   const reused = needs.reuse?.result === 'success' && needs.reuse?.outputs?.reuse === 'true';
   const lane = needs.plan?.outputs?.lane;
-  if (!reused && (needs.plan?.result !== 'success' || !['docs', 'ui', 'full'].includes(lane)))
+  if (
+    !reused &&
+    (needs.plan?.result !== 'success' || !['docs', 'ui', 'quick', 'full'].includes(lane))
+  )
     return false;
   const expected = windows
     ? { 'windows-unit': reused || lane !== 'full' ? 'skipped' : 'success' }
     : {
         static: reused ? 'skipped' : 'success',
         unit: reused || lane === 'docs' ? 'skipped' : 'success',
-        e2e: reused || lane === 'docs' ? 'skipped' : 'success',
+        e2e: reused || lane === 'docs' || lane === 'quick' ? 'skipped' : 'success',
         visual: reused || lane !== 'full' ? 'skipped' : 'success',
       };
   return Object.entries(expected).every(([job, result]) => needs[job]?.result === result);
@@ -154,10 +172,11 @@ function main() {
     if (event === 'pull_request') {
       const base = process.env.BASE_SHA || process.argv[2] || 'origin/main';
       const head = process.env.HEAD_SHA || process.argv[3] || 'HEAD';
-      plan = validateSpecTargets(
-        planChanges(changedPaths(base, head), event, process.env.HIGH_RISK === 'true'),
-        base,
-        head,
+      const highRisk = process.env.HIGH_RISK === 'true';
+      plan = packageLane(
+        validateSpecTargets(planChanges(changedPaths(base, head), event, highRisk), base, head),
+        event,
+        highRisk,
       );
     } else plan = fullPlan('Push, scheduled audit or manual full verification.');
   } catch {

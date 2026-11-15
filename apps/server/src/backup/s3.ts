@@ -224,6 +224,22 @@ export class S3Client {
 
   /** Download only ciphertext, verifying the single-PUT ETag before a caller serves the file. */
   async getEncryptedFile(key: string, path: string, signal: AbortSignal): Promise<number> {
+    return this.readEncrypted(key, path, signal);
+  }
+
+  /**
+   * Stream the ciphertext without storing it: same length, ETag and age-header checks as the
+   * download, but no disk use and constant memory (monthly restore test, docs/ops.md section 8.4).
+   */
+  async verifyEncryptedObject(key: string, signal: AbortSignal): Promise<number> {
+    return this.readEncrypted(key, undefined, signal);
+  }
+
+  private async readEncrypted(
+    key: string,
+    path: string | undefined,
+    signal: AbortSignal,
+  ): Promise<number> {
     const url = this.url(key);
     const date = this.clock();
     const payloadHash = sha256('');
@@ -265,7 +281,7 @@ export class S3Client {
       )
         throw new S3Error('InvalidResponse');
       clearTimeout(timer);
-      const file = await open(path, 'wx', 0o600);
+      const file = path === undefined ? undefined : await open(path, 'wx', 0o600);
       const transferTimer = setTimeout(
         () => controller.abort(),
         this.timeoutMs + Math.ceil(length / 1_048_576) * 1000,
@@ -280,7 +296,7 @@ export class S3Client {
           if (header.length < 24)
             header = Buffer.concat([header, Buffer.from(chunk)]).subarray(0, 24);
           hash.update(chunk);
-          await file.writeFile(chunk);
+          await file?.writeFile(chunk);
         }
         if (
           bytes !== length ||
@@ -291,7 +307,7 @@ export class S3Client {
         return bytes;
       } finally {
         clearTimeout(transferTimer);
-        await file.close();
+        await file?.close();
       }
     } catch (error) {
       throw error instanceof S3Error

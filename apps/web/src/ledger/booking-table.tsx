@@ -1,10 +1,11 @@
 import { useAmountPrivacy, cx, type SwatchKind } from '@budget/ui';
 import { InlineBookingCell } from './inline-booking-cell';
+import { CREATE_CATEGORY, CreatePickerCategory } from './create-picker-category';
 import type { BookingPatch } from './api';
 import { keepSplit } from './booking-model';
 import { useQuery } from '@tanstack/react-query';
 import { ArrowDown, ArrowUp, CalendarDays, ChevronDown, Info, Pencil } from 'lucide-react';
-import { Fragment, useId, useState, type ReactNode } from 'react';
+import { Fragment, useId, useRef, useState, type ReactNode } from 'react';
 import { CategoryCell, PayeeCell, StatusCell, useCategoryClasses } from './booking-cells';
 import { BookingLegend } from './booking-legend';
 import {
@@ -497,6 +498,8 @@ function Row({
   useAmountPrivacy();
   const flashing = useFlashing(b.id);
   const [editing, setEditing] = useState(false);
+  const [creatingCategory, setCreatingCategory] = useState(false);
+  const categoryTrigger = useRef<HTMLButtonElement>(null);
   const checked = selection?.selected.has(b.id) ?? false;
   const selectionMode = selection?.mode === true;
   const label = `${b.payeeName ?? 'Buchung'} am ${shortDay(b.date)}`;
@@ -644,6 +647,18 @@ function Row({
       )}
       {variant === 'all' && <td className="kc-acct kx-acct">{b.accountName}</td>}
       <td className="kx-cat">
+        {creatingCategory && (
+          <CreatePickerCategory
+            onClose={() => {
+              setCreatingCategory(false);
+              requestAnimationFrame(() => categoryTrigger.current?.focus());
+            }}
+            onSelect={(id) => {
+              flashRows([b.id]);
+              onCategory(b, id);
+            }}
+          />
+        )}
         {editing && !selectionMode ? (
           <select
             className="select select-sm"
@@ -662,6 +677,10 @@ function Row({
             }}
             onChange={(e) => {
               setEditing(false);
+              if (e.target.value === CREATE_CATEGORY) {
+                setCreatingCategory(true);
+                return;
+              }
               flashRows([b.id]);
               onCategory(b, e.target.value || null);
             }}
@@ -685,9 +704,15 @@ function Row({
                   {c.name}
                 </option>
               ))}
+            <option value={CREATE_CATEGORY}>Neue Kategorie …</option>
           </select>
         ) : canEditCategory(b) && !selectionMode ? (
-          <button type="button" className="kcat-btn" onClick={() => setEditing(true)}>
+          <button
+            ref={categoryTrigger}
+            type="button"
+            className="kcat-btn"
+            onClick={() => setEditing(true)}
+          >
             <span className="sr-only">Kategorie ändern: {label} ·</span>{' '}
             <CategoryCell booking={b} classes={classes} showClass={false} />
             <Pencil className="icon kcat-edit" size={16} strokeWidth={1.75} aria-hidden="true" />

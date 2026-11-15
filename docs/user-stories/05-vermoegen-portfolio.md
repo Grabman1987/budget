@@ -98,6 +98,7 @@ Geteilt: V-06 und V-09 sind aufgeteilt (V-06a/V-06b, V-09a/V-09b). V-17 und V-18
   1. Es läuft ein Abruf pro Nacht (ca. 02:30 Wiener Zeit, Schlusskurse des Vortags).
   2. Am Morgen Vermögen › Portfolio › Positionen öffnen; „Kursdatum“ zeigt das Datum je Position.
   3. Bei Problemen erscheint ein Eintrag in Konten › Prüfen, zum Beispiel „Kurse nicht abrufbar“ (Ursachenansicht siehe V-14).
+     Klappt der nächste Abruf für dieses Instrument, schließt sich der Eintrag selbst; Quelle und Stand des erfolgreichen Abrufs stehen als Begründung im Eintrag (Verlauf siehe I-01b).
   4. Im Instrument „Wert und Kurs“ prüfen, welche Quelle je Tag gilt (Gespeicherter Kurs, Ausführungskurs, Einstandsschätzung).
 - **Ergebnis:** Positionen und Nettovermögen sind mit den Vortagskursen bewertet.
 - **Abnahmekriterien:**
@@ -105,7 +106,8 @@ Geteilt: V-06 und V-09 sind aufgeteilt (V-06a/V-06b, V-09a/V-09b). V-17 und V-18
   - Der Positionswert ist Stück mal Kurs und stimmt mit dem Wertpapierwert im Nettovermögen überein.
   - Randfall: Ohne Kurs zeigt die Zeile „Kurs fehlt“ und der Wert fällt auf Ausführungskurs zurück, markiert „Geschätzt“.
   - Randfall: Ein abgelaufener Kurs trägt die Markierung „Kurs veraltet“.
-- **Status:** teilweise · **Verweis:** I10, I12
+  - Eine Warnung aus einem fehlgeschlagenen Abruf schließt der nächste erfolgreiche Abruf desselben Instruments (bei Wechselkursen derselben Währung), im Änderungsprotokoll erfasst; Warnungen anderer Instrumente und Warnungen zu echten Abweichungen bleiben offen.
+- **Status:** teilweise · **Verweis:** I10, I12, #1101
   Fehlt noch: ausdrücklicher Erstabruf-Zeitstempel, abgenommener Live-Quellen-Status, Kurskennungen und Konventionen mit der Quelle abgeglichen.
 
 ### V-06b – Kurse manuell überschreiben
@@ -133,14 +135,17 @@ Geteilt: V-06 und V-09 sind aufgeteilt (V-06a/V-06b, V-09a/V-09b). V-17 und V-18
   2. Instrument, „Anlagekonto“, „Rate“, „Intervall“, „Ausführungstag“ (1 bis 31) und optional „Quellkonto“, „Beginn“, „Notiz“ eintragen und speichern.
   3. Die Tabelle zeigt je Plan Intervall, „Nächste“ Ausführung und „Letzte 12 Monate“ mit Status „Zugeordnet ausgeführt“, „Zuordnung fehlt“, „Zuordnung prüfen“ oder „Nicht geplant“.
   4. Eine Ausführung bestätigen: „Sparplanausführung bestätigen“ öffnet den Handel mit Plan-Vorbelegung; echte Stückzahl, Betrag und Gebühren aus der Abrechnung übernehmen, „Ausführung bestätigen“.
+  4a. Schneller: die Sparplan-Abrechnung als PDF über „Dokument hochladen“ ablegen (V-15). Passt genau eine offene Ausführung desselben Instruments (höchstens drei Tage um den geplanten Tag), öffnet „Weiter“ denselben Dialog mit Datum, Stück, Betrag und Gebühren aus der Abrechnung; es bleibt nur „Ausführung bestätigen“.
   5. Rate ändern („Rate bearbeiten“) oder beenden („Sparplan beenden“ mit „Ende einschließlich“); „Verlauf“ zeigt die Versionen.
 - **Ergebnis:** Plan, Ausführungen und Abweichungen sind je Monat sichtbar; es ist kein Bankauftrag ausgelöst.
 - **Abnahmekriterien:**
   - Nach Bestätigung zeigt der Monat „Zugeordnet ausgeführt“, und der Kauf steht im Handelsverlauf des Instruments.
+  - Die Bestätigung einer Ausführung aus einer hochgeladenen Abrechnung kann zugleich die Umbuchung vom Verrechnungskonto schreiben (V-15); „Rückgängig“ nimmt Ausführung und Umbuchung gemeinsam zurück.
+  - Eine hochgeladene Sparplan-Abrechnung ohne eindeutig passende offene Ausführung wird als normaler Kauf vorgeschlagen; der Dialog sagt „Der Handel wird ohne Zuordnung zum Sparplan erfasst.“
   - „Monatlich gesamt“ ist die Summe der laufenden Raten.
   - Eine Ratenänderung gilt ab Datum; frühere Monate behalten die alte Rate (Verlauf).
   - Randfall: Das Ende darf nicht vor dem Beginn der Version liegen; ein Plan ohne laufende Raten zeigt „Keine laufenden oder vorgemerkten Sparpläne.“
-- **Status:** teilweise · **Verweis:** I17
+- **Status:** teilweise · **Verweis:** I17, #1099
   Fehlt noch: Vorschläge zur Änderung der Rate, privater Abgleich mit den Brokerausführungen.
 
 ### V-08 – Kennzahlen und Rendite vergleichen
@@ -196,7 +201,7 @@ Geteilt: V-06 und V-09 sind aufgeteilt (V-06a/V-06b, V-09a/V-09b). V-17 und V-18
 - **Status:** teilweise · **Verweis:** I16
   Fehlt noch: Aktionen im Sparplan, privat abgenommene Umschichtungsabläufe.
 
-### V-10 – Monatliche Trendallokation mit täglicher Sparplanvorschau (geplant)
+### V-10 – Monatliche Trendallokation mit täglicher Sparplanvorschau (teilweise)
 - **Story:** Als Nutzer möchte ich eine monatlich verbindliche Trendallokation und eine tägliche Vorschau des nächsten Sparplans mit getrenntem Rebalancing sehen, damit ich täglich weiß, wie viel ich beim nächsten Sparplan in welches Wertpapier investieren würde, ohne dass die Vorschau die verbindliche Allokation still ändert.
 - **Ausgangslage:** Strategie ist unter Portfolio konfiguriert (vier Kategorien, Zuordnung der Wertpapiere, Sparrate selbst eingegeben); der ungehebelte Nasdaq-100-Index liefert abgeschlossene Handelstage.
 - **Ablauf:** (geplant)
@@ -211,8 +216,9 @@ Geteilt: V-06 und V-09 sind aufgeteilt (V-06a/V-06b, V-09a/V-09b). V-17 und V-18
   - Eine tägliche Signaländerung ändert die verbindliche Allokation erst zum Monatswechsel.
   - Randfall: Fehlen Indexdaten, entsteht kein neues Signal, es bleibt das letzte bekannte mit Hinweis.
   - Ein gehaltenes, nicht mehr bespartes Wertpapier zählt zu Depotwert und Istgewicht.
-- **Status:** geplant · **Verweis:** #762
-  Fehlt noch: gesamte Funktion (Strategie-Seite, Signalberechnung, Vorschau).
+- **Status:** teilweise · **Verweis:** #762
+  Umgesetzt (nur Lesen): Abschnitt „Trendsignal · Grundlage“ unter Vermögen › Portfolio › Sparpläne › Trendstrategie zeigt für die tägliche Vorschau, das Monatssignal des laufenden Monats und die gespeicherte verbindliche Entscheidung jeweils Ergebnis, Schlusstag, Schlusskurs, 200-Tage-Durchschnitt und den Durchschnitt 20 US-Handelstage zuvor (Anzeige auf zwei Stellen gerundet, verglichen wird exakt), Quelle, Index, US-Kalender und Erfassungszeit. Fehlt die Reihe, ist sie lückenhaft oder veraltet, steht „Nicht ermittelbar“ mit Grund und fehlenden Tagen, nie eine Schätzung.
+  Fehlt noch: Abnahme am echten Abruf (erster Kurslauf nach Einschalten), Prüfung der Kaufaufteilung und des Rebalancings am Live-Depot, Geräteabnahme.
 
 ### V-11 – Nettovermögen mit Eigenanteil und Marktanteil sehen
 - **Story:** Als Nutzer möchte ich das Nettovermögen als Anfang plus Gespart plus Markt mit Zusammensetzung sehen, damit ich weiß, ob mein Vermögen durch Sparen oder durch den Markt gewachsen ist.
@@ -285,25 +291,43 @@ Geteilt: V-06 und V-09 sind aufgeteilt (V-06a/V-06b, V-09a/V-09b). V-17 und V-18
   - Historische Fehlerbelege und aktuelle Vorschauergebnisse sind klar getrennt; Beträge bleiben bei verborgener Betragsanzeige verborgen.
   - Die Bestandsrechnung (Bewegungen) stimmt mit dem Bestand im Instrument überein.
   - Randfall: Viele Krypto-Bewegungen bleiben gruppiert prüfbar; am Handy ist die Ursachenansicht lesbar.
+  - Nur Warnungen mit einer Abruf-Fehlerklasse schließen sich nach erfolgreichem Abruf selbst, mit Begründung im Eintrag (#1101, I-01b). Warnungen zu Bestand, fehlenden Bewegungen oder abweichenden Schlusskursen bleiben offen, bis ihre Ursache behoben ist.
 - **Status:** teilweise · **Verweis:** #1081
   Erster Schritt: Ursachenansicht und schreibfreie Quellvorschau für Kurswarnungen, serverseitige Sperre des pauschalen Abschlusses. Fehlt noch: gespeicherte Fehlerbelege je Quelle einschließlich tatsächlich gelieferter Währung, Editor für Quellkorrekturen, Krypto-Bestandsrechnung mit Zuordnungs-/Bewegungsdiagnose und deren geprüfter Abschluss sowie private Abnahme.
 
 ### V-15 – Wertpapierabrechnungen als PDF einlesen
 - **Story:** Als Nutzer möchte ich Wertpapierabrechnungen (Sparplan, Round-up, Kauf/Verkauf) als PDF deterministisch einlesen lassen, damit ich Trades nicht abtippe und Tippfehler bei Stück, Betrag und Gebühren ausgeschlossen sind.
 - **Ausgangslage:** Der Broker hat eine Abrechnung als PDF geliefert; zentraler Upload für Dokumente existiert.
-- **Ablauf:** (geplant)
-  1. PDF über den zentralen Upload ablegen.
-  2. Die App liest Kopf (Datum, Ausführungs-ID, Sparplan-ID, Depot), Position (Name, ISIN, Stück, Kurs, Betrag), Gesamtbetrag und Abrechnungskonto, Kosten und Steuern aus (Schritt 1: reine Domänenlogik).
-  3. Im Posteingang (Konten › Prüfen) erscheint ein Handelsvorschlag mit Instrument per ISIN, Depot aus dem Kontext und der passenden Kontobuchung.
-  4. Ich prüfe und bestätige; erst dann entsteht der Handel (V-02).
-- **Ergebnis:** Der Handel ist ohne Tippen erfasst; es wird nichts automatisch gebucht.
+- **Ablauf:**
+  1. PDF über den zentralen Upload ablegen („Dokument hochladen“, I-04). Die App meldet „Erkannt: Wertpapierabrechnung“.
+  2. Die App liest Kopf (Datum, Ausführungs-ID, Sparplan-ID, Depot), Position (Name, ISIN, Stück, Kurs, Betrag), Gesamtbetrag und Abrechnungskonto, Kosten und Steuern aus und prüft sie gegeneinander (Stück × Kurs gegen Betrag, Betrag und Kosten gegen die Buchung des Verrechnungskontos).
+  3. Unter „Gelesene Angaben“ stehen Handelsart, Instrument mit ISIN, Handelsdatum, Stück, Bruttobetrag, Gebühren und einbehaltene Steuer. Was nicht sicher gelesen wurde, steht dort als „nicht sicher gelesen“. Gespeichert ist noch nichts.
+  4. „Weiter“ öffnet „Handel erfassen“ (V-02) als Vorschlag: Instrument per ISIN, Anlagekonto, wenn genau eines in der Währung der Abrechnung offen ist, dazu die gelesenen Werte. Nicht sicher gelesene Felder bleiben leer und werden im Dialog namentlich genannt („Nicht sicher gelesen und deshalb leer, bitte selbst eintragen: …“).
+  5. Bei einer Sparplan-Abrechnung mit genau einer passenden offenen Ausführung öffnet sich stattdessen „Sparplanausführung bestätigen“ mit denselben Werten (V-07).
+  6. Unter „Verrechnungskonto (Gegenbuchung)“ steht „Keine Gegenbuchung“ oder ein offenes Konto in derselben Währung (vorbelegt, wenn am Anlagekonto ein Verrechnungskonto hinterlegt ist). Die Kontoendung der Abrechnung steht nur als Hinweis da; die App ordnet sie nicht selbst zu. Eine Zeile sagt vorab, welche Umbuchung entsteht.
+  7. Ich vergleiche mit der Abrechnung und bestätige mit „Handel erfassen“ bzw. „Ausführung bestätigen“; erst dann entstehen Handel, Kontobuchung am Anlagekonto und, wenn gewählt, die Umbuchung vom bzw. auf das Verrechnungskonto. „Rückgängig“ nimmt alles gemeinsam zurück.
+- **Ergebnis:** Der Handel ist ohne Tippen erfasst; es wird nichts automatisch gebucht und nichts geschätzt.
 - **Abnahmekriterien:**
-  - Dasselbe PDF liefert immer dasselbe Ergebnis; zweimaliges Hochladen erzeugt keinen zweiten Vorschlag.
-  - Betrag laut Vorschlag entspricht der Kontobuchung des Verrechnungskontos.
-  - Randfall: Unbekannte ISIN oder abweichendes Layout landet als Prüfeintrag, ohne Handel.
+  - Dasselbe PDF liefert immer dasselbe Ergebnis.
+  - Ohne gewähltes Verrechnungskonto wird nur der Handel gebucht; das Verrechnungskonto bleibt unverändert. Nichts wird vor der Bestätigung gebucht.
+  - Mit gewähltem Verrechnungskonto bewegt die Umbuchung genau den Abrechnungsbetrag: bei einem Kauf Bruttobetrag plus Gebühr vom Verrechnungskonto aufs Anlagekonto, bei einem Verkauf Bruttobetrag minus Gebühr und Steuer zurück. Das Anlagekonto bleibt bei 0 Barbestand. Die Gebühr bleibt im Handel (Einstand und Kosten-Report „Orders“); es gibt keine zweite Gebührenbuchung, nichts wird doppelt gezählt.
+  - Handel, Anlagekonto-Buchung und Umbuchung stehen in einer Gruppe; ein „Rückgängig“ nimmt alle drei zurück. Eine wiederholte Bestätigung derselben Abrechnung schreibt nichts (auch keine zweite Umbuchung).
+  - Eine Umbuchung in anderer Währung, auf das Anlagekonto selbst oder auf ein geschlossenes Konto wird abgelehnt, ohne etwas zu schreiben.
+  - Wird ein gelöschter Handel per „Rückgängig“ der Gruppe wiederhergestellt, kommen Handel, Anlagekonto-Buchung und beide Umbuchungsbeine zusammen zurück, die Salden stehen wie vor dem Löschen. Die Umbuchung allein oder die Anlagekonto-Buchung allein lässt sich bei gelöschtem Handel nicht wiederherstellen.
+  - Löscht man den Handel, wird die zugehörige Umbuchung mitgelöscht (eine Gruppe, ein „Rückgängig“ stellt beides wieder her); der Lösch-Dialog sagt es. Betrag, Gebühr, Steuer, Handelsart und Datum eines Handels mit Umbuchung lassen sich nicht ändern: „Bitte den Handel löschen (die Umbuchung wird mitgelöscht) und neu erfassen.“ Notiz bleibt änderbar. Die Gegenbuchung braucht die Referenz der Abrechnung, sonst wird sie abgelehnt.
+  - Randfall: Steht die Zahlung schon als Buchung auf dem Verrechnungskonto (etwa aus dem Bankabruf), „Keine Gegenbuchung“ wählen; der Dialog weist darauf hin. Ein späteres Löschen des Handels lässt die Umbuchung bestehen (wie bei V-02).
+  - Eine über den Sparplan bestätigte Ausführung trägt die Ausführungs-ID der Abrechnung; dieselbe PDF wird danach auch nach geänderten Werten als erfasst erkannt.
+  - Eine vollständig gelesene und geprüfte Abrechnung füllt alle Felder; der Bruttobetrag samt Gebühren entspricht der Kontobuchung des Verrechnungskontos.
+  - Widersprechen sich Stück, Kurs und Betrag, bleiben Stück und Bruttobetrag leer; bei unbekannter Kostenzeile oder fehlender Buchungszeile bleiben Gebühren und Steuer leer. Ein leeres Pflichtfeld verhindert das Speichern.
+  - Ist der gedruckte Kurs zu grob gerundet, um Stück × Kurs zu prüfen, bleiben die gedruckten Werte stehen und der Dialog weist darauf hin.
+  - Eine bereits erfasste Abrechnung wird erkannt: „Diese Abrechnung ist bereits als Handel vom <Datum> erfasst. Es wird nichts doppelt angelegt.“, „Weiter“ ist gesperrt. Erkannt wird sie an der Ausführungs-ID (auch bei erneut heruntergeladener Datei) oder an einem von Hand oder über den Sparplan erfassten Handel mit gleichem Instrument, Tag, Stück und Bruttobetrag. Ein über den Sparplan bestätigter Handel trägt keine Ausführungs-ID; wurden dabei Werte geändert, wird dieselbe PDF erneut vorgeschlagen (der Sparplanmonat ist dann aber nicht mehr offen).
+  - Nach dem Löschen des Handels lässt sich dieselbe Abrechnung wieder vorschlagen.
+  - Gibt es schon einen Handel mit gleichem Instrument, Tag, Stück und Bruttobetrag aus einer anderen Quelle (etwa dem Portfolio-Performance-Import, anderer Import-Schlüssel), meldet der Dialog „Möglicherweise schon erfasst“; im Formular wird erst nach „Trotzdem als weiteren Handel erfassen“ gebucht. Ein Handel aus einer anderen Abrechnung (andere Ausführungs-ID) gilt nicht als Duplikat.
+  - Randfall: Unbekannte oder doppelt angelegte ISIN lässt „Instrument“ leer und nennt die ISIN; passt die Währung der Abrechnung zu keinem offenen Anlagekonto, bleiben die Beträge leer.
+  - Randfall: Ein abweichendes Layout wird nicht als Wertpapierabrechnung erkannt und lässt sich nur als Beleg ablegen.
   - Dividenden, Zinsen und Steuerberichte sind ausdrücklich nicht Teil dieser Story.
-- **Status:** offen · **Verweis:** #1057
-  Fehlt noch: Parser (Schritt 1) und Dokumenttyp mit Vorschlag im Posteingang (Schritt 2).
+- **Status:** teilweise · **Verweis:** #1057, #1099
+  Fehlt noch: Vorschlag als Eintrag unter Konten › Prüfen (heute direkt aus dem Upload), Ablage der PDF als Beleg am Handel, automatischer Abgleich mit einer bereits gebuchten Zahlung auf dem Verrechnungskonto, Prüfung von Kauf/Verkauf-Orders an echten Mustern (Wortlaut bisher angenommen), Mehrfach-Upload.
 
 ### V-16 – Pensions- und Rentenlücke prüfen (zurückgestellt)
 - **Story:** Als Nutzer möchte ich die Pensions- und Rentenlücke prüfen, damit ich sehe, ob die erwartete Rente ein gewähltes Ausgabenziel zum Pensionsdatum deckt.

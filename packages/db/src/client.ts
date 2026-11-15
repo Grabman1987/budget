@@ -32,6 +32,16 @@ export function openDatabase(path: string): OpenedDatabase {
   return { db, sqlite, close: () => sqlite.close() };
 }
 
+/**
+ * Read-only handle on an existing database file (a restored copy under test). Nothing is written,
+ * the journal mode is left as it is and a missing file is an error instead of a new database.
+ */
+export function openReadonlyDatabase(path: string): OpenedDatabase {
+  const sqlite = new Database(path, { readonly: true, fileMustExist: true });
+  const db = drizzle(sqlite, { schema });
+  return { db, sqlite, close: () => sqlite.close() };
+}
+
 /** The better-sqlite3 connection under a Drizzle handle (`drizzle()` sets `$client`). */
 export const sqliteOf = (db: Db): Database.Database =>
   (db as Db & { $client: Database.Database }).$client;
