@@ -1325,6 +1325,9 @@ and positive integer-cent amounts. Partial allocations or `allocations: []` deli
 leave credit while outlays remain open. Existing automatic uses are released and
 later purchases are pinned so the same cents are not silently consumed again.
 Already identical allocations without releasable automatic uses are `unchanged`.
+After a contact merge, `contactId` may name the target or a merged source. Receipt
+and outlay IDs retain their original owners and must belong to that combined
+identity; unrelated contacts remain refused. This applies to all four actions.
 `credit` chooses a portion of one credit source: `category` requires a live expense
 `categoryId`, `gift` may specify an open EUR budget `accountId`, and `free` has no
 category. Gifts default to the source account when no account is specified. The same

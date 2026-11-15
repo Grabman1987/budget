@@ -17,6 +17,7 @@ import {
   ReconciledLockedError,
 } from './errors';
 import { OperatorInputError } from './operator-ops';
+import { contactIdentityIds } from './contact-label';
 import { runInTransaction, type Executor } from './types';
 
 const id = z.string().trim().min(1).max(100);
@@ -117,6 +118,7 @@ export interface ContactAllocateOutcome {
 function preflight(tx: Executor, entry: Entry, today: string, unlock = false) {
   const owner = tx.select().from(contact).where(eq(contact.id, entry.contactId)).get();
   if (!owner || owner.deletedAt) throw new EntryRefusal('unknown_contact');
+  const identityIds = contactIdentityIds(tx, entry.contactId);
   if (entry.action === 'waive') {
     const split = tx
       .select()
@@ -126,7 +128,7 @@ function preflight(tx: Executor, entry: Entry, today: string, unlock = false) {
     const source = split && tx.select().from(booking).where(eq(booking.id, split.bookingId)).get();
     if (
       !split ||
-      split.contactId !== entry.contactId ||
+      !identityIds.includes(split.contactId ?? '') ||
       split.amountCents >= 0 ||
       !source ||
       source.deletedAt
@@ -144,7 +146,7 @@ function preflight(tx: Executor, entry: Entry, today: string, unlock = false) {
     receipt && tx.select().from(booking).where(eq(booking.id, receipt.bookingId)).get();
   if (
     !receipt ||
-    receipt.contactId !== entry.contactId ||
+    !identityIds.includes(receipt.contactId ?? '') ||
     receipt.amountCents <= 0 ||
     !source ||
     source.deletedAt
@@ -165,7 +167,7 @@ function preflight(tx: Executor, entry: Entry, today: string, unlock = false) {
     const outlay = split && tx.select().from(booking).where(eq(booking.id, split.bookingId)).get();
     if (
       !split ||
-      split.contactId !== entry.contactId ||
+      !identityIds.includes(split.contactId ?? '') ||
       split.amountCents >= 0 ||
       !outlay ||
       outlay.deletedAt

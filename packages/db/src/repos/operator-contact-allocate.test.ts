@@ -6,6 +6,7 @@ import { createBooking, getBooking, updateBooking } from './bookings';
 import { budgetSummary } from './budget';
 import { getContactStatement, settleContact } from './contacts';
 import { createEntity } from './entities';
+import { commitContactMerge, previewContactMerge } from './contact-merge';
 import { applyContactAllocations, parseContactAllocateFile } from './operator-contact-allocate';
 import { OperatorInputError, undoAuditGroups } from './operator-ops';
 import { netWorthAsOf } from './portfolio';
@@ -57,6 +58,119 @@ const purchase = (amountCents: number, categoryId = 'essen', date = '2026-09-02'
   );
   return getBooking(opened.db, bookingId)!.splits.find((split) => split.contactId === 'k1')!;
 };
+
+it.each(
+  ['k1', 'k2'].flatMap((contactId) =>
+    (['adopt', 'reallocate', 'credit', 'waive'] as const).map((action) => ({ contactId, action })),
+  ),
+)(
+  'runs $action through merged identity $contactId with dry-run, locks and Undo',
+  ({ contactId, action }) => {
+    const first = purchase(1001, 'auslagen', '2026-09-01');
+    const paid = receipt('k1', 701, '2026-09-02');
+    const later = purchase(501, 'auslagen', '2026-09-03');
+    const receiptSplitId = action === 'credit' ? receipt('k1', 2002, '2026-09-04') : paid;
+    const receiptBookingId = statement().movements.find(
+      (m) => m.splitId === receiptSplitId,
+    )!.bookingId;
+    if (action === 'adopt')
+      opened.db
+        .delete(appSetting)
+        .where(eq(appSetting.id, `contacts.credit.${receiptBookingId}`))
+        .run();
+    const lockedId = action === 'waive' ? first.bookingId : receiptBookingId;
+    updateBooking(opened.db, lockedId, { status: 'reconciled' }, testCtx);
+    const mergeOptions = { secret: 'synthetic-merge-secret' };
+    const preview = previewContactMerge(opened.db, 'k1', 'k2', mergeOptions);
+    expect(preview.conflicts).toEqual([]);
+    commitContactMerge(opened.db, 'k1', 'k2', preview.token!, testCtx, mergeOptions);
+    const entry =
+      action === 'waive'
+        ? { action, contactId, outlaySplitId: first.id, amountCents: 299, categoryId: 'essen' }
+        : action === 'reallocate'
+          ? {
+              action,
+              contactId,
+              receiptSplitId,
+              allocations: [{ outlaySplitId: later.id, amountCents: 501 }],
+            }
+          : action === 'credit'
+            ? { action, contactId, receiptSplitId, date: TODAY, amountCents: 101, choice: 'free' }
+            : { action, contactId, receiptSplitId };
+    const input = parseContactAllocateFile({ entries: [entry] });
+    const before = statement('k2');
+    const money = cash();
+    const bankFacts = opened.db.select().from(booking).all();
+    const bytes = opened.sqlite.serialize();
+    expect(run([entry])).toMatchObject([{ status: 'skipped', reason: 'reconciled_locked' }]);
+    expect(opened.sqlite.serialize().equals(bytes)).toBe(true);
+    expect(
+      applyContactAllocations(opened.db, input, operator, {
+        today: TODAY,
+        dryRun: true,
+        unlock: true,
+      }),
+    ).toMatchObject([{ status: 'updated', groupId: '' }]);
+    expect(opened.sqlite.serialize().equals(bytes)).toBe(true);
+    const applied = applyContactAllocations(opened.db, input, operator, {
+      today: TODAY,
+      unlock: true,
+    });
+    expect(applied).toMatchObject([{ status: 'updated', reason: '' }]);
+    expect(
+      statement('k2')
+        .outlays.filter((o) => [first.id, later.id].includes(o.splitId))
+        .map((o) => o.remainingCents),
+    ).toEqual(
+      action === 'waive'
+        ? [1, 501]
+        : action === 'reallocate'
+          ? [1001, 0]
+          : action === 'credit'
+            ? [0, 0]
+            : [300, 501],
+    );
+    expect(statement('k2').creditCents).toBe(
+      action === 'credit' ? 1201 : action === 'reallocate' ? 200 : 0,
+    );
+    expect(cash()).toEqual(money);
+    for (const row of bankFacts)
+      expect(opened.db.select().from(booking).where(eq(booking.id, row.id)).get()).toEqual(row);
+    undoAuditGroups(opened.db, [applied[0]!.groupId], operator);
+    expect(statement('k2')).toEqual(before);
+    expect(cash()).toEqual(money);
+  },
+);
+
+it('refuses outlays outside the merged identity without writing', () => {
+  const own = purchase(1001, 'auslagen', '2026-09-01');
+  const paid = receipt('k1', 701, '2026-09-02');
+  createEntity(opened.db, contact, { id: 'k3', name: 'Beispielkontakt Drei' }, testCtx);
+  const mergeOptions = { secret: 'synthetic-merge-secret' };
+  const preview = previewContactMerge(opened.db, 'k2', 'k3', mergeOptions);
+  commitContactMerge(opened.db, 'k2', 'k3', preview.token!, testCtx, mergeOptions);
+  const otherPaid = receipt('k3', 101);
+  const before = opened.sqlite.serialize();
+  expect(
+    run([
+      { action: 'adopt', contactId: 'k3', receiptSplitId: paid },
+      {
+        action: 'waive',
+        contactId: 'k3',
+        outlaySplitId: own.id,
+        amountCents: 1,
+        categoryId: 'essen',
+      },
+      {
+        action: 'reallocate',
+        contactId: 'k3',
+        receiptSplitId: otherPaid,
+        allocations: [{ outlaySplitId: own.id, amountCents: 1 }],
+      },
+    ]).map((o) => o.reason),
+  ).toEqual(['invalid_receipt', 'invalid_outlay', 'invalid_outlay']);
+  expect(opened.sqlite.serialize().equals(before)).toBe(true);
+});
 
 describe('contact-allocate input', () => {
   it('leaves an already adopted --unlock run unchanged, including its audit', () => {
