@@ -888,6 +888,52 @@ rehearsing). The source has 500 cents assigned in the example month and zero ope
 }
 ```
 
+#### 12.6.2 Restoring the prior category structure (#969)
+
+The existing `restructure` command covers the required group/category creation,
+rename, movement, ordering and visibility. No additional migration or application
+import is needed. The synthetic rehearsal in
+`apps/server/src/imports/operator-restoration-969.test.ts` verifies a split-level
+restoration with two assignment months, a hidden retained category, a combined
+goals/investing group, dry-run rollback and grouped undo. It compares the shared
+account, net-worth and monthly budget read models, including the following month.
+This is tooling evidence, not evidence that the private structure has been restored.
+
+Operator handoff (the actual source mapping and database remain outside this repo):
+
+1. Prepare an explicit owner-reviewed target structure and mapping for each affected
+   split and month/category assignment. Do not infer how an old combined category
+   should be divided. Keep unresolved entries in the private checklist.
+2. Create destination groups/categories first. Use the resulting names in later
+   sections and enumerate all live groups/categories, including hidden entries, in
+   `order`. Move savings and investment categories into the agreed common group;
+   retain their identities and goal references. Hide retained categories explicitly.
+3. Preserve the total assigned amount **in each month**, with
+   `expectedDeltaByMonth` set to zero for every affected month. Normally omit
+   `openings`; any redistribution of opening category money must preserve its total
+   and be reviewed explicitly. The generic tool allows nonzero deltas and openings,
+   so its successful exit alone does not prove #969's financial invariants.
+4. On an isolated database copy, record the baseline at the agreed cutoff and all
+   affected month ends: per-account balances, net worth, monthly "Zu verteilen",
+   booking/split identities and counts. Include the following month to check carry.
+   Run `restructure --file <json> --dry-run`; require exit 0 and no skipped entries.
+   Check that the baseline and audit rows remain unchanged after the preview.
+5. Apply the same file to that copy without `--dry-run`. Compare the recorded
+   figures exactly, inspect every intended split/assignment destination and check
+   the ON Plan Groups view, hidden-category visibility, retained account bookings
+   and savings-goal links. Rehearse `undo-group --group <id>` on the copy and check
+   restoration. Keep evidence private; publish only synthetic or relative findings.
+6. Present the exact plan and copy-run results for owner approval. Before the
+   separately approved live run, create and verify the backup and ensure the source
+   database still matches the rehearsed baseline. If it changed, rehearse again.
+   Record the live audit group, repeat the comparisons and let the owner accept
+   the resulting Plan structure. An exit 3 can leave earlier entries committed:
+   stop and inspect, never retry the whole file blindly.
+
+Pending for #969: private mapping, real database-copy rehearsal, owner approval of
+that concrete plan, backup, live execution and owner acceptance. None is established
+by the synthetic test or by merging a preparation PR.
+
 ### 12.7 Owner trades (operator task)
 
 `owner-trades --file <json> [--dry-run] [--details]` back-fills or removes trades explicitly
