@@ -209,7 +209,7 @@ export class BankSync {
    */
   private matchRecurring(tx: Executor) {
     try {
-      matchOccurrences(tx, todayInVienna(this.clock()), system);
+      matchOccurrences(tx, todayInVienna(this.clock()), system, { autoOnly: true });
     } catch {
       console.error('Bank sync: matching recurring payments skipped.');
     }

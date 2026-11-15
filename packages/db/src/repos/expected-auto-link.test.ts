@@ -193,6 +193,31 @@ describe('automatic link of recurring debits (#1102)', () => {
     expect(march(rent.id).bookingId).toBeNull();
   });
 
+  it.each([false, true])(
+    'proposes a payee-less debit instead of linking it (autoOnly %s)',
+    (autoOnly) => {
+      const rent = payment('Miete', 40_000);
+      const bookingId = createBooking(
+        db,
+        {
+          accountId: 'giro',
+          date: '2026-03-20',
+          amountCents: -40_000,
+          splits: [{ amountCents: -40_000, categoryId: 'miete' }],
+        },
+        ctx,
+      );
+      const summary = matchOccurrences(db, TODAY, ctx, { autoOnly });
+      expect(summary).toMatchObject({ received: 0, proposed: 1, links: [] });
+      expect(march(rent.id)).toMatchObject({ status: 'expected', bookingId: null });
+      expect(readInbox(db, TODAY).entries).toContainEqual(
+        expect.objectContaining({
+          linkProposal: expect.objectContaining({ occurrenceId: march(rent.id).id, bookingId }),
+        }),
+      );
+    },
+  );
+
   it('shows a proposal again when the pairing it was closed for falls away', () => {
     const a = payment('Abo A', 2_800);
     const b = payment('Abo B', 2_800);

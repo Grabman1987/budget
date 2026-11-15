@@ -181,9 +181,9 @@ Bereich: Plan (`/plan/monat`, `/plan/jahr`, `/plan/erwartet`, `/plan/sparziele`,
   3. Ein Betrag ≤ 0 wird mit „Bitte einen Betrag über 0 eintragen.“ abgelehnt.
   4. Fälligkeitstag 31 gilt als letzter Tag des Monats.
   5. Eine Version „Gilt ab“ ändert nur künftige Termine.
-  6. Automatisch verknüpft wird nur bei Ausgaben und nur eindeutig: genau eine passende Buchung, kein anderer Termin könnte sie beanspruchen, Betrag innerhalb der Toleranz. Weicht der Betrag ab oder passen mehrere Buchungen bzw. Termine, bleibt es ein Vorschlag in „Prüfen“ (kein Betrag ändert sich still).
+  6. Automatisch verknüpft wird nur bei Ausgaben und nur eindeutig: genau eine passende Buchung, kein anderer Termin könnte sie beanspruchen, Betrag innerhalb der Toleranz und passender Empfänger, Kontakt oder gelernter Bankname. Ohne Gegenpart-Treffer, bei abweichendem Betrag oder mehreren passenden Buchungen bzw. Terminen bleibt es ein Vorschlag in „Prüfen“ (kein Betrag ändert sich still). Der automatische Banklauf lässt Einnahmen und bestehende Verknüpfungen unverändert und setzt überfällige offene Termine nicht auf „ausgefallen“.
   7. Eine verknüpfte Fälligkeit zählt weder in „Frei bis Gehalt“ (Heute) noch in der Liquiditätsprognose als offen. Macht der Nutzer eine Verknüpfung rückgängig oder lehnt einen Vorschlag ab, verknüpft die App dieselbe Buchung nicht noch einmal von selbst.
-- **Status:** live; automatische Verknüpfung von Abbuchungen (#1102) im Review, nicht abgenommen. Einnahmen verknüpfen weiter wie bisher (siehe P-09a). — **Verweis:** Y11
+- **Status:** live; automatische Verknüpfung von Abbuchungen (#1102) im Review, nicht abgenommen. Einnahmen werden weiterhin nur auf Nutzeranfrage verknüpft (siehe P-09a). — **Verweis:** Y11
 
 ### P-09a – Close an unpaid income occurrence (#1109)
 

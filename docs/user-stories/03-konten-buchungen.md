@@ -299,7 +299,7 @@ Bereich: Konten (`/konten`, `/konten/$id`), Alle Buchungen (`/konten/buchungen`)
   2. Ein Doppel einer vorhandenen Buchung wird erkannt und nicht zweimal gebucht.
   3. Fällt die Bank aus, zeigt „Prüfen“ „Bank: nicht verbunden“ bzw. eine Datenwarnung, keine stille Lücke.
   4. Abgelaufene Zustimmung wird gemeldet.
-  5. Eine eindeutig passende Abbuchung verknüpft die Fälligkeit der wiederkehrenden Zahlung automatisch und rückgängig-fähig; Unklares bleibt ein Vorschlag in „Prüfen“ (#1102).
+  5. Eine eindeutig passende Abbuchung mit passendem Empfänger, Kontakt oder gelerntem Banknamen verknüpft die Fälligkeit der wiederkehrenden Zahlung automatisch und rückgängig-fähig; ohne Gegenpart-Treffer bleibt es ein Vorschlag in „Prüfen“, ebenso bei Unklarheit (#1102). Der automatische Lauf verändert weder Einnahmen noch bestehende Verknüpfungen und markiert überfällige offene Fälligkeiten nicht als „ausgefallen“.
 - **Status:** teilweise — **Verweis:** Y19, Y20
 - Fehlt noch: vollständiger nächtlicher Abruf mit Nachholen (Y20) und die Abnahme mit echten Bankdaten.
 

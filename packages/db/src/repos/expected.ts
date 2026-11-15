@@ -832,17 +832,22 @@ export interface MatchSummary {
  * (`settleMatches`) is stored, in an audit group of its own; any other pairing becomes a proposal
  * under Konten › Prüfen. A bank line without a payee is identified by its learned bank alias, and
  * a pairing the owner undid or dismissed is not stored or proposed again. Inflows are unchanged.
+ * `autoOnly` limits a bank-sync run to new debit links/proposals: income, existing links and
+ * overdue unmatched occurrences remain untouched.
  */
 export function matchOccurrences(
   db: Executor,
   today: string,
   ctx: AuditContext = SYSTEM_ACTOR,
+  options: { autoOnly?: boolean } = {},
 ): MatchSummary {
   const grouped = withGroup(ctx);
   return runInTransaction(db, (tx) => {
     const summary: MatchSummary = { received: 0, deviating: 0, missed: 0, proposed: 0, links: [] };
-    for (const { id, patch } of expectedLinkPatches(tx))
-      updateTracked(tx, expectedOccurrence, [id], patch, grouped);
+    if (!options.autoOnly) {
+      for (const { id, patch } of expectedLinkPatches(tx))
+        updateTracked(tx, expectedOccurrence, [id], patch, grouped);
+    }
     const openCandidates = tx
       .select({ occ: expectedOccurrence, payment: expectedPayment })
       .from(expectedOccurrence)
@@ -852,6 +857,8 @@ export function matchOccurrences(
           isNull(expectedOccurrence.deletedAt),
           isNull(expectedPayment.deletedAt),
           eq(expectedOccurrence.status, 'expected'),
+          options.autoOnly ? eq(expectedPayment.kind, 'outflow') : undefined,
+          options.autoOnly ? isNull(expectedOccurrence.bookingId) : undefined,
         ),
       )
       .all()
@@ -888,15 +895,11 @@ export function matchOccurrences(
     ]);
     const rejectedOccurrences = rejectedOccurrenceIds(rejected);
     const bookingById = new Map(bookings.map((b) => [b.id, b]));
-    /**
-     * A booking with a counterparty of its own must have the payment's one; a booking without any
-     * (a transfer leg, a manual entry) fits through the payment's category as before.
-     */
+    /** Automatic debit links require a matching payee, contact or learned bank alias. */
     const sameCounterparty = (payment: Payment, bookingId: string) => {
       const facts = bookingById.get(bookingId);
       if (!facts || payment.accountId === null) return false;
       const known = { ...facts.facts, ...bankPayees.get(bookingId) };
-      if (known.payeeId === null && known.payeeContactId === null) return true;
       return (
         (payment.payeeId !== null && known.payeeId === payment.payeeId) ||
         (payment.contactId !== null && known.payeeContactId === payment.contactId)
@@ -988,7 +991,7 @@ export function matchOccurrences(
         if (proposal.created) summary.proposed++;
       }
       // The window closes as before; an open proposal stays confirmable for a missed occurrence.
-      if (today > addDays(occ.dueDate, payment.dateWindowDays)) {
+      if (!options.autoOnly && today > addDays(occ.dueDate, payment.dateWindowDays)) {
         updateTracked(tx, expectedOccurrence, [occ.id], { status: 'missed' }, grouped);
         summary.missed++;
       }

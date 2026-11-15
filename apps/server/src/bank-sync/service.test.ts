@@ -7,6 +7,7 @@ import {
   createExpectedPayment,
   createTestDatabase,
   learnBankPayee,
+  linkOccurrence,
   matchOccurrences,
   readInbox,
   resolveInboxItem,
@@ -430,6 +431,94 @@ describe('bank sync workflow', () => {
         .filter((o) => o.bookingId !== null),
     ).toHaveLength(0);
   });
+  it('leaves fitting income unlinked and overdue debits expected during bank sync (#1102)', async () => {
+    service.setPolicy(consentId, true);
+    for (const kind of ['inflow', 'outflow'] as const) {
+      createExpectedPayment(
+        opened.db,
+        {
+          name: kind === 'inflow' ? 'Eingang A' : 'Abo A',
+          kind,
+          accountId: 'giro',
+          payeeId: 'p1',
+          dueDay: 20,
+          startDate: '2026-09-01',
+        },
+        { validFrom: '2026-09-01', amountCents: 1201 },
+        { actor: 'tester' },
+        '2026-10-01',
+      );
+    }
+    createBooking(
+      opened.db,
+      {
+        accountId: 'giro',
+        date: '2026-09-20',
+        amountCents: 1201,
+        payeeId: 'p1',
+        splits: [{ amountCents: 1201 }],
+      },
+      { actor: 'tester' },
+    );
+    const before = opened.db.select().from(schema.expectedOccurrence).all();
+    await service.tick();
+    expect(opened.db.select().from(schema.expectedOccurrence).all()).toEqual(before);
+    expect(before.filter((o) => o.dueDate === '2026-09-20')).toMatchObject([
+      { status: 'expected', bookingId: null },
+      { status: 'expected', bookingId: null },
+    ]);
+    // The explicit user run still links income and closes unmatched overdue occurrences.
+    expect(matchOccurrences(opened.db, '2026-10-01')).toMatchObject({ received: 1, missed: 1 });
+  });
+
+  it('does not refresh the amount status of existing links during bank sync (#1102)', async () => {
+    service.setPolicy(consentId, true);
+    const { payment } = createExpectedPayment(
+      opened.db,
+      { name: 'Abo A', accountId: 'giro', payeeId: 'p1', dueDay: 30 },
+      { validFrom: '2026-09-01', amountCents: 1201 },
+      { actor: 'tester' },
+      '2026-10-01',
+    );
+    const bookingId = createBooking(
+      opened.db,
+      {
+        accountId: 'giro',
+        date: row.date,
+        amountCents: row.amountCents,
+        payeeId: 'p1',
+        splits: [{ amountCents: row.amountCents }],
+      },
+      { actor: 'tester' },
+    );
+    const occurrence = opened.db
+      .select()
+      .from(schema.expectedOccurrence)
+      .all()
+      .find((o) => o.expectedPaymentId === payment.id && o.dueDate === row.date)!;
+    linkOccurrence(opened.db, occurrence.id, bookingId, { actor: 'tester' });
+    // A stale status would be refreshed by the user-triggered matcher.
+    opened.db
+      .update(schema.expectedOccurrence)
+      .set({ status: 'deviating' })
+      .where(eq(schema.expectedOccurrence.id, occurrence.id))
+      .run();
+    const before = opened.db.select().from(schema.expectedOccurrence).all();
+    await service.tick();
+    expect(opened.db.select().from(schema.expectedOccurrence).all()).toEqual(before);
+    matchOccurrences(opened.db, '2026-10-01');
+    expect(
+      opened.db
+        .select()
+        .from(schema.expectedOccurrence)
+        .where(eq(schema.expectedOccurrence.id, occurrence.id))
+        .get(),
+    ).toMatchObject({
+      status: 'received',
+      bookingId,
+    });
+  });
+
   it('promotes a stable pending identity once and does not resurrect a deleted booking', async () => {
     service.setPolicy(consentId, true);
     vi.mocked(provider.transactions).mockResolvedValue(batch([{ ...row, bankStatus: 'pending' }]));

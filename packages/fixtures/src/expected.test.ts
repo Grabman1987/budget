@@ -20,6 +20,22 @@ beforeAll(() => {
   seedDatabase(db);
   refreshOccurrences(db, TODAY);
   matchOccurrences(db, TODAY);
+  // Savings transfer legs have no counterparty evidence. The owner confirms their proposals;
+  // keep the sample's paid-payment assertions without restoring unsafe automatic matching.
+  const transfers = upcoming(db, '2026-08-01', TODAY).filter(
+    (row) => row.name === 'Investieren (ETF-Sparplan)' || row.name === 'Notgroschen',
+  );
+  expect(transfers).toHaveLength(4);
+  for (const row of transfers) {
+    expect(row.bookingId).toBeNull();
+    const proposal = db
+      .select()
+      .from(schema.inboxItem)
+      .all()
+      .find((i) => i.refType === 'expected_occurrence' && i.refId === row.occurrenceId);
+    expect(proposal).toBeDefined();
+    linkOccurrence(db, row.occurrenceId!, proposal!.id.split(':')[2]!, { actor: 'tester' });
+  }
 }, 60_000);
 
 describe('sample expected payments', () => {
