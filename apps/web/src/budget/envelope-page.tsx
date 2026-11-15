@@ -19,7 +19,6 @@ import { budgetActivityQuery, budgetQuery } from './budget-api';
 import { ActivityContributions } from './activity-contributions';
 import { EnvelopeDetails, EnvelopePanel } from './envelope-panel';
 import { planRows } from './plan-model';
-import './plan.css';
 
 function PlanDetailBack({ month }: { month: string }) {
   const router = useRouter();

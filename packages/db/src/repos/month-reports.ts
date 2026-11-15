@@ -735,7 +735,13 @@ function onePagerInRange(db: Executor, today: string, month: string): OnePager {
  * `byPayment` so that their status remains visible. A month after `today` has nothing received yet.
  * Line `receivedCents` is the counted income of the linked booking (same splits as the report).
  */
-export function monthIncomeBooked(db: Executor, today: string, month: string): ExpectedMonthIncome {
+export function monthIncomeBooked(
+  db: Executor,
+  today: string,
+  month: string,
+): ExpectedMonthIncome & {
+  closedPayments: Array<ExpectedMonthIncome['byPayment'][number] & { currency: string }>;
+} {
   const base = monthIncome(db, month);
   const keep = (id: string | null) => !ownIncomeTypes.has(id ?? '');
   const splits =
@@ -776,6 +782,25 @@ export function monthIncomeBooked(db: Executor, today: string, month: string): E
   }
   return {
     month,
+    // Retain deliberate cancellations as evidence without reintroducing forecast income.
+    closedPayments: upcoming(db, `${month}-01`, lastDayOfMonth(month), {
+      kind: 'inflow',
+      includeSkipped: true,
+    })
+      .filter((r) => r.status === 'skipped')
+      .map((r) => ({
+        paymentId: r.paymentId,
+        occurrenceId: r.occurrenceId,
+        name: r.name,
+        incomeTypeId: r.incomeTypeId,
+        incomeTypeName: r.incomeTypeName,
+        dueDate: r.dueDate,
+        status: r.status,
+        expectedCents: r.amountCents,
+        currency: r.currency,
+        receivedCents: 0,
+        bookingId: null,
+      })),
     expectedCents: byPayment
       .filter((l) => keep(l.incomeTypeId))
       .reduce((a, l) => a + l.expectedCents, 0),

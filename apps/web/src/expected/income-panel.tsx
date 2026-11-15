@@ -1,10 +1,13 @@
-import { useAmountPrivacy, DetailPanel } from '@budget/ui';
+import { useAmountPrivacy, DetailPanel, Button } from '@budget/ui';
+import { useState } from 'react';
+import { addMonths, monthOf, todayInVienna } from '@budget/domain';
 import { useQuery } from '@tanstack/react-query';
 import { ChevronRight } from 'lucide-react';
-import { eur, longDay } from '../ledger/format';
+import { eur, longDay, nativeCurrency } from '../ledger/format';
 import { ErrorNote, LoadingNote } from '../ledger/states';
 import { monthLabel } from '../nav/month';
-import { incomeQuery } from './api';
+import { incomeQuery, skipOccurrence, type MonthIncomeLine } from './api';
+import { useBudgetWrite } from '../budget/use-category-writes';
 import { StatusStamp } from './status-stamp';
 
 /** The month's income as a button (title block value or chain term) that opens the panel. */
@@ -63,6 +66,8 @@ export function IncomeBody({
       <ErrorNote what="Einnahmen" error={income.error} onRetry={() => void income.refetch()} />
     );
   const data = income.data;
+  const currentMonth = monthOf(todayInVienna());
+  const canClose = month >= addMonths(currentMonth, -1) && month <= addMonths(currentMonth, 12);
   const empty = data.byPayment.length === 0;
   return (
     <div className="kform xp-panel">
@@ -82,9 +87,9 @@ export function IncomeBody({
           />
         )}
       </div>
-      {empty ? (
+      {empty && !data.closedPayments?.length ? (
         <p className="rev-empty">Für diesen Monat sind keine Einnahmen erwartet.</p>
-      ) : (
+      ) : !empty ? (
         <>
           <section aria-labelledby="xp-inc-type">
             <h3 id="xp-inc-type" className="panel-h">
@@ -126,6 +131,9 @@ export function IncomeBody({
                   <span className="xp-occ-date">
                     <strong>{l.name}</strong>
                     <span className="xp-sub">{longDay(l.dueDate)}</span>
+                    {canClose && l.bookingId === null && l.status !== 'skipped' && (
+                      <CloseIncome line={l} />
+                    )}
                   </span>
                   <span className="xp-occ-amt">
                     {l.bookingId !== null && l.receivedCents === 0 ? (
@@ -147,6 +155,27 @@ export function IncomeBody({
             </ul>
           </section>
         </>
+      ) : null}
+      {(data.closedPayments?.length ?? 0) > 0 && (
+        <section aria-labelledby="xp-inc-closed">
+          <h3 id="xp-inc-closed" className="panel-h">
+            Kommt nicht mehr
+          </h3>
+          <ul className="xp-occ xp-inc" aria-label="Abgeschlossene Einnahmen des Monats">
+            {data.closedPayments?.map((l) => (
+              <li key={l.occurrenceId}>
+                <span className="xp-occ-date">
+                  <strong>{l.name}</strong>
+                  <span className="xp-sub">{longDay(l.dueDate)}</span>
+                </span>
+                <span className="xp-occ-amt">
+                  Fehlbetrag {nativeCurrency(l.expectedCents, l.currency)}
+                </span>
+                <span className="xp-status">Kommt nicht mehr</span>
+              </li>
+            ))}
+          </ul>
+        </section>
       )}
       <p className="xp-note">
         {bookedCents !== undefined && (
@@ -159,5 +188,31 @@ export function IncomeBody({
         Monat“ zählt im Plan erst im Folgemonat.
       </p>
     </div>
+  );
+}
+
+/** Reuse the audited single-occurrence cancellation; never edit the recurring rule or cash. */
+function CloseIncome({ line }: { line: MonthIncomeLine }) {
+  const write = useBudgetWrite();
+  const [pending, setPending] = useState(false);
+  return (
+    <Button
+      size="sm"
+      variant="ghost"
+      disabled={pending}
+      onClick={async () => {
+        setPending(true);
+        try {
+          await write(
+            () => skipOccurrence(line.paymentId, line.dueDate),
+            () => `${line.name}: Kommt nicht mehr.`,
+          );
+        } finally {
+          setPending(false);
+        }
+      }}
+    >
+      Kommt nicht mehr
+    </Button>
   );
 }

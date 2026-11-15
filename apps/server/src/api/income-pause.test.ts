@@ -86,6 +86,32 @@ async function createSalary(extra: Record<string, unknown> = {}) {
 }
 
 describe('income pauses for one expected payment', () => {
+  it('closing one unpaid occurrence removes it from Heute and liquidity, with audited Undo (#1109)', async () => {
+    const sourceId = await createSalary({
+      name: 'Synthetic bonus',
+      incomeTypeId: INCOME_TYPES.side.id,
+      dueDay: 20,
+      amountCents: 10_001,
+    });
+    const before = (await call('GET', '/heute')).body;
+    expect(before.lead.inflowCents).toBe(10_001);
+    const closed = await call('POST', `/expected/${sourceId}/skip`, { dueDate: '2026-03-20' });
+    expect(closed.status).toBe(200);
+    const after = (await call('GET', '/heute')).body;
+    expect(after.lead.inflowCents).toBe(0);
+    expect(after.lead.balanceCents).toBe(before.lead.balanceCents);
+    expect(after.lead.freeCents).toBe(before.lead.freeCents - 10_001);
+    const forecast = (await call('GET', '/liquidity?horizon=6m')).body.report;
+    expect(forecast.months.find((m: any) => m.month === '2026-03').incomeCents).toBe(0);
+    expect(forecast.months.find((m: any) => m.month === '2026-04').incomeCents).toBe(10_001);
+    const income = (await call('GET', '/expected/income?month=2026-03')).body;
+    expect(income.expectedCents).toBe(0);
+    expect(income.closedPayments).toMatchObject([{ expectedCents: 10_001, receivedCents: 0 }]);
+    expect((await call('POST', '/undo', { groupId: closed.body.groupId })).status).toBe(200);
+    expect((await call('GET', '/heute')).body.lead.inflowCents).toBe(10_001);
+    expect((await call('GET', '/expected/income?month=2026-03')).body.closedPayments).toEqual([]);
+  });
+
   it('creates, lists, edits, deletes and restores a pause without rewriting the payment schedule', async () => {
     const sourceId = await createSalary();
     createBooking(
