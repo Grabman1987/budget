@@ -1727,5 +1727,11 @@ function SourceLink({ item }: { item: InboxStored }) {
         Sicherheit prüfen
       </AppLink>
     );
+  if (item.refType === 'restore_test')
+    return (
+      <AppLink className="btn btn-ghost btn-sm" to="/einstellungen/export">
+        Sicherung prüfen
+      </AppLink>
+    );
   return null;
 }

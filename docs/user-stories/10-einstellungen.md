@@ -166,15 +166,20 @@ Einstellungen erreicht der Nutzer über die Navigation „Einstellungen“. Die 
   2. „Letzte abgeschlossene Nachtsicherung“ nennt Stand und Datei.
   3. Er klickt „Verschlüsselte Sicherung herunterladen“ und bestätigt mit dem Passkey.
   4. Die App lädt `budget-<Datum>.tar.age`.
-  5. Die Wiederherstellung läuft über den Betreiber-Ablauf (Runbook `docs/ops.md`), nicht in der App. Ablauf in der App unklar – zu klären: Soll es in der App eine Wiederherstellungs-Probe geben?
+  5. Einmal im Monat prüft die App nachts selbst: Sie liest die letzte verschlüsselte Nachtkopie vollständig zurück, stellt den Stand des Sicherungsspeichers in eine Prüfkopie wieder her, prüft sie (SQLite-Integritätsprüfung, Zeilenzahlen aller Tabellen, Kontostände) gegen die laufende Datenbank und löscht die Kopie sofort. Die Live-Datenbank wird nie verändert.
+  6. Unter „Verschlüsselte Sicherung“ steht „Wiederherstellung zuletzt geprüft am …, in Ordnung“ (oder „fehlgeschlagen“ / „nicht durchgeführt“ mit Grund, z. B. zu wenig freier Speicher).
+  7. Eine fehlgeschlagene oder überfällige Probe (letzte erfolgreiche älter als 40 Tage) erscheint unter Konten › Prüfen.
+  8. Die echte Wiederherstellung im Ernstfall läuft über den Betreiber-Ablauf (Runbook `docs/ops.md`), nicht in der App. Die App kann die Nachtkopien nicht entschlüsseln (nur der öffentliche Schlüssel liegt auf dem Server); das Entschlüsseln prüft der Nutzer halbjährlich selbst.
 - **Ergebnis:** Eine verschlüsselte Sicherungsdatei liegt lokal; nachts entsteht automatisch eine neue.
 - **Abnahmekriterien:**
   1. Die Nachtkopie ist vorhanden und mit Datum sichtbar.
   2. Ist noch keine Sicherung fertig, steht „Es ist noch keine abgeschlossene verschlüsselte Sicherung verfügbar. Bitte nach dem nächsten Nachtlauf erneut versuchen.“
   3. Der Download erfordert Passkey-Bestätigung.
-  4. Eine echte Wiederherstellung ist bestätigt (Probe) – noch nicht erfüllt.
-- **Status:** teilweise — **Verweis:** FEATURES KPIs, #522
-  Fehlt noch: Eine bestätigte, praktisch durchgeführte Wiederherstellung (Probe-Restore) und belegfähige Offline-/Export-Absicherung (#522).
+  4. Die App stellt monatlich automatisch eine Probe-Wiederherstellung her und zeigt Datum, Sicherungsname und Ergebnis (in Ordnung / fehlgeschlagen / nicht durchgeführt mit Grund).
+  5. Eine fehlgeschlagene oder mehr als 40 Tage überfällige Probe erzeugt einen Eintrag unter Konten › Prüfen.
+  6. Die Prüfkopie wird nach jeder Probe gelöscht, auch bei Fehlern; reicht der freie Speicher nicht, wird die Probe mit Begründung ausgelassen.
+- **Status:** teilweise — **Verweis:** FEATURES KPIs, #522, #1106
+  Umgesetzt mit #1106 (Abnahme durch den Nutzer steht aus): automatische Monatsprobe des Litestream-Stands samt Lesbarkeitsprüfung der Nachtkopie. Bewusste Abweichung: Die App entschlüsselt die Nachtkopie nicht (kein privater Schlüssel auf dem Server); Entschlüsselung und belegfähige Offline-Absicherung (#522) bleiben beim Nutzer.
 
 ### E-08 – Änderungen rückgängig machen und wiederholen
 - **Story:** Als Nutzer möchte ich jede Änderung mit „Rückgängig“ zurücknehmen und mit „Wiederholen“ erneut anwenden, damit ich ohne Angst ändern kann und Fehlklicks nichts zerstören.
