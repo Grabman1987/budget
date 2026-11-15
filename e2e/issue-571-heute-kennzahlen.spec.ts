@@ -135,7 +135,10 @@ test('Frei bis Gehalt is the existing lead figure of the API', async ({ page }) 
   const expected = `${cents < 0 ? '−' : ''}${new Intl.NumberFormat('de-AT', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
-  }).format(Math.abs(cents) / 100)} €`;
+  })
+    .format(Math.abs(cents) / 100)
+    // Node's de-AT groups with a space; the app groups with a dot.
+    .replace(/\s/g, '.')} €`;
   await expect(lead).toHaveText(expected);
 });
 

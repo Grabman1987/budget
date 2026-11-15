@@ -273,13 +273,14 @@ it.each([false, true])(
     const data = {
       ...dailyData,
       lead: {
-        needCents: 0,
-        wantCents: 0,
+        balanceCents: 0,
+        inflowCents: 0,
+        overdraftCents: 0,
         openCents: 0,
         freeCents: 10000,
         daysToPayday: 0,
         chain: [],
-        items: { need: [], want: [], open: [] },
+        items: { accounts: [], inflow: [], open: [] },
       },
       stand: { ...dailyData.stand, today: '2026-09-17', period: 'month', to: '2026-09-02' },
       balance: { actual: [], forecast: [], low: null, salary: null },
@@ -321,13 +322,14 @@ it('explains which account groups the cash forecast includes and excludes', () =
         {
           ...dailyData,
           lead: {
-            needCents: 0,
-            wantCents: 0,
+            balanceCents: 0,
+            inflowCents: 0,
+            overdraftCents: 0,
             openCents: 0,
             freeCents: 28_000,
             daysToPayday: 0,
             chain: [],
-            items: { need: [], want: [], open: [] },
+            items: { accounts: [], inflow: [], open: [] },
           } satisfies Heute['lead'],
           stand: {
             ...dailyData.stand,
