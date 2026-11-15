@@ -157,6 +157,7 @@ it('filters unresolved candidates by real account identity, with no balance, boo
     asOf: DAY,
     count: 0,
     entries: [],
+    autoResolved: [],
     readSourceSummaries: [],
     accountReminders: [],
     unlinkedReceiptCount: 0,
