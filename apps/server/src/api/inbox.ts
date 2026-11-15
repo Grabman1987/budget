@@ -171,7 +171,10 @@ export function inboxRoutes(db: Db, today: () => string): Hono {
     const id = z.string().min(1).max(100).parse(c.req.param('id'));
     const inbox = readInbox(db, today());
     const entry = inbox.entries.find(
-      (item) => item.id === id && item.type === 'stored' && item.kind === 'import',
+      (item) =>
+        item.id === id &&
+        item.type === 'stored' &&
+        (item.kind === 'import' || (item.kind === 'stale_value' && item.refType === 'security')),
     );
     if (!entry) return c.json({ error: 'not_found' }, 404);
     return c.json({ entry });
@@ -179,6 +182,13 @@ export function inboxRoutes(db: Db, today: () => string): Hono {
   app.post('/:id/resolve', async (c) => {
     await readBody(c, z.object({}).strict());
     const id = z.string().min(1).max(100).parse(c.req.param('id'));
+    const entry = readInbox(db, today()).entries.find((item) => item.id === id);
+    if (entry?.type === 'stored' && entry.kind === 'stale_value' && entry.refType === 'security')
+      throw new ApiError(
+        409,
+        'source_check_required',
+        'Die Kurswarnung schließt erst nach einem erfolgreichen automatischen Kursabruf.',
+      );
     return c.json(resolveInboxItem(db, id, { actor: ACTOR }));
   });
   return app;

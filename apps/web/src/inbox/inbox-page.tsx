@@ -22,6 +22,7 @@ import {
 } from '../reports/payslip-intake';
 import { InboxTypeIcon } from './type-icon';
 import { ReadSourceDetail, sourceWarningReason } from './read-source-detail';
+import { QuoteCause } from './quote-cause';
 import { ReadSourceSummaries } from './read-source-summaries';
 import { inboxCause, type InboxSegment } from '@budget/domain';
 import { useLocation, useNavigate, useParams, useSearch } from '@tanstack/react-router';
@@ -1356,6 +1357,12 @@ function InboxRow({
             {longDay(item.createdAt.slice(0, 10))} ·{' '}
             {maskMoneyText(sourceWarningReason(item.detail))}
           </span>
+        ) : item.type === 'stored' &&
+          item.kind === 'stale_value' &&
+          item.refType === 'security' &&
+          item.refId &&
+          detailView ? (
+          <QuoteCause securityId={item.refId} createdAt={item.createdAt} detail={item.detail} />
         ) : item.type === 'stored' && item.refType === 'read_source' ? (
           <ReadSourceDetail detail={item.detail} />
         ) : (
@@ -1423,24 +1430,27 @@ function InboxRow({
                   onConfirmed={onBankConfirmed}
                 />
               )}
-              {item.kind === 'import' && !detailView && (
-                <AppLink
-                  className="btn btn-ghost btn-sm"
-                  to={`/konten/pruefen/${encodeURIComponent(item.id)}`}
-                  search={search}
-                  state={{ inboxOpenedInApp: true }}
-                >
-                  Warnung erklären
-                </AppLink>
-              )}
+              {(item.kind === 'import' ||
+                (item.kind === 'stale_value' && item.refType === 'security')) &&
+                !detailView && (
+                  <AppLink
+                    className="btn btn-ghost btn-sm"
+                    to={`/konten/pruefen/${encodeURIComponent(item.id)}`}
+                    search={search}
+                    state={{ inboxOpenedInApp: true }}
+                  >
+                    Warnung erklären
+                  </AppLink>
+                )}
               <SourceLink item={item} />
-              {item.refType !== 'account-reconciliation' && (
-                <Button size="sm" variant="ghost" disabled={busy} onClick={onResolve}>
-                  {item.refType === 'bank-sync-candidate'
-                    ? 'Nicht übernehmen'
-                    : 'Als erledigt markieren'}
-                </Button>
-              )}
+              {item.refType !== 'account-reconciliation' &&
+                !(item.kind === 'stale_value' && item.refType === 'security') && (
+                  <Button size="sm" variant="ghost" disabled={busy} onClick={onResolve}>
+                    {item.refType === 'bank-sync-candidate'
+                      ? 'Nicht übernehmen'
+                      : 'Als erledigt markieren'}
+                  </Button>
+                )}
             </>
           )}
         </div>

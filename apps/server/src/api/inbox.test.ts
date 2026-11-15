@@ -51,6 +51,33 @@ async function call(method: string, path: string, body?: unknown) {
   return { status: response.status, body: (await response.json()) as any };
 }
 describe('inbox API', () => {
+  it('opens security quote warnings as details and requires an automatic source check to close them', async () => {
+    opened.db
+      .insert(schema.inboxItem)
+      .values({
+        id: 'quote-cause',
+        kind: 'stale_value',
+        title: 'Synthetic quote warning',
+        detail: 'Fehlerklasse: currency_mismatch',
+        refType: 'security',
+        refId: 'synthetic-instrument',
+      })
+      .run();
+    const detail = await call('GET', '/inbox/quote-cause');
+    expect(detail.status).toBe(200);
+    expect(detail.body.entry).toMatchObject({ id: 'quote-cause', refType: 'security' });
+    const resolved = await call('POST', '/inbox/quote-cause/resolve', {});
+    expect(resolved.status).toBe(409);
+    expect(resolved.body.error).toBe('source_check_required');
+    expect(
+      opened.db
+        .select()
+        .from(schema.inboxItem)
+        .all()
+        .find((row) => row.id === 'quote-cause')?.resolvedAt,
+    ).toBeNull();
+  });
+
   it('excludes read-source movements from every count, retains balance warnings and summarizes each source', async () => {
     for (const [id, title, refId, resolvedAt] of [
       ['move-a', 'Quellbewegung: Zuordnung fehlt', 'crypto', null],
