@@ -207,6 +207,24 @@ roughly 2-3x the quiet ones), Node 22, ms:
 
 Memory: the worker adds about 80 MB RSS (built server on the synthetic ledger after the warm-up: 325 MB without, 403 MB with; heap limit 192 MB old space). It ends after 5 idle minutes and starts again on the next ask.
 
+### Goal lifecycle audit cache (#1073, step 2 of the issue)
+
+`readGoalLifecycles` replays the whole audit log (15k entries on the synthetic ledger): reading and
+`JSON.parse` of the snapshots were about 170 ms of every cold Heute (profile: `readEntries` + `parseEntries`).
+The parsed entries are now kept per SQLite connection and only the rows added since the last read are
+fetched (`rowid > last`). The log is append-only at run time (nothing updates or deletes an audit row;
+migrations run before start), and the cache is trusted only while its prefix is provably the same:
+same row count up to its last rowid and the same id at that rowid, so a rolled-back insert whose rowid
+was reused is detected. A bound or a malformed row beyond the cache takes the old uncached read, so the
+result never depends on the cache (`goal-lifecycle-cache-1073.test.ts` compares the warm result with a
+full read after appends, undo and a rollback). The Vienna day of an entry is computed on demand.
+
+Cost: about 23 MB of heap per connection that reads goal lifecycles: the read-model worker (heap limit
+192 MB; it ends after 5 idle minutes) and the server thread, whose cache lives as long as the process
+(`listGoals` runs there too). The cache is never extended beyond the 30 000-entry evidence bound. The first Heute after the worker starts reads everything once, as before.
+Measured on the synthetic ledger (`scripts/perf/heute-positions-956.ts --only heute`, interleaved with
+stock `main` on the same machine, ms, median of 9): see PR #1073 for the numbers; digests unchanged.
+
 ## CI flakes
 
 - `e2e/shell.spec.ts` route sweep (`main` landmark within 5 s on `/reports/finanzcheck`,
