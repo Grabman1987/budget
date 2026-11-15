@@ -1,6 +1,7 @@
 import { getPayslipSourceConfig, type Db } from '@budget/db';
 import {
   defaultPayslipAdapters,
+  isPayrollNotice,
   parseCardDocument,
   parsePayrollDocument,
   parseStatementText,
@@ -12,7 +13,7 @@ import { extractPayslipText } from '../payslips/service';
 import { rememberedPayslipPassword } from '../payslips/password';
 
 export type DocumentType =
-  'card_statement' | 'bank_statement' | 'payslip' | 'receipt' | 'unreadable';
+  'card_statement' | 'bank_statement' | 'payslip' | 'bonus' | 'pension' | 'receipt' | 'unreadable';
 export type DocumentClassification = {
   type: DocumentType;
   confidence: 'certain' | 'probable' | 'unknown';
@@ -70,6 +71,13 @@ export async function classifyDocument(
     let certain = false;
     try {
       const parsed = parsePayrollDocument(text, filename, getPayslipSourceConfig(db));
+      if (isPayrollNotice(parsed))
+        return {
+          type: parsed.documentType as 'bonus' | 'pension',
+          confidence: 'certain',
+          hints: { mime },
+          needsPassword: false,
+        };
       certain = parsed.documentType !== 'unknown';
       if (parsed.draft?.month) hints.period = parsed.draft.month;
     } catch {

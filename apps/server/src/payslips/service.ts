@@ -23,6 +23,7 @@ import {
 } from '@budget/db';
 import {
   parsePayrollDocument,
+  isPayrollNotice,
   planWageReread,
   wageRereadNeedsSource,
   type WageRereadPlanItem,
@@ -252,12 +253,16 @@ export class PayslipIntakeService {
         sizeBytes: bytes.length,
         filename: name,
         parsed,
-        ...(scope === 'recorded' ? { settle: payslipScopeReason(scope) } : {}),
+        ...(isPayrollNotice(parsed)
+          ? { settle: 'Als Bonus-/Pensionsmitteilung archiviert; kein Gehaltsimport erstellt.' }
+          : scope === 'recorded'
+            ? { settle: payslipScopeReason(scope) }
+            : {}),
       },
       { actor: source === 'manual' ? 'owner' : 'system' },
     );
     let automation: PayslipAutomationOutcome | undefined;
-    if (source === 'manual' && options.automation === 'eligible') {
+    if (source === 'manual' && options.automation === 'eligible' && !isPayrollNotice(parsed)) {
       if (old || staged.duplicate)
         automation = { status: 'unchanged', reason: 'duplicate_source', groupId: null };
       else {
