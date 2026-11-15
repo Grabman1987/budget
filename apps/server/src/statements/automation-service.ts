@@ -13,6 +13,19 @@ import {
   type Db,
 } from '@budget/db';
 import { extractStatementText, readStatementSource } from './service';
+import { rememberedPayslipPassword } from '../payslips/password';
+
+/**
+ * Owner decision 2026-11-13: statement PDFs may be opened with the typed password, then the
+ * remembered payroll password, then the server secret (same order as payslips). Nothing new is
+ * remembered; no network and no document or password logging.
+ */
+function statementPasswordCandidates(db: Db, typed?: string): (string | undefined)[] {
+  const list = [typed, rememberedPayslipPassword(db), process.env['PAYSLIP_PDF_PASSWORD']].filter(
+    (p, i, all): p is string => Boolean(p) && all.indexOf(p) === i,
+  );
+  return list.length ? list : [undefined];
+}
 
 const review = (intakeId: string, reasons: string[]): StatementAutomationOutcome => ({
   intakeId,
@@ -43,6 +56,15 @@ export function unchangedStatementAutomation(db: Db, intakeId: string): Statemen
     : { ...review(intakeId, ['duplicate_source']), status: 'unchanged' };
 }
 
+/** Tries each password candidate until one does not report a password error. */
+async function extractWithCandidates(bytes: Buffer, candidates: (string | undefined)[]) {
+  let result: { text?: string; error?: string } = { error: 'pdf' };
+  for (const candidate of candidates) {
+    result = await extractStatementText(bytes, candidate);
+    if (result.text !== undefined || result.error !== 'password') break;
+  }
+  return result;
+}
 /** Server-only retained-source extraction; clients cannot submit trusted parsed rows/proofs. */
 export async function automateRetainedStatement(
   db: Db,
@@ -51,6 +73,7 @@ export async function automateRetainedStatement(
   cas: StatementCas,
   password?: string,
 ): Promise<StatementAutomationOutcome> {
+  const candidates = statementPasswordCandidates(db, password);
   const priorResult = readStatementAutomationOutcome(db, intakeId);
   if (priorResult) return unchangedStatementAutomation(db, intakeId);
   const preparation = prepareStatementAutomation(db, intakeId, cas);
@@ -74,7 +97,7 @@ export async function automateRetainedStatement(
       preparation.source.sha256,
       preparation.source.sizeBytes,
     );
-    const extracted = await extractStatementText(bytes, password);
+    const extracted = await extractWithCandidates(bytes, candidates);
     if (!extracted.text || extracted.error)
       return review(intakeId, ['source_extraction_unavailable']);
     currentText = extracted.text;
@@ -88,7 +111,7 @@ export async function automateRetainedStatement(
     try {
       const source = preparation.previous;
       const bytes = await readStatementSource(dir, source.sha256, source.sizeBytes);
-      const extracted = await extractStatementText(bytes, password);
+      const extracted = await extractWithCandidates(bytes, candidates);
       if (extracted.text && !extracted.error && source.accountId === preparation.source.accountId) {
         const prior = parseCardDocument(extracted.text, source.sha256, context);
         const f = prior.summary.fields;

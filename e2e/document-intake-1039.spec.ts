@@ -29,6 +29,11 @@ test('central document upload recognises a plain document and files it as a rece
   await expect(dialog.getByText('Erkannt: Beleg')).toBeVisible();
   await expect(dialog.getByText('Es wird nichts gebucht.')).toBeVisible();
   await dialog.getByRole('button', { name: 'Weiter' }).click();
+  // #1053: the dialog now closes with a result summary instead of vanishing.
+  const summary = dialog.getByRole('region', { name: 'Ergebnis des Uploads' });
+  await expect(summary).toContainText('Erkannt: Beleg');
+  await expect(summary.getByRole('link', { name: 'Zu Prüfen' })).toBeVisible();
+  await dialog.getByRole('button', { name: 'Fertig' }).click();
   await expect(dialog).toBeHidden();
   const receipts = await page.request.get(origin + '/api/receipts');
   expect((await receipts.json()).receipts).toHaveLength(1);

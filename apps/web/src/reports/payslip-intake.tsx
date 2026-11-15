@@ -18,7 +18,7 @@ import {
   WideDialog,
 } from '@budget/ui';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { ApiError, notifyApiWrite, request } from '../api/http';
 import { useBudgetWrite } from '../budget/use-category-writes';
 import { AccountOptions } from '../ledger/account-options';
@@ -123,6 +123,8 @@ export type PayslipHandoff = {
   file: File;
   password?: string | undefined;
   remember?: boolean | undefined;
+  /** Detected type shown in the closing summary (central upload only). */
+  typeLabel?: string | undefined;
 };
 export function PayslipUpload({
   onBusyChange,
@@ -134,6 +136,7 @@ export function PayslipUpload({
   /** Central document upload: the same File goes through this normal upload. */
   handoff?: PayslipHandoff | undefined;
 } = {}) {
+  const pickerId = useId();
   const picker = useRef<HTMLInputElement>(null),
     [busy, setBusy] = useState(false),
     [message, setMessage] = useState(''),
@@ -258,6 +261,7 @@ export function PayslipUpload({
     >
       <input
         ref={picker}
+        id={pickerId}
         className="sr-only"
         tabIndex={-1}
         type="file"
@@ -269,16 +273,6 @@ export function PayslipUpload({
           e.target.value = '';
         }}
       />
-      <Button variant="ghost" disabled={busy} onClick={() => picker.current?.click()}>
-        Gehaltszettel hochladen
-      </Button>
-      <span>PDF · höchstens 15 MB{busy ? ' · Wird ausgewertet …' : ''}</span>
-      <p className="payslip-drop-hint">PDF hier ablegen oder über den Button auswählen.</p>
-      <p>
-        Mit eingerichteter Gehaltsquelle werden eindeutige neue Gehaltszettel automatisch
-        gespeichert und passende Auszahlungen verknüpft. Neue Auszahlungen werden vorgemerkt
-        (Bargeld bestätigt). Unklare Angaben bleiben unter Prüfen.
-      </p>
       <details className="payslip-password-details">
         <summary>PDF-Passwort eingeben (optional)</summary>
         <PasswordFields
@@ -290,6 +284,27 @@ export function PayslipUpload({
           onRemember={setRemember}
         />
       </details>
+      {/* One tab stop: the button. The label makes a click anywhere in the dashed area open the picker. */}
+      <label className="payslip-drop" htmlFor={pickerId}>
+        <Button
+          disabled={busy}
+          aria-busy={busy}
+          aria-label="Gehaltszettel: PDF auswählen"
+          onClick={() => picker.current?.click()}
+        >
+          {busy ? 'Wird ausgewertet …' : 'PDF auswählen'}
+        </Button>
+        <span>PDF · höchstens 15 MB{busy ? ' · Wird ausgewertet …' : ''}</span>
+        <span className="payslip-drop-hint">PDF hier ablegen oder über den Button auswählen.</span>
+        <span className="payslip-drop-hint-order">
+          Passwort zuerst eingeben, dann PDF auswählen – der Upload startet sofort.
+        </span>
+      </label>
+      <p>
+        Mit eingerichteter Gehaltsquelle werden eindeutige neue Gehaltszettel automatisch
+        gespeichert und passende Auszahlungen verknüpft. Neue Auszahlungen werden vorgemerkt
+        (Bargeld bestätigt). Unklare Angaben bleiben unter Prüfen.
+      </p>
       {message && <p role="status">{message}</p>}
       {message && dropbox === 'saved' && <p role="status">In Dropbox abgelegt</p>}
       {message && dropbox === 'failed' && (
