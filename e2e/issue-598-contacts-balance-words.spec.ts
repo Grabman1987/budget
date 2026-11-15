@@ -1,6 +1,7 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, type Page } from '@playwright/test';
 import { test } from './isolated-ledger';
+import { setTheme } from './theme';
 
 // Plus / minus roles of DESIGN.md (owner decision 1A): teal and orange, light and dark.
 const ROLE = {
@@ -78,7 +79,7 @@ test('contacts: open first, balance in words and colour, one title, Ausgleichen 
   expect(await noHorizontalScroll(page)).toBe(true);
 
   for (const theme of ['light', 'dark'] as const) {
-    await page.emulateMedia({ colorScheme: theme });
+    await setTheme(page, theme);
     await expect(balanceOf(owes.name)).toHaveCSS('color', ROLE[theme].plus);
     await expect(balanceOf(credit.name)).toHaveCSS('color', ROLE[theme].minus);
     const axe = await new AxeBuilder({ page }).include('main').analyze();
@@ -88,7 +89,7 @@ test('contacts: open first, balance in words and colour, one title, Ausgleichen 
       fullPage: true,
     });
   }
-  await page.emulateMedia({ colorScheme: 'light' });
+  await setTheme(page, 'light');
 
   if (phone) {
     for (const target of [
@@ -165,7 +166,7 @@ test('contacts: open first, balance in words and colour, one title, Ausgleichen 
     }
   }
   for (const theme of ['light', 'dark'] as const) {
-    await page.emulateMedia({ colorScheme: theme });
+    await setTheme(page, theme);
     await expect(detail.locator('.contacts-balance')).toHaveCSS('color', ROLE[theme].plus);
     const axe = await new AxeBuilder({ page }).include('main').analyze();
     expect(axe.violations).toEqual([]);
@@ -174,7 +175,7 @@ test('contacts: open first, balance in words and colour, one title, Ausgleichen 
       fullPage: true,
     });
   }
-  await page.emulateMedia({ colorScheme: 'light' });
+  await setTheme(page, 'light');
 
   // Credit: orange words, no minus sign on the balance; the repayment is a minus in the history.
   await page.goto(`/konten/kontakte/${credit.id}`);
