@@ -14,6 +14,7 @@ import {
   replicationEnabled,
   RestoreTestScheduler,
   runRestoreTest,
+  sweepRestoreScratchAtStart,
 } from './backup/restore-test';
 import { safeBackupMessage } from './backup/s3';
 import { createAuth } from './auth/routes';
@@ -135,8 +136,9 @@ if (backupConfig) {
   );
   backupTimers.push(setTimeout(tick, 2 * 60_000), setInterval(tick, 15 * 60_000));
   // Monthly restore test of the Litestream replica plus a read-back of the newest night copy
-  // (docs/ops.md section 8.4). Runs at night, never touches the live database, never throws.
-  if (replicationEnabled()) {
+  // (docs/ops.md section 8.4). OFF unless BUDGET_RESTORE_TEST=1; the operator command
+  // (`migrate-cli.js restore-test`) works either way. Never touches the live database, never throws.
+  if (process.env['BUDGET_RESTORE_TEST'] === '1' && replicationEnabled()) {
     const restorer = litestreamRestorer({ databasePath });
     const restoreTest = new RestoreTestScheduler({
       db,
@@ -145,12 +147,16 @@ if (backupConfig) {
     backupTimers.push(setInterval(() => void restoreTest.tick(), 15 * 60_000));
     console.log('Monthly restore test on');
   } else {
-    console.warn('Monthly restore test is off (replication is not configured).');
+    console.log('Monthly restore test is off (BUDGET_RESTORE_TEST=1 turns it on).');
   }
   for (const timer of backupTimers) timer.unref();
 } else {
   console.warn('Encrypted backup is off (BUDGET_BACKUP_RECIPIENT not set).');
 }
+
+// A crash or restart can leave a throw-away restore copy on the volume: remove it at once, whatever
+// its age and whether or not the monthly test is on (only the lock holder owns such a folder).
+void sweepRestoreScratchAtStart(databasePath).catch(() => undefined);
 
 // A separate process shares this machine's SQLite volume; durable due times survive restart.
 const stopBankWorker =

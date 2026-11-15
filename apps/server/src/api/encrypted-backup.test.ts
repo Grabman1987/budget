@@ -102,6 +102,26 @@ it.each([
   expect(S3Client.prototype.getEncryptedFile).not.toHaveBeenCalled();
 });
 
+it.each([
+  [undefined, 401],
+  ['stale', 200],
+  ['fresh', 200],
+] as const)(
+  'serves the restore-test status only to a signed-in session (%s -> %i)',
+  async (token, status) => {
+    const response = await app.request('/api/export/restore-test', {
+      headers: token ? { cookie: `budget_session=${token}` } : {},
+    });
+    expect(response.status).toBe(status);
+    expect(response.headers.get('cache-control')).toBe('no-store');
+    const body = (await response.json()) as Record<string, unknown>;
+    if (status === 401) expect(body).toMatchObject({ error: 'unauthorized' });
+    else expect(body).toMatchObject({ status: 'never', checkedAt: null, overdue: false });
+    expect(JSON.stringify(body)).not.toMatch(/key|secret|endpoint|bucket/i);
+    expect(S3Client.prototype.list).not.toHaveBeenCalled();
+  },
+);
+
 it('streams the latest completed ciphertext with safe headers and no financial writes', async () => {
   const before = database.db.select().from(schema.auditLog).all();
   const response = await get('fresh');

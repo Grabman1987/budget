@@ -22,7 +22,11 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { encryptedBackupRoutes } from '../api/encrypted-backup';
+import { BackupScheduler } from './backup';
 import {
+  DISK_FLOOR_BYTES,
+  MEMORY_FLOOR_BYTES,
+  childCopyChecker,
   RESTORE_TEST_INBOX_REF,
   RESTORE_TEST_SETTING,
   RestoreTestScheduler,
@@ -34,6 +38,7 @@ import {
   restoreTestLogLine,
   restoreTestStatus,
   runRestoreTest,
+  sweepRestoreScratchAtStart,
   type RestoreTestDeps,
   type Restorer,
 } from './restore-test';
@@ -141,6 +146,7 @@ const deps = (restorer: Restorer, extra: Partial<RestoreTestDeps> = {}): Restore
   restorer,
   scratchDir: scratch,
   settleMs: 0,
+  availableMemory: () => Promise.resolve(2 * 1024 ** 3),
   now: () => new Date('2026-11-15T03:00:00Z'),
   ...extra,
 });
@@ -214,12 +220,9 @@ describe('runRestoreTest', () => {
     expect(restorer.calls).toBe(0);
   });
 
-  it('keeps a fresh folder of a concurrent run and works next to the database by default', async () => {
+  it('works next to the database by default', async () => {
     const own = { ...deps(copyRestorer()) } as RestoreTestDeps;
     delete (own as { scratchDir?: string }).scratchDir;
-    mkdirSync(join(scratch, 'budget-restore-test-running'));
-    expect((await runRestoreTest({ ...own, scratchDir: scratch })).status).toBe('ok');
-    expect(leftovers()).toEqual(['budget-restore-test-running']);
     expect((await runRestoreTest(own)).status).toBe('ok');
     expect(readdirSync(join(livePath, '..', '.restore-test'))).toEqual([]);
   });
@@ -258,7 +261,7 @@ describe('runRestoreTest', () => {
     const restorer = copyRestorer();
     const size = statSync(livePath).size;
     const outcome = await runRestoreTest(
-      deps(restorer, { freeBytes: () => Promise.resolve(100 * 1_048_576) }),
+      deps(restorer, { freeBytes: () => Promise.resolve(DISK_FLOOR_BYTES) }),
     );
     expect(outcome).toEqual({
       status: 'skipped',
@@ -267,9 +270,9 @@ describe('runRestoreTest', () => {
     });
     expect(restorer.calls).toBe(0);
     expect(leftovers()).toEqual([]);
-    // Just enough room ((database + WAL) × 1.25 plus the 100 MiB reserve) lets it run.
+    // Just enough room ((database + WAL) x 1.05 plus the 150 MiB floor) lets it run.
     const wal = existsSync(`${livePath}-wal`) ? statSync(`${livePath}-wal`).size : 0;
-    const enough = Math.ceil((size + wal) * 1.25) + 100 * 1_048_576 + 4 * 1_048_576;
+    const enough = Math.ceil((size + wal) * 1.05) + DISK_FLOOR_BYTES + 4 * 1_048_576;
     expect(
       (await runRestoreTest(deps(restorer, { freeBytes: () => Promise.resolve(enough) }))).status,
     ).toBe('ok');
@@ -321,14 +324,130 @@ describe('runRestoreTest', () => {
     expect(leftovers()).toEqual([]);
   });
 
-  it('sweeps a copy left behind by a killed run', async () => {
-    mkdirSync(join(scratch, 'budget-restore-test-stale'));
-    writeFileSync(join(scratch, 'budget-restore-test-stale', 'budget.sqlite'), 'left over');
-    const old = new Date('2026-11-14T00:00:00Z');
-    utimesSync(join(scratch, 'budget-restore-test-stale'), old, old);
+  it('sweeps every folder left behind by a killed run, whatever its age', async () => {
+    for (const name of ['budget-restore-test-old', 'budget-restore-test-fresh']) {
+      mkdirSync(join(scratch, name));
+      writeFileSync(join(scratch, name, 'budget.sqlite'), 'left over');
+    }
+    const old = new Date('2026-11-01T00:00:00Z');
+    utimesSync(join(scratch, 'budget-restore-test-old'), old, old);
     writeFileSync(join(scratch, 'unrelated.txt'), 'keep');
     await runRestoreTest(deps(copyRestorer()));
     expect(leftovers()).toEqual(['unrelated.txt']);
+  });
+
+  it('sweeps at process start, but not while another process holds the lock', async () => {
+    mkdirSync(join(scratch, 'budget-restore-test-crashed'));
+    const lock = join(livePath, '..', '.maintenance.lock');
+    writeFileSync(lock, `${process.pid} ${Date.now()}`);
+    await sweepRestoreScratchAtStart(livePath, scratch);
+    expect(leftovers()).toEqual(['budget-restore-test-crashed']);
+    rmSync(lock);
+    await sweepRestoreScratchAtStart(livePath, scratch);
+    expect(leftovers()).toEqual([]);
+    expect(existsSync(lock)).toBe(false);
+  });
+
+  it('does not overlap a running backup or a second test, and gives the lock back', async () => {
+    const lock = join(livePath, '..', '.maintenance.lock');
+    writeFileSync(lock, `${process.pid} ${Date.now()}`);
+    const restorer = copyRestorer();
+    expect(await runRestoreTest(deps(restorer))).toEqual({
+      status: 'skipped',
+      backupName: null,
+      reason: 'backup_running',
+    });
+    expect(restorer.calls).toBe(0);
+    expect(existsSync(lock)).toBe(true);
+    rmSync(lock);
+    expect((await runRestoreTest(deps(restorer))).status).toBe('ok');
+    expect(existsSync(lock)).toBe(false);
+    // Also released after a failure.
+    await runRestoreTest(deps({ restore: () => Promise.reject(new Error('x')) }));
+    expect(existsSync(lock)).toBe(false);
+  });
+
+  it('skips with a recorded reason when available memory is below the floor', async () => {
+    const restorer = copyRestorer();
+    expect(
+      await runRestoreTest(
+        deps(restorer, { availableMemory: () => Promise.resolve(MEMORY_FLOOR_BYTES - 1) }),
+      ),
+    ).toEqual({
+      status: 'skipped',
+      backupName: 'budget-2026-11-14.tar.age',
+      reason: 'not_enough_memory',
+    });
+    expect(restorer.calls).toBe(0);
+    expect(leftovers()).toEqual([]);
+  });
+
+  it('aborts the restore and cleans up when free space falls under the floor meanwhile', async () => {
+    let polls = 0;
+    const partial: Restorer = {
+      async restore(output, signal) {
+        writeFileSync(output, 'partial copy');
+        await new Promise((_resolve, reject) =>
+          signal?.addEventListener('abort', () => reject(new Error('aborted'))),
+        );
+        return 'restored';
+      },
+    };
+    const outcome = await runRestoreTest(
+      deps(partial, {
+        watchMs: 5,
+        // Plenty for the first check, then the volume fills up (a growing WAL, for example).
+        freeBytes: () => Promise.resolve(polls++ < 1 ? 10 * 1024 ** 3 : DISK_FLOOR_BYTES - 1),
+      }),
+    );
+    expect(outcome).toEqual({
+      status: 'skipped',
+      backupName: 'budget-2026-11-14.tar.age',
+      reason: 'not_enough_space',
+    });
+    expect(leftovers()).toEqual([]);
+  });
+
+  it('re-checks the floor after the restore and does not check a copy it cannot afford', async () => {
+    let restored = false;
+    let checked = false;
+    const outcome = await runRestoreTest(
+      deps(
+        {
+          async restore(output) {
+            live.sqlite.prepare('VACUUM INTO ?').run(output);
+            restored = true;
+            return 'restored';
+          },
+        },
+        {
+          watchMs: 60_000,
+          freeBytes: () => Promise.resolve(restored ? DISK_FLOOR_BYTES - 1 : 10 * 1024 ** 3),
+          checkCopy: () => {
+            checked = true;
+            return Promise.reject(new Error('must not run'));
+          },
+        },
+      ),
+    );
+    expect(outcome.reason).toBe('not_enough_space');
+    expect(checked).toBe(false);
+    expect(leftovers()).toEqual([]);
+  });
+
+  it('checks the copy in a child process with its own read-only connection', async () => {
+    const copy = join(scratch, 'copy.sqlite');
+    live.sqlite.prepare('VACUUM INTO ?').run(copy);
+    const report = await childCopyChecker(copy, new AbortController().signal);
+    expect(report.intact).toBe(true);
+    expect(report.counts['account']).toBeGreaterThan(0);
+    expect(Object.keys(report.counts)).not.toContain('sqlite_sequence');
+    writeFileSync(copy, 'not a database');
+    await expect(childCopyChecker(copy, new AbortController().signal)).rejects.toThrow();
+    const stop = new AbortController();
+    stop.abort();
+    await expect(childCopyChecker(copy, stop.signal)).rejects.toThrow();
+    rmSync(copy);
   });
 });
 
@@ -450,6 +569,34 @@ describe('result, Konten › Prüfen and Einstellungen › Sicherung', () => {
   });
 });
 
+describe('nightly backup coordination', () => {
+  it('the backup waits while the restore test holds the lock, and releases it afterwards', async () => {
+    const backupConfig = {
+      recipients: [],
+      s3: config.s3,
+      prefix: 'encrypted/',
+      ageBin: '/nonexistent/age',
+    };
+    const lock = join(livePath, '..', '.maintenance.lock');
+    const logs: string[] = [];
+    const backup = new BackupScheduler({
+      sqlite: live.sqlite,
+      db: live.db,
+      config: backupConfig,
+      log: (line) => logs.push(line),
+    });
+    const night = new Date('2026-11-16T03:00:00Z');
+    writeFileSync(lock, `${process.pid} ${Date.now()}`);
+    expect(await backup.tick(night)).toBeUndefined();
+    expect(logs).toEqual([]);
+    rmSync(lock);
+    // Without the lock the run starts (and fails here on purpose: no age binary), then frees it.
+    expect(await backup.tick(night)).toBeUndefined();
+    expect(logs).toHaveLength(1);
+    expect(existsSync(lock)).toBe(false);
+  });
+});
+
 describe('RestoreTestScheduler', () => {
   const scheduler = (run = () => runRestoreTest(deps(copyRestorer()))) => {
     const lines: string[] = [];
@@ -494,6 +641,17 @@ describe('RestoreTestScheduler', () => {
     fail = false;
     expect((await s.instance.tick(new Date('2026-11-17T03:15:00Z')))?.status).toBe('ok');
     expect(s.runs()).toBe(2);
+  });
+
+  it('does not record or log a run that found the nightly backup running', async () => {
+    const s = scheduler(() =>
+      Promise.resolve({ status: 'skipped', backupName: null, reason: 'backup_running' }),
+    );
+    expect(await s.instance.tick(new Date('2026-11-16T03:15:00Z'))).toBeUndefined();
+    expect(s.runs()).toBe(1);
+    expect(s.lines).toEqual([]);
+    expect(readRestoreTestState(live.db)).toBeUndefined();
+    expect(s.instance.due(new Date('2026-11-16T03:30:00Z'))).toBe(true);
   });
 
   it('records an unexpected exception as a failed test and waits while an import holds writes', async () => {

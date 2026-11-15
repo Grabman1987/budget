@@ -9,11 +9,14 @@ import {
 import { todayInVienna } from '@budget/domain';
 import { and, eq, isNull } from 'drizzle-orm';
 import { spawn } from 'node:child_process';
+import { createRequire } from 'node:module';
 import { randomUUID } from 'node:crypto';
-import { chmod, mkdir, mkdtemp, readdir, rm, stat, statfs } from 'node:fs/promises';
+import { chmod, mkdir, mkdtemp, readFile, readdir, rm, stat, statfs } from 'node:fs/promises';
+import { freemem } from 'node:os';
 import { dirname, join } from 'node:path';
 import { setImmediate as yieldLoop, setTimeout as sleep } from 'node:timers/promises';
 import type { BackupConfig } from './backup';
+import { acquireMaintenanceLock, lockPathFor } from './lock';
 import { backupDay, latestArchiveKey } from './retention';
 import { S3Client, S3Error } from './s3';
 
@@ -41,14 +44,14 @@ const DAY = 86_400_000;
 const SCRATCH_PREFIX = 'budget-restore-test-';
 /** A night copy older than this many UTC days means the nightly job has stopped. */
 const MAX_BACKUP_AGE_DAYS = 3;
-/** A leftover folder is only swept when it is older than any run can last. */
-const STALE_SCRATCH_MS = 60 * 60_000;
 /** Waits before the restore of attempt 1, 2, 3 (x settle base): replication needs time to catch up. */
 const SETTLE_STEPS = [1, 3, 6];
-/** The copy needs the database size once (Litestream writes `<out>.tmp`, then renames). */
-const SPACE_FACTOR = 1.25;
-/** Free space that must remain while the copy exists. */
-const SPACE_RESERVE_BYTES = 100 * 1_048_576;
+/** The restored copy is about the size of the database (Litestream writes `<out>.tmp`, then renames). */
+const SPACE_FACTOR = 1.05;
+/** Free space that must remain on the volume while the copy exists, so a growing WAL is never starved. */
+export const DISK_FLOOR_BYTES = 150 * 1_048_576;
+/** Available memory needed next to the server and Litestream (restore child plus checker child). */
+export const MEMORY_FLOOR_BYTES = 128 * 1_048_576;
 
 export type RestoreTestReason =
   | 'backup_missing'
@@ -60,7 +63,9 @@ export type RestoreTestReason =
   | 'mismatch'
   | 'not_enough_space'
   | 'database_busy'
-  | 'backup_stale';
+  | 'backup_stale'
+  | 'not_enough_memory'
+  | 'backup_running';
 
 export interface RestoreTestOutcome {
   status: 'ok' | 'failed' | 'skipped';
@@ -84,6 +89,10 @@ const REASON_TEXT: Record<RestoreTestReason, string> = {
   not_enough_space: 'Zu wenig freier Speicherplatz für die Prüfkopie. Die Probe wurde ausgelassen.',
   database_busy:
     'Die Datenbank wurde während der Probe geändert. Die Probe wird am nächsten Tag wiederholt.',
+  not_enough_memory:
+    'Zu wenig freier Arbeitsspeicher für die Prüfkopie. Die Probe wurde ausgelassen.',
+  backup_running:
+    'Die nächtliche Sicherung läuft gerade. Die Probe wird beim nächsten Check wiederholt.',
   backup_stale:
     'Die letzte verschlüsselte Nachtsicherung ist älter als drei Tage. Der Nachtlauf scheint nicht zu laufen.',
 };
@@ -150,31 +159,28 @@ interface Figures {
   balances: Record<string, string>;
 }
 
-/**
- * Row count of every table and the balances of every account. Asynchronous with a yield between
- * tables so a large database does not freeze the event loop; consistency of the live figures is
- * established by reading them before and after the restore and comparing the two.
- */
-async function readFigures(db: Db): Promise<Figures> {
+/** User tables only: SQLite's own and Litestream's bookkeeping tables are not data. */
+const USER_TABLES_SQL = `SELECT name FROM sqlite_master WHERE type = 'table'
+  AND name NOT LIKE 'sqlite!_%' ESCAPE '!' AND name NOT LIKE '!_litestream%' ESCAPE '!'
+  ORDER BY name`;
+
+/** Row counts of the live database, yielding to the event loop between tables. */
+async function readCounts(db: Db): Promise<Record<string, number>> {
   const sqlite = sqliteOf(db);
-  const tables = sqlite
-    .prepare(
-      `SELECT name FROM sqlite_master WHERE type = 'table'
-         AND name NOT LIKE 'sqlite!_%' ESCAPE '!' AND name NOT LIKE '!_litestream%' ESCAPE '!'
-       ORDER BY name`,
-    )
-    .pluck()
-    .all() as string[];
   const counts: Record<string, number> = {};
-  for (const name of tables) {
+  for (const name of sqlite.prepare(USER_TABLES_SQL).pluck().all() as string[]) {
     counts[name] = sqlite
       .prepare(`SELECT count(*) FROM "${name.replaceAll('"', '""')}"`)
       .pluck()
       .get() as number;
     await yieldLoop();
   }
+  return counts;
+}
+
+/** Balances of every account from the shared ledger query (the figures the app shows). */
+function readBalances(db: Db): Record<string, string> {
   const balances: Record<string, string> = {};
-  // The shared ledger query (the figures the app shows), not a second balance formula.
   for (const a of accountSummaries(db, todayInVienna()))
     balances[a.id] = [
       a.balanceCents,
@@ -183,7 +189,11 @@ async function readFigures(db: Db): Promise<Figures> {
       a.bookingCount,
       a.pendingCount,
     ].join('|');
-  return { counts, balances };
+  return balances;
+}
+
+async function readFigures(db: Db): Promise<Figures> {
+  return { counts: await readCounts(db), balances: readBalances(db) };
 }
 
 /** Table names whose counts differ, plus `account balances`; never a value. */
@@ -195,9 +205,72 @@ function differences(a: Figures, b: Figures): string[] {
   return out;
 }
 
+/** What the integrity pass reports about the copy. */
+export interface CopyReport {
+  intact: boolean;
+  counts: Record<string, number>;
+}
+
+/** Runs `PRAGMA integrity_check` and the row counts on the restored copy, off the event loop. */
+export type CopyChecker = (path: string, signal: AbortSignal) => Promise<CopyReport>;
+
+const CHECK_SCRIPT = `
+const Database = require(process.argv[1]);
+const db = new Database(process.argv[2], { readonly: true, fileMustExist: true });
+const rows = db.pragma('integrity_check');
+const report = { intact: rows.length === 1 && rows[0].integrity_check === 'ok', counts: {} };
+if (report.intact)
+  for (const name of db.prepare(${JSON.stringify(USER_TABLES_SQL)}).pluck().all())
+    report.counts[name] = db.prepare('SELECT count(*) FROM "' + name.replaceAll('"', '""') + '"').pluck().get();
+db.close();
+process.stdout.write(JSON.stringify(report));
+`;
+
+/**
+ * The integrity check is one long synchronous SQLite call (seconds on a few hundred MB), so it
+ * runs in a child process with its own read-only connection and a capped heap. The child only
+ * prints counts; nothing else crosses the process boundary. A bundled server has no second entry
+ * file, hence the inline script (no Dockerfile change); `better-sqlite3` is resolved here.
+ */
+export const childCopyChecker: CopyChecker = (path, signal) =>
+  new Promise((resolve, reject) => {
+    const driver = createRequire(import.meta.url).resolve('better-sqlite3');
+    const chunks: Buffer[] = [];
+    let bytes = 0;
+    const child = spawn(
+      process.execPath,
+      ['--max-old-space-size=64', '-e', CHECK_SCRIPT, driver, path],
+      { stdio: ['ignore', 'pipe', 'ignore'], timeout: 15 * 60_000, killSignal: 'SIGKILL', signal },
+    );
+    child.stdout.on('data', (chunk: Buffer) => {
+      bytes += chunk.length;
+      if (bytes <= 1_048_576) chunks.push(chunk);
+    });
+    child.once('error', reject);
+    child.once('exit', (code) => {
+      try {
+        if (code !== 0 || bytes > 1_048_576) throw new Error('check_failed');
+        resolve(JSON.parse(Buffer.concat(chunks).toString('utf8')) as CopyReport);
+      } catch (error) {
+        reject(error);
+      }
+    });
+  });
+
+/** Memory the system could give a new process without swapping (Linux `MemAvailable`). */
+export async function availableMemoryBytes(): Promise<number> {
+  try {
+    const kb = /^MemAvailable:\s+(\d+) kB/m.exec(await readFile('/proc/meminfo', 'utf8'))?.[1];
+    if (kb) return Number(kb) * 1024;
+  } catch {
+    // Not Linux: fall through.
+  }
+  return freemem();
+}
+
 export interface RestoreTestDeps {
   db: Db;
-  /** Path of the live database file (for its size; the file itself is never opened here). */
+  /** Path of the live database file (for its size and the lock; the file itself is never written). */
   databasePath: string;
   config: Pick<BackupConfig, 's3' | 'prefix'>;
   restorer: Restorer;
@@ -206,6 +279,12 @@ export interface RestoreTestDeps {
   scratchDir?: string;
   /** Free bytes of the file system holding `dir`. */
   freeBytes?: (dir: string) => Promise<number>;
+  /** How often free space is re-checked while the copy exists. */
+  watchMs?: number;
+  availableMemory?: () => Promise<number>;
+  checkCopy?: CopyChecker;
+  /** Lock shared with the nightly backup. Default: next to the database. */
+  lockPath?: string | undefined;
   /** Base wait (x1, x3, x6 per attempt) before restoring, so the last WAL frames are shipped. */
   settleMs?: number;
   now?: () => Date;
@@ -224,32 +303,59 @@ const fileSize = (path: string) =>
     () => 0,
   );
 
-/** Remove copies a killed process may have left behind (the folder name is ours alone). */
-async function sweepScratch(scratch: string, now: number) {
-  for (const name of await readdir(scratch).catch(() => [] as string[])) {
-    if (!name.startsWith(SCRATCH_PREFIX)) continue;
-    const path = join(scratch, name);
-    // Never a folder a concurrent run (scheduled or operator) may still be using.
-    const age = await stat(path).then(
-      (s) => now - s.mtimeMs,
-      () => 0,
-    );
-    if (age > STALE_SCRATCH_MS)
-      await rm(path, { recursive: true, force: true }).catch(() => undefined);
+const defaultScratch = (databasePath: string) => join(dirname(databasePath), '.restore-test');
+
+/** Remove every restore-test folder. Only called while holding the lock: at most one run exists. */
+async function sweepScratch(scratch: string) {
+  for (const name of await readdir(scratch).catch(() => [] as string[]))
+    if (name.startsWith(SCRATCH_PREFIX))
+      await rm(join(scratch, name), { recursive: true, force: true }).catch(() => undefined);
+}
+
+/**
+ * At process start: remove what a crash or restart left behind, regardless of age. Skipped while
+ * another process (the operator command) holds the lock, because that run owns its folder.
+ */
+export async function sweepRestoreScratchAtStart(
+  databasePath: string,
+  scratchDir = defaultScratch(databasePath),
+): Promise<void> {
+  const release = await acquireMaintenanceLock(lockPathFor(databasePath)).catch(() => undefined);
+  if (!release) return;
+  try {
+    await sweepScratch(scratchDir);
+  } finally {
+    await release().catch(() => undefined);
   }
 }
 
-/** One restore test. Never throws for an expected failure; the copy is gone when it returns. */
+/**
+ * One restore test. Never throws for an expected failure; the copy is gone when it returns.
+ * Holds the maintenance lock, so it never overlaps the nightly backup or a second restore test.
+ */
 export async function runRestoreTest(deps: RestoreTestDeps): Promise<RestoreTestOutcome> {
+  const release = await acquireMaintenanceLock(
+    'lockPath' in deps ? deps.lockPath : lockPathFor(deps.databasePath),
+  ).catch(() => undefined);
+  if (!release) return { status: 'skipped', backupName: null, reason: 'backup_running' };
+  try {
+    return await runLocked(deps);
+  } finally {
+    await release().catch(() => undefined);
+  }
+}
+
+async function runLocked(deps: RestoreTestDeps): Promise<RestoreTestOutcome> {
   const signal = deps.signal ?? new AbortController().signal;
   const now = deps.now ?? (() => new Date());
-  const scratch = deps.scratchDir ?? join(dirname(deps.databasePath), '.restore-test');
+  const freeBytes = deps.freeBytes ?? defaultFreeBytes;
+  const scratch = deps.scratchDir ?? defaultScratch(deps.databasePath);
   try {
     await mkdir(scratch, { recursive: true, mode: 0o700 });
   } catch {
     return { status: 'failed', backupName: null, reason: 'restore_failed' };
   }
-  await sweepScratch(scratch, now().getTime());
+  await sweepScratch(scratch);
 
   // 1. The night copy: present and readable end to end (no decryption, no disk, constant memory).
   const client = deps.client ?? new S3Client(deps.config.s3);
@@ -275,14 +381,18 @@ export async function runRestoreTest(deps: RestoreTestDeps): Promise<RestoreTest
     };
   }
 
-  // 2. Room for the copy, with a reserve, before anything is written.
+  // 2. Room and memory for the copy before anything is written: the copy plus the floor that must
+  //    stay free, and enough available memory for the restore and the checker next to the server.
   const needed =
     Math.ceil(
       ((await fileSize(deps.databasePath)) + (await fileSize(`${deps.databasePath}-wal`))) *
         SPACE_FACTOR,
-    ) + SPACE_RESERVE_BYTES;
-  const free = await (deps.freeBytes ?? defaultFreeBytes)(scratch).catch(() => 0);
-  if (free < needed) return { status: 'skipped', backupName, reason: 'not_enough_space' };
+    ) + DISK_FLOOR_BYTES;
+  if ((await freeBytes(scratch).catch(() => 0)) < needed)
+    return { status: 'skipped', backupName, reason: 'not_enough_space' };
+  const memory = await (deps.availableMemory ?? availableMemoryBytes)().catch(() => 0);
+  if (memory < MEMORY_FLOOR_BYTES)
+    return { status: 'skipped', backupName, reason: 'not_enough_memory' };
 
   // 3. Restore and compare. A write during the attempt, or one not yet shipped, repeats it.
   let last: RestoreTestOutcome = { status: 'skipped', backupName, reason: 'database_busy' };
@@ -293,44 +403,78 @@ export async function runRestoreTest(deps: RestoreTestDeps): Promise<RestoreTest
     } catch {
       return { status: 'failed', backupName, reason: 'restore_failed' };
     }
+    // While the copy exists the volume must keep its floor: a growing WAL or Litestream itself
+    // must never be starved. Falling below it stops the restore or the check and cleans up.
+    const stop = new AbortController();
+    let lowSpace = false;
+    const watch = setInterval(() => {
+      void freeBytes(scratch).then(
+        (free) => {
+          if (free < DISK_FLOOR_BYTES && !stop.signal.aborted) {
+            lowSpace = true;
+            stop.abort();
+          }
+        },
+        () => undefined,
+      );
+    }, deps.watchMs ?? 1000);
+    const work = AbortSignal.any([signal, stop.signal]);
+    const belowFloor = async () =>
+      lowSpace || (await freeBytes(scratch).catch(() => DISK_FLOOR_BYTES)) < DISK_FLOOR_BYTES;
+    const skipped = (): RestoreTestOutcome => ({
+      status: 'skipped',
+      backupName,
+      reason: 'not_enough_space',
+    });
     try {
       await chmod(dir, 0o700);
       const before = await readFigures(deps.db);
-      await sleep((deps.settleMs ?? 10_000) * (SETTLE_STEPS[attempt] ?? 6), undefined, { signal });
+      await sleep((deps.settleMs ?? 10_000) * (SETTLE_STEPS[attempt] ?? 6), undefined, {
+        signal: work,
+      }).catch(() => undefined);
+      if (lowSpace) return skipped();
       const output = join(dir, 'budget.sqlite');
       let restored: 'restored' | 'missing';
       try {
-        restored = await deps.restorer.restore(output, signal);
+        restored = await deps.restorer.restore(output, work);
       } catch {
-        return { status: 'failed', backupName, reason: 'restore_failed' };
+        return lowSpace || (await belowFloor())
+          ? skipped()
+          : { status: 'failed', backupName, reason: 'restore_failed' };
       }
       if (restored === 'missing')
         return { status: 'failed', backupName, reason: 'replica_missing' };
+      if (await belowFloor()) return skipped();
 
-      let copyFigures: Figures;
+      let report: CopyReport;
+      let copyBalances: Record<string, string>;
       try {
-        const copy = openReadonlyDatabase(output);
-        try {
-          const check = copy.sqlite.pragma('integrity_check') as { integrity_check: string }[];
-          if (check.length !== 1 || check[0]?.integrity_check !== 'ok')
-            return { status: 'failed', backupName, reason: 'copy_corrupt' };
-          copyFigures = await readFigures(copy.db);
-        } finally {
-          copy.close();
+        report = await (deps.checkCopy ?? childCopyChecker)(output, work);
+        if (report.intact) {
+          const copy = openReadonlyDatabase(output);
+          try {
+            copyBalances = readBalances(copy.db);
+          } finally {
+            copy.close();
+          }
         }
       } catch {
-        return { status: 'failed', backupName, reason: 'copy_corrupt' };
+        return lowSpace || (await belowFloor())
+          ? skipped()
+          : { status: 'failed', backupName, reason: 'copy_corrupt' };
       }
+      if (!report.intact) return { status: 'failed', backupName, reason: 'copy_corrupt' };
 
       const after = await readFigures(deps.db);
       const moved = differences(before, after);
-      const diff = differences(copyFigures, before);
+      const diff = differences({ counts: report.counts, balances: copyBalances! }, before);
       if (moved.length === 0 && diff.length === 0) return { status: 'ok', backupName };
       last =
         moved.length > 0
           ? { status: 'skipped', backupName, reason: 'database_busy' }
           : { status: 'failed', backupName, reason: 'mismatch', differences: diff.slice(0, 5) };
     } finally {
+      clearInterval(watch);
       await rm(dir, { recursive: true, force: true });
     }
   }
@@ -543,6 +687,8 @@ export class RestoreTestScheduler {
           backupName: null,
           reason: 'restore_failed',
         }));
+        // Nightly backup running: nothing happened, try again at the next check.
+        if (outcome.reason === 'backup_running') return undefined;
         // An import may have started during the run: keep nothing half-done, retry at the next check.
         if (writesHeld(this.deps.db)) return undefined;
         recordRestoreTest(this.deps.db, outcome, now);
