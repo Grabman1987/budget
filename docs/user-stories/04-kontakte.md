@@ -42,17 +42,18 @@ Bereich: „Konten › Kontakte“ (`/konten/kontakte`, Kontoblatt je Person unt
 - **Ablauf:**
   1. Ich öffne den Kontakt und tippe „Rückzahlung buchen“.
   2. Das Formular schlägt vor: „älteste offene Auslage zuerst“; „Anteile“ vor dem Speichern lassen sich ändern.
-  3. Ich verteile den Betrag auf die gewünschten Auslagen; die Summe muss zur Rückzahlung passen.
+  3. Ich verteile den Betrag auf die gewünschten Auslagen; beim nachträglichen Zuordnen kann ich einen Rest ausdrücklich als Guthaben behalten.
   4. Ich tippe „Speichern“ („Rückzahlung gebucht.“).
   5. Nachträglich wähle ich „Rückzahlung neu zuordnen“ und ändere die Anteile („Rückzahlung neu zugeordnet.“).
+  6. Bei einer älteren Rückzahlung übernehme ich zuerst ausdrücklich die bisherige Zuordnung. Bei abgeglichenen Buchungen bestätige ich die reine Zuordnungsänderung.
 - **Ergebnis:** Die gewählten Auslagen sind beglichen; Saldo des Kontakts ändert sich nur durch den Betrag, nicht durch die Zuordnung.
 - **Abnahmekriterien:**
   1. Zuordnung zu einer einzelnen Auslage ist wählbar, auch zu einer jüngeren.
-  2. Die Summe der Anteile muss zur Rückzahlung passen; sonst „Die Anteile müssen zur Rückzahlung passen …“.
+  2. Die Anteile dürfen die Rückzahlung nicht übersteigen; beim Neuzuordnen bleibt der angezeigte Rest als Kontaktguthaben, auch wenn andere Auslagen offen sind.
   3. Eine Zuordnung über die offene Auslage hinaus wird abgelehnt.
   4. Nachträgliches Neuzuordnen ist rückgängig machbar.
-- **Status:** offen — **Verweis:** #978
-- Fehlt noch: gezielte Wahl auch für freies Guthaben (heute immer älteste Auslage zuerst); die Rückzahlungs-Maske hat Anteile bereits teilweise (im Code zu prüfen).
+- **Status:** teilweise — **Verweis:** #978
+- Fehlt noch: private Abnahme. Die Zuordnungswahl der ursprünglichen Rückzahlung kann auch bereits automatisch verbrauchtes freies Guthaben einer anderen Auslage zuweisen.
 
 ### C-03b – Guthaben-Wahl auch nach automatischer Verrechnung
 - **Story:** Als Nutzer möchte ich das Guthaben eines Kontakts als zweckgebunden oder Geschenk wählen können, auch wenn es schon automatisch mit einer später angelegten Auslage verrechnet wurde, damit meine Wahl nicht an „nicht mehr verfügbar“ scheitert.
@@ -60,8 +61,8 @@ Bereich: „Konten › Kontakte“ (`/konten/kontakte`, Kontoblatt je Person unt
 - **Ablauf:**
   1. Ich öffne den Kontakt; im Abschnitt „Guthaben verwenden“ steht das Guthaben mit „automatisch verrechnet: …“.
   2. Ich tippe „Guthaben ändern“ (Dialog „Kontaktguthaben verwenden“).
-  3. Ich wähle „Als freies Kontaktguthaben behalten“, „Für Kategorie vormerken“ (mit „Kategorie wählen“), „Geschenk erhalten (Einnahme)“ oder „Geschenk an Kontakt“.
-  4. Hat die automatische Verrechnung den Rest aufgebraucht, nimmt die App sie zurück und weist die betroffenen Auslagen neu zu (geplant).
+  3. Ich wähle „Als freies Kontaktguthaben behalten“, „Für Kategorie vormerken“ (mit „Kategorie wählen“) oder „Geschenk erhalten (Einnahme)“.
+  4. Hat die automatische Verrechnung den Rest aufgebraucht, nimmt die App die benötigten automatisch verrechneten Cent zurück; betroffene Auslagen werden wieder offen. Abgeglichene Buchungen erfordern eine ausdrückliche Bestätigung.
   5. Ich speichere („Guthaben geändert.“).
 - **Ergebnis:** Das Guthaben hat die gewählte Verwendung; Kontostände und Vermögen bleiben unverändert, „Zu verteilen“ ändert sich nur bei Geschenk oder Zweckbindung.
 - **Abnahmekriterien:**
@@ -69,26 +70,27 @@ Bereich: „Konten › Kontakte“ (`/konten/kontakte`, Kontoblatt je Person unt
   2. Betroffene Auslagen bleiben nach dem Zurücknehmen der Verrechnung korrekt offen oder beglichen.
   3. Ohne Budgetkonto (oder bei Vormerkung ohne Kategorie) meldet das Formular „Bitte ein Budgetkonto und bei Vormerkung eine Kategorie wählen.“
   4. Rückgängig stellt die vorherige Verwendung wieder her.
-- **Status:** offen — **Verweis:** #978
-- Fehlt noch: Wahl trotz Rest 0 mit Zurücknahme der Verrechnung (Punkt 1 im Issue).
+- **Status:** teilweise — **Verweis:** #978
+- Fehlt noch: private Abnahme. „Geschenk an Kontakt“ ist eine eigene Aktion an einer offenen Auslage, keine Guthaben-Wahl. Sie erlässt höchstens den offenen Anteil, behält die Ursprungskategorie und verändert Kontostände und Vermögen nicht. Eine alleinstehende Auslage benötigt eine ausdrücklich gewählte Ausgabenkategorie.
 
 ### C-03c – Kontakt-Korrekturen per Betreiber-Befehl
 - **Story:** Als Betreiber möchte ich einmalige Korrekturen an Kontakt-Zuordnung und Guthaben-Wahl per Befehl mit Probelauf ausführen, damit ich echte Altdaten sicher bereinige, ohne die App-Oberfläche zu belasten.
 - **Ausgangslage:** Bestehende echte Daten haben Zuordnungen, die in der Oberfläche nicht mehr erreichbar sind.
-- **Ablauf:** (geplant) Ablauf aus dem Issue:
+- **Ablauf:**
   1. Ich lege eine Korrekturdatei an (ohne echte Daten im Repo).
-  2. Ich starte `migrate-cli` mit `--dry-run`; der Lauf zeigt, was sich ändern würde.
+  2. Ich starte `migrate-cli contact-allocate --file <json> --dry-run`; der Lauf prüft `adopt`, `reallocate`, `credit` und `waive` ohne Speicherung. Nach einer Zusammenführung kann ich die Ziel-ID oder die alte Kontakt-ID verwenden; historische Buchungs-IDs bleiben erhalten.
   3. Ich prüfe Salden und Vermögen vorher und nachher.
-  4. Ich führe den Befehl ohne `--dry-run` aus; er schreibt eine Audit-Gruppe.
+  4. Ich führe den Befehl ohne `--dry-run` aus; erfolgreiche Einträge teilen eine Audit-Gruppe. Abgeglichene betroffene Buchungen benötigen `--unlock` ausschließlich für diese Kontaktentscheidung.
   5. Bei Bedarf nehme ich sie per `undo-group` zurück.
 - **Ergebnis:** Kontakt-Zuordnungen sind korrigiert; es gibt einen Audit-Eintrag und eine Rückgängig-Gruppe.
 - **Abnahmekriterien:**
   1. `--dry-run` schreibt nichts und zeigt die geplanten Änderungen.
   2. Kontostände und Vermögen sind vor und nach dem Lauf gleich.
   3. `undo-group` stellt den Zustand vor dem Lauf her.
-  4. Ein unbekannter Kontakt oder eine unbekannte Auslage bricht ohne Teilschreibung ab.
-- **Status:** offen — **Verweis:** #978
-- Fehlt noch: der Befehl selbst (Punkt 3 im Issue).
+  4. Ein unbekannter oder fremder Kontakt bzw. eine fremde Auslage wird ohne Teilschreibung dieses Eintrags abgelehnt; andere gültige Einträge können angewendet werden (Exitcode 3 bei abgelehnten Einträgen, siehe `docs/ops.md`).
+  5. Nach einer Zusammenführung gehören historische Rückzahlungen und Auslagen zur gemeinsamen Kontaktidentität; fremde Kontakte bleiben ausgeschlossen. Bankbetrag, Datum, Konto und Abgleichstatus bleiben auch mit `--unlock` unverändert.
+- **Status:** teilweise — **Verweis:** #978
+- Fehlt noch: Integration und private Abnahme der Identitätsprüfung im Betreiber-Befehl nach Zusammenführungen. Lokale synthetische Tests ersetzen die private Abnahme nicht.
 
 ### C-04 – Kontakte zusammenführen
 - **Story:** Als Nutzer möchte ich doppelte Kontakte zusammenführen, damit Salden und Verlauf einer Person an einer Stelle stehen und keine Forderung doppelt oder getrennt auftaucht.
