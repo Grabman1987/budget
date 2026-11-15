@@ -64,6 +64,7 @@ import { lastSuccessfulMarketRun } from './market';
 import { memoized, memoizedShared } from './request-memo';
 import { noteIncomplete } from './valuation-notes';
 import { accountBalances } from './queries';
+import { bankTransferTransit, cashWithBankTransit } from './bank-transfer-transit';
 import { MissingFxRateError } from './errors';
 import type { Executor } from './types';
 
@@ -655,9 +656,12 @@ function computeNetWorthValuation(
     missingFxByAccount.set(accountId, missing);
     byAccount[accountId] = null;
   };
+  const transit = bankTransferTransit(db);
   for (const balance of accountBalances(db, asOf)) {
     const currency = currencies.get(balance.accountId) ?? 'EUR';
-    const nativeCents = manualValues.get(balance.accountId) ?? balance.balanceCents;
+    const nativeCents =
+      manualValues.get(balance.accountId) ??
+      cashWithBankTransit(transit, balance.accountId, asOf, balance.balanceCents);
     const fx = rateSource(rates, currency, asOf);
     cashSources.push({
       accountId: balance.accountId,
@@ -827,7 +831,7 @@ export function currentValuationSources(db: Executor, asOf: string): CurrentValu
   });
 }
 
-/** Net worth on a day: every live account's balance in EUR plus the market value of its positions. */
+/** Net worth: cash and holdings, with bank transit carried in the recipient's valuation. */
 export function netWorthAsOf(db: Executor, asOf: string): NetWorth {
   const valuation = netWorthValuationAsOf(db, asOf);
   const missing = valuation.missingFxCurrencies[0];
@@ -1140,16 +1144,19 @@ export function valuationSeries(
  * rule of `accountBalances` (0 before the opening date, afterwards opening balance plus the
  * bookings dated from the opening date on, up to the day), converted with the ECB rate of the day
  * for foreign-currency accounts (a zero balance needs no rate).
+ * Net-worth history opts into pending-inclusive bank transit; account cash reads do not.
  */
 export function cashSeries(
   db: Executor,
   days: ReadonlyArray<string>,
   accounts?: ReadonlyArray<string>,
+  includeBankTransit = false,
 ): Map<string, number[]> {
   const to = days[days.length - 1];
   const out = new Map<string, number[]>();
   if (to === undefined) return out;
   const rates = rateTable(db, to);
+  const transit = includeBankTransit ? bankTransferTransit(db) : new Map();
   const rows = db
     .select({
       id: account.id,
@@ -1190,7 +1197,9 @@ export function cashSeries(
           if (row.date >= a.openingDate) running += row.cents;
           i++;
         }
-        const balance = a.openingDate <= day ? a.openingBalanceCents + running : 0;
+        const nativeCents = a.openingBalanceCents + running;
+        const balance =
+          a.openingDate <= day ? cashWithBankTransit(transit, a.id, day, nativeCents) : 0;
         return a.currency === 'EUR' || balance === 0
           ? balance
           : toEurCents(balance, fxOn(rates, a.currency, day));
@@ -1527,7 +1536,7 @@ function applyManualValuations(
 export function netWorthDaily(db: Executor, from: string, to: string): NetWorthDay[] {
   const baseline = addDays(from, -1);
   const days = eachDay(baseline, to);
-  const cash = cashSeries(db, days);
+  const cash = cashSeries(db, days, undefined, true);
   const positions = valuationSeries(db, { from: baseline, to });
   const rates = rateTable(db, to);
   applyManualValuations(db, days, cash, positions.positions, rates);

@@ -620,6 +620,10 @@ export function createTransfer(
         throw new BookingInvariantError(
           'Independent bank legs require two bank accounts and no bankStatus',
         );
+      if (bankLegs.from.date < to.openingDate)
+        throw new BookingInvariantError(
+          'Der Abgang darf nicht vor dem Eröffnungsdatum des Zielkontos liegen.',
+        );
     }
     // Only the manual whole-transfer API opts in. Import/operator callers retain their policy.
     const manual = options.manualCashBank
@@ -822,8 +826,9 @@ function syncSplits(
 /**
  * Patch a booking and optionally replace its splits. The split sum is re-validated. Without
  * `splits`, an amount change moves a single split along and is refused for several splits. On a
- * transfer leg, `amountCents` and `date` are mirrored to the partner leg (opposite amount);
- * flipping the sign or moving a leg to another account is refused.
+ * transfer leg, `amountCents` is mirrored to the partner leg (opposite amount). Date edits
+ * on bank pairs are refused; other whole transfers mirror dates. Flipping the sign or
+ * moving a leg to another account is refused.
  */
 function updateBookingImpl(
   db: Executor,
@@ -962,6 +967,23 @@ function updateBookingImpl(
         .get();
       if (!partner)
         throw new BookingInvariantError(`Transfer ${cur.transferId} has no second live leg`);
+      // bankLegs has no persisted opt-in marker: apply the safe policy to every bank pair,
+      // including equal-date transfers. Other transfer kinds retain paired-date editing.
+      const partnerAccount = tx
+        .select()
+        .from(account)
+        .where(eq(account.id, partner.accountId))
+        .get();
+      const bank = (type: string | undefined) => type === 'checking' || type === 'savings';
+      if (
+        patch.date !== undefined &&
+        (patch.date !== cur.date || patch.date !== partner.date) &&
+        bank(target.type) &&
+        bank(partnerAccount?.type)
+      )
+        throw new BookingInvariantError(
+          'Bei Umbuchungen zwischen Bankkonten ist eine einzelne Datumsänderung nicht möglich.',
+        );
       if (!tradeNative)
         assertTradeSettlementBookingWrite(
           tx,

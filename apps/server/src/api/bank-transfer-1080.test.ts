@@ -2,6 +2,10 @@
   accounts,
   createTestDatabase,
   getBooking,
+  netWorthAsOf,
+  netWorthDaily,
+  accountPreview,
+  accountSummaries,
   schema,
   undo,
   type OpenedDatabase,
@@ -12,6 +16,7 @@ import { afterEach, beforeEach, expect, it } from 'vitest';
 import { bookingRoutes } from './bookings';
 import { errorResponse } from './http';
 import { createBody } from './schemas';
+import { forecastInputs, loadFacts } from '../../../../packages/db/src/repos/rule-inputs';
 
 const day = '2026-11-13';
 const body = {
@@ -124,8 +129,10 @@ it('stores independently dated bank legs without confirming money still in trans
   expect(getBooking(opened.db, result.fromBookingId)).toBeUndefined();
   expect(getBooking(opened.db, result.toBookingId)).toBeUndefined();
   expect(confirmedBalances(day)).toEqual([50000, 10000]);
+  expect(netWorthAsOf(opened.db, '2026-11-14').totalCents).toBe(60000);
   undo(opened.db, { groupId: undone.groupId }, { actor: 'fixture1080' });
   expect(confirmedBalances('2026-11-16')).toEqual([37655, 10000]);
+  expect(netWorthAsOf(opened.db, '2026-11-14').totalCents).toBe(60000);
 
   const confirmed = await app.request(`/bookings/${result.toBookingId}`, {
     method: 'PATCH',
@@ -136,6 +143,120 @@ it('stores independently dated bank legs without confirming money still in trans
   expect(confirmedBalances(day)).toEqual([37655, 10000]);
   expect(confirmedBalances('2026-11-16')).toEqual([37655, 22345]);
   expect(getBooking(opened.db, result.fromBookingId)?.date).toBe(day);
+  expect(netWorthAsOf(opened.db, '2026-11-17').totalCents).toBe(60000);
+});
+
+it('counts the transfer once in net worth between dates and after a still-pending receipt', async () => {
+  await post(body);
+  for (const asOf of ['2026-11-14', '2026-11-17']) {
+    expect(netWorthAsOf(opened.db, asOf)).toMatchObject({
+      totalCents: 60000,
+      byAccount: { source1080: 37655, settlement1080: 22345 },
+    });
+    expect(confirmedBalances(asOf)).toEqual([37655, 10000]);
+  }
+  expect(netWorthDaily(opened.db, '2026-11-12', '2026-11-17')).toEqual(
+    ['12', '13', '14', '15', '16', '17'].map((d) => ({
+      date: `2026-11-${d}`,
+      netWorthCents: 60000,
+      changeCents: 0,
+      marketCents: 0,
+      ownCents: 0,
+      cumulativeMarketCents: 0,
+      cumulativeOwnCents: 0,
+    })),
+  );
+});
+
+it.each([
+  ['fromBookingId', '2026-11-16'],
+  ['toBookingId', '2026-11-16'],
+  ['fromBookingId', day],
+  ['toBookingId', day],
+] as const)(
+  'refuses a date correction of %s with receipt on %s without writes',
+  async (key, receiptDate) => {
+    const result = (await (
+      await post({
+        ...body,
+        bankLegs: {
+          ...body.bankLegs,
+          to: { date: receiptDate, status: 'pending' },
+        },
+      })
+    ).json()) as Record<string, string>;
+    const before = snapshot();
+    const response = await app.request(`/bookings/${result[key]}`, {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ date: '2026-11-15' }),
+    });
+    expect(response.status).toBe(422);
+    expect(await response.json()).toMatchObject({
+      error: 'invariant',
+      message:
+        'Bei Umbuchungen zwischen Bankkonten ist eine einzelne Datumsänderung nicht möglich.',
+    });
+    expect(snapshot()).toEqual(before);
+  },
+);
+
+it('projects a pending receipt exactly once in the account preview, before and after its date', async () => {
+  await post(body);
+  const before = snapshot();
+  for (const asOf of ['2026-11-14', '2026-11-17']) {
+    const source = accountPreview(opened.db, 'source1080', 'EUR', asOf, 7);
+    const receipt = accountPreview(opened.db, 'settlement1080', 'EUR', asOf, 7);
+    const forecast = forecastInputs(
+      loadFacts(opened.db, asOf),
+      asOf,
+      netWorthAsOf(opened.db, asOf),
+    );
+    expect(forecast.startCents).toBe(60000);
+    expect(forecast.items).toEqual([]);
+    for (const point of source.points) expect(point.balanceCents).toBe(37655);
+    for (const point of receipt.points)
+      expect(point.balanceCents).toBe(point.date < '2026-11-16' ? 10000 : 22345);
+    expect(accountSummaries(opened.db, asOf).find((a) => a.id === 'settlement1080')).toMatchObject({
+      balanceCents: asOf < '2026-11-16' ? 10000 : 22345,
+      clearedCents: 10000,
+      unclearedCents: asOf < '2026-11-16' ? 0 : 12345,
+      scheduledCents: asOf < '2026-11-16' ? 12345 : 0,
+    });
+  }
+  expect(snapshot()).toEqual(before);
+});
+
+it.each(['fromBookingId', 'toBookingId'] as const)(
+  'refuses a repeated current date on %s without collapsing the other date',
+  async (key) => {
+    const result = (await (await post(body)).json()) as Record<string, string>;
+    const before = snapshot();
+    const response = await app.request(`/bookings/${result[key]}`, {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ date: key === 'fromBookingId' ? day : '2026-11-16' }),
+    });
+    expect(response.status).toBe(422);
+    expect(snapshot()).toEqual(before);
+  },
+);
+
+it('conserves valuation when the recipient date precedes the debit date', async () => {
+  await post({
+    ...body,
+    bankLegs: {
+      from: { date: '2026-11-16', status: 'pending' },
+      to: { date: day, status: 'confirmed' },
+    },
+  });
+  expect(netWorthAsOf(opened.db, '2026-11-14')).toMatchObject({
+    totalCents: 60000,
+    byAccount: { source1080: 50000, settlement1080: 10000 },
+  });
+  expect(
+    netWorthDaily(opened.db, '2026-11-12', '2026-11-17').map((row) => row.netWorthCents),
+  ).toEqual([60000, 60000, 60000, 60000, 60000, 60000]);
 });
 
 it.each(['cash', 'brokerage', 'credit_card'] as const)(
@@ -162,6 +283,22 @@ it.each(['cash', 'brokerage', 'credit_card'] as const)(
 it('refuses competing cash/bank status intent without writing', async () => {
   const before = snapshot();
   expect((await post({ ...body, bankStatus: 'confirmed' })).status).toBe(422);
+  expect(snapshot()).toEqual(before);
+});
+
+it('refuses a debit before the recipient account exists, without writing transfer rows', async () => {
+  accounts.update(
+    opened.db,
+    'settlement1080',
+    { openingDate: '2026-11-15' },
+    { actor: 'fixture1080' },
+  );
+  const before = snapshot();
+  const response = await post(body);
+  expect(response.status).toBe(422);
+  expect(await response.json()).toMatchObject({
+    message: 'Der Abgang darf nicht vor dem Eröffnungsdatum des Zielkontos liegen.',
+  });
   expect(snapshot()).toEqual(before);
 });
 

@@ -439,7 +439,8 @@ describe('updateBooking', () => {
   });
 
   describe('transfer legs', () => {
-    it('keeps both legs consistent on amount and date changes', () => {
+    it('keeps both legs consistent on amount and date changes for non-bank pairs', () => {
+      accounts.update(db, 'spar', { type: 'cash' }, ctx);
       const r = createTransfer(
         db,
         { fromAccountId: 'giro', toAccountId: 'spar', date: '2026-02-01', amountCents: 5000 },
@@ -484,7 +485,8 @@ describe('updateBooking', () => {
       expect(getBooking(db, r.toBookingId)?.amountCents).toBe(5000);
     });
 
-    it('undoes an amount and date edit on both legs, and redoes it', () => {
+    it('undoes an amount and date edit on both non-bank legs, and redoes it', () => {
+      accounts.update(db, 'spar', { type: 'cash' }, ctx);
       const r = createTransfer(
         db,
         { fromAccountId: 'giro', toAccountId: 'spar', date: '2026-02-01', amountCents: 5000 },
