@@ -15,7 +15,10 @@ Object.defineProperty(window, 'matchMedia', {
   value: () => ({ matches: false, addEventListener() {}, removeEventListener() {} }),
 });
 const writes = vi.hoisted(() => ({ create: vi.fn(), patch: vi.fn() }));
-vi.mock('../receipts/receipt-section', () => ({ ReceiptSection: () => null }));
+vi.mock('../receipts/receipt-section', () => ({
+  ReceiptSection: () => null,
+  AttachedReceipts: () => null,
+}));
 vi.mock('./mutations', () => ({
   useLedgerWrites: () => ({
     create: { mutateAsync: writes.create },

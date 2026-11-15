@@ -21,7 +21,10 @@ const calls = vi.hoisted(() => ({
   accounts: vi.fn(),
   editQueued: vi.fn(),
 }));
-vi.mock('../receipts/receipt-section', () => ({ ReceiptSection: () => null }));
+vi.mock('../receipts/receipt-section', () => ({
+  ReceiptSection: () => null,
+  AttachedReceipts: () => null,
+}));
 vi.mock('./mutations', () => ({
   useLedgerWrites: () => ({
     create: { mutateAsync: calls.create },

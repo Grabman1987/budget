@@ -28,13 +28,14 @@ vi.mock('./queue-store', () => ({
       (a, b) => a.createdAt - b.createdAt || a.id.localeCompare(b.id),
     );
   },
-  deleteQueued: async (id: string) => {
+  completeQueued: async ({ id }: { id: string }) => {
     if (device.failDeletes > 0) {
       device.failDeletes--;
       throw new Error('Synthetischer Fehler beim Entfernen des Geräteeintrags.');
     }
     device.rows = device.rows.filter((row) => row.id !== id);
   },
+  setQueuedSending: vi.fn(),
   withQueueLock: <T>(run: () => Promise<T>) => run(),
 }));
 
@@ -64,6 +65,7 @@ interface Reply {
 let opened: OpenedDatabase;
 let app: Hono;
 let loseResponses = 0;
+let dropBefore = 0;
 let requests: { key: string | null; body: string }[];
 let replies: { status: number; data: unknown }[];
 
@@ -73,6 +75,7 @@ beforeEach(() => {
   device.rows = [];
   device.failDeletes = 0;
   loseResponses = 0;
+  dropBefore = 0;
   requests = [];
   replies = [];
   // Known signed-in fixture boundary, as in existing ledger API tests. Authentication/CSRF and
@@ -89,15 +92,28 @@ beforeEach(() => {
   vi.stubGlobal(
     'fetch',
     vi.fn<typeof fetch>(async (input, init) => {
-      expect(input).toBe('/api/bookings');
-      expect(init?.method).toBe('POST');
-      expect(init?.credentials).toBe('same-origin');
+      if (String(input).includes('/delivery/')) {
+        expect(init?.method).toBe('POST');
+        const response = await app.request(String(input), init);
+        if (loseResponses > 0) {
+          loseResponses--;
+          throw new TypeError('Synthetic receipt check lost');
+        }
+        return response;
+      }
       const item = device.rows[0];
+      expect(input).toBe(item?.change ? `/api/bookings/${item.change.bookingId}` : '/api/bookings');
+      expect(init?.method).toBe(item?.change ? 'PATCH' : 'POST');
+      expect(init?.credentials).toBe('same-origin');
       // Observe the persisted state at the actual network boundary, before the server can commit.
       expect(item?.uncertain).toBe(true);
       const key = new Headers(init?.headers).get('Idempotency-Key');
       expect(key).toBe(item?.id);
       requests.push({ key, body: String(init?.body) });
+      if (dropBefore > 0) {
+        dropBefore--;
+        throw new TypeError('Synthetic connection lost before commit');
+      }
       const response = await app.request(String(input), init);
       replies.push({ status: response.status, data: await response.clone().json() });
       if (loseResponses > 0 && response.ok) {
@@ -196,6 +212,158 @@ async function reverseAndRedo(first: Reply, recurring = false) {
 }
 
 describe('real queued booking delivery assurance (#559, no physical-file queue)', () => {
+  it('checks an absent delivery after a drop before commit, then sends once without losing cents', async () => {
+    const before = state();
+    dropBefore = 1;
+    expect(await submitCapture(INPUT, DRAFT)).toBeNull();
+    const key = device.rows[0]!.id;
+    expect(state()).toEqual(before);
+    const sent = vi.fn();
+    await sendQueue(sent);
+    const first = replies[0]!.data as Reply;
+    expect(sent).toHaveBeenCalledExactlyOnceWith(first);
+    expect(requests).toEqual(
+      Array.from({ length: 2 }, () => ({ key, body: JSON.stringify(INPUT) })),
+    );
+    oneCommittedDelivery(first);
+    await reverseAndRedo(first);
+  });
+
+  it('never treats a different payload under a committed key as saved', async () => {
+    loseResponses = 1;
+    await submitCapture(INPUT, DRAFT);
+    const committed = state();
+    device.rows[0]!.input = { ...INPUT, amountCents: -1400 };
+    const sent = vi.fn();
+    await sendQueue(sent);
+    expect(sent).not.toHaveBeenCalled();
+    expect(device.rows[0]).toMatchObject({ uncertain: true });
+    expect(device.rows[0]!.reason).toContain('anderen Feldern');
+    expect(requests).toHaveLength(1);
+    expect(state()).toEqual(committed);
+  });
+
+  it('resolves a lost PATCH response with repeat atomically and preserves its Undo and redo', async () => {
+    const original = await submitCapture(INPUT, DRAFT);
+    expect(original).not.toBeNull();
+    const id = original!.bookings[0]!.id;
+    const change = { bookingId: id, patch: { memo: 'Synthetic edit', repeat: 'monthly' as const } };
+    loseResponses = 1;
+    expect(await submitCapture({ type: 'change', bookingId: id }, DRAFT, change)).toBeNull();
+    const key = device.rows[0]!.id;
+    const committed = state();
+    expect(getBooking(opened.db, id)?.memo).toBe('Synthetic edit');
+    expect(balance()).toBe(98625);
+    expect(listExpectedPayments(opened.db, TODAY)).toHaveLength(1);
+    // Reopening/retrying the same edit reuses the pending intent; a different edit cannot replace it.
+    expect(await submitCapture({ type: 'change', bookingId: id }, DRAFT, change)).toBeNull();
+    await expect(
+      submitCapture({ type: 'change', bookingId: id }, DRAFT, {
+        bookingId: id,
+        patch: { memo: 'Synthetic other edit' },
+      }),
+    ).rejects.toThrow('bereits');
+    expect(device.rows).toHaveLength(1);
+    const sent = vi.fn();
+    await sendQueue(sent);
+    expect(device.rows).toEqual([]);
+    expect(requests.filter((request) => request.key === key)).toHaveLength(1);
+    expect(state()).toEqual(committed);
+    const saved = sent.mock.calls[0]![0] as Reply;
+    const undone = await app.request('/api/undo', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ groupId: saved.groupId }),
+    });
+    expect(undone.status).toBe(200);
+    expect(getBooking(opened.db, id)?.memo).toBe('Synthetic queue proof');
+    expect(balance()).toBe(98625);
+    expect(listExpectedPayments(opened.db, TODAY)).toEqual([]);
+    const replay = await app.request(`/api/bookings/${id}`, {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json', 'Idempotency-Key': key },
+      body: JSON.stringify(change.patch),
+    });
+    expect(replay.status).toBe(200);
+    expect(getBooking(opened.db, id)?.memo).toBe('Synthetic queue proof');
+    const redo = await app.request('/api/undo', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ groupId: (await undone.json()).groupId }),
+    });
+    expect(redo.status).toBe(200);
+    expect(getBooking(opened.db, id)?.memo).toBe('Synthetic edit');
+    expect(listExpectedPayments(opened.db, TODAY)).toHaveLength(1);
+    expect(balance()).toBe(98625);
+  });
+
+  it('recovers both transfer legs after a committed response is lost', async () => {
+    loseResponses = 1;
+    const input = {
+      type: 'transfer' as const,
+      fromAccountId: 'giro',
+      toAccountId: 'spar',
+      date: TODAY,
+      amountCents: 1375,
+    };
+    expect(await submitCapture(input, DRAFT)).toBeNull();
+    const committed = state();
+    const sent = vi.fn();
+    await sendQueue(sent);
+    expect(requests).toHaveLength(1);
+    expect(sent.mock.calls[0]![0].bookings).toHaveLength(2);
+    expect(balance()).toBe(98625);
+    expect(accountSummaries(opened.db, TODAY).find((row) => row.id === 'spar')!.balanceCents).toBe(
+      1375,
+    );
+    expect(state()).toEqual(committed);
+  });
+
+  it('retains definite edit refusals and corrects/retries the same key without partial state', async () => {
+    const original = await submitCapture(INPUT, DRAFT);
+    const id = original!.bookings[0]!.id;
+    const summary = { type: 'change' as const, bookingId: id };
+    const bad = {
+      bookingId: id,
+      patch: { amountCents: -1400, splits: [{ categoryId: 'essen', amountCents: -1375 }] },
+    };
+    const before = state();
+    await expect(submitCapture(summary, DRAFT, bad)).rejects.toMatchObject({ status: 422 });
+    const key = device.rows[0]!.id;
+    expect(device.rows[0]!.uncertain).toBe(false);
+    expect(state()).toEqual(before);
+    await expect(submitCapture(summary, DRAFT, bad)).rejects.toMatchObject({ status: 422 });
+    expect(device.rows).toHaveLength(1);
+    expect(device.rows[0]!.id).toBe(key);
+    expect(state()).toEqual(before);
+    const corrected = {
+      bookingId: id,
+      patch: { amountCents: -1400, splits: [{ categoryId: 'essen', amountCents: -1400 }] },
+    };
+    const saved = await submitCapture(summary, DRAFT, corrected);
+    expect(saved!.bookings[0]!.amountCents).toBe(-1400);
+    expect(balance()).toBe(98600);
+    expect(device.rows).toEqual([]);
+    expect(requests.slice(1).map((request) => request.key)).toEqual([key, key, key]);
+    expect(deliveryRows()).toHaveLength(2);
+    const undone = await app.request('/api/undo', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ groupId: saved!.groupId }),
+    });
+    expect(undone.status).toBe(200);
+    expect(getBooking(opened.db, id)?.amountCents).toBe(-1375);
+    expect(balance()).toBe(98625);
+    const redo = await app.request('/api/undo', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ groupId: (await undone.json()).groupId }),
+    });
+    expect(redo.status).toBe(200);
+    expect(getBooking(opened.db, id)?.amountCents).toBe(-1400);
+    expect(balance()).toBe(98600);
+  });
+
   it('loses two committed responses, retries identical key/body, and commits exactly once with literal cents and undo', async () => {
     loseResponses = 2;
     expect(await submitCapture(INPUT, DRAFT)).toBeNull();
@@ -205,17 +373,15 @@ describe('real queued booking delivery assurance (#559, no physical-file queue)'
     oneCommittedDelivery(first);
     const committed = state();
     const sent = vi.fn();
-    await sendQueue(sent); // The replay succeeds on the server; its response is lost again.
+    await sendQueue(sent); // The receipt check response is lost; no second financial POST is sent.
     expect(sent).not.toHaveBeenCalled();
     expect(device.rows[0]).toMatchObject({ id: held.id, input: INPUT, uncertain: true });
     expect(state()).toEqual(committed);
     await sendQueue(sent);
     expect(sent).toHaveBeenCalledExactlyOnceWith(first);
     expect(device.rows).toEqual([]);
-    expect(requests).toEqual(
-      Array.from({ length: 3 }, () => ({ key: held.id, body: JSON.stringify(INPUT) })),
-    );
-    expect(replies).toEqual(Array.from({ length: 3 }, () => ({ status: 201, data: first })));
+    expect(requests).toEqual([{ key: held.id, body: JSON.stringify(INPUT) }]);
+    expect(replies).toEqual([{ status: 201, data: first }]);
     expect(state()).toEqual(committed);
     await reverseAndRedo(first);
   });
@@ -233,9 +399,7 @@ describe('real queued booking delivery assurance (#559, no physical-file queue)'
     await sendQueue(sent);
     expect(sent).toHaveBeenCalledExactlyOnceWith(first);
     expect(device.rows).toEqual([]);
-    expect(requests).toEqual(
-      Array.from({ length: 2 }, () => ({ key: held.id, body: JSON.stringify(INPUT) })),
-    );
+    expect(requests).toEqual([{ key: held.id, body: JSON.stringify(INPUT) }]);
     expect(state()).toEqual(committed);
     await reverseAndRedo(first);
   });

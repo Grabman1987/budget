@@ -5,11 +5,62 @@ import { afterEach, expect, it, vi } from 'vitest';
 import { useLedgerWrites } from './mutations';
 import type { BookingPage, ListedBooking } from './types';
 
+const delivery = vi.hoisted(() => ({ queued: false }));
+
+// Isolate cache/optimistic behavior here; durable queue and real HTTP/SQLite are proved separately.
+vi.mock('../pwa/queue', async () => {
+  const { patchBooking } = await import('./api');
+  return {
+    submitCapture: (
+      _input: unknown,
+      _draft: unknown,
+      change: { bookingId: string; patch: unknown },
+    ) =>
+      delivery.queued
+        ? Promise.resolve(null)
+        : patchBooking(change.bookingId, change.patch as Parameters<typeof patchBooking>[1]),
+    requestQueueSync: async () => undefined,
+  };
+});
 vi.mock('@budget/ui', async (original) => ({
   ...(await original<object>()),
   useToast: () => ({ show: vi.fn() }),
 }));
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  delivery.queued = false;
+  vi.unstubAllGlobals();
+});
+
+it('does not resolve a status change or retain optimistic confirmation while delivery is only local', async () => {
+  delivery.queued = true;
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const key = ['ledger', 'bookings'];
+  const original = {
+    items: [{ id: 'synthetic-booking', status: 'pending', splits: [] }],
+    total: 1,
+    sumCents: -1250,
+  };
+  client.setQueryData(key, original);
+  const { result, unmount } = renderHook(useLedgerWrites, {
+    wrapper: ({ children }) => (
+      <QueryClientProvider client={client}>{children}</QueryClientProvider>
+    ),
+  });
+  const resolved = vi.fn();
+  try {
+    await act(async () => {
+      const confirming = result.current.patch
+        .mutateAsync({ id: 'synthetic-booking', patch: { status: 'confirmed' } })
+        .then(resolved);
+      await expect(confirming).rejects.toMatchObject({ code: 'booking_queued' });
+    });
+    expect(resolved).not.toHaveBeenCalled();
+    expect(client.getQueryData(key)).toEqual(original);
+  } finally {
+    unmount();
+    client.clear();
+  }
+});
 
 it('holds both canonical foreign native and dated EUR facts pending and restores both on rejected edit', async () => {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });

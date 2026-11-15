@@ -242,7 +242,7 @@ test('native booking timeout and independent file retries commit one booking/rec
   ).toHaveLength(1);
   await restart(page);
   await page.evaluate(() => window.queue559.sendQueue(() => {}));
-  expect(bookingKeys).toHaveLength(2);
+  expect(bookingKeys).toHaveLength(1); // Lost acknowledgement is checked without another financial POST.
   expect(new Set(bookingKeys).size).toBe(1);
   expect(state(isolatedLedger.databasePath)).toEqual(committed);
   const balance = async () => {

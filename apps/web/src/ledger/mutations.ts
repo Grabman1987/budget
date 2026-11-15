@@ -9,7 +9,6 @@ import {
   bulkDeleteBookings,
   bulkUpdateBookings,
   deleteBooking,
-  patchBooking,
   undoGroup,
   type BookingCreate,
   type BookingPatch,
@@ -21,8 +20,9 @@ import { flashRows } from './flash';
 import { bulkSummary, errorText, redoFailedText } from './labels';
 import { LEDGER_KEY, lookupsQuery, payeesQuery } from './queries';
 import type { BookingPage, ListedBooking, WriteResult } from './types';
-import type { BookingDraft } from './booking-model';
+import { emptyDraft, type BookingDraft } from './booking-model';
 import { submitCapture, requestQueueSync } from '../pwa/queue';
+import { ApiError } from '../api/http';
 
 const BOOKINGS_KEY = [...LEDGER_KEY, 'bookings'] as const;
 
@@ -124,8 +124,25 @@ export function useLedgerWrites() {
   });
 
   const patch = useMutation({
-    mutationFn: ({ id, patch: body, key }: { id: string; patch: BookingPatch; key?: string }) =>
-      patchBooking(id, body, key),
+    networkMode: 'always',
+    mutationFn: async ({
+      id,
+      patch: body,
+      capture,
+    }: {
+      id: string;
+      patch: BookingPatch;
+      capture?: { input: BookingCreate; draft: BookingDraft };
+    }) => {
+      const result = await submitCapture(
+        capture?.input ?? { type: 'change', bookingId: id },
+        capture?.draft ?? emptyDraft('', ''),
+        { bookingId: id, patch: body },
+      );
+      // Existing status/review callers may advance only after a server acknowledgement.
+      if (!result) throw new ApiError(0, 'booking_queued');
+      return result;
+    },
     onMutate: async ({ id, patch: body }) => {
       const names = namesFrom(qc);
       flashRows([id]);
@@ -133,9 +150,14 @@ export function useLedgerWrites() {
     },
     onError: (error, _vars, snapshot) => {
       rollback(qc, snapshot);
-      failed('Änderung')(error);
+      if (error instanceof ApiError && error.code === 'booking_queued') {
+        toast.show({
+          message: 'Änderung auf diesem Gerät gespeichert. Status in der Warteschlange prüfen.',
+        });
+        void requestQueueSync().catch(() => undefined);
+      } else failed('Änderung')(error);
     },
-    onSuccess: ({ groupId }) => offerUndo('Buchung geändert.', groupId),
+    onSuccess: (result) => offerUndo('Buchung geändert.', result.groupId),
     onSettled: settled,
   });
 

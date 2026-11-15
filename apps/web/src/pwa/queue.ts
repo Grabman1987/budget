@@ -1,8 +1,10 @@
 import { ApiError } from '../api/http';
-import { createBooking, type BookingCreate } from '../ledger/api';
+import { createBooking, patchBooking, readBookingDelivery } from '../ledger/api';
 import type { BookingDraft } from '../ledger/booking-model';
 import {
+  completeQueued,
   deleteQueued,
+  setQueuedSending,
   listQueue,
   putQueued,
   withQueueLock,
@@ -35,33 +37,76 @@ export function queueReason(error: unknown): string {
 }
 
 async function deliver(item: QueuedBooking) {
-  // Persist uncertainty before POST: crashes and lost responses must keep the original key/body.
-  await putQueued({ ...item, uncertain: true });
+  setQueuedSending(item.id, true);
+  let uncertain = item.uncertain;
+  let checking = uncertain;
   try {
-    const result = await createBooking(item.input, item.id);
-    await deleteQueued(item.id);
+    const { reason: _reason, ...pending } = item;
+    void _reason;
+    await putQueued({ ...pending, sending: true });
+    // An unavailable check must never fall through to POST or release the original payload.
+    const intent = item.change
+      ? { type: 'patch' as const, ...item.change }
+      : item.input.type !== 'change'
+        ? { type: 'create' as const, input: item.input }
+        : null;
+    if (!intent) throw new Error('Ungültiger Warteschlangeneintrag.');
+    const previous = uncertain ? (await readBookingDelivery(item.id, intent)).result : null;
+    checking = false;
+    uncertain = true;
+    await putQueued({ ...pending, uncertain: true, sending: true });
+    const result =
+      previous ??
+      (intent.type === 'patch'
+        ? await patchBooking(intent.bookingId, intent.patch, item.id)
+        : await createBooking(intent.input, item.id));
+    await completeQueued({
+      id: item.id,
+      bookingIds: result.bookings.map((booking) => booking.id),
+      savedAt: result.savedAt ?? new Date().toISOString(),
+    });
     return result;
   } catch (error) {
-    const uncertain =
-      !(error instanceof ApiError) ||
-      error.status === 0 ||
-      error.status >= 500 ||
-      error.code === 'idempotency_conflict';
-    await putQueued({ ...item, uncertain, reason: queueReason(error) });
+    uncertain =
+      uncertain &&
+      (!(error instanceof ApiError) ||
+        error.status === 0 ||
+        error.status >= 500 ||
+        error.code === 'idempotency_conflict');
+    // A failed receipt check (including session expiry) cannot prove the original POST failed.
+    if (checking) uncertain = true;
+    await putQueued({ ...item, uncertain, sending: false, reason: queueReason(error) });
     throw error;
+  } finally {
+    setQueuedSending(item.id, false);
   }
 }
 
 /** A new capture is durable before any POST. HTTP rejection stays reviewable in the queue. */
-export async function submitCapture(input: BookingCreate, draft: BookingDraft) {
+export async function submitCapture(
+  input: QueuedBooking['input'],
+  draft: BookingDraft,
+  change?: QueuedBooking['change'],
+) {
   return withQueueLock(async () => {
     const existing = await listQueue();
+    const pending = change
+      ? existing.find((item) => item.change?.bookingId === change.bookingId)
+      : undefined;
+    if (pending?.uncertain) {
+      if (JSON.stringify(pending.change?.patch) === JSON.stringify(change?.patch)) return null;
+      throw new Error(
+        'Für diese Buchung wartet bereits eine Änderung. Prüfe zuerst ihren Speicherstatus.',
+      );
+    }
     const item: QueuedBooking = {
-      id: crypto.randomUUID(),
-      createdAt: Math.max(Date.now(), (existing.at(-1)?.createdAt ?? 0) + 1),
+      // A definite refusal has not claimed its key: correction/retry retains the same intent.
+      id: pending?.id ?? crypto.randomUUID(),
+      createdAt: pending?.createdAt ?? Math.max(Date.now(), (existing.at(-1)?.createdAt ?? 0) + 1),
       input,
       draft,
       uncertain: false,
+      ...(change ? { change } : {}),
     };
     await putQueued(item);
     if (!navigator.onLine) return null;
@@ -69,11 +114,28 @@ export async function submitCapture(input: BookingCreate, draft: BookingDraft) {
     if ((await listQueue())[0]?.id !== item.id) return null;
     try {
       return await deliver(item);
-    } catch {
+    } catch (error) {
+      // Keep definite edit refusals actionable in the form. Unclear receipt stays queued and
+      // closes capture through booking_queued, so a later acknowledgement cannot duplicate repeat.
+      if (
+        change &&
+        error instanceof ApiError &&
+        error.status > 0 &&
+        error.status < 500 &&
+        error.code !== 'idempotency_conflict'
+      )
+        throw error;
       return null;
     }
   });
 }
+
+/** Explicitly discarding a refused edit must not leave it blocking later captures. */
+export const discardRejectedChange = (bookingId: string) =>
+  withQueueLock(async () => {
+    const item = (await listQueue()).find((row) => row.change?.bookingId === bookingId);
+    if (item?.reason && !item.uncertain && !item.sending) await deleteQueued(item.id);
+  });
 
 /** Strict FIFO: a rejected item holds later captures until edited or removed by the owner. */
 export const sendQueue = (

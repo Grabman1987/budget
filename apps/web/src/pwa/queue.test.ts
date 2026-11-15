@@ -3,11 +3,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApiError } from '../api/http';
 import { emptyDraft } from '../ledger/booking-model';
 import type { QueuedBooking } from './queue-store';
-import { queueReason, sendQueue, submitCapture } from './queue';
+import { discardRejectedChange, queueReason, sendQueue, submitCapture } from './queue';
 
 const memory = vi.hoisted(() => ({ rows: [] as QueuedBooking[], failWrite: false }));
 const post = vi.hoisted(() => vi.fn());
-vi.mock('../ledger/api', () => ({ createBooking: post }));
+const check = vi.hoisted(() => vi.fn());
+vi.mock('../ledger/api', () => ({ createBooking: post, readBookingDelivery: check }));
 vi.mock('./queue-store', () => ({
   listQueue: async () => structuredClone(memory.rows),
   putQueued: async (row: QueuedBooking) => {
@@ -16,9 +17,13 @@ vi.mock('./queue-store', () => ({
       (a, b) => a.createdAt - b.createdAt,
     );
   },
+  completeQueued: async ({ id }: { id: string }) => {
+    memory.rows = memory.rows.filter((x) => x.id !== id);
+  },
   deleteQueued: async (id: string) => {
     memory.rows = memory.rows.filter((x) => x.id !== id);
   },
+  setQueuedSending: vi.fn(),
   withQueueLock: <T>(fn: () => Promise<T>) => fn(),
 }));
 
@@ -38,9 +43,46 @@ beforeEach(() => {
   memory.rows = [];
   memory.failWrite = false;
   post.mockReset();
+  check.mockReset().mockResolvedValue({ result: null });
   online(true);
 });
 describe('durable booking delivery', () => {
+  it('discards only the explicitly refused edit and releases later captures', async () => {
+    const refused: QueuedBooking = {
+      id: 'refused',
+      createdAt: 1,
+      input,
+      draft,
+      uncertain: false,
+      reason: 'Abgelehnt',
+      change: { bookingId: 'older', patch: { memo: 'Entwurf' } },
+    };
+    memory.rows = [refused];
+    await discardRejectedChange('unrelated');
+    expect(memory.rows).toEqual([refused]);
+    await discardRejectedChange('older');
+    expect(memory.rows).toEqual([]);
+    post.mockResolvedValue(result);
+    expect(await submitCapture(input, draft)).toEqual(result);
+  });
+  it.each(['uncertain', 'sending', 'local'] as const)(
+    'does not discard an edit that is %s',
+    async (status) => {
+      const held: QueuedBooking = {
+        id: 'held',
+        createdAt: 1,
+        input,
+        draft,
+        uncertain: status === 'uncertain',
+        sending: status === 'sending',
+        ...(status !== 'local' ? { reason: 'Wartet' } : {}),
+        change: { bookingId: 'older', patch: { memo: 'Entwurf' } },
+      };
+      memory.rows = [held];
+      await discardRejectedChange('older');
+      expect(memory.rows).toEqual([held]);
+    },
+  );
   it('does not claim a local save or send when device storage rejects the write', async () => {
     memory.failWrite = true;
     await expect(submitCapture(input, draft)).rejects.toThrow('Gerätespeicher');
@@ -69,6 +111,27 @@ describe('durable booking delivery', () => {
     expect(post.mock.calls[1]).toEqual([original.input, original.id]);
     expect(memory.rows).toEqual([]);
     expect(sent).toHaveBeenCalledWith(result);
+  });
+  it('checks a committed result first and never POSTs it again', async () => {
+    post.mockRejectedValueOnce(new ApiError(0, 'network'));
+    await submitCapture(input, draft);
+    const original = memory.rows[0]!;
+    check.mockResolvedValueOnce({ result });
+    const sent = vi.fn();
+    await sendQueue(sent);
+    expect(check).toHaveBeenCalledExactlyOnceWith(original.id, { type: 'create', input });
+    expect(post).toHaveBeenCalledTimes(1);
+    expect(sent).toHaveBeenCalledWith(result);
+    expect(memory.rows).toEqual([]);
+  });
+  it('retains uncertain intent without POST when the server check fails', async () => {
+    post.mockRejectedValueOnce(new ApiError(0, 'network'));
+    await submitCapture(input, draft);
+    const original = memory.rows[0]!;
+    check.mockRejectedValueOnce(new ApiError(401, 'unauthorized'));
+    await sendQueue(vi.fn());
+    expect(post).toHaveBeenCalledTimes(1);
+    expect(memory.rows[0]).toMatchObject({ id: original.id, input, uncertain: true });
   });
   it('retains an expired session and retries after login in FIFO order', async () => {
     online(false);

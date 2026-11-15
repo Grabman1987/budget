@@ -14,10 +14,18 @@ import { CaptureForm } from '../ledger/capture-form';
 import { eur } from '../ledger/format';
 import { useLedgerWrites } from '../ledger/mutations';
 import { queueReason, sendQueue } from './queue';
-import { listQueue, removeQueued, subscribeQueue, type QueuedBooking } from './queue-store';
+import {
+  readQueueState,
+  queuedStatus,
+  removeQueued,
+  subscribeQueue,
+  type BookingAcknowledgement,
+  type QueuedBooking,
+} from './queue-store';
 
 interface QueueState {
   items: QueuedBooking[];
+  acknowledgements: BookingAcknowledgement[];
   sending: boolean;
   error: string;
   send: () => void;
@@ -25,6 +33,7 @@ interface QueueState {
 }
 const QueueContext = createContext<QueueState>({
   items: [],
+  acknowledgements: [],
   sending: false,
   error: '',
   send: () => undefined,
@@ -34,6 +43,8 @@ export const useBookingQueue = () => useContext(QueueContext);
 
 export function QueueProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<QueuedBooking[]>([]);
+  const [acknowledgements, setAcknowledgements] = useState<BookingAcknowledgement[]>([]);
+  const sendingRef = useRef(false);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState('');
   const [editing, setEditing] = useState<QueuedBooking>();
@@ -46,6 +57,8 @@ export function QueueProvider({ children }: { children: ReactNode }) {
     offer.current = offerUndo;
   }, [offerUndo]);
   const send = useCallback(() => {
+    if (sendingRef.current) return;
+    sendingRef.current = true;
     setSending(true);
     void sendQueue(
       (result) => {
@@ -55,21 +68,28 @@ export function QueueProvider({ children }: { children: ReactNode }) {
       () => held.current,
     )
       .catch((e: unknown) => setError(queueReason(e)))
-      .finally(() => setSending(false));
+      .finally(() => {
+        sendingRef.current = false;
+        setSending(false);
+      });
   }, [qc]);
   useEffect(() => {
     let active = true;
-    const refresh = () =>
-      void listQueue()
-        .then((rows) => {
-          if (active) {
+    let generation = 0;
+    const refresh = () => {
+      const current = ++generation;
+      void readQueueState()
+        .then(({ items: rows, acknowledgements: confirmations }) => {
+          if (active && current === generation) {
             setItems(rows);
+            setAcknowledgements(confirmations);
             setError('');
           }
         })
         .catch((e: unknown) => {
-          if (active) setError(queueReason(e));
+          if (active && current === generation) setError(queueReason(e));
         });
+    };
     refresh();
     const unsubscribe = subscribeQueue(refresh);
     return () => {
@@ -96,6 +116,7 @@ export function QueueProvider({ children }: { children: ReactNode }) {
     <QueueContext.Provider
       value={{
         items,
+        acknowledgements,
         sending,
         error,
         send,
@@ -150,70 +171,104 @@ export function QueueCapture({ item, onClose }: { item?: QueuedBooking; onClose:
 
 export function QueueList() {
   useAmountPrivacy();
-  const { items, sending, error, send, edit } = useBookingQueue();
+  const { items, acknowledgements, sending, error, send, edit } = useBookingQueue();
   const [localError, setLocalError] = useState('');
-  if (!items.length && !error) return null;
+  if (!items.length && !error && !acknowledgements.length) return null;
   return (
-    <section className="booking-queue" aria-label="Wartet auf Verbindung" id="booking-queue">
-      <div className="queue-head">
-        <h2>
-          Wartet auf Verbindung <span>({items.length})</span>
-        </h2>
-        <Button onClick={send} disabled={sending}>
-          {sending ? 'Wird gesendet…' : 'Jetzt senden'}
-        </Button>
-      </div>
-      <p>Auf diesem Gerät gespeichert. Erst nach dem Senden im Budget enthalten.</p>
-      {(error || localError) && (
-        <p className="field-error" role="alert">
-          {error || localError}
-        </p>
+    <>
+      {(items.length > 0 || error) && (
+        <section className="booking-queue" aria-label="Wartet auf Verbindung" id="booking-queue">
+          <div className="queue-head">
+            <h2>
+              Wartet auf Verbindung <span>({items.length})</span>
+            </h2>
+            <Button onClick={send} disabled={sending}>
+              {sending ? 'Wird gesendet…' : 'Jetzt senden'}
+            </Button>
+          </div>
+          <p>Erst nach der Serverbestätigung im Budget enthalten.</p>
+          {(error || localError) && (
+            <p className="field-error" role="alert">
+              {error || localError}
+            </p>
+          )}
+          <ol className="queue-items">
+            {items.map((item, i) => (
+              <li key={item.id}>
+                <span className="tech">{String(i + 1).padStart(2, '0')}</span>
+                <div className="queue-detail">
+                  <strong>
+                    {item.draft.payee || (item.input.type === 'transfer' ? 'Umbuchung' : 'Buchung')}
+                  </strong>
+                  {item.input.type === 'change' ? (
+                    <span>Buchungs-ID: {item.input.bookingId}</span>
+                  ) : (
+                    <span>
+                      {item.input.date.split('-').reverse().join('.')} ·{' '}
+                      {eur(
+                        item.input.type === 'transfer'
+                          ? -item.input.amountCents
+                          : item.input.amountCents,
+                        { sign: true },
+                      )}
+                    </span>
+                  )}
+                  <span role="status">{queuedStatus(item)}</span>
+                  {item.draft.memo && <span>{item.draft.memo}</span>}
+                  {item.reason && <span className="field-error">{item.reason}</span>}
+                  {item.reason?.includes('erneut anmelden') && <a href="/login">Erneut anmelden</a>}
+                  {item.uncertain && (
+                    <span>
+                      Serverempfang unklar. Mit „Jetzt senden“ prüfen, bevor du änderst oder
+                      löschst.
+                    </span>
+                  )}
+                </div>
+                <div className="queue-actions">
+                  <Button
+                    variant="ghost"
+                    disabled={sending || item.uncertain || Boolean(item.change)}
+                    onClick={() => edit(item)}
+                  >
+                    Bearbeiten
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    disabled={sending || item.uncertain}
+                    onClick={() =>
+                      void removeQueued(item.id).catch((e: unknown) =>
+                        setLocalError(queueReason(e)),
+                      )
+                    }
+                  >
+                    Löschen
+                  </Button>
+                </div>
+              </li>
+            ))}
+          </ol>
+        </section>
       )}
-      <ol className="queue-items">
-        {items.map((item, i) => (
-          <li key={item.id}>
-            <span className="tech">{String(i + 1).padStart(2, '0')}</span>
-            <div className="queue-detail">
-              <strong>
-                {item.draft.payee || (item.input.type === 'transfer' ? 'Umbuchung' : 'Buchung')}
-              </strong>
-              <span>
-                {item.input.date.split('-').reverse().join('.')} ·{' '}
-                {eur(
-                  item.input.type === 'transfer' ? -item.input.amountCents : item.input.amountCents,
-                  { sign: true },
-                )}
-              </span>
-              {item.draft.memo && <span>{item.draft.memo}</span>}
-              {item.reason && <span className="field-error">{item.reason}</span>}
-              {item.reason?.includes('erneut anmelden') && <a href="/login">Erneut anmelden</a>}
-              {item.uncertain && (
-                <span>
-                  Serverempfang unklar. Mit „Jetzt senden“ prüfen, bevor du änderst oder löschst.
-                </span>
-              )}
-            </div>
-            <div className="queue-actions">
-              <Button
-                variant="ghost"
-                disabled={sending || item.uncertain}
-                onClick={() => edit(item)}
-              >
-                Bearbeiten
-              </Button>
-              <Button
-                variant="ghost"
-                disabled={sending || item.uncertain}
-                onClick={() =>
-                  void removeQueued(item.id).catch((e: unknown) => setLocalError(queueReason(e)))
-                }
-              >
-                Löschen
-              </Button>
-            </div>
-          </li>
-        ))}
-      </ol>
-    </section>
+      {acknowledgements.length > 0 && (
+        <section className="booking-queue" aria-label="Buchungsstatus">
+          <h2>Gespeicherte Änderungen</h2>
+          <ol className="queue-items">
+            {acknowledgements.map((ack) => (
+              <li key={ack.id}>
+                <div className="queue-detail" style={{ overflowWrap: 'anywhere' }}>
+                  <strong>Auf dem Server gespeichert</strong>
+                  {ack.bookingIds.map((id) => (
+                    <span key={id}>Buchungs-ID: {id}</span>
+                  ))}
+                  <time dateTime={ack.savedAt}>
+                    {new Date(ack.savedAt).toLocaleString('de-AT')}
+                  </time>
+                </div>
+              </li>
+            ))}
+          </ol>
+        </section>
+      )}
+    </>
   );
 }

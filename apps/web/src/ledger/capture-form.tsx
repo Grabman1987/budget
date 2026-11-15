@@ -37,6 +37,7 @@ import {
   type MutableRefObject,
 } from 'react';
 import { ApiError, request } from '../api/http';
+import { discardRejectedChange } from '../pwa/queue';
 import { REDESIGN_ENABLED } from '../shell/redesign-flag';
 import { DocumentUploadButton } from '../document-intake/document-upload';
 import './capture-redesign.css';
@@ -252,7 +253,6 @@ export function CaptureForm({
   const [memory] = useState(readMemory);
   const editing = state.mode === 'edit' ? state.booking : null;
   const editDraft = editing ? draftFromBooking(editing) : null;
-  const repeatKey = useRef(crypto.randomUUID());
   const [statusChosen, setStatusChosen] = useState(false);
   // Restore explicit queued intent before choices load; shared draft.status is never that intent.
   const queuedBankIntent: BankIntent | null =
@@ -482,7 +482,10 @@ export function CaptureForm({
       ? JSON.stringify(strip(draft)) !== JSON.stringify(strip(editDraft!))
       : captureDirty(draft, keptPayee) ||
         Boolean(draft.repeat || draft.lines?.some((line) => line.shares.length));
-  const dirty = draftDirty || JSON.stringify(bankIntent) !== JSON.stringify(queuedBankIntent);
+  // A refused queued edit still needs an explicit discard, even after reverting its fields.
+  const [refusedEdit, setRefusedEdit] = useState(false);
+  const dirty =
+    refusedEdit || draftDirty || JSON.stringify(bankIntent) !== JSON.stringify(queuedBankIntent);
 
   useEffect(() => {
     dirtyRef.current = dirty;
@@ -675,8 +678,18 @@ export function CaptureForm({
           await writes.patch.mutateAsync({
             id: editing.id,
             patch: built.value,
-            ...(draft.repeat ? { key: repeatKey.current } : {}),
+            capture: {
+              input: {
+                type: 'booking',
+                accountId,
+                date: filled.date,
+                amountCents: built.value.amountCents ?? editing.amountCents,
+                splits: built.value.splits ?? editing.splits,
+              },
+              draft: filled,
+            },
           });
+        else if (refusedEdit) await discardRejectedChange(editing.id);
         if (
           editing.source === 'bank' &&
           !isTransfer &&
@@ -730,6 +743,15 @@ export function CaptureForm({
         formRef.current?.querySelector<HTMLElement>('.amount-input')?.focus(),
       );
     } catch (error) {
+      if (error instanceof ApiError && error.code === 'booking_queued') return onDone();
+      if (
+        editing &&
+        error instanceof ApiError &&
+        error.status > 0 &&
+        error.status < 500 &&
+        error.code !== 'idempotency_conflict'
+      )
+        setRefusedEdit(true);
       setErrors({
         form:
           error instanceof ApiError && error.code === 'reconciled_locked'
@@ -1436,6 +1458,7 @@ export function CaptureForm({
           </div>
         </div>
 
+        {busy && <p role="status">Wird gesendet…</p>}
         {errors.form && (
           <p className="field-error" role="alert">
             {maskMoneyText(errors.form)}
@@ -1486,7 +1509,19 @@ export function CaptureForm({
           <Button size="sm" variant="ghost" onClick={discard.keep}>
             Weiter bearbeiten
           </Button>
-          <Button size="sm" onClick={discard.discard}>
+          <Button
+            size="sm"
+            onClick={() => {
+              void (async () => {
+                try {
+                  if (editing && refusedEdit) await discardRejectedChange(editing.id);
+                  discard.discard();
+                } catch (error) {
+                  setErrors({ form: errorText(error) });
+                }
+              })();
+            }}
+          >
             Verwerfen
           </Button>
         </div>

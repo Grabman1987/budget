@@ -161,6 +161,38 @@ export function bookingRoutes(db: Db, today = () => todayInVienna()): Hono {
     );
   });
 
+  // Resolve a lost response without re-running a financial write. The session gate applies here too.
+  app.post('/delivery/:key', async (c) => {
+    const key = c.req.param('key');
+    if (!/^[a-zA-Z0-9-]{16,80}$/.test(key))
+      throw new ApiError(400, 'invalid', 'Ungültiger Sendeschlüssel.');
+    c.header('Cache-Control', 'no-store');
+    const previous = db.select().from(bookingDelivery).where(eq(bookingDelivery.key, key)).get();
+    const intent = await readBody(
+      c,
+      z.discriminatedUnion('type', [
+        z.object({ type: z.literal('create'), input: createBody }).strict(),
+        z
+          .object({ type: z.literal('patch'), bookingId: z.string().min(1), patch: bookingPatch })
+          .strict(),
+      ]),
+    );
+    const hash = createHash('sha256')
+      .update(
+        JSON.stringify(
+          intent.type === 'create' ? intent.input : { id: intent.bookingId, body: intent.patch },
+        ),
+      )
+      .digest('hex');
+    if (previous && previous.requestHash !== hash)
+      throw new ApiError(
+        409,
+        'idempotency_conflict',
+        'Dieser Eintrag wurde bereits mit anderen Feldern gesendet.',
+      );
+    return c.json({ result: previous ? JSON.parse(previous.responseJson) : null });
+  });
+
   app.get('/:id/inspector', (c) => c.json(readBookingInspector(db, c.req.param('id'), today())));
 
   app.get('/:id', (c) => {
@@ -271,6 +303,7 @@ export function bookingRoutes(db: Db, today = () => todayInVienna()): Hono {
         if (repeat) repeatFrom(tx, id, repeat, ctx);
         result = { id, bookings: read([id]), groupId: ctx.groupId };
       }
+      result.savedAt = new Date().toISOString();
       if (key)
         tx.insert(bookingDelivery)
           .values({ key, requestHash: hash, responseJson: JSON.stringify(result) })
@@ -332,7 +365,11 @@ export function bookingRoutes(db: Db, today = () => todayInVienna()): Hono {
         contactModel: true,
       });
       if (repeat) repeatFrom(tx, id, repeat, ctx);
-      const response = { bookings: read([id]), groupId: ctx.groupId };
+      const response = {
+        bookings: read([id]),
+        groupId: ctx.groupId,
+        savedAt: new Date().toISOString(),
+      };
       if (key)
         tx.insert(bookingDelivery)
           .values({ key, requestHash: hash, responseJson: JSON.stringify(response) })
