@@ -43,9 +43,9 @@ Bereich: Plan (`/plan/monat`, `/plan/jahr`, `/plan/erwartet`, `/plan/sparziele`,
 ### P-03 – Kategoriestruktur wie im Vorsystem
 - **Story:** Als Nutzer möchte ich Gruppen und Kategorien wie in meiner früheren YNAB-Struktur wiederfinden (Reihenfolge, Einzelkategorien statt Sammelkategorien, versteckte Kategorien), damit ich mich nicht neu einarbeiten muss und alte Gewohnheiten weiter gelten.
 - **Ausgangslage:** Die Struktur wurde bei der Übernahme am 02.10. zusammengelegt und passt nicht zu meiner Denkweise.
-- **Ablauf:** Ablauf aus dem Issue (geplant), nicht in der Oberfläche auslösbar:
+- **Ablauf:** Über das vorhandene Betreiber-Werkzeug `restructure`, nicht in der Oberfläche auslösbar (Prüfschritte: `docs/ops.md`, Abschnitt 12.6.2):
   1. Die Zuordnung je Teilbuchung und Monatszuweisung wird privat vorbereitet.
-  2. Ein Probelauf auf einer Datenbankkopie prüft Salden, „Zu verteilen“ und Vermögen.
+  2. Vorschau und Anwendung auf einer Datenbankkopie prüfen Salden, „Zu verteilen“ je betroffenem Monat samt Folgemonat und Vermögen; ein Rückgängig-Probelauf stellt den Ausgangszustand wieder her.
   3. Ich gebe den Lauf frei; vorher wird gesichert.
   4. Das Betreiber-Werkzeug spielt die neue Struktur live ein.
   5. Ich öffne „Plan › Monat“ und prüfe Gruppen und Reihenfolge.
@@ -55,8 +55,9 @@ Bereich: Plan (`/plan/monat`, `/plan/jahr`, `/plan/erwartet`, `/plan/sparziele`,
   2. Salden, „Zu verteilen“ und Vermögen sind vor und nach dem Lauf identisch.
   3. Keine Buchung geht verloren; jede ist weiter einer Kategorie zugeordnet.
   4. Versteckte Kategorien erscheinen nicht im Plan, ihre Buchungen bleiben in den Konten sichtbar.
-- **Status:** offen — **Verweis:** #969
-- Fehlt noch: Probelauf, Freigabe und Live-Lauf; fehlende Werkzeug-Funktionen (Sortieren, Umbenennen, Ausblenden) als kleine PRs.
+  5. Sparziele und Investieren stehen in der vereinbarten gemeinsamen Gruppe; bestehende Zielverknüpfungen bleiben erhalten.
+- **Status:** offen; Betreiber-Werkzeug vorhanden, synthetischer Wiederherstellungs-Probelauf und Ablauf dokumentiert — **Verweis:** #969
+- Fehlt noch: private Zuordnung, Probelauf auf der echten Datenbankkopie, Freigabe des konkreten Plans, Sicherung, Live-Lauf und Abnahme. Der synthetische Test ersetzt diese Schritte nicht.
 
 ### P-04 – Vorschläge und „Leere füllen“
 - **Story:** Als Nutzer möchte ich blasse Vorschläge (Ziel, Median) und „Leere füllen“ nutzen, damit ich den Monat mit wenigen Klicks vorbelege, ohne jede Kategorie einzeln zu tippen.
