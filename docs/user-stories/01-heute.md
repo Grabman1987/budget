@@ -1,0 +1,107 @@
+# User-Stories – Heute
+
+Bereich: Startseite „Heute“ (Route `/`). Status und Verweise wie in `docs/USER-STORIES.md`. Alle Beträge in Cent, Anzeige in Euro.
+
+### H-01 – Antwortkarten auf einen Blick
+- **Story:** Als Nutzer möchte ich oben auf Heute die Antwortkarten „Frei bis Gehalt“, „Nettovermögen“ und „Monat im Blick“ sehen und unten in „Ziele finanzieren“ die noch nicht finanzierten Sparziele, damit ich in Sekunden weiß, ob ich ausgeben darf, wie mein Vermögen steht und welches Ziel als Nächstes Geld braucht.
+- **Ausgangslage:** Ich öffne die App am Handy oder Desktop, ohne etwas Bestimmtes zu suchen.
+- **Ablauf:**
+  1. Ich öffne „Heute“. Die App lädt den Heute-Abruf und zeigt oben „Stand heute · <Datum>“.
+  2. Ich lese die große Zahl der Karte „Frei bis Gehalt“ (mit „bis <Datum> · N Tage“).
+  3. Ich lese die Karte „Nettovermögen“ mit Gesamtbetrag und „… in 12 Monaten“. Antippen öffnet die Aufschlüsselung nach Vermögensart.
+  4. Ich lese die Karte „Monat im Blick“ (Ausgegeben, Prognose Monatsende, Deckel).
+  5. Ich scrolle zu „Ziele finanzieren“. Dort steht „N Sparziele noch nicht finanziert“ mit Link nach Plan › Sparziele. Das nächste Sparziel (nach Datum) steht in diesem Block; eine eigene Karte oben gibt es nicht (Entscheidung 15.11.2026).
+- **Ergebnis:** Nichts wird geändert. Jede Zahl führt per Antippen zur Herleitung bzw. zur Quellseite.
+- **Abnahmekriterien:**
+  1. Die Karten stehen oben, auf dem Handy untereinander.
+  2. „Nettovermögen“ stimmt mit Vermögen › Nettovermögen überein.
+  3. Sind alle Sparziele finanziert, erscheint kein Hinweis „noch nicht finanziert“.
+  4. Fällt eine Teilabfrage aus, zeigt die Karte „… nicht verfügbar“ mit Wiederholen statt einer falschen Zahl.
+  5. Fehlt die Bewertung, steht „Bewertung nicht verfügbar“ statt 0 €.
+- **Status:** live — **Verweis:** Y13-C
+- Hinweis: Das nächste Sparziel ist Teil des bestehenden Blocks „Ziele finanzieren“; keine eigene Karte (Entscheidung 15.11.2026).
+
+### H-02 – Frei bis Gehalt verstehen
+- **Story:** Als Nutzer möchte ich „Frei bis Gehalt“ als Cashflow-Zahl sehen und in ihre Teile zerlegen können (Kontostand der Budget-Konten + erwartete Eingänge vor dem Gehalt − offene Abflüsse bis zum Gehalt + aktivierter Dispo-Rahmen), damit ich weiß, was ich bis zum Gehalt noch ausgeben kann, ohne ins Minus zu geraten.
+- **Ausgangslage:** Ich will wissen, ob ich mir etwas leisten kann, oder ich verstehe die Zahl nicht.
+- **Ablauf:**
+  1. Ich öffne „Heute“ und lese „Frei bis Gehalt“ (rot mit Warnzeichen, wenn negativ).
+  2. Ich tippe die Zahl an. Die App öffnet die Herleitung (`/heute/details/free`).
+  3. Ich sehe die Kette „Kontostand“ + „Erwartete Eingänge“ − „Offen bis Gehalt“ + „Dispo-Rahmen“ = „frei verfügbar“ und das Tagesbudget bis Gehalt.
+  4. Ich öffne die Listen „Kontostand“, „Erwartete Eingänge“, „Offen bis Gehalt“ und sehe die einzelnen Konten, Zahlungen und Eingänge.
+  5. Ich schalte oben in „Zeitraum“ zwischen „Monat“ und „Bis Gehalt“ um. „Bis Gehalt“ gilt nur im laufenden Monat.
+- **Ergebnis:** Nichts wird geändert. Der gewählte Zeitraum bleibt auf dem Gerät gemerkt und gilt auch im Report R07.
+- **Abnahmekriterien:**
+  1. Die Zahl entspricht der Summe der vier Teile auf den Cent.
+  2. Ohne Dispo-Häkchen (Einstellungen › Konten) fließt kein Dispo ein; die Herleitung sagt „Kein Dispo aktiviert“.
+  3. Ein negativer Wert wird rot mit Warnzeichen gezeigt; das Tagesbudget sagt „Ohne positiven Spielraum gibt es kein Tagesbudget.“
+  4. In einem anderen Monat ist „Bis Gehalt“ nicht wählbar und nennt den Grund.
+  5. Ohne erwartete Eingänge steht „Keine erwarteten Eingänge vor dem Gehalt.“
+- **Status:** live — **Verweis:** #1084, PR #1086, Y13
+
+### H-03 – Pace unter der Kontoprognose
+- **Story:** Als Nutzer möchte ich in „Monat im Blick“ sehen, wie viel ich bisher ausgegeben habe, was die Hochrechnung bis Monatsende ergibt und wo der Deckel liegt, damit ich früh merke, dass ich über Plan liege, und noch gegensteuern kann.
+- **Ausgangslage:** Mitten im Monat will ich wissen, ob mein Ausgabentempo passt.
+- **Ablauf:**
+  1. Ich öffne „Heute“ und gehe zur Karte „Monat im Blick“.
+  2. Ich lese die Zeile „Ausgegeben … · Prognose Monatsende … von … Deckel“.
+  3. Ich betrachte das Diagramm: Ist durchgezogen, Hochrechnung gestrichelt, Plan bis heute als Punkt.
+  4. Ich fahre über die Kurve (Tooltip) und sehe Ist, Hochrechnung, Deckel und linear Erwartet.
+  5. Mit „Mehr zum Monat“ öffne ich die Einzelwerte.
+- **Ergebnis:** Nur Anzeige. Keine Daten ändern sich.
+- **Abnahmekriterien:**
+  1. Ist ist durchgezogen, die Hochrechnung gestrichelt; liegt sie über dem Deckel, ist sie rot.
+  2. Der Punkt „Plan bis heute“ ist sichtbar.
+  3. Gibt es noch zu wenig Daten, steht „noch nicht verfügbar“ statt einer Zahl.
+  4. Auf dem Handy bricht das Diagramm nicht aus der Karte.
+- **Status:** live — **Verweis:** Y13-P
+
+### H-04 – Kontoprognose im selben Zeitraum
+- **Story:** Als Nutzer möchte ich die Kontoprognose im gleichen Zeitraum wie die Pace sehen, damit ich einen Engpass vor dem Gehalt erkenne, bevor er eintritt.
+- **Ausgangslage:** Ich fürchte, dass vor dem Gehalt das Konto knapp wird.
+- **Ablauf:**
+  1. Ich öffne „Heute“ und gehe zur Karte „Kontoprognose“.
+  2. Ich wähle oben „Monat“ oder „Bis Gehalt“; die Kurve folgt dem Zeitraum.
+  3. Ich lese Tiefpunkt und Limit im Diagramm.
+  4. Ich tippe „Prognose →“ bzw. „Details“. Die App öffnet Plan › Prognose (`/plan/prognose`, 35 Tage).
+- **Ergebnis:** Nur Anzeige. Heute und Report R07 zeigen denselben Zeitraum.
+- **Abnahmekriterien:**
+  1. 14 Tage Rückblick sind sichtbar.
+  2. Die Kurve endet am Gehalts- bzw. Monatsende plus zwei Tage.
+  3. Ohne Budget-Konto steht „Ohne Budget-Konto gibt es keine Kontoprognose.“
+  4. Fehlt die gespeicherte Prognose, steht „Die gespeicherte 35-Tage-Prognose ist nicht verfügbar.“
+- **Status:** live — **Verweis:** Report R07 (FEATURES)
+
+### H-05 – Heute am Telefon
+- **Story:** Als Nutzer möchte ich Heute am Telefon bedienen können, ohne zu zoomen, damit ich die Zahlen auch unterwegs sofort lesen und die nächste Aufgabe antippen kann.
+- **Ausgangslage:** Ich öffne die App am Handy (Breite 360–430 px).
+- **Ablauf:**
+  1. Ich öffne „Heute“ am Handy.
+  2. Ich wechsle den Monat mit dem Monatswähler (Pfeile und Monatsname).
+  3. Ich schalte „Monat“ / „Bis Gehalt“ um.
+  4. Ich scrolle zu „Als Nächstes“ und tippe bei einer Aufgabe auf die Aktion (z. B. „Verteilen“).
+  5. Die App öffnet die Zielseite, ohne dass der schwebende Plus-Knopf die Aktion verdeckt.
+- **Ergebnis:** Nur Navigation.
+- **Abnahmekriterien:**
+  1. Monatswähler und Umschalter haben gleiche Höhe und Schriftgröße, Touchflächen mindestens 44 px.
+  2. Aufgabennamen brechen nicht mitten im Satz um; Betrag und Aktion bleiben lesbar.
+  3. Der Plus-Knopf verdeckt keine Zeile (Abstand unten, Safe Area).
+  4. Hell und dunkel gleich bedienbar; Desktop bleibt unverändert.
+- **Status:** live — **Verweis:** #1065
+
+### H-06 – Heute lädt schnell
+- **Story:** Als Nutzer möchte ich, dass Heute schnell lädt und bei Störungen klar „lädt“ oder „Fehler“ sagt, damit ich die App gern täglich öffne und keiner falschen Zahl vertraue.
+- **Ausgangslage:** Ich öffne die App morgens; der Server ist kalt oder langsam.
+- **Ablauf:**
+  1. Ich öffne „Heute“.
+  2. Die Karten zeigen „… wird geladen“, bis der Heute-Abruf antwortet.
+  3. Die Zahlen erscheinen; beim Aktualisieren im Hintergrund bleiben die alten Werte stehen.
+  4. Schlägt der Abruf fehl, zeigt die Karte einen Hinweis mit „Wiederholen“.
+- **Ergebnis:** Nur Anzeige; keine Zahl ändert sich durch die Optimierung.
+- **Abnahmekriterien:**
+  1. Kaltes Laden von `GET /api/heute` unter 500 ms auf dem synthetischen Datenbestand.
+  2. Während des Ladens steht „lädt“, nicht „Nicht verfügbar“.
+  3. Bei Fehler erscheint ein klarer Hinweis, keine Null und keine alte Zahl als neue.
+  4. Die Antworten bleiben byte-identisch zu den abgelegten Prüfsummen.
+- **Status:** offen — **Verweis:** #1073, #956
+- Fehlt noch: Umbau der großen Lesemodelle (Kontoprüfung, Sparziele, Nettovermögensreihe) laut Schrittplan im Issue.
