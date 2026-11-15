@@ -47,6 +47,7 @@ it('shows exact original positions and unknown net as information, with no inven
     },
   };
   const view = render(<PayrollSource source={payrollSource(slip, [])} />);
+  expect(screen.getByRole('heading', { name: 'Bestandteile laut Quelle', level: 2 })).toBeTruthy();
   expect(screen.getByText(/Nettoaufteilung aus der Quelle nicht bestimmbar/).className).toBe(
     'vnote',
   );
@@ -56,4 +57,6 @@ it('shows exact original positions and unknown net as information, with no inven
   );
   expect(screen.getByRole('row', { name: /Steuerfreie/ }).textContent).toContain('100,00');
   expect(screen.queryByRole('button')).toBeNull();
+  view.rerender(<PayrollSource source={payrollSource(slip, [])} level="h4" />);
+  expect(screen.getByRole('heading', { name: 'Bestandteile laut Quelle', level: 4 })).toBeTruthy();
 });

@@ -88,6 +88,8 @@ test('captured salary through the real API, with undo and mobile/desktop evidenc
   await expect(page.getByTestId('payroll-report')).toContainText(
     'Auszahlung stimmt mit den zugeordneten Bankanteilen überein.',
   );
+  // Static evidence uses reduced motion so WebKit can settle theme transitions.
+  await page.emulateMedia({ reducedMotion: 'reduce' });
   await inspectReport(page, info, 'salary');
   await page.getByRole('button', { name: 'Bearbeiten', exact: true }).click();
   await edit.getByLabel('Lohnsteuer', { exact: true }).fill('-50');
@@ -400,5 +402,7 @@ test('combined source shows unknown net and editable bank income parts', async (
       .filter({ hasText: 'Laufendes Gehalt' })
       .first(),
   ).toBeVisible();
+  // Keep the light/dark accessibility checks independent of transition scheduling.
+  await page.emulateMedia({ reducedMotion: 'reduce' });
   await inspectReport(page, info, 'salary-combined-source');
 });

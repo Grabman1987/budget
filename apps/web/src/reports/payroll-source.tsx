@@ -1,7 +1,13 @@
 import type { payrollSource } from '@budget/domain';
 import { eur } from '../ledger/format';
 
-export function PayrollSource({ source }: { source: ReturnType<typeof payrollSource> }) {
+export function PayrollSource({
+  source,
+  level: Heading = 'h2',
+}: {
+  source: ReturnType<typeof payrollSource>;
+  level?: 'h2' | 'h4';
+}) {
   const labels = {
     base: 'Laufende Bezüge',
     special: 'Sonderzahlungen',
@@ -14,7 +20,7 @@ export function PayrollSource({ source }: { source: ReturnType<typeof payrollSou
   };
   return (
     <div className="pp-source">
-      <h3>Bestandteile laut Quelle</h3>
+      <Heading>Bestandteile laut Quelle</Heading>
       <table className="rtable">
         <tbody>
           {Object.entries(source.paid).map(

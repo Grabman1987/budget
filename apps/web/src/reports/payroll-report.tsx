@@ -159,7 +159,7 @@ export function PayrollReport({
             </tbody>
           </table>
           {data.sources?.find((source) => source.id === p.id) && (
-            <PayrollSource source={data.sources.find((source) => source.id === p.id)!} />
+            <PayrollSource source={data.sources.find((source) => source.id === p.id)!} level="h4" />
           )}
           <LinkStatus data={data} id={p.id} />
           <Button variant="ghost" size="sm" onClick={(event) => open(p.id, event.currentTarget)}>
