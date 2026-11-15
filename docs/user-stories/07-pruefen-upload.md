@@ -173,7 +173,7 @@ Bildschirm Prüfen: `/konten/pruefen` (Konten › Prüfen). Zähler: „Umsätze
 - **Ablauf:** (Verhalten laut Issue #1079; Bildschirm: Abrechnungsprüfung am Konto, „Abrechnung prüfen“)
   1. Nutzer lädt die Abrechnung über „Neues Dokument hochladen“ als „Kreditkartenabrechnung“ hoch und wählt das „Konto“.
   2. In der Prüfung stehen die Felder „Abrechnungsnummer“, „Ausstellungsdatum“, „Zeitraum von“, „Zeitraum bis“, „Einzugsdatum“, „Kartenhinweis (maskiert)“.
-  3. Fehlt eine Angabe im Original, vermerkt der Nutzer „im Original nicht angegeben“ (geplant, heute nicht vorhanden).
+  3. Fehlen Nummer und Zeitraum im Original, setzt der Nutzer für beide „im Original nicht angegeben“. Eine Kartenreferenz wird separat eingetragen; die Dokument-ID erscheint als SHA-256.
   4. Er klickt „Als geprüft speichern“.
   5. Die App speichert den Dokumentstand; es wird keine Zahlung und keine Buchung erzeugt.
 - **Ergebnis:** Abrechnung hat Status „Geprüft“, ohne erfundene Nummer oder geratenen Zeitraum.
@@ -182,8 +182,8 @@ Bildschirm Prüfen: `/konten/pruefen` (Konten › Prüfen). Zähler: „Umsätze
   2. Dokument-ID (Hash), Kartenreferenz und echte Abrechnungsnummer sind getrennte Felder; die gleichbleibende Kartenreferenz zählt nicht als Nummer.
   3. Ein Zeitraum wird nie geraten oder vorbelegt.
   4. Ohne Vermerk und ohne Angabe bleibt Speichern gesperrt und die App sagt, was fehlt.
-- **Status:** offen — **Verweis:** #1079
-  Fehlt noch: Vermerk „im Original nicht angegeben“, getrennte Felder für Dokument-ID, Kartenreferenz und Abrechnungsnummer, Verknüpfung mit enthaltenen Buchungen und späterer Zahlung.
+- **Status:** implementiert, Abnahme ausständig — **Verweis:** #1079
+  Beide Vermerke und die Kartenreferenz werden am Dokument gespeichert. Die bestehende Buchungsverknüpfung und der Abrechnungsausgleich bleiben verfügbar. Die Dokumentprüfung erzeugt keine Buchungen; eine Kartenreferenz allein erlaubt keinen Abschluss.
 
 ### I-09 – Kartenabrechnung mit versetzten Spalten lesen
 - **Story:** Als Nutzer möchte ich, dass die Positionen einer Kartenabrechnung auch bei versetzten Spalten erkannt werden, damit ich sie nicht von Hand aus dem PDF übertragen muss.
