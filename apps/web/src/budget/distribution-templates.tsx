@@ -1,4 +1,4 @@
-﻿import {
+import {
   cents,
   formatDecimal,
   freedomSumCents,
