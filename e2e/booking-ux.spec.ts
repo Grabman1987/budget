@@ -25,6 +25,7 @@ test('booking cells, cash capture, repetition and account preview on desktop and
     openingBalanceCents: 100000,
     overdraftLimitCents: 10000,
   });
+  expect(account.overdraftLimitCents).toBeNull();
   const { id } = await post('/bookings', {
     type: 'booking',
     accountId: account.id,
@@ -111,7 +112,7 @@ test('booking cells, cash capture, repetition and account preview on desktop and
   await historyChart(page);
   const chart = page.getByTestId('balance-chart').first();
   await expect(chart.locator('.l-forecast')).toBeVisible();
-  await expect(chart.getByText(/Dispolimit/)).toBeVisible();
+  await expect(chart.getByText(/Dispolimit/)).toHaveCount(0);
   await chart.getByRole('slider').focus();
   await chart.getByRole('slider').press('Home');
   await expect(chart.locator('.kchart-tooltip')).toBeVisible();
@@ -139,6 +140,23 @@ test('booking cells, cash capture, repetition and account preview on desktop and
     );
     await page.screenshot({ path: info.outputPath(`account-${theme}.png`), fullPage: true });
   }
+  // Cash has no overdraft purpose (#1093); retain the limit chart check on a bank account.
+  const { account: bank } = await post('/accounts', {
+    name: 'Giro Muster',
+    type: 'checking',
+    openingDate: '2026-01-01',
+    openingBalanceCents: 100000,
+    overdraftLimitCents: 10000,
+  });
+  expect(bank.overdraftLimitCents).toBe(10000);
+  await page.goto(`/konten/${bank.id}`);
+  await historyChart(page);
+  await expect(
+    page
+      .getByTestId('balance-chart')
+      .first()
+      .getByText(/Dispolimit/),
+  ).toBeVisible();
   const { group } = await post('/categories/groups', { name: 'Alltag Muster' });
   const { category } = await post('/categories', {
     groupId: group.id,
