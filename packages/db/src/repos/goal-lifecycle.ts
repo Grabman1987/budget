@@ -182,11 +182,77 @@ function loadState(db: Executor): State {
   }
   return state;
 }
-function readEntries(db: Executor, after = 0): Entry[] {
+function readEntriesUncached(db: Executor, after: number): Entry[] {
   return parseEntries(
     db.all<Row>(sql`SELECT rowid AS sequence, id, ts, entity_type, entity_id,
     before_json, after_json, group_id, undo_of_id FROM audit_log WHERE rowid > ${after} ORDER BY rowid LIMIT ${MAX_AUDIT + 1}`),
   );
+}
+
+/**
+ * Parsed audit entries per connection, in rowid order. The audit log is append-only at run time
+ * (nothing updates or deletes a row; migrations run before the server starts), so a cold read only
+ * needs the rows added since the last one instead of reading and parsing the whole table again.
+ * The cache is trusted only while its prefix is provably the same: same number of rows up to its
+ * last rowid and the same id at that rowid (a rolled-back insert whose rowid was reused by another
+ * row has a different id). Anything else, or a table beyond the evidence bound, takes the
+ * uncached path, so results never depend on the cache. Entries are shared and read-only.
+ */
+interface AuditCache {
+  entries: Entry[];
+  lastRowid: number;
+}
+const auditCaches = new WeakMap<object, AuditCache>();
+const connectionOf = (db: Executor): object | undefined =>
+  (db as unknown as { session?: { client?: object } }).session?.client;
+
+/** Forget the cached entries of a connection (tests; a connection that is replaced). */
+export function resetGoalAuditCache(db: Executor): void {
+  const connection = connectionOf(db);
+  if (connection) auditCaches.delete(connection);
+}
+
+function readEntries(db: Executor, after = 0): Entry[] {
+  const connection = connectionOf(db);
+  if (!connection) return readEntriesUncached(db, after);
+  let cache = auditCaches.get(connection);
+  if (cache) {
+    const check = db.get<{ n: number; id: string | null }>(
+      sql`SELECT (SELECT count(*) FROM audit_log WHERE rowid <= ${cache.lastRowid}) AS n,
+        (SELECT id FROM audit_log WHERE rowid = ${cache.lastRowid}) AS id`,
+    );
+    if (
+      check?.n !== cache.entries.length ||
+      (cache.entries.length && check.id !== cache.entries.at(-1)!.id)
+    ) {
+      auditCaches.delete(connection);
+      cache = undefined;
+    }
+  }
+  const known = cache ?? { entries: [], lastRowid: 0 };
+  let fresh: Entry[];
+  try {
+    fresh = readEntriesUncached(db, known.lastRowid);
+  } catch {
+    // A bound or a malformed row beyond the cache: the uncached read decides, as it always did
+    // (it only reads rows after `after`, so it may well succeed).
+    return readEntriesUncached(db, after);
+  }
+  // Too many rows for the bound: let the uncached read decide (it may throw, as before).
+  if (fresh.length > MAX_AUDIT || known.entries.length + fresh.length > MAX_AUDIT)
+    return readEntriesUncached(db, after);
+  for (const entry of fresh) known.entries.push(entry);
+  if (fresh.length) known.lastRowid = fresh.at(-1)!.sequence;
+  auditCaches.set(connection, known);
+  // Entries strictly after `after`, as the WHERE clause of the uncached read.
+  let low = 0;
+  let high = known.entries.length;
+  while (low < high) {
+    const mid = (low + high) >> 1;
+    if (known.entries[mid]!.sequence <= after) low = mid + 1;
+    else high = mid;
+  }
+  return known.entries.slice(low);
 }
 function parseEntries(raw: Row[]): Entry[] {
   if (raw.length > MAX_AUDIT) throw new Error('Goal evidence bound exceeded');
@@ -206,7 +272,13 @@ function parseEntries(raw: Row[]): Entry[] {
       sequence: cents(r, 'sequence'),
       undoOfId: nullable(r, 'undo_of_id'),
       group: nullable(r, 'group_id'),
-      day: todayInVienna(ts),
+      // The Vienna day is only read for entries of committed expense groups: compute it on demand
+      // (same pure function, same result) instead of formatting a date for every audit row.
+      get day() {
+        const value = todayInVienna(ts);
+        Object.defineProperty(this, 'day', { value, enumerable: true });
+        return value;
+      },
       table: text(r, 'entity_type'),
       key: text(r, 'entity_id'),
       before: snapshot(r.before_json),
