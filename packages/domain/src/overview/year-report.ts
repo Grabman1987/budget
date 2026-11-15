@@ -1,4 +1,5 @@
 import { addMonths } from '../date';
+import { changeBp } from '../heute/net-worth';
 import { percentShares } from '../ledger/alloc';
 import {
   overviewSavingsRate,
@@ -86,6 +87,8 @@ export interface YearReport {
     savingsRateBp: number | null;
   };
   netWorth: YearNetWorth | null;
+  /** Same included calendar months, only when the complete prior period exists. */
+  previousTotals: YearReport['totals'] | null;
   rows: YearMonthRow[];
   /** Largest consumption categories first (at most ten). */
   categories: YearCategoryRow[];
@@ -242,6 +245,17 @@ export function yearReport(input: {
       savingsRateBp: overviewSavingsRate(total),
     },
     netWorth: months.length > 0 ? netWorth : null,
+    previousTotals:
+      months.length > 0 && pairs.length === months.length
+        ? {
+            incomeCents: comparablePrev.incomeCents,
+            capitalCents: comparablePrev.capitalCents,
+            refundCents: comparablePrev.refundCents,
+            consumptionCents: comparablePrev.consumptionCents,
+            futureCents: comparablePrev.futureCents,
+            savingsRateBp: overviewSavingsRate(comparablePrev),
+          }
+        : null,
     rows,
     categories,
     comparedMonths: pairs.length,
@@ -251,6 +265,16 @@ export function yearReport(input: {
         : null,
     findings,
   };
+}
+
+/** Presentation of the existing wealth endpoints; never a second valuation. */
+export function yearWealthChange(netWorth: YearNetWorth | null) {
+  return netWorth === null
+    ? null
+    : {
+        deltaCents: netWorth.endCents - netWorth.startCents,
+        changeBp: changeBp(netWorth.endCents, netWorth.startCents),
+      };
 }
 
 /** Years that can be chosen: from the first data year up to the year of the last full month. */

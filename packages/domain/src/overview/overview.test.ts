@@ -10,7 +10,7 @@ import {
   type OverviewData,
   type OverviewSplit,
 } from './figures';
-import { reportYears, yearReport } from './year-report';
+import { reportYears, yearReport, yearWealthChange } from './year-report';
 
 const categories = [
   { id: 'miete', name: 'Miete', groupId: 'g1', groupName: 'Wohnen', class: 'need' as const },
@@ -187,6 +187,77 @@ describe('yearReport', () => {
     expect(r.totals.incomeCents).toBe(8 * 300_000 + 100_000);
     expect(r.totals.capitalCents).toBe(2_500);
     expect(r.rows.map((x) => x.month)).toEqual(r.months);
+  });
+
+  it('presents cent-exact existing wealth endpoints and the shared signed change', () => {
+    const net = {
+      startCents: 10_001,
+      endCents: 12_501,
+      ownCents: 2_000,
+      marketCents: 500,
+      months: [],
+    };
+    expect(yearWealthChange(net)).toEqual({ deltaCents: 2_500, changeBp: 2_500 });
+    expect(yearWealthChange({ ...net, endCents: 7_501 })).toEqual({
+      deltaCents: -2_500,
+      changeBp: -2_500,
+    });
+    expect(yearWealthChange({ ...net, startCents: -10_000, endCents: -7_500 })).toEqual({
+      deltaCents: 2_500,
+      changeBp: 2_500,
+    });
+    expect(yearWealthChange({ ...net, startCents: 0 })).toEqual({
+      deltaCents: 12_501,
+      changeBp: null,
+    });
+    expect(yearWealthChange(null)).toBeNull();
+  });
+
+  it('uses the shared figures and savings rate for exactly the same prior months', () => {
+    const comparisonData = {
+      ...data,
+      firstMonth: '2025-01',
+      splits: [
+        income('2025-01-25', 'salary', 100_001),
+        spend('2025-01-26', 'essen', 25_001),
+        income('2025-02-25', 'salary', 200_000),
+        spend('2025-02-26', 'essen', 50_000),
+        income('2025-03-25', 'salary', 900_000),
+      ],
+    };
+    const f = overviewMonthlyFigures(comparisonData);
+    const r = yearReport({
+      year: 2026,
+      ref: '2026-02',
+      data: comparisonData,
+      figures: f,
+      netWorth: null,
+      classAmounts: null,
+      specialIncomeTypeIds: new Set(),
+    });
+    expect(r.months).toEqual(['2026-01', '2026-02']);
+    expect(r.previousTotals).toMatchObject({
+      incomeCents: 300_001,
+      consumptionCents: 75_001,
+      savingsRateBp: 7_500,
+    });
+    const source = sumOverviewMonths(f, ['2025-01', '2025-02']);
+    expect(r.previousTotals?.incomeCents).toBe(source.incomeCents);
+    expect(r.previousTotals?.consumptionCents).toBe(source.consumptionCents);
+    expect(r.previousTotals?.savingsRateBp).toBe(overviewSavingsRate(source));
+    expect(report(2026).previousTotals).toBeNull();
+    expect(report(2024).previousTotals).toBeNull();
+    expect(
+      yearReport({
+        year: 2026,
+        ref: '2026-02',
+        data: { ...comparisonData, firstMonth: '2025-02' },
+        figures: f,
+        netWorth: null,
+        classAmounts: null,
+        specialIncomeTypeIds: new Set(),
+      }).previousTotals,
+    ).toBeNull();
   });
 
   it('shows shares that add up to 100 and rows for the largest categories', () => {
