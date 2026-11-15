@@ -8,6 +8,7 @@ import {
   inArray,
   isNotNull,
   isNull,
+  like,
   lte,
   max,
   min,
@@ -23,8 +24,9 @@ import {
   security,
   trade,
 } from '../schema';
+import { nowIso, updateTracked, withGroup } from './audit';
 import type { FxRateRow } from './prices';
-import type { Executor } from './types';
+import { runInTransaction, type Executor } from './types';
 
 /**
  * Reads and inbox writes of the market-data jobs (prices and ECB rates). The refresh logic itself
@@ -177,25 +179,86 @@ export function openStaleValueItem(db: Executor, item: MarketInboxItem): boolean
   return true;
 }
 
-/** Close the open `stale_value` items of a subject (the data is flowing again). */
+/** Detail prefix of a warning opened by a failed fetch; only these may close by themselves. */
+export const FETCH_FAILURE_DETAIL = 'Fehlerklasse: ';
+/** Resolution prefix of a warning the market run closed after a successful fetch. */
+export const AUTO_RESOLVED_PREFIX = 'Automatisch geschlossen: ';
+/** Audit actor of the market run's inbox writes. */
+export const MARKET_ACTOR = 'market-refresh';
+/** The entry history under Konten › Prüfen reaches this far back and holds at most this many. */
+export const AUTO_RESOLVED_HISTORY_DAYS = 30;
+export const AUTO_RESOLVED_HISTORY_LIMIT = 20;
+
+/**
+ * Close the open fetch-failure warnings of a subject after a successful fetch (#1101). `reason`
+ * names the fetch that succeeded and is stored in the entry behind `AUTO_RESOLVED_PREFIX`.
+ * Only items whose detail is an error class are touched: a `stale_value` item about a real
+ * difference (holdings, missing movements, conflicting closes) is never closed here. Each close
+ * is audited and undoable; all closes of one call share an undo group.
+ */
 export function resolveStaleValueItems(
   db: Executor,
   refType: 'security' | 'fx',
   refId: string,
-  resolution: string,
+  reason: string,
 ): number {
+  return runInTransaction(db, (tx) => {
+    const open = tx
+      .select({ id: inboxItem.id })
+      .from(inboxItem)
+      .where(
+        and(
+          eq(inboxItem.kind, 'stale_value'),
+          eq(inboxItem.refType, refType),
+          eq(inboxItem.refId, refId),
+          like(inboxItem.detail, `${FETCH_FAILURE_DETAIL}%`),
+          isNull(inboxItem.resolvedAt),
+        ),
+      )
+      .all();
+    if (open.length === 0) return 0;
+    const ctx = withGroup({ actor: MARKET_ACTOR });
+    const patch = { resolvedAt: nowIso(), resolution: `${AUTO_RESOLVED_PREFIX}${reason}` };
+    for (const { id } of open) updateTracked(tx, inboxItem, [id], patch, ctx);
+    return open.length;
+  });
+}
+
+export interface AutoResolvedWarning {
+  id: string;
+  title: string;
+  detail: string | null;
+  refType: string | null;
+  refId: string | null;
+  createdAt: string;
+  resolvedAt: string;
+  resolution: string;
+}
+
+/** Warnings the market run closed by itself since `since` (ISO day or timestamp), newest first. */
+export function autoResolvedWarnings(db: Executor, since: string): AutoResolvedWarning[] {
   return db
-    .update(inboxItem)
-    .set({ resolvedAt: new Date().toISOString(), resolution })
+    .select({
+      id: inboxItem.id,
+      title: inboxItem.title,
+      detail: inboxItem.detail,
+      refType: inboxItem.refType,
+      refId: inboxItem.refId,
+      createdAt: inboxItem.createdAt,
+      resolvedAt: inboxItem.resolvedAt,
+      resolution: inboxItem.resolution,
+    })
+    .from(inboxItem)
     .where(
       and(
         eq(inboxItem.kind, 'stale_value'),
-        eq(inboxItem.refType, refType),
-        eq(inboxItem.refId, refId),
-        isNull(inboxItem.resolvedAt),
+        gte(inboxItem.resolvedAt, since),
+        like(inboxItem.resolution, `${AUTO_RESOLVED_PREFIX}%`),
       ),
     )
-    .run().changes;
+    .orderBy(desc(inboxItem.resolvedAt), asc(inboxItem.id))
+    .limit(AUTO_RESOLVED_HISTORY_LIMIT)
+    .all() as AutoResolvedWarning[];
 }
 
 export type MarketRunRow = typeof marketRun.$inferSelect;

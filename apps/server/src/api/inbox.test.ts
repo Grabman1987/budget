@@ -500,6 +500,7 @@ describe('inbox API', () => {
     expect(Object.keys(whole.body).sort()).toEqual([
       'accountReminders',
       'asOf',
+      'autoResolved',
       'count',
       'entries',
       'readSourceSummaries',
