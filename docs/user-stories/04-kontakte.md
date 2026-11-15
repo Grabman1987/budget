@@ -108,3 +108,10 @@ Bereich: „Konten › Kontakte“ (`/konten/kontakte`, Kontoblatt je Person unt
   5. Rückgängig stellt beide Kontakte mit ihren Salden her.
 - **Status:** teilweise — **Verweis:** #871, #869
 - Hinweis: Im Code ist ein Dialog bereits vorhanden (PR #1046, „Contact merge: preview, commit, Undo“); #871 und #869 sind offen. Status vor Abnahme klären, ob „geplant“ noch stimmt. Ohne diese Klärung gilt oben der im Code vorgefundene Ablauf.
+
+### C-08 – Verknüpfte Auslage nach Rückfrage korrigieren
+
+- **Story:** Als Nutzer möchte ich eine bereits ausgeglichene oder einer Rückzahlung zugeordnete Auslage korrigieren können, ohne Verknüpfungen selbst aufzulösen.
+- **Geplanter Ablauf:** Ich öffne die Auslage; eine Rückfrage nennt Ausgleich bzw. Rückzahlung und die Auswirkungen. Nach Bestätigung bearbeite ich sie. Passende Zuordnungen bleiben bestehen; Differenzen erscheinen als offen oder als Guthaben. Eine Rückgängig-Aktion stellt Buchung und Verknüpfungen wieder her.
+- **Abnahmekriterien:** Ohne explizites Override lehnt die API geschützt ab. Mit Override bleiben geleistete Rückzahlungen erhalten, Kontaktsaldo und Zuordnungen konsistent; Freigabe und Änderung sind gemeinsam protokolliert und rückgängig machbar. Abbruch verändert nichts.
+- **Status:** offen — **Verweis:** #1108. Der erste Teil ergänzt nur die Bestätigungsabfrage für den bestehenden Abgleichschutz (K-06a); er hebt den Schutz von Ausgleichs- oder Rückzahlungsverknüpfungen noch nicht auf. Deren API-, Audit-, Undo- und Browserabdeckung bleibt offen.

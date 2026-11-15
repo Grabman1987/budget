@@ -298,3 +298,10 @@ Bereich: Konten (`/konten`, `/konten/$id`), Alle Buchungen (`/konten/buchungen`)
   4. Abgelaufene Zustimmung wird gemeldet.
 - **Status:** teilweise — **Verweis:** Y19, Y20
 - Fehlt noch: vollständiger nächtlicher Abruf mit Nachholen (Y20) und die Abnahme mit echten Bankdaten.
+
+### K-06a – Geprüfte Buchung ausdrücklich zur Bearbeitung freigeben
+
+- **Story:** Als Nutzer möchte ich eine bereits abgeglichene Buchung nach einer Rückfrage korrigieren können.
+- **Ablauf:** Ich öffne die Buchung und wähle „Trotzdem ändern“. Im Redesign erklärt „Geprüfte Buchung wirklich bearbeiten?“ den Abgleichschutz und mögliche Auswirkungen auf Kontostand und Kontaktanteile. „Abbrechen“ oder Escape lässt die Freigabe aus; „Bearbeitung freigeben“ erlaubt die anschließende Änderung oder Löschung über den bestehenden Speicherweg.
+- **Abnahmekriterien:** Die Rückfrage speichert nichts. Tab und Umschalt+Tab bleiben bei den Antworten. Nach Abbruch kehrt der Fokus zur Freigabe zurück. Erst die bestätigte Freigabe setzt beim Speichern das bestehende API-Flag `unlockReconciled`; die Änderung bleibt rückgängig machbar.
+- **Status:** teilweise, zur Review vorbereitet — **Verweis:** #1108. Dieser erste Teil ergänzt die Rückfrage an der vorhandenen Freigabe im Redesign. Noch offen: Rückfrage bereits vor Öffnen des Formulars, genaue Schutzdaten, eigener protokollierter Freigabegrund, Prüfen-Hinweis bei abweichendem Abgleich und weitere Schutzarten einschließlich Kontaktverknüpfungen. Keine Live-Abnahme behauptet.
