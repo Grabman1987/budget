@@ -464,10 +464,120 @@ describe('monthIncomeBooked', () => {
       expect.objectContaining({
         incomeTypeId: INCOME_TYPES.side.id,
         receivedCents: 12_345,
-        expectedCents: 0,
+        expectedCents: 12_345,
       }),
     ]);
     expect(monthIncomeBooked(db, TODAY, '2026-04').receivedCents).toBe(0);
+  });
+});
+
+describe('received plus open income totals (#1109)', () => {
+  it.each([
+    [0, 10_001],
+    [7_501, 10_001],
+    [10_001, 10_001],
+    [12_501, 12_501],
+  ])('counts %i received against an occurrence as %i expected', (receivedCents, expectedCents) => {
+    const { payment } = createExpectedPayment(
+      db,
+      {
+        name: 'Synthetic salary',
+        kind: 'inflow',
+        accountId: 'giro',
+        incomeTypeId: INCOME_TYPES.salary.id,
+        dueDay: 1,
+      },
+      { validFrom: '2026-03-01', amountCents: 10_001 },
+      ctx,
+      TODAY,
+    );
+    if (receivedCents > 0) {
+      const bookingId = createBooking(
+        db,
+        {
+          accountId: 'giro',
+          date: '2026-03-01',
+          amountCents: receivedCents,
+          splits: [{ incomeTypeId: INCOME_TYPES.salary.id, amountCents: receivedCents }],
+        },
+        ctx,
+      );
+      linkOccurrence(
+        db,
+        occurrencesOf(payment.id).find((o) => o.dueDate === '2026-03-01')!.id,
+        bookingId,
+        ctx,
+      );
+    }
+    const income = monthIncomeBooked(db, TODAY, '2026-03');
+    expect(income.expectedCents).toBe(expectedCents);
+    expect(income.receivedCents).toBe(receivedCents);
+    expect(income.byIncomeType).toMatchObject([{ expectedCents, receivedCents }]);
+  });
+
+  it('does not expect a remaining cent on an occurrence received within its tolerance', () => {
+    const { payment } = createExpectedPayment(
+      db,
+      {
+        name: 'Synthetic salary',
+        kind: 'inflow',
+        accountId: 'giro',
+        incomeTypeId: INCOME_TYPES.salary.id,
+        dueDay: 1,
+        amountToleranceCents: 1,
+      },
+      { validFrom: '2026-03-01', amountCents: 10_001 },
+      ctx,
+      TODAY,
+    );
+    const bookingId = createBooking(
+      db,
+      {
+        accountId: 'giro',
+        date: '2026-03-01',
+        amountCents: 10_000,
+        splits: [{ incomeTypeId: INCOME_TYPES.salary.id, amountCents: 10_000 }],
+      },
+      ctx,
+    );
+    linkOccurrence(
+      db,
+      occurrencesOf(payment.id).find((o) => o.dueDate === '2026-03-01')!.id,
+      bookingId,
+      ctx,
+    );
+    const income = monthIncomeBooked(db, TODAY, '2026-03');
+    expect(income).toMatchObject({ expectedCents: 10_000, receivedCents: 10_000 });
+    expect(income.byPayment).toMatchObject([{ status: 'received', expectedCents: 10_001 }]);
+  });
+
+  it('retains received income after closing an unpaid expectation and restores only the open amount on Undo', () => {
+    const payment = rent({
+      kind: 'inflow',
+      incomeTypeId: INCOME_TYPES.salary.id,
+      categoryId: null,
+    });
+    createBooking(
+      db,
+      {
+        accountId: 'giro',
+        date: '2026-03-10',
+        amountCents: 7_501,
+        splits: [{ incomeTypeId: INCOME_TYPES.salary.id, amountCents: 7_501 }],
+      },
+      ctx,
+    );
+    expect(monthIncomeBooked(db, TODAY, '2026-03').expectedCents).toBe(47_501);
+    const closed = skipOccurrence(db, payment.id, '2026-03-01', ctx, TODAY);
+    const income = monthIncomeBooked(db, TODAY, '2026-03');
+    expect(income).toMatchObject({ expectedCents: 7_501, receivedCents: 7_501, byPayment: [] });
+    expect(income.byIncomeType).toMatchObject([{ expectedCents: 7_501, receivedCents: 7_501 }]);
+    expect(income.closedPayments).toMatchObject([{ expectedCents: 40_000, receivedCents: 0 }]);
+    undo(db, { groupId: closed.groupId }, ctx);
+    expect(monthIncomeBooked(db, TODAY, '2026-03')).toMatchObject({
+      expectedCents: 47_501,
+      receivedCents: 7_501,
+    });
   });
 });
 
@@ -921,6 +1031,49 @@ describe('booking lifecycle for expected payments', () => {
 });
 
 describe('skipping one occurrence (gestrichen)', () => {
+  it('preserves the native currency of a closed shortfall (#1109)', () => {
+    const p = createExpectedPayment(
+      db,
+      {
+        name: 'Synthetic USD income',
+        kind: 'inflow',
+        accountId: 'giro',
+        dueDay: 20,
+      },
+      { validFrom: '2026-03-01', amountCents: 10_001, currency: 'USD' },
+      ctx,
+      TODAY,
+    ).payment;
+    skipOccurrence(db, p.id, '2026-03-20', ctx, TODAY);
+    expect(monthIncomeBooked(db, TODAY, '2026-03')).toMatchObject({
+      expectedCents: 0,
+      closedPayments: [{ expectedCents: 10_001, receivedCents: 0, currency: 'USD' }],
+    });
+  });
+
+  it('retains closed income as a shortfall outside expected totals and undo restores it (#1109)', () => {
+    const p = salary();
+    const before = monthIncomeBooked(db, TODAY, '2026-03');
+    expect(before.expectedCents).toBe(300_000);
+    const result = skipOccurrence(db, p.id, '2026-03-15', ctx, TODAY);
+    const closed = monthIncomeBooked(db, TODAY, '2026-03');
+    expect(closed).toMatchObject({ expectedCents: 0, receivedCents: 0, byPayment: [] });
+    expect(closed).toHaveProperty('closedPayments', [
+      expect.objectContaining({
+        paymentId: p.id,
+        dueDate: '2026-03-15',
+        expectedCents: 300_000,
+        receivedCents: 0,
+      }),
+    ]);
+    expect(monthIncomeBooked(db, TODAY, '2026-04').expectedCents).toBe(300_000);
+    undo(db, { groupId: result.groupId }, ctx);
+    expect(monthIncomeBooked(db, TODAY, '2026-03')).toMatchObject({
+      expectedCents: 300_000,
+      closedPayments: [],
+    });
+  });
+
   /** A salary on the 15th, 3.000,00 €, next to the rent on the 1st. */
   const salary = () =>
     createExpectedPayment(

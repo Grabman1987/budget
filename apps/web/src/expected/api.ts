@@ -133,6 +133,8 @@ export interface MonthIncomeLine {
 
 export interface MonthIncome {
   month: string;
+  /** Deliberately closed occurrences, excluded from expected totals and forecasts. */
+  closedPayments?: Array<MonthIncomeLine & { currency: string }>;
   expectedCents: number;
   receivedCents: number;
   byIncomeType: Array<{

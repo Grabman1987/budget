@@ -288,6 +288,27 @@ export function CaptureForm({
       .catch(() => undefined);
   }, []);
   const [unlock, setUnlock] = useState(false);
+  const [releaseAsking, setReleaseAsking] = useState(false);
+  const releaseQuestion = useRef<HTMLDivElement>(null);
+  const releaseReturn = useRef<HTMLInputElement>(null);
+  useLayoutEffect(() => {
+    if (!releaseAsking) return;
+    const returnTo = releaseReturn.current;
+    const background = Array.from(formRef.current?.children ?? []).filter(
+      (element): element is HTMLElement =>
+        element instanceof HTMLElement && element !== releaseQuestion.current,
+    );
+    for (const element of background) element.inert = true;
+    releaseQuestion.current?.querySelector<HTMLButtonElement>('button')?.focus();
+    return () => {
+      for (const element of background) element.inert = false;
+      returnTo?.focus();
+    };
+  }, [releaseAsking]);
+  const finishRelease = (confirmed: boolean) => {
+    setUnlock(confirmed);
+    setReleaseAsking(false);
+  };
   const [busy, setBusy] = useState(false);
   // Guards save() itself: held or repeated Ctrl+Enter must not send the booking twice.
   const saving = useRef(false);
@@ -649,7 +670,7 @@ export function CaptureForm({
   };
 
   const save = async (andNew: boolean) => {
-    if (saving.current || uploadingRef.current) return;
+    if (releaseAsking || saving.current || uploadingRef.current) return;
     if (!editing && !from) return setErrors({ account: 'Bitte ein verfügbares Konto wählen.' });
     if (blocked) return setErrors({ splits: REMAINDER_SAVE_ERROR });
     const filled = {
@@ -767,6 +788,7 @@ export function CaptureForm({
   };
 
   const remove = async (confirmed?: BookingDeletePreview) => {
+    if (releaseAsking) return;
     if (!editing || busy || saving.current) return;
     saving.current = true;
     setBusy(true);
@@ -802,6 +824,22 @@ export function CaptureForm({
     (deletion.skipped.length === 0 ||
       (unlock && deletion.skipped.every((item) => item.reason === 'reconciled_locked')));
   const onKeyDown = (e: KeyboardEvent<HTMLFormElement>) => {
+    if (releaseAsking) {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        finishRelease(false);
+      } else if (e.key === 'Tab') {
+        const buttons = releaseQuestion.current?.querySelectorAll<HTMLButtonElement>('button');
+        const first = buttons?.[0];
+        const last = buttons?.[1];
+        if (first && last) {
+          e.preventDefault();
+          (document.activeElement === first ? last : first).focus();
+        }
+      } else if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
     if (
       REDESIGN_ENABLED &&
       e.key === 'Escape' &&
@@ -1227,9 +1265,13 @@ export function CaptureForm({
             </span>
             <label className="kcheck">
               <input
+                ref={releaseReturn}
                 type="checkbox"
                 checked={unlock}
-                onChange={(e) => setUnlock(e.target.checked)}
+                onChange={(e) => {
+                  if (REDESIGN_ENABLED && e.target.checked) setReleaseAsking(true);
+                  else setUnlock(e.target.checked);
+                }}
               />
               Trotzdem ändern
             </label>
@@ -1499,6 +1541,25 @@ export function CaptureForm({
           {CAPTURE_SHORTCUT_HINT}
         </p>
       </div>
+      {releaseAsking && (
+        <div
+          ref={releaseQuestion}
+          className="kdiff bk-discard kdelete-question"
+          role="alertdialog"
+          aria-label="Geprüfte Buchung wirklich bearbeiten?"
+          aria-describedby="booking-release-reason"
+        >
+          <p id="booking-release-reason">
+            Diese Buchung ist abgeglichen. Änderungen oder Löschen können den geprüften Kontostand
+            verändern. Bei Kontaktanteilen kann auch der Kontaktsaldo betroffen sein. Die Änderung
+            wird protokolliert und kann rückgängig gemacht werden.
+          </p>
+          <Button variant="ghost" onClick={() => finishRelease(false)}>
+            Abbrechen
+          </Button>
+          <Button onClick={() => finishRelease(true)}>Bearbeitung freigeben</Button>
+        </div>
+      )}
       {discard.asking && (
         <div
           className="kdiff is-bad bk-discard"

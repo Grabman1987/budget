@@ -24,12 +24,12 @@ Einstellungen erreicht der Nutzer über die Navigation „Einstellungen“. Die 
 ### E-02 – Konto-Zweck wählen und Dispo je Zweck
 - **Story:** Als Nutzer möchte ich je Konto einen Zweck wählen (Bargeld, Gehaltskonto, Verrechnung, Investmentkonto, Sonstiges), damit die App nur sinnvolle Optionen anbietet (Dispo, bei Verrechnung als Lombardkredit) und „Frei bis Gehalt“ die richtigen Konten zählt.
 - **Ausgangslage:** Der Nutzer legt ein Konto an oder ändert den Verwendungszweck eines Kontos. Kreditkarten und Kredite behalten ihr bisheriges Verhalten.
-- **Ablauf:** (geplant, nach Issue #1093)
+- **Ablauf:**
   1. Nutzer öffnet Einstellungen › Konten und klickt „Konto anlegen“ oder beim Konto auf Bearbeiten.
   2. Im Formular wählt er das Feld „Zweck“ (Bargeld, Gehaltskonto, Verrechnung, Investmentkonto, Sonstiges).
   3. Die App zeigt die Dispo-Option je Zweck: für Gehaltskonto, Investmentkonto und Sonstiges das Häkchen „Dispo“ mit Limit, für Verrechnung dieselbe Option als Lombardkredit beschriftet, für Bargeld keine. „Sonstiges“ bietet alle Optionen.
   4. Wechselt er auf einen Zweck ohne Dispo, wird ein gespeichertes Limit geleert.
-  5. Er klickt „Speichern“.
+  5. Er klickt „Speichern“. Nach erneutem Öffnen bleibt der gewählte Zweck sichtbar.
 - **Ergebnis:** Zweck und passende Dispo-Optionen sind am Konto gespeichert. Salden, Gruppierung und Zahlen bleiben unverändert, bestehende Konten erhalten einen passenden Zweck aus Typ und Rolle.
 - **Abnahmekriterien:**
   1. Alle fünf Zwecke sind wählbar und werden am Konto angezeigt.
@@ -37,8 +37,10 @@ Einstellungen erreicht der Nutzer über die Navigation „Einstellungen“. Die 
   3. Beim Wechsel auf einen Zweck ohne Dispo ist das Limit danach leer, nicht nur ausgeblendet.
   4. „Frei bis Gehalt“ zählt dieselben Konten wie vorher, solange kein Limit hinzukommt oder wegfällt.
   5. Bestehende Konten behalten alle Salden und Auswertungen.
-- **Status:** offen — **Verweis:** #1093
-  Fehlt noch: Auswahlfeld „Zweck“, Zuordnung für bestehende Konten, Dispo-Regel je Zweck (heute hängt der Dispo am Kontotyp Giro, Bargeld oder Tagesgeld).
+  6. Ohne gespeicherten Zweck berücksichtigt die Zuordnung Bargeldtyp, konfiguriertes Gehaltskonto, Depot-Verknüpfungen und bisherigen Typ bzw. Rolle. Es werden keine Bestandsdaten umgeschrieben.
+  7. Eine reine Namensänderung erhält auch ein älteres Dispo-Limit; ein Wechsel auf einen Zweck ohne Dispo löscht es im selben rückgängig machbaren Speichervorgang.
+  8. Die additive Zweck-Spalte bleibt bei Bestandskonten zunächst leer; die Anzeige leitet den Zweck ab. Historische Migrationen erhalten alle bisherigen Kontowerte und Audit-Daten.
+- **Status:** implementiert; CI-Nachprüfung der Zweck-Spalte und historischen Migrations-Fixtures in PR #1107, Owner-Abnahme ausstehend — **Verweis:** #1093
 
 ### E-03 – Verbindungen und Datenquellen im Überblick
 - **Story:** Als Nutzer möchte ich meine Datenquellen (Bank, Gehaltszettel, Kurse, VPI) mit Status an einer Stelle sehen und verwalten, damit ich weiß, ob die Daten aktuell sind, und Probleme sofort finde.

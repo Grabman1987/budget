@@ -51,7 +51,7 @@ it('0035 is generated from main 0034, preserves every existing row/value, repeat
     const before = rows(),
       worth = netWorthAsOf(opened.db, REPORT_TODAY),
       values = holdingValuesAsOf(opened.db, REPORT_TODAY);
-    // Current migrations add only these known defaults to the original class rows.
+    // Current migrations add only these known defaults to class and account rows.
     // Every original column and every other table remain compared without omission.
     const expected = before.map((records, i) =>
       tables[i] === 'asset_class'
@@ -60,7 +60,9 @@ it('0035 is generated from main 0034, preserves every existing row/value, repeat
             parent_id: null,
             is_group: 0,
           }))
-        : records,
+        : tables[i] === 'account'
+          ? records.map((row) => ({ ...(row as Record<string, unknown>), purpose: null }))
+          : records,
     );
     await opened.sqlite.backup(join(dir, 'before.sqlite'));
     migrateDatabase(opened.db);

@@ -1,4 +1,5 @@
 import type {
+  AccountPurpose,
   AccountReviewStatus,
   CashValuation,
   ValuationQuality,
@@ -41,6 +42,7 @@ export interface AccountRow {
   name: string;
   type: AccountType;
   role: AccountRole;
+  purpose?: AccountPurpose | null;
   onBudget: boolean;
   currency: string;
   institutionId: string | null;

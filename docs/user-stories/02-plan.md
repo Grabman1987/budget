@@ -11,6 +11,7 @@ Bereich: Plan (`/plan/monat`, `/plan/jahr`, `/plan/erwartet`, `/plan/sparziele`,
   3. Ich wechsle den Monat mit dem Monatswähler; Verfügbar enthält den Übertrag aus dem Vormonat.
   4. Ich tippe eine Kategorie an. Der Plan-Inspektor öffnet sich mit Zugewiesen, Aktivität, Übertrag und Ziel.
   5. Ich ändere „Zugewiesen“ und bestätige mit „Zuweisen“ (Enter). „Zu verteilen“ und „Verfügbar“ ändern sich sofort.
+  6. Ich öffne die Einnahmen-Details und kehre über den Browser oder „Zurück zum Monat“ zum selben Monat zurück.
 - **Ergebnis:** Die Zuweisung ist gespeichert; Summen im Kopf, in Gruppen und im Inspektor stimmen neu. „Rückgängig“ nimmt sie zurück.
 - **Abnahmekriterien:**
   1. Jede Zeile zeigt Zugewiesen, Aktivität, Verfügbar; die Summe je Gruppe und im Kopf stimmt auf den Cent.
@@ -18,7 +19,8 @@ Bereich: Plan (`/plan/monat`, `/plan/jahr`, `/plan/erwartet`, `/plan/sparziele`,
   3. Weise ich mehr zu, als zu verteilen ist, steht „Zu viel zugewiesen“ in Rot.
   4. Ein ungültiger Betrag wird mit „Das lässt sich nicht als Betrag lesen.“ abgelehnt.
   5. „Rückgängig“ stellt den alten Wert wieder her.
-- **Status:** live — **Verweis:** Y07
+  6. Nach beiden Rückwegen bleiben Position, Größe, Hintergrund und Rahmen von „Zu verteilen“ und dem Einnahmenblock unverändert, hell und dunkel auf Desktop und Telefon. Auch die Einnahmen-Detailseite verwendet durchgehend den Redesign-Kopf und dessen Abstände. Der Einnahmenblock bleibt am Desktop rechtsbündig; am Telefon bleibt er ausgeblendet und über die Maßkette erreichbar.
+- **Status:** live; Rückweg-Korrektur #1110 im PR #1114, visuelle Detailseiten-Erwartung migriert; CI und Live-Abnahme offen — **Verweis:** Y07, #1110
 
 ### P-02 – Kategorien, Gruppen und Klassen pflegen
 - **Story:** Als Nutzer möchte ich Kategorien und Gruppen anlegen, ordnen und als Bedarf, Wunsch oder Zukunft einstufen, damit die 50/30/20-Sicht in Plan und Reports meine echte Ausgabenstruktur zeigt.
@@ -180,6 +182,16 @@ Bereich: Plan (`/plan/monat`, `/plan/jahr`, `/plan/erwartet`, `/plan/sparziele`,
   4. Fälligkeitstag 31 gilt als letzter Tag des Monats.
   5. Eine Version „Gilt ab“ ändert nur künftige Termine.
 - **Status:** live — **Verweis:** Y11
+
+### P-09a – Close an unpaid income occurrence (#1109)
+
+- **Story:** As a user, I want to mark an expected income occurrence as “Kommt nicht mehr” so that an inflow that will not arrive stops inflating my forecast.
+- **Flow:** Open Plan › Monat › Einnahmen (also reachable from Plan › Zahlungen), choose “Kommt nicht mehr” on an unlinked occurrence, and inspect its retained “Fehlbetrag”. “Rückgängig” restores the expectation through the existing audited action.
+- **Acceptance:** The closed occurrence is excluded from expected totals, Heute's free-until-payday inflows and the liquidity forecast. Its original expected cents remain visible as a shortfall, including amount privacy. Other occurrences, bookings, balances, net worth and “Zu verteilen” are unchanged. A linked booking cannot be cancelled through this action.
+- **Summary continuation (#1109):** The monthly expected total and income-type totals show received household income plus unresolved occurrence remainders. Closing an unpaid occurrence removes only its open amount; received income remains counted, and Undo restores the open amount. Overpayments cannot produce a negative remainder; unresolved partial payments retain their shortfall. Original occurrence amounts and deviation labels remain visible. Bookings outside the month/as-of scope retain the existing comparison behavior.
+- **Summary verification flow (#1116):** Open the monthly income detail through the “Zu verteilen” chain. Received income without a recurring expectation appears in both received and expected totals and in its income-type row. The synthetic September case has 7,650 received cents plus 461,200 open cents, giving 468,850 expected cents; the salary and contribution expectations stay unchanged.
+- **Status:** First slice merged in #1113; summary continuation and CI expectation migration in #1116 for review; not live-accepted. Uses the existing single-occurrence cancellation within its supported window (previous month through twelve months ahead); no migration.
+- **Remaining #1109:** Combined-payment proposal and confirmation, automatic regular/special payslip settlement, closing a linked partial payment, explained-deviation settlement/labels, and outstanding monthly contact compensation claims. These are not delivered by this slice.
 
 ### P-10 – Sparziele und Rücklagen
 - **Story:** Als Nutzer möchte ich Sparziele und Rücklagen führen und Kategorieziele übernehmen, damit ich sehe, wie weit ich bin und wie viel ich monatlich zurücklegen muss.

@@ -734,8 +734,16 @@ function onePagerInRange(db: Executor, today: string, month: string): OnePager {
  * of the totals and the per-type rows on both sides, but their expected payments stay in
  * `byPayment` so that their status remains visible. A month after `today` has nothing received yet.
  * Line `receivedCents` is the counted income of the linked booking (same splits as the report).
+ * Summary expectations are received household income plus unresolved occurrence remainders;
+ * original per-occurrence expectations remain available for explaining deviations.
  */
-export function monthIncomeBooked(db: Executor, today: string, month: string): ExpectedMonthIncome {
+export function monthIncomeBooked(
+  db: Executor,
+  today: string,
+  month: string,
+): ExpectedMonthIncome & {
+  closedPayments: Array<ExpectedMonthIncome['byPayment'][number] & { currency: string }>;
+} {
   const base = monthIncome(db, month);
   const keep = (id: string | null) => !ownIncomeTypes.has(id ?? '');
   const splits =
@@ -761,7 +769,12 @@ export function monthIncomeBooked(db: Executor, today: string, month: string): E
       expectedCents: 0,
       receivedCents: 0,
     };
-    e.expectedCents += l.expectedCents;
+    // A received occurrence is settled within its configured tolerance. Linked bookings outside
+    // this month/as-of scope still retain the original expectation in this month's comparison.
+    e.expectedCents +=
+      l.status === 'received' && l.receivedCents > 0
+        ? 0
+        : Math.max(0, l.expectedCents - l.receivedCents);
     types.set(l.incomeTypeId ?? '', e);
   }
   for (const b of booked.types) {
@@ -772,13 +785,31 @@ export function monthIncomeBooked(db: Executor, today: string, month: string): E
       receivedCents: 0,
     };
     e.receivedCents += b.cents;
+    e.expectedCents += b.cents;
     types.set(b.typeId ?? '', e);
   }
   return {
     month,
-    expectedCents: byPayment
-      .filter((l) => keep(l.incomeTypeId))
-      .reduce((a, l) => a + l.expectedCents, 0),
+    // Retain deliberate cancellations as evidence without reintroducing forecast income.
+    closedPayments: upcoming(db, `${month}-01`, lastDayOfMonth(month), {
+      kind: 'inflow',
+      includeSkipped: true,
+    })
+      .filter((r) => r.status === 'skipped')
+      .map((r) => ({
+        paymentId: r.paymentId,
+        occurrenceId: r.occurrenceId,
+        name: r.name,
+        incomeTypeId: r.incomeTypeId,
+        incomeTypeName: r.incomeTypeName,
+        dueDate: r.dueDate,
+        status: r.status,
+        expectedCents: r.amountCents,
+        currency: r.currency,
+        receivedCents: 0,
+        bookingId: null,
+      })),
+    expectedCents: [...types.values()].reduce((sum, t) => sum + t.expectedCents, 0),
     receivedCents: booked.earnedCents,
     byIncomeType: [...types.values()].sort((a, b) => (a.name ?? '￿').localeCompare(b.name ?? '￿')),
     byPayment,

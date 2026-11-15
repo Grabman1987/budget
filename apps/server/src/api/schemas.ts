@@ -12,7 +12,7 @@ import {
   TARGET_KINDS,
 } from '@budget/db';
 import { z } from 'zod';
-import { LIQUIDITY_HORIZONS, LIQUIDITY_LEVERS } from '@budget/domain';
+import { ACCOUNT_PURPOSES, LIQUIDITY_HORIZONS, LIQUIDITY_LEVERS } from '@budget/domain';
 
 /** Integer cents. Amounts are never floats (SPEC §5). */
 export const cents = z.int();
@@ -38,6 +38,7 @@ export const accountCreate = z.object({
   name: z.string().trim().min(1).max(80),
   type: z.enum(ACCOUNT_TYPES),
   role: z.enum(ACCOUNT_ROLES).optional(),
+  purpose: z.enum(ACCOUNT_PURPOSES).optional(),
   onBudget: z.boolean().optional(),
   allocationScope: z.enum(['default', 'included', 'excluded']).optional(),
   allocationAssetClassId: id.nullable().optional(),

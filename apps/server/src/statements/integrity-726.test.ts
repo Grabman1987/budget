@@ -1,4 +1,5 @@
-import { afterEach, expect, it } from 'vitest';
+import type * as AccountSchema from '../../../../packages/db/src/schema/accounts';
+import { vi, afterEach, expect, it } from 'vitest';
 import {
   copyFileSync,
   existsSync,
@@ -259,4 +260,15 @@ it('refuses unsupported Windows private output before source, password or target
   expect(readdirSync(d)).toEqual(before);
   expect(failure).toBeInstanceOf(Error);
   expect((failure as Error).message).toBe('unsupported_private_output_platform');
+});
+
+// Keep the ORM account projection at the genuine historical schema level under test.
+vi.mock('../../../../packages/db/src/schema/accounts', async (importOriginal) => {
+  const original = await importOriginal<typeof AccountSchema>();
+  const { getTableColumns } = await import('drizzle-orm');
+  const columns = { ...getTableColumns(original.account) };
+  delete (columns as Partial<typeof columns>).purpose;
+  const account = Object.create(original.account);
+  account[Symbol.for('drizzle:Columns')] = columns;
+  return { ...original, account };
 });

@@ -1,7 +1,8 @@
+import type * as AccountSchema from './schema/accounts';
 import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { expect, it } from 'vitest';
+import { vi, expect, it } from 'vitest';
 import {
   defaultMigrationsFolder,
   migrateDatabase,
@@ -216,4 +217,15 @@ it('#607 migrates a real disposable amended48 copy, preserves all previous data 
     original?.close();
     rmSync(folder, { recursive: true, force: true });
   }
+});
+
+// Keep the ORM account projection at the genuine historical schema level under test.
+vi.mock('./schema/accounts', async (importOriginal) => {
+  const original = await importOriginal<typeof AccountSchema>();
+  const { getTableColumns } = await import('drizzle-orm');
+  const columns = { ...getTableColumns(original.account) };
+  delete (columns as Partial<typeof columns>).purpose;
+  const account = Object.create(original.account);
+  account[Symbol.for('drizzle:Columns')] = columns;
+  return { ...original, account };
 });

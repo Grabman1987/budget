@@ -9,7 +9,14 @@ import {
   useToast,
   maskMoneyText,
 } from '@budget/ui';
-import { parseAmount, todayInVienna } from '@budget/domain';
+import {
+  ACCOUNT_PURPOSES,
+  accountPurpose,
+  purposeHasOverdraft,
+  type AccountPurpose,
+  parseAmount,
+  todayInVienna,
+} from '@budget/domain';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { createAccount, undoGroup, type AccountInput } from './api';
@@ -37,8 +44,36 @@ const DEFAULT_ON_BUDGET: Partial<Record<AccountType, boolean>> = {
   credit_card: true,
 };
 
-/** Budget cash accounts that can have a Dispo (Überziehungsrahmen); cards have their own limit. */
-export const hasOverdraft = (t: AccountType) => t === 'checking' || t === 'cash' || t === 'savings';
+/** Purpose labels share the account create and edit forms. */
+export const PURPOSE_LABEL: Record<AccountPurpose, string> = {
+  cash: 'Bargeld',
+  salary: 'Gehaltskonto',
+  settlement: 'Verrechnung',
+  investment: 'Investmentkonto',
+  other: 'Sonstiges',
+};
+
+export function PurposeField({
+  value,
+  onChange,
+}: {
+  value: AccountPurpose;
+  onChange: (value: AccountPurpose) => void;
+}) {
+  return (
+    <Field label="Zweck">
+      {({ id }) => (
+        <Select id={id} value={value} onChange={(e) => onChange(e.target.value as AccountPurpose)}>
+          {ACCOUNT_PURPOSES.map((purpose) => (
+            <option key={purpose} value={purpose}>
+              {PURPOSE_LABEL[purpose]}
+            </option>
+          ))}
+        </Select>
+      )}
+    </Field>
+  );
+}
 const hasCreditLimit = (t: AccountType) => t === 'credit_card';
 export const hasRate = (t: AccountType) =>
   ['checking', 'credit_card', 'savings', 'loan', 'other_liability'].includes(t);
@@ -61,7 +96,9 @@ export function DispoField({
   value,
   onChange,
   error,
+  settlement = false,
 }: {
+  settlement?: boolean;
   value: string;
   onChange: (value: string) => void;
   error?: string | undefined;
@@ -78,10 +115,15 @@ export function DispoField({
             if (!e.target.checked) onChange('');
           }}
         />{' '}
-        Dispo
+        {settlement ? 'Lombardkredit' : 'Dispo'}
       </label>
       {on && (
-        <AmountInput label="Überziehungsrahmen" value={value} onChange={onChange} error={error} />
+        <AmountInput
+          label={settlement ? 'Lombardrahmen' : 'Überziehungsrahmen'}
+          value={value}
+          onChange={onChange}
+          error={error}
+        />
       )}
     </>
   );
@@ -148,6 +190,7 @@ function AccountForm({
   const accountsQueryResult = useQuery(accountsQuery());
   const [name, setName] = useState('');
   const [type, setType] = useState<AccountType>('checking');
+  const [purpose, setPurpose] = useState<AccountPurpose>('other');
   const [onBudget, setOnBudget] = useState(true);
   const [opening, setOpening] = useState('');
   const [openingDate, setOpeningDate] = useState(todayInVienna());
@@ -179,6 +222,7 @@ function AccountForm({
   const dirty =
     name !== '' ||
     type !== 'checking' ||
+    purpose !== 'other' ||
     !onBudget ||
     opening !== '' ||
     openingDate !== initialDate ||
@@ -194,6 +238,9 @@ function AccountForm({
 
   const changeType = (next: AccountType) => {
     setType(next);
+    const nextPurpose = accountPurpose({ type: next });
+    setPurpose(nextPurpose);
+    if (!purposeHasOverdraft(next, nextPurpose)) setOverdraft('');
     setOnBudget(DEFAULT_ON_BUDGET[next] ?? false);
     if (next !== 'brokerage' && next !== 'crypto') setReferenceAccountId('');
   };
@@ -218,7 +265,9 @@ function AccountForm({
     const openingCents = money(opening || '0', 'opening', found, false);
     if (!/^\d{4}-\d{2}-\d{2}$/.test(openingDate)) found.date = 'Bitte ein Datum wählen.';
     const limitCents = hasCreditLimit(type) ? money(limit, 'limit', found, true) : null;
-    const overdraftCents = hasOverdraft(type) ? money(overdraft, 'overdraft', found, true) : null;
+    const overdraftCents = purposeHasOverdraft(type, purpose)
+      ? money(overdraft, 'overdraft', found, true)
+      : null;
     const feeCents = hasFee(type) ? money(fee, 'fee', found, true) : null;
     const rateBp = hasRate(type) ? percentToBp(rate) : null;
     if (Number.isNaN(rateBp)) found.rate = 'Zinssatz in Prozent, z. B. 3,5.';
@@ -237,6 +286,7 @@ function AccountForm({
     const input: AccountInput = {
       name: name.trim(),
       type,
+      purpose,
       onBudget,
       currency: 'EUR',
       openingBalanceCents: openingCents,
@@ -284,6 +334,13 @@ function AccountForm({
           </Select>
         )}
       </Field>
+      <PurposeField
+        value={purpose}
+        onChange={(next) => {
+          setPurpose(next);
+          if (!purposeHasOverdraft(type, next)) setOverdraft('');
+        }}
+      />
       {(type === 'brokerage' || type === 'crypto') && (
         <Field
           label="Verrechnungskonto"
@@ -350,8 +407,14 @@ function AccountForm({
       {hasCreditLimit(type) && (
         <AmountInput label="Kartenlimit" value={limit} onChange={setLimit} error={errors.limit} />
       )}
-      {hasOverdraft(type) && (
-        <DispoField value={overdraft} onChange={setOverdraft} error={errors.overdraft} />
+      {purposeHasOverdraft(type, purpose) && (
+        <DispoField
+          key={`${type}-${purpose}`}
+          settlement={purpose === 'settlement'}
+          value={overdraft}
+          onChange={setOverdraft}
+          error={errors.overdraft}
+        />
       )}
       {hasRate(type) && (
         <Field label="Zinssatz in Prozent" error={errors.rate}>

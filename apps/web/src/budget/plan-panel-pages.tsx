@@ -17,7 +17,6 @@ import { completeGoal, fundGoalRate } from './goals-api';
 import { KIND_LABEL, STAGES, targetText } from './labels';
 import { CLASS_TEXT } from './plan-model';
 import { categoriesQuery, useBudgetWrite } from './use-category-writes';
-import './plan.css';
 import './plan-panel-pages.css';
 
 function DetailBack({

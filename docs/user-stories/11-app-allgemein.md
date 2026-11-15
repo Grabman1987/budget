@@ -130,7 +130,7 @@ Grundlage: `docs/pwa.md`. Die App ist eine PWA: Hülle und Programmdateien liege
 
 ### A-06 – Sichtbares Zeichenbrett-Raster als Hintergrund
 - **Story:** Als Nutzer möchte ich ein sichtbares Raster hinter den Inhalten, damit die App den gewünschten Zeichenbrett-Charakter hat und ich die Struktur erkenne, ohne dass Text auf dem Raster steht.
-- **Ausgangslage:** Das Raster ist heute nur als schwacher Eckakzent vorhanden. Der Nutzer will es deutlich sichtbar.
+- **Ausgangslage:** Im Redesign bedeckt das Raster seit #1049 die Arbeitsfläche. Seit #1063 wird es als normaler Hintergrund gezeichnet; der ausgeschaltete Redesign-Pfad behält den Eckakzent.
 - **Ablauf:** (nach Issue #1047)
   1. Nutzer öffnet eine beliebige Seite.
   2. Das Raster bedeckt die gesamte Arbeitsfläche, auch bei langen Seiten, ohne Naht.
@@ -142,8 +142,8 @@ Grundlage: `docs/pwa.md`. Die App ist eine PWA: Hülle und Programmdateien liege
   2. Es deckt die ganze Fläche auf Desktop und Handy ohne Naht.
   3. Der Druck ist rasterfrei.
   4. Auf dem Handy bleibt die Seite flüssig (siehe A-08).
-- **Status:** offen — **Verweis:** #1047
-  Fehlt noch: Anpassung an die Vorgabe „ganze Fläche“ (heute Eckakzent mit Maske) und neue Darstellungsregel in `DESIGN.md`.
+- **Status:** teilweise — **Verweis:** #1047, #1063, #1064
+  Raster und Darstellungsregel sind umgesetzt. Fehlt noch: belastbare Leistungsprüfung gemäß A-08 und Abnahme auf einem echten Handy.
 
 ### A-07 – App am Handy sicher bedienen
 - **Story:** Als Nutzer möchte ich die App am Handy mit dem Daumen sicher bedienen, damit ich Buchungen unterwegs erfasse und nichts Falsches antippe.
@@ -167,16 +167,17 @@ Grundlage: `docs/pwa.md`. Die App ist eine PWA: Hülle und Programmdateien liege
 - **Story:** Als Nutzer möchte ich, dass die automatischen iPhone-Tests (WebKit) stabil laufen, damit Fehler am iPhone auffallen, bevor sie bei mir ankommen, und ein Raster die Seite nicht verlangsamt.
 - **Ausgangslage:** Seit dem vollflächigen Raster brechen WebKit-Tests (Shard webkit-3-6) mit Zeitüberschreitung ab. Der Nutzer sieht das nicht direkt, aber es verdeckt echte Fehler.
 - **Ablauf:** (technische Story, Ablauf nach Issue #1064)
-  1. Die Ursache wird gemessen (Test mit und ohne Raster-Ebene in WebKit).
-  2. Bestätigt sie sich, zeichnet die App das Raster billiger (feste, zusammengesetzte Ebene oder kleines Kachelbild), mit gleichem Aussehen in beiden Designs.
+  1. Die Diagnose vergleicht in WebKit denselben Plan-Ablauf mit heutigem Hintergrund, früherer Raster-Ebene und ohne Raster, jeweils hell und dunkel. Messprotokoll und Bilder bleiben als Testanhänge verfügbar.
+  2. Bestätigt die Messung einen Raster-Engpass, wird die Darstellung bei gleichem Aussehen verbessert. Der normale Hintergrund aus #1063 und die Theme-Wartefunktion aus #1067 sind bereits vorhanden.
   3. Der Testlauf `webkit-3-6` läuft dreimal hintereinander grün.
 - **Ergebnis:** Stabile Tests; das Raster bleibt, die Seite bleibt flüssig.
 - **Abnahmekriterien:**
   1. Der WebKit-Lauf ist dreimal in Folge grün.
   2. Kein Test wird gelockert oder wiederholt, um grün zu werden.
   3. Die Ursache ist durch Messung belegt, nicht vermutet.
-- **Status:** offen — **Verweis:** #1064
-  Fehlt noch: Messung der Ursache und gegebenenfalls Umbau der Raster-Ebene.
+  4. Die Messung belegt durch berechnete Stile, welche Rastervariante aktiv war; Laufzeiten allein ersetzen keine Prüfung auf einem echten iPhone.
+- **Status:** teilweise — **Verweis:** #1064, #1067
+  Diagnoseprobe und bisherige Befunde: [Messprotokoll](../evidence/issue-1064-grid-timing.md). Fehlt noch: belastbare Vergleichsmessung, gegebenenfalls eine daraus begründete Darstellungsänderung und drei aufeinanderfolgende grüne `webkit-3-6`-Läufe auf dem endgültigen Stand.
 
 ### A-09 – Freigegebene Veröffentlichung mit Rollback
 - **Story:** Als Nutzer möchte ich, dass eine neue Version erst nach meiner Freigabe live geht und ich sicher zurück kann, damit ein Fehler im Update nicht meine Daten oder meinen Alltag trifft.

@@ -2,7 +2,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, cleanup, render, screen } from '@testing-library/react';
 import { afterEach, expect, it } from 'vitest';
-import { setAmountsHidden } from '@budget/ui';
+import { setAmountsHidden, ToastProvider } from '@budget/ui';
 import { incomeQuery, type MonthIncome } from './api';
 import { IncomeBody } from './income-panel';
 
@@ -11,7 +11,7 @@ afterEach(() => {
   setAmountsHidden(false);
 });
 
-function showOctoberIncome() {
+function showOctoberIncome(closed = false, currency = 'EUR') {
   const month = '2026-10';
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false, staleTime: Infinity } },
@@ -38,10 +38,22 @@ function showOctoberIncome() {
       },
     ],
   };
+  if (closed) {
+    income.closedPayments = income.byPayment.map((line) => ({
+      ...line,
+      status: 'skipped',
+      currency,
+    }));
+    income.byPayment = [];
+    income.byIncomeType = [];
+    income.expectedCents = 0;
+  }
   client.setQueryData(incomeQuery(month).queryKey, income);
   return render(
     <QueryClientProvider client={client}>
-      <IncomeBody month={month} bookedCents={100_000} />
+      <ToastProvider>
+        <IncomeBody month={month} bookedCents={100_000} />
+      </ToastProvider>
     </QueryClientProvider>,
   );
 }
@@ -62,6 +74,24 @@ it('labels October expected receipts separately from budget-relevant plan-month 
       /Heute zählt Haushaltseinnahmen nach Buchungsdatum.*Für nächsten Monat.*Folgemonat/,
     ),
   ).toBeTruthy();
+});
+
+it('retains a closed occurrence as a shortfall with amount privacy', () => {
+  showOctoberIncome(true);
+  expect(screen.getByText('Fehlbetrag 300,00 €')).toBeTruthy();
+  expect(screen.queryByRole('list', { name: 'Erwartete Einnahmen des Monats' })).toBeNull();
+  expect(screen.queryByRole('button', { name: 'Kommt nicht mehr' })).toBeNull();
+  act(() => setAmountsHidden(true));
+  expect(screen.getByText('Fehlbetrag ••• €')).toBeTruthy();
+  expect(screen.queryByText(/300,00 €|1\.000,00 €/)).toBeNull();
+});
+
+it('shows a closed foreign occurrence in its original currency, never as euros', () => {
+  showOctoberIncome(true, 'USD');
+  expect(screen.getByText(/Fehlbetrag USD\s*300,00/)).toBeTruthy();
+  expect(screen.queryByText('Fehlbetrag 300,00 €')).toBeNull();
+  act(() => setAmountsHidden(true));
+  expect(screen.getByText('Fehlbetrag ••• USD')).toBeTruthy();
 });
 
 it('keeps the scope explanation while amount privacy masks expected and booked values', () => {
@@ -110,4 +140,5 @@ it('does not show "0 von X" for a line linked to a booking that does not count t
   );
   expect(screen.getByText(/Gebucht, zählt nicht in diesem Monat · erwartet 300,00 €/)).toBeTruthy();
   expect(screen.queryByText(/^von 300,00 €$/)).toBeNull();
+  expect(screen.queryByRole('button', { name: 'Kommt nicht mehr' })).toBeNull();
 });

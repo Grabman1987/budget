@@ -40,12 +40,14 @@ it('weekly migration preserves stored schedules, versions, links, bookings and a
       tables.map((t) => opened.sqlite.prepare(`SELECT * FROM ${t} ORDER BY rowid`).all());
     const before = rows();
     migrateDatabase(opened.db);
-    // Later migrations may add columns (0043: expected_payment.interval_weeks, empty for old rows).
+    // Later migrations add nullable defaults: 0043 interval_weeks and 0054 account purpose.
     expect(rows()).toEqual(
       before.map((t, i) =>
         tables[i] === 'expected_payment'
           ? (t as Record<string, unknown>[]).map((r) => ({ ...r, interval_weeks: null }))
-          : t,
+          : tables[i] === 'account'
+            ? (t as Record<string, unknown>[]).map((r) => ({ ...r, purpose: null }))
+            : t,
       ),
     );
     expect(opened.sqlite.pragma('foreign_key_check')).toEqual([]);
