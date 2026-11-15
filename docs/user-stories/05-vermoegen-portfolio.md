@@ -98,6 +98,7 @@ Geteilt: V-06 und V-09 sind aufgeteilt (V-06a/V-06b, V-09a/V-09b). V-17 und V-18
   1. Es läuft ein Abruf pro Nacht (ca. 02:30 Wiener Zeit, Schlusskurse des Vortags).
   2. Am Morgen Vermögen › Portfolio › Positionen öffnen; „Kursdatum“ zeigt das Datum je Position.
   3. Bei Problemen erscheint ein Eintrag in Konten › Prüfen, zum Beispiel „Kurse nicht abrufbar“ (Ursachenansicht siehe V-14).
+     Klappt der nächste Abruf für dieses Instrument, schließt sich der Eintrag selbst; Quelle und Stand des erfolgreichen Abrufs stehen als Begründung im Eintrag (Verlauf siehe I-01b).
   4. Im Instrument „Wert und Kurs“ prüfen, welche Quelle je Tag gilt (Gespeicherter Kurs, Ausführungskurs, Einstandsschätzung).
 - **Ergebnis:** Positionen und Nettovermögen sind mit den Vortagskursen bewertet.
 - **Abnahmekriterien:**
@@ -105,7 +106,8 @@ Geteilt: V-06 und V-09 sind aufgeteilt (V-06a/V-06b, V-09a/V-09b). V-17 und V-18
   - Der Positionswert ist Stück mal Kurs und stimmt mit dem Wertpapierwert im Nettovermögen überein.
   - Randfall: Ohne Kurs zeigt die Zeile „Kurs fehlt“ und der Wert fällt auf Ausführungskurs zurück, markiert „Geschätzt“.
   - Randfall: Ein abgelaufener Kurs trägt die Markierung „Kurs veraltet“.
-- **Status:** teilweise · **Verweis:** I10, I12
+  - Eine Warnung aus einem fehlgeschlagenen Abruf schließt der nächste erfolgreiche Abruf desselben Instruments (bei Wechselkursen derselben Währung), im Änderungsprotokoll erfasst; Warnungen anderer Instrumente und Warnungen zu echten Abweichungen bleiben offen.
+- **Status:** teilweise · **Verweis:** I10, I12, #1101
   Fehlt noch: ausdrücklicher Erstabruf-Zeitstempel, abgenommener Live-Quellen-Status, Kurskennungen und Konventionen mit der Quelle abgeglichen.
 
 ### V-06b – Kurse manuell überschreiben
@@ -199,7 +201,7 @@ Geteilt: V-06 und V-09 sind aufgeteilt (V-06a/V-06b, V-09a/V-09b). V-17 und V-18
 - **Status:** teilweise · **Verweis:** I16
   Fehlt noch: Aktionen im Sparplan, privat abgenommene Umschichtungsabläufe.
 
-### V-10 – Monatliche Trendallokation mit täglicher Sparplanvorschau (geplant)
+### V-10 – Monatliche Trendallokation mit täglicher Sparplanvorschau (teilweise)
 - **Story:** Als Nutzer möchte ich eine monatlich verbindliche Trendallokation und eine tägliche Vorschau des nächsten Sparplans mit getrenntem Rebalancing sehen, damit ich täglich weiß, wie viel ich beim nächsten Sparplan in welches Wertpapier investieren würde, ohne dass die Vorschau die verbindliche Allokation still ändert.
 - **Ausgangslage:** Strategie ist unter Portfolio konfiguriert (vier Kategorien, Zuordnung der Wertpapiere, Sparrate selbst eingegeben); der ungehebelte Nasdaq-100-Index liefert abgeschlossene Handelstage.
 - **Ablauf:** (geplant)
@@ -214,8 +216,9 @@ Geteilt: V-06 und V-09 sind aufgeteilt (V-06a/V-06b, V-09a/V-09b). V-17 und V-18
   - Eine tägliche Signaländerung ändert die verbindliche Allokation erst zum Monatswechsel.
   - Randfall: Fehlen Indexdaten, entsteht kein neues Signal, es bleibt das letzte bekannte mit Hinweis.
   - Ein gehaltenes, nicht mehr bespartes Wertpapier zählt zu Depotwert und Istgewicht.
-- **Status:** geplant · **Verweis:** #762
-  Fehlt noch: gesamte Funktion (Strategie-Seite, Signalberechnung, Vorschau).
+- **Status:** teilweise · **Verweis:** #762
+  Umgesetzt (nur Lesen): Abschnitt „Trendsignal · Grundlage“ unter Vermögen › Portfolio › Sparpläne › Trendstrategie zeigt für die tägliche Vorschau, das Monatssignal des laufenden Monats und die gespeicherte verbindliche Entscheidung jeweils Ergebnis, Schlusstag, Schlusskurs, 200-Tage-Durchschnitt und den Durchschnitt 20 US-Handelstage zuvor (Anzeige auf zwei Stellen gerundet, verglichen wird exakt), Quelle, Index, US-Kalender und Erfassungszeit. Fehlt die Reihe, ist sie lückenhaft oder veraltet, steht „Nicht ermittelbar“ mit Grund und fehlenden Tagen, nie eine Schätzung.
+  Fehlt noch: Abnahme am echten Abruf (erster Kurslauf nach Einschalten), Prüfung der Kaufaufteilung und des Rebalancings am Live-Depot, Geräteabnahme.
 
 ### V-11 – Nettovermögen mit Eigenanteil und Marktanteil sehen
 - **Story:** Als Nutzer möchte ich das Nettovermögen als Anfang plus Gespart plus Markt mit Zusammensetzung sehen, damit ich weiß, ob mein Vermögen durch Sparen oder durch den Markt gewachsen ist.
@@ -288,6 +291,7 @@ Geteilt: V-06 und V-09 sind aufgeteilt (V-06a/V-06b, V-09a/V-09b). V-17 und V-18
   - Historische Fehlerbelege und aktuelle Vorschauergebnisse sind klar getrennt; Beträge bleiben bei verborgener Betragsanzeige verborgen.
   - Die Bestandsrechnung (Bewegungen) stimmt mit dem Bestand im Instrument überein.
   - Randfall: Viele Krypto-Bewegungen bleiben gruppiert prüfbar; am Handy ist die Ursachenansicht lesbar.
+  - Nur Warnungen mit einer Abruf-Fehlerklasse schließen sich nach erfolgreichem Abruf selbst, mit Begründung im Eintrag (#1101, I-01b). Warnungen zu Bestand, fehlenden Bewegungen oder abweichenden Schlusskursen bleiben offen, bis ihre Ursache behoben ist.
 - **Status:** teilweise · **Verweis:** #1081
   Erster Schritt: Ursachenansicht und schreibfreie Quellvorschau für Kurswarnungen, serverseitige Sperre des pauschalen Abschlusses. Fehlt noch: gespeicherte Fehlerbelege je Quelle einschließlich tatsächlich gelieferter Währung, Editor für Quellkorrekturen, Krypto-Bestandsrechnung mit Zuordnungs-/Bewegungsdiagnose und deren geprüfter Abschluss sowie private Abnahme.
 

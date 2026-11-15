@@ -84,9 +84,13 @@ const PLAN_WINDOW_DAYS = 3;
 export function TradeConfirmationHandoff({
   intake,
   onClose,
+  onSaved,
 }: {
   intake: TradeConfirmationIntake;
+  /** The owner left the form without saving. */
   onClose: () => void;
+  /** The trade was confirmed and written. */
+  onSaved: () => void;
 }) {
   const { proposal } = intake;
   const planned =
@@ -117,7 +121,7 @@ export function TradeConfirmationHandoff({
       prefill={intake}
       prefillNote={note}
       onClose={onClose}
-      onSaved={onClose}
+      onSaved={onSaved}
     />
   );
 }

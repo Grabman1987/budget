@@ -105,3 +105,14 @@
     gap: 0;
   }
 }
+
+.document-upload-entry {
+  display: grid;
+  gap: var(--space-sm);
+  min-width: 0;
+  padding-block: var(--space-md);
+  border-top: 1px solid var(--rule);
+}
+.document-upload-entry p {
+  margin: 0;
+}

@@ -59,12 +59,14 @@ const classified = (trade: TradeConfirmationIntake): Classification => ({
 });
 
 let result: Classification;
+let byName: Record<string, Classification> = {};
 let plans: unknown[];
 let writes: { path: string; body: Record<string, unknown> }[];
 let depotReference: string | null = null;
 let tradeReply: { status: number; body: Record<string, unknown> };
 beforeEach(() => {
   plans = [];
+  byName = {};
   writes = [];
   depotReference = null;
   tradeReply = {
@@ -93,7 +95,12 @@ beforeEach(() => {
     const url = typeof input === 'string' || input instanceof URL ? String(input) : input.url;
     const path = new URL(url, 'http://localhost').pathname;
     const method = init?.method ?? (input instanceof Request ? input.method : 'GET');
-    if (path === '/api/document-intake/classify') return Response.json(result);
+    if (path === '/api/document-intake/classify') {
+      // Batch uploads (#1130): the answer may depend on the file name.
+      const sent = (init?.body as FormData | undefined)?.get('file');
+      const name = sent instanceof File ? sent.name : '';
+      return Response.json(byName[name] ?? result);
+    }
     if (path === '/api/accounts')
       return Response.json({
         asOf: '2026-11-12',
@@ -411,4 +418,48 @@ it('warns about a probable duplicate and books only after an explicit confirmati
   expect(submit.disabled).toBe(false);
   await user.click(submit);
   await waitFor(() => expect(writes).toHaveLength(1));
+});
+
+it('keeps a trade confirmation entry independent of the other files of a batch', async () => {
+  byName = {
+    'receipt.pdf': {
+      type: 'receipt',
+      confidence: 'unknown',
+      hints: { mime: 'application/pdf' },
+      needsPassword: false,
+    },
+  };
+  result = classified(intake());
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  render(
+    <QueryClientProvider client={client}>
+      <ToastProvider>
+        <DocumentUploadButton />
+      </ToastProvider>
+    </QueryClientProvider>,
+  );
+  const user = userEvent.setup();
+  await user.click(screen.getByRole('button', { name: 'Dokument hochladen' }));
+  await user.upload(screen.getByLabelText('Dokument auswählen'), [
+    new File(['%PDF-1.7'], 'abrechnung.pdf', { type: 'application/pdf' }),
+    new File(['%PDF-1.7'], 'receipt.pdf', { type: 'application/pdf' }),
+  ]);
+  const trade = await screen.findByRole('region', { name: 'abrechnung.pdf' });
+  const other = await screen.findByRole('region', { name: 'receipt.pdf' });
+  await within(trade).findByText('Erkannt: Wertpapierabrechnung');
+  await within(other).findByText(/Erkannt: Beleg/);
+  // The proposal renders inside its own entry only.
+  expect(within(trade).getByRole('region', { name: 'Gelesene Angaben' })).toBeTruthy();
+  expect(within(other).queryByRole('region', { name: 'Gelesene Angaben' })).toBeNull();
+  await user.click(within(trade).getByRole('button', { name: 'Weiter' }));
+  const dialog = await form();
+  await within(dialog).findByLabelText('Stück');
+  expect(writes).toEqual([]);
+  // Saving finishes only the trade entry; the receipt entry stays.
+  await user.click(within(dialog).getByRole('button', { name: 'Handel erfassen' }));
+  await waitFor(() => expect(writes).toHaveLength(1));
+  await within(trade).findByText(
+    'Handel aus der Abrechnung erfasst. Er steht im Handelsverlauf des Instruments.',
+  );
+  expect(screen.getByRole('region', { name: 'receipt.pdf' })).toBeTruthy();
 });

@@ -70,6 +70,7 @@ export * from './ledger/register-months';
 export * from './ledger/booking-views';
 export * from './wealth/strategy-trend';
 export * from './wealth/strategy-plan';
+export * from './wealth/strategy-signal-basis';
 export * from './wealth/us-equity-calendar';
 export * from './ledger/bulk-field-protection';
 export * from './ledger/account-purpose';

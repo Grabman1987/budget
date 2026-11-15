@@ -47,15 +47,18 @@ Bildschirm Prüfen: `/konten/pruefen` (Konten › Prüfen). Zähler: „Umsätze
   2. Bei einer Importwarnung klickt er „Warnung erklären“. Die App zeigt die Einzelpunkte unter „Einzelpunkte anzeigen“. Bei Kurswarnungen öffnet sich die Ursachenansicht mit einer schreibfreien Quellvorschau (V-14).
   3. Er behebt die Ursache an der Quelle (Link „Quelle“) oder entscheidet, dass nichts zu tun ist.
   4. Bei allgemein erledigbaren Aufgaben klickt er „Als erledigt markieren“. Die App löst den Eintrag auf und senkt den Zähler. Kurswarnungen bleiben bis zum erfolgreichen automatischen Abruf offen; eine Vorschau oder ein manueller Kurs schließt sie nicht.
+  5. Warnungen zu einem fehlgeschlagenen Kurs- oder Wechselkursabruf („Kurse nicht abrufbar“, „Wechselkurs nicht abrufbar“) muss er nicht schließen: Der nächste erfolgreiche Abruf für dasselbe Instrument oder dieselbe Währung schließt sie. Unter „Automatisch geschlossene Warnungen“ steht je Eintrag der Verlauf (geöffnet am, Fehlerklasse, geschlossen am, Begründung mit Quelle und Stand), für die letzten 30 Tage, höchstens die 20 neuesten.
 - **Ergebnis:** Eintrag ist erledigt, nichts wurde gelöscht. Die Warnung selbst repariert die Quelle nicht.
 - **Abnahmekriterien:**
   1. Der Zähler „Aufgaben“ sinkt je erledigtem Eintrag.
   2. „Als erledigt markieren“ ändert keine Buchung und keinen Saldo.
   3. Filter „Zeitraum der Aufgaben“ (Alle, Aktueller Monat, Historische Nacharbeit) schränkt die Liste ein; ein Chip zeigt den aktiven Zeitraum.
   4. Lädt die Liste nicht, zeigt die App eine Fehlermeldung mit „Erneut versuchen“ statt einer leeren Liste.
-  5. Kurswarnungen bieten keinen pauschalen Abschluss; der allgemeine Erledigen-Endpunkt weist ihn ebenfalls zurück.
-- **Status:** teilweise — **Verweis:** Y16, #1081
-  Allgemeine Aufgaben sind live. Die Ursachenansicht und Quellvorschau für Kurswarnungen sind in PR #1112 umgesetzt; verbleibender Umfang und private Abnahme siehe V-14.
+  5. Eine Abrufwarnung schließt sich nach dem nächsten erfolgreichen Abruf selbst; die Begründung („Automatisch geschlossen: Kursabruf über … erfolgreich (Stand …).“) steht im Eintrag und im Verlauf. Das Schließen ist im Änderungsprotokoll erfasst (Rückgängig auf Protokollebene, noch ohne Schaltfläche) und ändert keine Finanzzahl.
+  6. Warnungen zu echten Abweichungen (Bestand, fehlende Bewegung, abweichender Schlusskurs) schließen sich nie von selbst.
+  7. Kurswarnungen bieten keinen pauschalen Abschluss; der allgemeine Erledigen-Endpunkt weist ihn ebenfalls zurück.
+- **Status:** teilweise — **Verweis:** Y16, #1081, #1101
+  Allgemeine Aufgaben sind live. Die Ursachenansicht und Quellvorschau für Kurswarnungen sind in PR #1112 umgesetzt; verbleibender Umfang und private Abnahme siehe V-14. Selbstschließende Abrufwarnungen mit Verlauf (#1101) sind umgesetzt, private Abnahme offen.
 
 ### I-02 – Prüfen geführt durchgehen
 - **Story:** Als Nutzer möchte ich die offenen Umsätze der Reihe nach mit Fortschrittsanzeige durchgehen, damit ich in einer Sitzung fertig werde und sehe, wie viel noch fehlt.
@@ -99,21 +102,21 @@ Bildschirm Prüfen: `/konten/pruefen` (Konten › Prüfen). Zähler: „Umsätze
 - **Ausgangslage:** Der Nutzer hat ein PDF oder Foto (Kreditkartenabrechnung, Kontoauszug, Gehaltszettel, Bonus-/Pensionsmitteilung, Wertpapierabrechnung, Beleg). Der Knopf „Neues Dokument hochladen“ steht in der Kopfzeile, „Dokument hochladen“ in Prüfen und Buchung erfassen, am Konto der Upload dieses Kontos.
 - **Ablauf:**
   1. Nutzer klickt „Neues Dokument hochladen“. Der Dialog zeigt „Dokument ablegen“ und „Datei auswählen“ (Foto oder PDF, höchstens 15 MB).
-  2. Er legt genau eine Datei ab oder wählt sie. Die App meldet „Dokument wird geprüft …“ und dann „Erkannt: <Typ>“, bei Unsicherheit „(nicht ganz sicher)“.
+  2. Er legt mehrere Dateien ab oder wählt sie gemeinsam. Jede Datei erhält einen eigenen Eintrag mit Dateinamen, Typ und Prüfstatus. Ein Fehler hält die anderen Dateien nicht auf; „Erneut versuchen“ prüft nur die betroffene Datei.
   3. Bei einem geschützten PDF gibt er unter „PDF-Passwort“ das Passwort ein und klickt „Mit Passwort prüfen“.
-  4. Er prüft oder ändert den „Dokumenttyp“ und wählt bei Abrechnungen das „Konto“.
+  4. Er prüft oder ändert je Datei den „Dokumenttyp“ und bei Abrechnungen den Konto-Vorschlag: Konto-Kontext, letzte bestätigte Auswahl desselben Typs im geöffneten Dialog oder einziges passendes offenes Konto. Bei mehreren passenden Konten ohne Kontext bleibt die Auswahl leer. Die Auswahl lässt sich vor „Weiter“ ändern; eine maskierte Kartennummer bleibt ein Hinweis, keine bewiesene Zuordnung.
   5. Ein Hinweistext sagt, was „Weiter“ tut. Gespeichert wird erst nach „Weiter“. Danach öffnet sich der passende Ablauf (Abrechnungsprüfung, Gehaltszettel-Vorschau, Beleg).
-  5a. Bei einer Wertpapierabrechnung zeigt der Dialog „Gelesene Angaben“; „Weiter“ öffnet „Handel erfassen“ als Vorschlag, gespeichert wird erst dort (V-15). Die PDF selbst wird dabei nicht abgelegt.
-  6. Der Abschluss zeigt, was passiert ist („nichts gebucht“, „n Zeilen warten unter Prüfen“), mit „Fertig“ oder „Weiteres Dokument“.
+  5a. Bei einer Wertpapierabrechnung zeigt der Eintrag „Gelesene Angaben“; „Weiter“ öffnet „Handel erfassen“ als Vorschlag, gespeichert wird erst dort (V-15). Die PDF selbst wird dabei nicht abgelegt. Nach dem Speichern zeigt der Eintrag „Handel aus der Abrechnung erfasst.“; schließt man das Formular ohne Speichern, bleibt der Eintrag zur Bestätigung stehen.
+  6. Der Abschluss zeigt, was passiert ist („nichts gebucht“, „n Zeilen warten unter Prüfen“), mit „Fertig“ oder „Weiteres Dokument“. Nach einer Einzelprüfung bleibt die Liste mit den übrigen Dateien erhalten. Gehaltskonto und Belegzuordnung bleiben im bestehenden Einzelprüfablauf.
 - **Ergebnis:** Das Dokument ist gespeichert und im passenden Ablauf; gebucht wird nur, was eindeutig belegt ist, alles andere wartet unter Prüfen.
 - **Abnahmekriterien:**
   1. Der erkannte Typ wird genannt und lässt sich über „Dokumenttyp“ ändern.
-  2. Zwei Dateien auf einmal ergeben „Bitte genau eine Datei ablegen.“
+  2. Mehrfachauswahl und Ablegen mehrerer Dateien erzeugen getrennte Ergebnisse; Wiederholung, Passwort und Kontoauswahl einer Datei verändern die anderen Einträge nicht.
   3. Eine Datei über 15 MB oder ein falsches Passwort ergibt eine Meldung („Bitte eine Datei bis 15 MB auswählen.“, „Passwort falsch. Bitte erneut eingeben.“) und es wird nichts gespeichert.
   4. Dasselbe Dokument ein zweites Mal ergibt „Diese Datei war schon vorhanden. Es wurde nichts wiederholt.“
   5. Ein nicht lesbares Dokument lässt sich als Beleg ablegen; „Andere Datei“ setzt zurück.
-  6. Der Typ „Wertpapierabrechnung“ steht nur zur Wahl, wenn die App das Layout erkannt hat. Ist die Abrechnung schon als Handel erfasst, meldet der Dialog das und „Weiter“ ist gesperrt (V-15).
-- **Status:** live — **Verweis:** #1039, #1053 (zentral #1060), #1099
+  6. Der Typ „Wertpapierabrechnung“ steht nur zur Wahl, wenn die App das Layout erkannt hat. Ist die Abrechnung schon als Handel erfasst, meldet der Eintrag das und „Weiter“ ist gesperrt (V-15).
+- **Status:** teilweise — Mehrfachauswahl, getrennte Ergebnisse und Konto-Vorschläge für Abrechnungen implementiert; Review und Live-Abnahme offen. Konto-Vorschläge für Gehaltszettel stehen weiterhin in der Einzelprüfung; dauerhafte Vorschläge aus früheren Uploads und Kartennummern-Zuordnung bleiben offen. — **Verweis:** #1039, #1053 (zentral #1060), #1103, #1099
 
 ### I-05 – Bonus- und Pensionskassenmitteilung archivieren
 - **Story:** Als Nutzer möchte ich Mitteilungen ohne Gehaltsbezug im Mitteilungsarchiv ablegen, damit sie weder als Gehaltszettel-Vorschlag offen bleiben noch verloren gehen.
@@ -173,7 +176,7 @@ Bildschirm Prüfen: `/konten/pruefen` (Konten › Prüfen). Zähler: „Umsätze
 - **Story:** Als Nutzer möchte ich eine Kartenabrechnung als geprüft schließen können, auch wenn Abrechnungsnummer und Zeitraum nicht gedruckt sind, damit ich nichts erfinden muss und die Abrechnung nicht ewig offen bleibt.
 - **Ausgangslage:** Die Abrechnung der ausgegebenen Karte enthält Summe, Ausstellungsdatum und Einzugsdatum, aber weder Abrechnungsnummer noch Zeitraum. „Als geprüft speichern“ verlangt heute eines von beiden.
 - **Ablauf:** (Verhalten laut Issue #1079; Bildschirm: Abrechnungsprüfung am Konto, „Abrechnung prüfen“)
-  1. Nutzer lädt die Abrechnung über „Neues Dokument hochladen“ als „Kreditkartenabrechnung“ hoch und wählt das „Konto“.
+  1. Nutzer wählt die Abrechnung einzeln oder zusammen mit anderen Dokumenten über „Neues Dokument hochladen“. Im eigenen Dateieintrag prüft oder ändert er den Konto-Vorschlag und bestätigt mit „Weiter“ (I-04, #1103).
   2. In der Prüfung stehen die Felder „Abrechnungsnummer“, „Ausstellungsdatum“, „Zeitraum von“, „Zeitraum bis“, „Einzugsdatum“, „Kartenhinweis (maskiert)“.
   3. Fehlt eine Angabe im Original, vermerkt der Nutzer „im Original nicht angegeben“ (geplant, heute nicht vorhanden).
   4. Er klickt „Als geprüft speichern“.
@@ -184,14 +187,16 @@ Bildschirm Prüfen: `/konten/pruefen` (Konten › Prüfen). Zähler: „Umsätze
   2. Dokument-ID (Hash), Kartenreferenz und echte Abrechnungsnummer sind getrennte Felder; die gleichbleibende Kartenreferenz zählt nicht als Nummer.
   3. Ein Zeitraum wird nie geraten oder vorbelegt.
   4. Ohne Vermerk und ohne Angabe bleibt Speichern gesperrt und die App sagt, was fehlt.
+  5. Im Mehrfach-Upload zeigt jede Abrechnung ihren eigenen änderbaren Konto-Vorschlag und Prüfstatus; ein Dateifehler blockiert keine andere Abrechnung (#1103).
 - **Status:** offen — **Verweis:** #1079
+  Mehrfach-Upload und änderbarer Konto-Vorschlag im Dateieintrag implementiert (#1103); Review und Live-Abnahme offen. Die folgenden Kriterien bleiben bei #1079.
   Fehlt noch: Vermerk „im Original nicht angegeben“, getrennte Felder für Dokument-ID, Kartenreferenz und Abrechnungsnummer, Verknüpfung mit enthaltenen Buchungen und späterer Zahlung.
 
 ### I-09 – Kartenabrechnung mit versetzten Spalten lesen
 - **Story:** Als Nutzer möchte ich, dass die Positionen einer Kartenabrechnung auch bei versetzten Spalten erkannt werden, damit ich sie nicht von Hand aus dem PDF übertragen muss.
 - **Ausgangslage:** Die Abrechnung der ausgegebenen Karte wird als Kartenabrechnung erkannt, die Tabellenzeilen stimmen aber nicht mit der Kopfzeile überein. Ergebnis heute: 0 Zeilen, „closing_total_unverified“.
 - **Ablauf:**
-  1. Nutzer lädt die Abrechnung hoch (I-04) und wählt das „Konto“.
+  1. Nutzer lädt die Abrechnung einzeln oder im Mehrfach-Upload hoch (I-04, #1103) und prüft oder ändert den Konto-Vorschlag in ihrem Dateieintrag. Fehler einer anderen Datei blockieren diese Prüfung nicht.
   2. Die App liest die Positionen nach Reihenfolge und Form der Angaben, nicht nach festen Spaltenabständen (geplant).
   3. In der Prüfung stehen die erkannten Positionen mit Summe; der Schlusssaldo wird gegen die Summe geprüft.
   4. Unlesbare Zeilen bleiben ohne Raten offen, mit dem Hinweis „Nicht alle Angaben wurden erkannt. Bitte anhand des Originals prüfen.“
@@ -201,7 +206,9 @@ Bildschirm Prüfen: `/konten/pruefen` (Konten › Prüfen). Zähler: „Umsätze
   2. Unbekannte Zeilenformen werden nie als geratene Buchung angelegt.
   3. Weicht der Schlusssaldo von der Positionssumme ab, bleibt das als „nicht verifiziert“ sichtbar.
   4. Fortsetzungszeilen und Seitenumbruch mit wiederholter Kopfzeile verfälschen die Summe nicht.
+  5. Im Mehrfach-Upload bleibt die Kontoauswahl jeder Abrechnung vor „Weiter“ änderbar; „Erneut versuchen“ wiederholt nur die fehlgeschlagene Datei (#1103).
 - **Status:** offen — **Verweis:** #1056
+  Mehrfach-Upload und änderbarer Konto-Vorschlag im Dateieintrag implementiert (#1103); Review und Live-Abnahme offen. Die Parser-Kriterien bleiben bei #1056.
   Fehlt noch: Positionen nach Token-Reihenfolge lesen statt nach Kopfzeilen-Abständen.
 
 ### I-10 – Mehrdeutige Treffer bei Import-Zuordnungen nachvollziehen

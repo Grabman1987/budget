@@ -1,7 +1,8 @@
 import { Button, Field, Select, TextInput, WideDialog } from '@budget/ui';
 import { FileUp } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { NoticeArchive } from './notice-archive';
 import { ApiError } from '../api/http';
 import { useBudgetWrite } from '../budget/use-category-writes';
@@ -147,29 +148,172 @@ function UploadFlow({
   setOpen: (open: boolean) => void;
 }) {
   const picker = useRef<HTMLInputElement>(null);
+  const sequence = useRef(0);
+  const [entries, setEntries] = useState<{ id: number; file: File }[]>([]);
+  const [over, setOver] = useState(false);
+  const handoff = useRef(false);
+  const [busy, setBusy] = useState<Record<number, boolean>>({});
+  const previousAccounts = useRef<Partial<Record<Target, string>>>({});
+  const add = (files: File[]) =>
+    setEntries((rows) => [...rows, ...files.map((file) => ({ id: sequence.current++, file }))]);
+  const remove = (id: number) => {
+    setEntries((rows) => rows.filter((row) => row.id !== id));
+    setBusy((rows) => {
+      const next = { ...rows };
+      delete next[id];
+      return next;
+    });
+  };
+  return (
+    <>
+      <WideDialog
+        open={open}
+        title="Dokument hochladen"
+        beforeClose={() => !handoff.current && !Object.values(busy).some(Boolean)}
+        onClose={() => {
+          setOpen(false);
+          setEntries([]);
+          setBusy({});
+        }}
+      >
+        {/* Delegated outcome navigation includes keyboard-generated link clicks. */}
+        {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions */}
+        <div
+          className="document-upload-dialog"
+          onClick={(event) => {
+            // A nested outcome must finish its discard/busy guard before the batch can close.
+            if (event.metaKey || event.ctrlKey || event.shiftKey || event.button !== 0) return;
+            const link = event.target instanceof Element ? event.target.closest('a') : null;
+            if (link?.getAttribute('href') !== '/konten/pruefen' || handoff.current) return;
+            setOpen(false);
+            setEntries([]);
+            setBusy({});
+          }}
+        >
+          <div
+            className="document-upload-drop"
+            data-over={over}
+            role="region"
+            aria-label="Dokument ablegen"
+            onDragOver={(event) => {
+              event.preventDefault();
+              setOver(true);
+            }}
+            onDragLeave={() => setOver(false)}
+            onDrop={(event) => {
+              event.preventDefault();
+              setOver(false);
+              add(Array.from(event.dataTransfer.files));
+            }}
+          >
+            <input
+              ref={picker}
+              className="sr-only"
+              tabIndex={-1}
+              type="file"
+              multiple
+              accept="image/*,application/pdf,.pdf"
+              aria-label="Dokument auswählen"
+              onChange={(event) => {
+                add(Array.from(event.currentTarget.files ?? []));
+                event.currentTarget.value = '';
+              }}
+            />
+            <Button onClick={() => picker.current?.click()}>Datei auswählen</Button>
+            <p className="document-upload-next">
+              Mehrere Fotos oder PDFs auswählen oder ablegen, höchstens 15 MB je Datei. Jede Datei
+              wird getrennt geprüft. Gespeichert wird erst nach „Weiter“ bei der jeweiligen Datei.
+            </p>
+          </div>
+          <NoticeArchive enabled={open} />
+          {entries.map(({ id, file }) => (
+            <UploadEntry
+              key={id}
+              initialFile={file}
+              accountId={accountId}
+              onRemove={() => remove(id)}
+              onFinish={() => {
+                remove(id);
+                if (entries.length === 1) setOpen(false);
+              }}
+              onNavigate={() => {
+                setOpen(false);
+                setEntries([]);
+                setBusy({});
+              }}
+              onHandoff={(active) => {
+                handoff.current = active;
+              }}
+              onBusy={(value) =>
+                setBusy((rows) => (rows[id] === value ? rows : { ...rows, [id]: value }))
+              }
+              remember={(target, account) => {
+                previousAccounts.current[target] = account;
+              }}
+              suggest={(target) => previousAccounts.current[target]}
+            />
+          ))}
+        </div>
+      </WideDialog>
+    </>
+  );
+}
+
+function UploadEntry({
+  initialFile,
+  accountId,
+  onRemove,
+  onFinish,
+  onNavigate,
+  onHandoff,
+  onBusy,
+  remember,
+  suggest,
+}: {
+  initialFile: File;
+  accountId: string | undefined;
+  onRemove: () => void;
+  onFinish: () => void;
+  onNavigate: () => void;
+  onHandoff: (active: boolean) => void;
+  onBusy: (busy: boolean) => void;
+  remember: (target: Target, account: string) => void;
+  suggest: (target: Target) => string | undefined;
+}) {
   const [busy, setBusy] = useState(false),
-    [over, setOver] = useState(false),
     [error, setError] = useState('');
-  const [file, setFile] = useState<File | null>(null),
+  const [file, setFile] = useState<File | null>(initialFile),
     [result, setResult] = useState<Classification | null>(null),
     [target, setTarget] = useState<Target>('receipt'),
-    [account, setAccount] = useState(accountId ?? ''),
+    [account, setAccount] = useState<string | null>(null),
     [password, setPassword] = useState(''),
     [done, setDone] = useState<{ label: string; lines: string[] } | null>(null),
     [edit, setEdit] = useState<ReceiptEdit | null>(null);
   const [route, setRoute] = useState<Route | null>(null);
-  const accounts = useQuery({ ...accountsQuery(), enabled: open });
+  const [reviewClosed, setReviewClosed] = useState(false);
+  const accounts = useQuery(accountsQuery());
   const write = useBudgetWrite();
-  const reset = () => {
-    setFile(null);
-    setResult(null);
-    setError('');
-    setPassword('');
-    setTarget('receipt');
-    setAccount(accountId ?? '');
-    setDone(null);
-    setEdit(null);
-  };
+  const reset = onRemove;
+  const started = useRef(false);
+  useEffect(() => {
+    if (started.current) return;
+    started.current = true;
+    void inspect(initialFile);
+    // Each row inspects its original File once; retries are explicit.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  useEffect(() => {
+    onBusy(busy);
+  }, [busy, onBusy]);
+  const eligibleAccounts = accounts.data?.accounts.filter((row) => !row.closedAt);
+  const candidates = eligibleAccounts?.filter((row) =>
+    target === 'card_statement'
+      ? row.type === 'credit_card'
+      : row.type === 'checking' || row.type === 'savings',
+  );
+  const proposed =
+    accountId ?? suggest(target) ?? (candidates?.length === 1 ? candidates[0]?.id : undefined);
+  const selectedAccount = account ?? eligibleAccounts?.find((row) => row.id === proposed)?.id ?? '';
   async function inspect(next: File, typed = '') {
     if (busy) return;
     setError('');
@@ -189,8 +333,8 @@ function UploadFlow({
     } catch (cause) {
       setResult(null);
       setError(
-        cause instanceof ApiError && cause.message
-          ? cause.message
+        cause instanceof ApiError && cause.detail
+          ? cause.detail
           : 'Die Datei konnte nicht geprüft werden. Bitte erneut versuchen.',
       );
     } finally {
@@ -199,8 +343,10 @@ function UploadFlow({
   }
   async function proceed() {
     if (!file || busy) return;
+    setError('');
     if (target === 'bonus' || target === 'pension') {
       setBusy(true);
+      let saved = false;
       await write(
         async () => {
           const body = new FormData();
@@ -213,6 +359,7 @@ function UploadFlow({
           });
           if (!response.ok) throw new ApiError(response.status, 'archive_failed');
           const reply = (await response.json()) as { groupId: string };
+          saved = true;
           setDone({
             label: LABEL[target],
             lines: [
@@ -226,6 +373,7 @@ function UploadFlow({
         () => 'Mitteilung archiviert.',
       );
       setBusy(false);
+      if (!saved) setError('Die Datei konnte nicht gespeichert werden. Bitte erneut versuchen.');
       return;
     }
     if (target === 'receipt') {
@@ -241,6 +389,7 @@ function UploadFlow({
         () => 'Beleg unter Prüfen gespeichert.',
       );
       setBusy(false);
+      if (!saved) setError('Die Datei konnte nicht gespeichert werden. Bitte erneut versuchen.');
       // On failure the write helper reports it; keep the dialog and the file for a retry.
       if (saved)
         setDone({
@@ -255,19 +404,21 @@ function UploadFlow({
     }
     if (target === 'trade_confirmation') {
       if (!result?.trade || result.trade.duplicate) return;
+      // The existing trade form opens on top; nothing is saved before its confirmation.
       setRoute({ kind: 'trade', intake: result.trade });
-      setOpen(false);
-      reset();
+      onHandoff(true);
       return;
     }
     const typed = password,
       typeLabel = LABEL[target];
     if (target === 'payslip') setRoute({ kind: 'payslip', file, password: typed, typeLabel });
-    else setRoute({ kind: 'statement', accountId: account, file, password: typed, typeLabel });
-    setOpen(false);
-    reset();
+    else {
+      remember(target, selectedAccount);
+      setRoute({ kind: 'statement', accountId: selectedAccount, file, password: typed, typeLabel });
+    }
+    onHandoff(true);
   }
-  const needsAccount = isStatement(target) && !account;
+  const needsAccount = isStatement(target) && !selectedAccount;
   // Statements and payslips are PDF-only; a photo can only be filed as a receipt.
   const targets = (Object.keys(LABEL) as Target[]).filter(
     (key) =>
@@ -280,195 +431,177 @@ function UploadFlow({
   const detected = result && result.type !== 'unreadable' ? LABEL[result.type] : null;
   return (
     <>
-      <WideDialog
-        open={open}
-        title="Dokument hochladen"
-        beforeClose={() => !busy}
-        onClose={() => {
-          setOpen(false);
-          reset();
-        }}
-      >
-        <div className="document-upload-dialog" aria-busy={busy}>
-          {!result && !done && (
-            <div
-              className="document-upload-drop"
-              data-over={over}
-              role="region"
-              aria-label="Dokument ablegen"
-              onDragOver={(event) => {
-                event.preventDefault();
-                setOver(true);
-              }}
-              onDragLeave={() => setOver(false)}
-              onDrop={(event) => {
-                event.preventDefault();
-                setOver(false);
-                const files = Array.from(event.dataTransfer.files);
-                if (files.length !== 1) setError('Bitte genau eine Datei ablegen.');
-                else void inspect(files[0]!);
-              }}
-            >
-              <input
-                ref={picker}
-                className="sr-only"
-                tabIndex={-1}
-                type="file"
-                accept="image/*,application/pdf,.pdf"
-                aria-label="Dokument auswählen"
-                disabled={busy}
-                onChange={(event) => {
-                  const selected = event.currentTarget.files?.[0];
-                  if (selected) void inspect(selected);
-                  event.currentTarget.value = '';
-                }}
-              />
-              <Button disabled={busy} onClick={() => picker.current?.click()}>
-                Datei auswählen
+      <section className="document-upload-entry" aria-label={initialFile.name} aria-busy={busy}>
+        <strong className="document-upload-next">{initialFile.name}</strong>
+        {busy && <p role="status">Dokument wird geprüft …</p>}
+        {!result && !busy && !done && <p>Status: Nicht geprüft</p>}
+        {error && !result && (
+          <Button disabled={busy} onClick={() => void inspect(initialFile)}>
+            Erneut versuchen
+          </Button>
+        )}
+        {error && <p role="alert">{error}</p>}
+        {done && (
+          <>
+            <DocumentOutcome typeLabel={done.label} lines={done.lines} onNavigate={onNavigate} />
+            <div className="document-upload-actions">
+              <Button onClick={onFinish}>Fertig</Button>
+              <Button variant="ghost" onClick={reset}>
+                Weiteres Dokument
               </Button>
-              <p className="document-upload-next">
-                Foto oder PDF, höchstens 15 MB. Die App erkennt, ob es eine Abrechnung, ein
-                Gehaltszettel oder ein Beleg ist. Gespeichert wird erst nach „Weiter“.
-              </p>
-              {busy && <p role="status">Dokument wird geprüft …</p>}
             </div>
-          )}
-          <NoticeArchive enabled={open} />
-          {error && <p role="alert">{error}</p>}
-          {done && (
-            <>
-              <DocumentOutcome
-                typeLabel={done.label}
-                lines={done.lines}
-                onNavigate={() => {
-                  setOpen(false);
-                  reset();
-                }}
-              />
-              <div className="document-upload-actions">
-                <Button
-                  onClick={() => {
-                    setOpen(false);
-                    reset();
-                  }}
-                >
-                  Fertig
-                </Button>
-                <Button variant="ghost" onClick={reset}>
-                  Weiteres Dokument
-                </Button>
-              </div>
-            </>
-          )}
-          {result && file && !done && (
-            <>
-              <p role="status">
-                {detected
-                  ? `Erkannt: ${detected}${result.confidence === 'certain' ? '' : ' (nicht ganz sicher)'}`
-                  : result.needsPassword
-                    ? 'Das PDF ist passwortgeschützt.'
-                    : 'Dieses Dokument konnte nicht gelesen werden.'}
+          </>
+        )}
+        {result && file && !done && (
+          <>
+            <p>
+              Status:{' '}
+              {reviewClosed
+                ? 'Einzelprüfung geschlossen; Ergebnis unter Prüfen ansehen.'
+                : 'Bereit zur Bestätigung'}
+            </p>
+            {!isStatement(target) && (
+              <p>
+                Konto:{' '}
+                {target === 'payslip' ? 'in der Gehaltsprüfung' : 'bei der Buchungszuordnung'}
               </p>
-              {result.needsPassword && (
-                <>
-                  <Field label="PDF-Passwort">
-                    {({ id }) => (
-                      <TextInput
-                        id={id}
-                        type="password"
-                        autoComplete="off"
-                        value={password}
-                        onChange={(event) => setPassword(event.target.value)}
-                      />
-                    )}
-                  </Field>
-                  <Button disabled={busy || !password} onClick={() => void inspect(file, password)}>
-                    Mit Passwort prüfen
-                  </Button>
-                </>
+            )}
+            <p role="status">
+              {detected
+                ? `Erkannt: ${detected}${result.confidence === 'certain' ? '' : ' (nicht ganz sicher)'}`
+                : result.needsPassword
+                  ? 'Das PDF ist passwortgeschützt.'
+                  : 'Dieses Dokument konnte nicht gelesen werden.'}
+            </p>
+            {result.needsPassword && (
+              <>
+                <Field label="PDF-Passwort">
+                  {({ id }) => (
+                    <TextInput
+                      id={id}
+                      type="password"
+                      autoComplete="off"
+                      value={password}
+                      onChange={(event) => setPassword(event.target.value)}
+                    />
+                  )}
+                </Field>
+                <Button disabled={busy || !password} onClick={() => void inspect(file, password)}>
+                  Mit Passwort prüfen
+                </Button>
+              </>
+            )}
+            <Field label="Dokumenttyp">
+              {({ id }) => (
+                <Select
+                  id={id}
+                  value={target}
+                  disabled={busy}
+                  onChange={(event) => setTarget(event.target.value as Target)}
+                >
+                  {targets.map((key) => (
+                    <option key={key} value={key}>
+                      {LABEL[key]}
+                    </option>
+                  ))}
+                </Select>
               )}
-              <Field label="Dokumenttyp">
+            </Field>
+            {isStatement(target) && (
+              <Field
+                label="Konto"
+                hint={
+                  result.hints.accountHint
+                    ? `Im Dokument steht Karte ${result.hints.accountHint}. Bitte den Konto-Vorschlag prüfen.`
+                    : 'Konto-Vorschlag prüfen oder ändern.'
+                }
+              >
                 {({ id }) => (
                   <Select
                     id={id}
-                    value={target}
-                    disabled={busy}
-                    onChange={(event) => setTarget(event.target.value as Target)}
+                    value={selectedAccount}
+                    disabled={busy || accounts.isPending}
+                    onChange={(event) => setAccount(event.target.value)}
                   >
-                    {targets.map((key) => (
-                      <option key={key} value={key}>
-                        {LABEL[key]}
+                    <option value="">Konto wählen</option>
+                    {eligibleAccounts?.map((row) => (
+                      <option key={row.id} value={row.id}>
+                        {row.name}
                       </option>
                     ))}
                   </Select>
                 )}
               </Field>
-              {isStatement(target) && (
-                <Field
-                  label="Konto"
-                  hint={
-                    result.hints.accountHint
-                      ? `Im Dokument steht Karte ${result.hints.accountHint}. Bitte das Konto selbst wählen.`
-                      : undefined
-                  }
-                >
-                  {({ id }) => (
-                    <Select
-                      id={id}
-                      value={account}
-                      disabled={busy || accounts.isPending}
-                      onChange={(event) => setAccount(event.target.value)}
-                    >
-                      <option value="">Konto wählen</option>
-                      {accounts.data?.accounts.map((row) => (
-                        <option key={row.id} value={row.id}>
-                          {row.name}
-                        </option>
-                      ))}
-                    </Select>
-                  )}
-                </Field>
-              )}
-              {target === 'receipt' && edit && (
-                <ReceiptProposalPanel value={edit} onChange={setEdit} disabled={busy} />
-              )}
-              {target === 'trade_confirmation' && result.trade && (
-                <TradeConfirmationSummary intake={result.trade} />
-              )}
-              {!tradeBlocked && <p className="document-upload-next">{NEXT[target]}</p>}
-              <div className="document-upload-actions">
-                <Button
-                  disabled={busy || needsAccount || tradeBlocked}
-                  onClick={() => void proceed()}
-                >
-                  {target === 'bonus' || target === 'pension'
-                    ? 'Als Bonus-/Pensionsmitteilung archivieren; keinen Gehaltsimport erstellen'
-                    : 'Weiter'}
-                </Button>
-                <Button variant="ghost" disabled={busy} onClick={reset}>
-                  Andere Datei
-                </Button>
-              </div>
-            </>
-          )}
-        </div>
-      </WideDialog>
-      {route?.kind === 'statement' && (
-        <AccountStatementIntake
-          accountId={route.accountId}
-          handoff={{ file: route.file, password: route.password, typeLabel: route.typeLabel }}
-          onHandoffClose={() => setRoute(null)}
-        />
-      )}
-      {route?.kind === 'trade' && (
-        <TradeConfirmationHandoff intake={route.intake} onClose={() => setRoute(null)} />
-      )}
-      {route?.kind === 'payslip' && (
-        <PayslipUploadDialog
-          onClose={() => setRoute(null)}
-          handoff={{ file: route.file, password: route.password, typeLabel: route.typeLabel }}
-        />
-      )}
+            )}
+            {target === 'receipt' && edit && (
+              <ReceiptProposalPanel value={edit} onChange={setEdit} disabled={busy} />
+            )}
+            {target === 'trade_confirmation' && result.trade && (
+              <TradeConfirmationSummary intake={result.trade} />
+            )}
+            {!tradeBlocked && <p className="document-upload-next">{NEXT[target]}</p>}
+            <div className="document-upload-actions">
+              <Button
+                disabled={busy || needsAccount || tradeBlocked}
+                onClick={() => void proceed()}
+              >
+                {target === 'bonus' || target === 'pension'
+                  ? 'Als Bonus-/Pensionsmitteilung archivieren; keinen Gehaltsimport erstellen'
+                  : 'Weiter'}
+              </Button>
+              <Button variant="ghost" disabled={busy} onClick={reset}>
+                Andere Datei
+              </Button>
+            </div>
+          </>
+        )}
+      </section>
+      {route?.kind === 'statement' &&
+        createPortal(
+          <AccountStatementIntake
+            accountId={route.accountId}
+            handoff={{ file: route.file, password: route.password, typeLabel: route.typeLabel }}
+            onHandoffClose={() => {
+              setRoute(null);
+              setReviewClosed(true);
+              onHandoff(false);
+            }}
+          />,
+          document.body,
+        )}
+      {route?.kind === 'trade' &&
+        createPortal(
+          <TradeConfirmationHandoff
+            intake={route.intake}
+            onClose={() => {
+              setRoute(null);
+              onHandoff(false);
+            }}
+            onSaved={() => {
+              setRoute(null);
+              onHandoff(false);
+              setDone({
+                label: LABEL.trade_confirmation,
+                lines: [
+                  'Handel aus der Abrechnung erfasst. Er steht im Handelsverlauf des Instruments.',
+                ],
+              });
+            }}
+          />,
+          document.body,
+        )}
+      {route?.kind === 'payslip' &&
+        createPortal(
+          <PayslipUploadDialog
+            onClose={() => {
+              setRoute(null);
+              setReviewClosed(true);
+              onHandoff(false);
+            }}
+            handoff={{ file: route.file, password: route.password, typeLabel: route.typeLabel }}
+          />,
+          document.body,
+        )}
     </>
   );
 }
