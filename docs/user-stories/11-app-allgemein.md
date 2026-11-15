@@ -30,7 +30,7 @@ Grundlage: `docs/pwa.md`. Die App ist eine PWA: Hülle und Programmdateien liege
   3. Die App speichert die Buchung zuerst auf dem Gerät. Unter „Wartet auf Verbindung (n)“ steht sie mit dem Hinweis „Auf diesem Gerät gespeichert. Erst nach dem Senden im Budget enthalten.“ In der Kopfzeile steht „n offline gespeichert“.
   4. Kommt das Netz zurück (oder beim Fokus der App), sendet die App der Reihe nach. Der Nutzer kann auch „Jetzt senden“ klicken.
   5. Gesendete Buchungen erscheinen im Budget mit „Buchung gesendet.“ und verschwinden aus der Warteschlange.
-  6. Eine abgelehnte Buchung bleibt mit Grund in der Liste und hält die späteren zurück, bis der Nutzer sie unter „Wartende Buchung bearbeiten“ korrigiert oder entfernt.
+  6. Ziel für #1144 (noch offen): Eine abgelehnte Buchung wird als bearbeitbarer Entwurf mit „Buchung abgelehnt“, Servermeldung und gegebenenfalls Fehler-ID angezeigt. „Details kopieren“ übernimmt die Diagnose. Die übrigen Buchungen werden weitergesendet; der Nutzer kann den Entwurf korrigieren und ohne Dublette erneut senden.
 - **Ergebnis:** Die Buchung ist nach dem Senden im Budget; bis dahin zählt sie nicht zu Salden und Budget.
 - **Abnahmekriterien:**
   1. Offline erfasst, später gesendet: die Buchung erscheint nach dem Senden einmal in Alle Buchungen.
@@ -38,8 +38,11 @@ Grundlage: `docs/pwa.md`. Die App ist eine PWA: Hülle und Programmdateien liege
   3. Ist die Sitzung abgelaufen, verlangt die App „Erneut anmelden“ und löscht die Warteschlange nicht.
   4. Ein geschlossenes Konto oder eine gelöschte Kategorie ergibt einen verständlichen Grund statt eines stillen Verlusts.
   5. Am Handy sind „Jetzt senden“ und „Buchung erfassen“ mit dem Finger treffbar.
-- **Status:** teilweise — **Verweis:** Y26
-  Fehlt noch: Abnahme auf einem echten Gerät; getrennt davon der klare Status je Änderung (A-02).
+  6. Ziel für #1144 (noch offen): Von drei wartenden Buchungen werden die erste und dritte gespeichert, wenn die mittlere abgelehnt wird. Die mittlere bleibt korrigierbar; nach Korrektur wird sie genau einmal gespeichert.
+  7. Ziel für #1144 (noch offen): Netzwerkfehler und HTTP 502–504 bleiben wiederholbar; fachliche Ablehnungen und HTTP 500 mit `server_error` werden nicht endlos wiederholt.
+- **Status:** teilweise — **Verweis:** Y26, #1144
+  Serverdiagnose als erster Teil von #1144: Unerwartete Ledger-API-Fehler liefern eine kurze Fehler-ID. Das Serverprotokoll verknüpft sie mit Methode, Routenmuster und bereinigten Stackpositionen. Nur bekannte, datenfreie Fehlermeldungen werden protokolliert; unbekannte Meldungen bleiben redigiert.
+  Fehlt noch: Durchgängige deutsche 422-Validierung, Anzeige/Kopieren der Fehler-ID, Entwürfe ohne Blockade späterer Einträge und der Drei-Buchungen-E2E-Test (#1144). Derzeit hält eine Ablehnung spätere Einträge weiterhin zurück. Außerdem Abnahme auf einem echten Gerät; getrennt davon der klare Status je Änderung (A-02).
 
 ### A-01b – Offline den letzten Stand lesen
 - **Story:** Als Nutzer möchte ich ohne Netz den zuletzt geladenen Stand von Heute und den Konten ansehen, damit ich unterwegs wenigstens grob weiß, wo ich stehe.
