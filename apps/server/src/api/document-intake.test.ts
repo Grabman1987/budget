@@ -3,7 +3,14 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { sql } from 'drizzle-orm';
-import { createTestDatabase, schema, type OpenedDatabase } from '@budget/db';
+import {
+  createTestDatabase,
+  schema,
+  stagePayslip,
+  getPayslipIntake,
+  undo,
+  type OpenedDatabase,
+} from '@budget/db';
 import { createApp } from '../app';
 import { createAuth } from '../auth/routes';
 import { AuthStore } from '../auth/store';
@@ -195,4 +202,134 @@ describe('document intake classification', () => {
     expect((await classify(Buffer.alloc(16 * 1024 * 1024 + 1, 1))).status).toBe(413);
     expect((await classify(PNG, 'image/png', {}, { origin })).status).toBe(401);
   });
+});
+
+// Every notice text and filename below is synthetic.
+it('archives recognised notices without a pending review and retains downloadable originals', async () => {
+  for (const [kind, rows] of [
+    ['bonus', ['Bonus Mitteilung', 'Bonus brutto 123,00']],
+    ['pension', ['Pensionskasse Mitteilung']],
+  ] as const) {
+    const bytes = await syntheticPayslipPdf([...rows], '');
+    await expectKind(bytes, kind, 'certain');
+    const form = new FormData();
+    form.set('file', new File([new Uint8Array(bytes)], `synthetic-${kind}.pdf`));
+    const res = await app.request('/api/document-intake/notices', {
+      method: 'POST',
+      headers,
+      body: form,
+    });
+    expect(res.status).toBe(201);
+    const saved = (await res.json()) as { id: string; receiptId: string };
+    expect(getPayslipIntake(opened.db, saved.id)).toMatchObject({
+      status: 'rejected',
+      parsed: { documentType: kind, draft: null },
+    });
+    const original = await app.request(`/api/receipts/${saved.receiptId}/download`, { headers });
+    expect(Buffer.from(await original.arrayBuffer())).toEqual(bytes);
+  }
+  expect(opened.db.select().from(schema.booking).all()).toHaveLength(0);
+  expect(opened.db.select().from(schema.payslip).all()).toHaveLength(0);
+  expect(
+    opened.db
+      .select()
+      .from(schema.inboxItem)
+      .all()
+      .every((item) => item.resolvedAt),
+  ).toBe(true);
+});
+it('previews and atomically archives legacy notices with stale-preview protection and grouped undo', async () => {
+  const ids = ['a', 'b'].map(
+    (sha) =>
+      stagePayslip(
+        opened.db,
+        {
+          sha256: sha.repeat(64),
+          source: 'dropbox',
+          filename: 'synthetic-notice.pdf',
+          sizeBytes: 100,
+          parsed: {
+            documentType: 'pension',
+            draft: null,
+            periodSource: null,
+            payoutDate: null,
+            differenceCents: null,
+            warnings: [],
+          },
+        },
+        { actor: 'test' },
+      ).id,
+  );
+  const response = await app.request('/api/document-intake/notices', { headers });
+  const { items } = (await response.json()) as { items: { id: string; token: string }[] };
+  const apply = (rows: { id: string; token: string }[]) =>
+    app.request('/api/document-intake/notices/archive', {
+      method: 'POST',
+      headers: { ...headers, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ items: rows.map(({ id, token }) => ({ id, token })) }),
+    });
+  expect((await apply([items[0]!, { ...items[1]!, token: '0'.repeat(64) }])).status).toBe(409);
+  expect(ids.map((id) => getPayslipIntake(opened.db, id).status)).toEqual(['pending', 'pending']);
+  const res = await apply(items.map(({ id, token }) => ({ id, token })));
+  expect(res.status).toBe(200);
+  const { groupId } = (await res.json()) as { groupId: string };
+  expect(ids.map((id) => getPayslipIntake(opened.db, id).status)).toEqual(['rejected', 'rejected']);
+  expect((await apply(items.map(({ id, token }) => ({ id, token })))).status).toBe(409);
+  undo(opened.db, { groupId }, { actor: 'test' });
+  expect(ids.map((id) => getPayslipIntake(opened.db, id).status)).toEqual(['pending', 'pending']);
+});
+it('refuses a real payslip on the notice-only archive upload', async () => {
+  const form = new FormData();
+  form.set(
+    'file',
+    new File([new Uint8Array(await syntheticPayslipPdf(syntheticWageRows, ''))], 'synthetic.pdf'),
+  );
+  const before = tables();
+  const res = await app.request('/api/document-intake/notices', {
+    method: 'POST',
+    headers,
+    body: form,
+  });
+  expect(res.status).toBe(409);
+  expect(tables()).toBe(before);
+});
+
+it('explicitly archives a duplicate legacy pending notice instead of reporting a false success', async () => {
+  const bytes = await syntheticPayslipPdf(['Pensionskasse Mitteilung'], '');
+  const { digest } = await import('../receipts/files');
+  const id = stagePayslip(
+    opened.db,
+    {
+      sha256: digest(bytes),
+      source: 'dropbox',
+      filename: 'synthetic-legacy.pdf',
+      sizeBytes: bytes.length,
+      parsed: {
+        documentType: 'pension',
+        draft: null,
+        periodSource: null,
+        payoutDate: null,
+        differenceCents: null,
+        warnings: [],
+      },
+    },
+    { actor: 'test' },
+  ).id;
+  const form = new FormData();
+  form.set('file', new File([new Uint8Array(bytes)], 'synthetic-legacy.pdf'));
+  const response = await app.request('/api/document-intake/notices', {
+    method: 'POST',
+    headers,
+    body: form,
+  });
+  expect(response.status).toBe(201);
+  expect(getPayslipIntake(opened.db, id).status).toBe('rejected');
+});
+
+it('keeps incomplete bonus payrolls in payroll review classification', async () => {
+  await expectKind(
+    await syntheticPayslipPdf(['Mitarbeiterbonus', 'Lohnart Betrag', 'Brutto 123,00'], ''),
+    'payslip',
+    'certain',
+  );
 });

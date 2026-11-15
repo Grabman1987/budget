@@ -40,11 +40,22 @@ vi.mock('../reports/payslip-panel', () => ({
 }));
 
 const ACCOUNT = 'synthetic-card-account';
+let noticeItems: {
+  id: string;
+  receiptId: string;
+  filename: string;
+  classification: string;
+  status: string;
+  token: string;
+}[] = [];
+let archiveRequests: unknown[] = [];
 let failReceipt = false;
 let result: Classification;
 let classifyBodies: FormData[];
 beforeEach(() => {
   classifyBodies = [];
+  noticeItems = [];
+  archiveRequests = [];
   failReceipt = false;
   // jsdom has no showModal and no matchMedia (desktop layout).
   HTMLDialogElement.prototype.showModal ??= function showModal(this: HTMLDialogElement) {
@@ -67,6 +78,14 @@ beforeEach(() => {
     if (path === '/api/document-intake/classify') {
       classifyBodies.push(init?.body as FormData);
       return Response.json(result);
+    }
+    if (path === '/api/document-intake/notices/archive') {
+      archiveRequests.push(JSON.parse(String(init?.body)));
+      return Response.json({ groupId: 'synthetic-batch-group' });
+    }
+    if (path === '/api/document-intake/notices') {
+      if (init?.method === 'POST') return Response.json({ groupId: 'synthetic-group' });
+      return Response.json({ items: noticeItems });
     }
     if (path === '/api/accounts')
       return Response.json({
@@ -195,4 +214,62 @@ it('keeps the dialog and the file when saving the receipt fails, and closes on s
   await waitFor(() => expect(receipt).toHaveBeenCalledTimes(2));
   expect(receipt).toHaveBeenLastCalledWith(file);
   await waitFor(() => expect(screen.queryByRole('button', { name: 'Weiter' })).toBeNull());
+});
+
+it('routes a recognised notice to an explicit archive action without opening payroll review', async () => {
+  result = {
+    type: 'pension',
+    confidence: 'certain',
+    hints: { mime: 'application/pdf' },
+    needsPassword: false,
+  };
+  renderButton();
+  const user = await pick(pdf());
+  await screen.findByText('Erkannt: Pensionskassen-Mitteilung');
+  expect(screen.getByText(/Original bleibt mit seiner Klassifikation/)).toBeTruthy();
+  await user.click(
+    screen.getByRole('button', {
+      name: 'Als Bonus-/Pensionsmitteilung archivieren; keinen Gehaltsimport erstellen',
+    }),
+  );
+  expect(await screen.findByText('Original: im Mitteilungsarchiv gespeichert.')).toBeTruthy();
+  expect(
+    screen.getByText('Gehaltsimport-Vorschlag: verworfen. Es wurde nichts gebucht.'),
+  ).toBeTruthy();
+  expect(payslip).not.toHaveBeenCalled();
+  expect(receipt).not.toHaveBeenCalled();
+});
+
+it('previews each stored notice before sending one explicit batch decision', async () => {
+  noticeItems = ['one', 'two'].map((id) => ({
+    id,
+    receiptId: id,
+    filename: `synthetic-${id}.pdf`,
+    classification: 'pension',
+    status: 'pending',
+    token: id,
+  }));
+  renderButton();
+  const user = userEvent.setup();
+  await user.click(screen.getByRole('button', { name: 'Dokument hochladen' }));
+  await user.click(screen.getByText('Mitteilungsarchiv und offene Importvorschl\u00e4ge'));
+  await user.click(await screen.findByRole('button', { name: 'Archivierung pr\u00fcfen (2)' }));
+  expect(screen.getByRole('region', { name: 'Archivierungsvorschau' }).textContent).toContain(
+    'synthetic-one.pdf',
+  );
+  expect(screen.getByRole('region', { name: 'Archivierungsvorschau' }).textContent).toContain(
+    'synthetic-two.pdf',
+  );
+  expect(archiveRequests).toEqual([]);
+  await user.click(screen.getByRole('button', { name: 'Mitteilungen gemeinsam archivieren' }));
+  await waitFor(() =>
+    expect(archiveRequests).toEqual([
+      {
+        items: [
+          { id: 'one', token: 'one' },
+          { id: 'two', token: 'two' },
+        ],
+      },
+    ]),
+  );
 });
