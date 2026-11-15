@@ -5,6 +5,7 @@ import {
   createRouter,
   lazyRouteComponent,
   notFound,
+  Outlet,
   redirect,
 } from '@tanstack/react-router';
 import {
@@ -58,7 +59,7 @@ import {
 import { NotFoundPage } from './pages/not-found';
 import { PlaceholderPage } from './pages/placeholder-page';
 import { AppShell } from './shell/app-shell';
-import { NavigationOutlet, NavigationPending, NavigationError } from './shell/navigation-outlet';
+import { NavigationError } from './shell/navigation-outlet';
 import type { PageTitleData } from './shell/page-meta';
 import { isMonth } from './nav/month';
 import { isZeitraum } from './wealth/zeitraum';
@@ -124,7 +125,7 @@ const rootRoute = createRootRoute({
       replace: true,
     });
   },
-  component: NavigationOutlet,
+  component: Outlet,
   notFoundComponent: NotFoundPage,
 });
 
@@ -144,6 +145,7 @@ const shellRoute = createRoute({
     }
   },
   component: AppShell,
+  errorComponent: NavigationError,
 });
 
 const pageRoute = (path: string, meta: PageMeta) =>
@@ -1074,9 +1076,6 @@ const routeTree = rootRoute.addChildren([
 
 export const router = createRouter({
   routeTree,
-  defaultPendingComponent: NavigationPending,
-  defaultPendingMs: 0,
-  defaultErrorComponent: NavigationError,
   scrollRestoration: ({ location }) =>
     !(
       REDESIGN_ENABLED &&
