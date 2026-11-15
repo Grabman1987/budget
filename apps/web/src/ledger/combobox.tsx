@@ -366,6 +366,8 @@ export function Combobox({
                 <button
                   type="button"
                   className="btn btn-ghost combo-action"
+                  // Matching categories keep the form's Tab order; an unmatched search exposes creation.
+                  tabIndex={shown.length > 0 ? -1 : 0}
                   onMouseDown={(e) => e.preventDefault()}
                   onKeyDown={(e) => {
                     if (e.ctrlKey || e.metaKey || e.altKey) return;

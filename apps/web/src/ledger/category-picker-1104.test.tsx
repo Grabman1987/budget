@@ -72,6 +72,7 @@ function mount(allowCreate = true, withCategory = false) {
             allowCreate={allowCreate}
             excludeIncome
           />
+          <button type="button">Weiter</button>
         </form>
       </ToastProvider>
     </QueryClientProvider>,
@@ -99,6 +100,20 @@ it('keeps creation outside category options and reachable by Tab after an unmatc
   await user.keyboard('{Enter}');
   expect(await screen.findByRole('dialog', { name: 'Kategorie anlegen' })).toBeTruthy();
   expect(onSelect).not.toHaveBeenCalled();
+});
+
+it.each(['', 'Muster'])('keeps the form Tab order when real categories match %j', async (query) => {
+  const { user, onSelect } = mount(true, true);
+  const field = screen.getByRole('combobox');
+  await user.click(field);
+  if (query) await user.type(field, query);
+  expect(screen.getAllByRole('option')).toHaveLength(1);
+  await user.tab();
+  expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Weiter' }));
+  expect(onSelect).not.toHaveBeenCalled();
+  expect(screen.queryByRole('dialog')).toBeNull();
+  await user.tab({ shift: true });
+  expect(document.activeElement).toBe(field);
 });
 
 it('closes the action popup with Escape and restores the category input', async () => {
