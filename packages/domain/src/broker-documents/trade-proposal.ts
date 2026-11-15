@@ -51,6 +51,12 @@ export type TradeConfirmationIntake = {
   importKey: string;
   /** A live trade that already records this confirmation. */
   duplicate: { tradeId: string; securityId: string; date: string } | null;
+  /**
+   * A live trade from another source (e.g. the Portfolio Performance import, other import key)
+   * with the same instrument, day, quantity and gross amount. Probably the same execution:
+   * the owner must say so explicitly before a second trade is booked.
+   */
+  probableDuplicate: { tradeId: string; securityId: string; date: string } | null;
 };
 
 const FIELDS: readonly TradeProposalField[] = [

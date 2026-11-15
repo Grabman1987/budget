@@ -20,6 +20,7 @@ import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import { useBlocker } from '@tanstack/react-router';
 import { ApiError } from '../api/http';
 import { undoGroup } from '../ledger/api';
+import { longDay } from '../ledger/format';
 import { errorText } from '../ledger/labels';
 import { accountsQuery, LEDGER_KEY, lookupsQuery } from '../ledger/queries';
 import { ErrorNote, LoadingNote } from '../ledger/states';
@@ -262,6 +263,9 @@ function TradeForm({
   // Counter booking (#1099): only offered for a proposal from a broker confirmation. The owner's
   // pick wins; untouched, the depot's stored Verrechnungskonto is preselected, else none.
   const [settlementPick, setSettlementPick] = useState<string | null>(null);
+  // A probable duplicate (same figures, other source) is booked only on the owner's say-so.
+  const [duplicateAck, setDuplicateAck] = useState(false);
+  const probable = prefill && !trade ? prefill.probableDuplicate : null;
   const saving = useRef(false);
   const qc = useQueryClient();
   const toast = useToast();
@@ -309,7 +313,7 @@ function TradeForm({
     );
   const save = async (event: FormEvent) => {
     event.preventDefault();
-    if (saving.current || deleting || (trade && !changed)) return;
+    if (saving.current || deleting || (trade && !changed) || (probable && !duplicateAck)) return;
     const validated = validateTrade(draft);
     setErrors(validated.errors);
     if (!validated.values) return;
@@ -434,6 +438,24 @@ function TradeForm({
               </p>
             )}
             {prefillNote && <p className="vnote">{prefillNote}</p>}
+            {probable && (
+              <div className="vnote" role="alert">
+                <p>
+                  Möglicherweise schon erfasst: Es gibt einen Handel vom {longDay(probable.date)}{' '}
+                  mit gleichem Instrument, Stück und Betrag (etwa aus dem
+                  Portfolio-Performance-Import). Es wird nur gebucht, wenn du das ausdrücklich
+                  bestätigst.
+                </p>
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={duplicateAck}
+                    onChange={(event) => setDuplicateAck(event.target.checked)}
+                  />{' '}
+                  Trotzdem als weiteren Handel erfassen
+                </label>
+              </div>
+            )}
           </>
         )}
         <Field label="Handelsart">
@@ -644,7 +666,14 @@ function TradeForm({
         )}
         <Button
           type="submit"
-          disabled={busy || deleting || !account || !securities.length || (!!trade && !changed)}
+          disabled={
+            busy ||
+            deleting ||
+            !account ||
+            !securities.length ||
+            (!!trade && !changed) ||
+            (!!probable && !duplicateAck)
+          }
         >
           {busy
             ? 'Wird gespeichert …'

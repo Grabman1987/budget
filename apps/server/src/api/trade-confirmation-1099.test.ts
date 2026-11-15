@@ -170,6 +170,7 @@ it('turns a savings plan confirmation into a trade proposal without writing anyt
     securityId: SECURITY,
     importKey: 'wpa:1a2b-3c4d',
     duplicate: null,
+    probableDuplicate: null,
   });
   expect(tables()).toBe(before);
 });
@@ -360,4 +361,29 @@ it('deletes the counter transfer with the trade and refuses a counter booking wi
   const removed = await app.request(`/api/trades/${trade.id}`, { method: 'DELETE', headers });
   expect(removed.status).toBe(200);
   expect(bookings().filter((r) => r.deletedAt === null)).toHaveLength(0);
+});
+
+it('reports a trade from another source with the same figures as a probable duplicate', async () => {
+  // Same instrument, day, quantity and gross amount, but an import key of another source.
+  expect((await book({ importKey: 'pp:synthetic-import-1' })).status).toBe(201);
+  const body = await classify(await confirmation({ execution: '3c3c-3c3c' }));
+  expect(body.trade?.duplicate).toBeNull();
+  expect(body.trade?.probableDuplicate).toMatchObject({ securityId: SECURITY, date: '2026-11-09' });
+  // Nothing is booked by classifying.
+  expect(opened.db.select().from(schema.trade).all()).toHaveLength(1);
+});
+
+it('does not flag another confirmation execution with the same figures', async () => {
+  expect((await book({ importKey: 'wpa:9z9z-9z9z' })).status).toBe(201);
+  const body = await classify(await confirmation({ execution: '4d4d-4d4d' }));
+  expect(body.trade?.duplicate).toBeNull();
+  expect(body.trade?.probableDuplicate).toBeNull();
+});
+
+it('does not report a probable duplicate for different figures', async () => {
+  expect((await book({ importKey: 'pp:synthetic-import-2', unitsE8: 33_944_301 })).status).toBe(
+    201,
+  );
+  const body = await classify(await confirmation({ execution: '5e5e-5e5e' }));
+  expect(body.trade?.probableDuplicate).toBeNull();
 });

@@ -26,6 +26,7 @@ const intake = (
   securityId,
   importKey: 'wpa:1a2b-3c4d',
   duplicate: null,
+  probableDuplicate: null,
 });
 const base = () => tradeDraft('2026-11-12', '', 'depot');
 const EUR = { id: 'depot', currency: 'EUR' };

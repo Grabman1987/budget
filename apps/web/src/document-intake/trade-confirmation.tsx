@@ -19,7 +19,7 @@ const SOURCE: Record<NonNullable<TradeConfirmationIntake['proposal']['source']>,
  * reader could not confirm are shown as not read; the trade form leaves them empty.
  */
 export function TradeConfirmationSummary({ intake }: { intake: TradeConfirmationIntake }) {
-  const { proposal, duplicate } = intake;
+  const { proposal, duplicate, probableDuplicate } = intake;
   if (duplicate)
     return (
       <p role="alert" className="document-upload-next">
@@ -54,6 +54,13 @@ export function TradeConfirmationSummary({ intake }: { intake: TradeConfirmation
         Aus der Abrechnung gelesen. Nichts davon ist gespeichert; „Weiter“ öffnet den Handel als
         Vorschlag.
       </p>
+      {probableDuplicate && (
+        <p role="alert">
+          Möglicherweise schon erfasst: Es gibt einen Handel vom {longDay(probableDuplicate.date)}{' '}
+          mit gleichem Instrument, Stück und Betrag (etwa aus dem Portfolio-Performance-Import). Vor
+          dem Bestätigen im Handelsverlauf prüfen.
+        </p>
+      )}
       <dl className="document-proposal-values">
         {rows.map(([label, value]) => (
           <div key={label}>

@@ -5,6 +5,7 @@ import { account, auditLog, booking, trade } from '../schema';
 import { accounts, createSecurity } from './index';
 import { seedBasics, testCtx } from './test-helpers';
 import { undo } from './audit';
+import { deleteBooking, restoreBooking } from './bookings';
 import { accountBalances } from './queries';
 import {
   createTrade,
@@ -150,18 +151,57 @@ describe('trade with counter booking on the Verrechnungskonto (#1099)', () => {
     expect(legs()).toHaveLength(0);
   });
 
-  it('takes the counter transfer along when the trade is deleted', () => {
+  it('takes the counter transfer along on delete and restores everything with one undo', () => {
     const giro = balance('giro')!;
     const { trade: row } = createTradeWithCashTransfer(opened.db, buy(), 'giro', testCtx);
+    const live = () => legs().filter((r) => r.deletedAt === null);
+    const before = {
+      bookings: live().map((r) => [r.id, r.accountId, r.amountCents]),
+      giro: balance('giro'),
+      depot: balance('depot'),
+    };
+    // The public delete of the trade also removes the transfer leg: the trade settlement guard
+    // only protects the trade's own settlement booking, not the counter transfer.
     deleteTrade(opened.db, row.id, { ...testCtx, groupId: 'synthetic-delete' });
-    expect(legs().filter((r) => r.deletedAt === null)).toHaveLength(0);
+    expect(live()).toHaveLength(0);
     expect(balance('giro')).toBe(giro);
     expect(balance('depot')).toBe(0);
-    // One undo restores trade, depot booking and transfer together.
     undo(opened.db, { groupId: 'synthetic-delete' }, testCtx);
-    expect(legs().filter((r) => r.deletedAt === null)).toHaveLength(3);
-    expect(balance('giro')).toBe(giro - 10_100);
+    // Trade, depot booking and BOTH transfer legs are live again; balances as before the delete.
+    expect(opened.db.select().from(trade).where(eq(trade.id, row.id)).get()?.deletedAt).toBeNull();
+    expect(live().map((r) => [r.id, r.accountId, r.amountCents])).toEqual(before.bookings);
+    expect(live().filter((r) => r.transferId)).toHaveLength(2);
+    expect(balance('giro')).toBe(before.giro);
+    expect(balance('depot')).toBe(before.depot);
+  });
+
+  it('refuses to restore only the counter transfer or only the settlement of a deleted trade', () => {
+    const giroBefore = balance('giro');
+    const { trade: row, bookingId } = createTradeWithCashTransfer(
+      opened.db,
+      buy(),
+      'giro',
+      testCtx,
+    );
+    deleteTrade(opened.db, row.id, testCtx);
+    // No orphan counter transfer, from either leg.
+    for (const leg of legs().filter((r) => r.transferId))
+      expect(() => restoreBooking(opened.db, leg.id, testCtx)).toThrow(
+        /counter transfer of a deleted trade/,
+      );
+    // The trade's own settlement booking stays tied to the trade.
+    expect(() => restoreBooking(opened.db, bookingId!, testCtx)).toThrow(/trade settlement/);
+    expect(legs().filter((r) => r.deletedAt === null)).toHaveLength(0);
+    expect(balance('giro')).toBe(giroBefore);
     expect(balance('depot')).toBe(0);
+  });
+
+  it('lets the owner delete only the counter transfer; the trade then edits freely again', () => {
+    const { trade: row } = createTradeWithCashTransfer(opened.db, buy(), 'giro', testCtx);
+    const leg = legs().find((r) => r.accountId === 'giro')!;
+    deleteBooking(opened.db, leg.id, testCtx);
+    expect(legs().filter((r) => r.deletedAt === null)).toHaveLength(1);
+    expect(() => updateTrade(opened.db, row.id, { feeCents: 0 }, testCtx)).not.toThrow();
   });
 
   it('refuses money, kind and day changes while a counter transfer exists, allows a note', () => {

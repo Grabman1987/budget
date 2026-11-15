@@ -47,6 +47,7 @@ const intake = (
   securityId: SECURITY,
   importKey: 'wpa:1a2b-3c4d',
   duplicate: null,
+  probableDuplicate: null,
   ...rest,
 });
 const classified = (trade: TradeConfirmationIntake): Classification => ({
@@ -383,4 +384,31 @@ it('sends the settlement account with a savings plan confirmation', async () => 
     importKey: 'wpa:1a2b-3c4d',
     settlementAccountId: 'synthetic-giro',
   });
+});
+
+it('warns about a probable duplicate and books only after an explicit confirmation', async () => {
+  const user = await upload(
+    intake(
+      {},
+      {
+        probableDuplicate: { tradeId: 'synthetic-trade', securityId: SECURITY, date: '2026-11-09' },
+      },
+    ),
+  );
+  const read = within(screen.getByRole('region', { name: 'Gelesene Angaben' }));
+  expect(read.getByRole('alert').textContent).toContain('Möglicherweise schon erfasst');
+  // The upload still offers "Weiter": it is a warning, not a block.
+  await user.click(screen.getByRole('button', { name: 'Weiter' }));
+  const dialog = await form();
+  await within(dialog).findByLabelText('Stück');
+  const submit = within(dialog).getByRole('button', {
+    name: 'Handel erfassen',
+  }) as HTMLButtonElement;
+  expect(submit.disabled).toBe(true);
+  await user.click(submit);
+  expect(writes).toEqual([]);
+  await user.click(within(dialog).getByLabelText('Trotzdem als weiteren Handel erfassen'));
+  expect(submit.disabled).toBe(false);
+  await user.click(submit);
+  await waitFor(() => expect(writes).toHaveLength(1));
 });

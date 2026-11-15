@@ -58,6 +58,7 @@ export function tradeConfirmationIntake(
   let live: { id: string; securityId: string; date: string } | undefined = keyed.find(
     (row) => row.deletedAt === null,
   );
+  let probable: { id: string; securityId: string; date: string } | undefined;
   if (
     !live &&
     securityId &&
@@ -65,9 +66,14 @@ export function tradeConfirmationIntake(
     proposal.date &&
     proposal.unitsE8 !== null &&
     proposal.amountCents !== null
-  )
-    live = db
-      .select({ id: trade.id, securityId: trade.securityId, date: trade.date })
+  ) {
+    const same = db
+      .select({
+        id: trade.id,
+        securityId: trade.securityId,
+        date: trade.date,
+        importKey: trade.importKey,
+      })
       .from(trade)
       .where(
         and(
@@ -77,16 +83,22 @@ export function tradeConfirmationIntake(
           eq(trade.unitsE8, proposal.kind === 'sell' ? -proposal.unitsE8 : proposal.unitsE8),
           eq(trade.amountCents, proposal.amountCents),
           isNull(trade.deletedAt),
-          // A trade with an import key records another confirmation; only hand-entered trades
-          // and confirmed savings plan executions (no key) are matched by their figures.
-          isNull(trade.importKey),
         ),
       )
-      .get();
+      .all();
+    // Keyless trades (by hand, confirmed savings plan executions) record this confirmation.
+    // A trade with a key from another confirmation (`wpa:`) is another execution; a trade with
+    // any other key (import) is probably the same execution and needs the owner's decision.
+    live = same.find((row) => row.importKey === null);
+    probable = same.find((row) => row.importKey !== null && !row.importKey.startsWith('wpa:'));
+  }
+  const ref = (row: { id: string; securityId: string; date: string } | undefined) =>
+    row ? { tradeId: row.id, securityId: row.securityId, date: row.date } : null;
   return {
     proposal,
     securityId,
     importKey: keyed.length ? `${proposal.reference}#${nextSuffix}` : proposal.reference,
-    duplicate: live ? { tradeId: live.id, securityId: live.securityId, date: live.date } : null,
+    duplicate: ref(live),
+    probableDuplicate: live ? null : ref(probable),
   };
 }
