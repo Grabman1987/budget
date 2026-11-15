@@ -133,14 +133,16 @@ Geteilt: V-06 und V-09 sind aufgeteilt (V-06a/V-06b, V-09a/V-09b). V-17 und V-18
   2. Instrument, „Anlagekonto“, „Rate“, „Intervall“, „Ausführungstag“ (1 bis 31) und optional „Quellkonto“, „Beginn“, „Notiz“ eintragen und speichern.
   3. Die Tabelle zeigt je Plan Intervall, „Nächste“ Ausführung und „Letzte 12 Monate“ mit Status „Zugeordnet ausgeführt“, „Zuordnung fehlt“, „Zuordnung prüfen“ oder „Nicht geplant“.
   4. Eine Ausführung bestätigen: „Sparplanausführung bestätigen“ öffnet den Handel mit Plan-Vorbelegung; echte Stückzahl, Betrag und Gebühren aus der Abrechnung übernehmen, „Ausführung bestätigen“.
+  4a. Schneller: die Sparplan-Abrechnung als PDF über „Dokument hochladen“ ablegen (V-15). Passt genau eine offene Ausführung desselben Instruments (höchstens drei Tage um den geplanten Tag), öffnet „Weiter“ denselben Dialog mit Datum, Stück, Betrag und Gebühren aus der Abrechnung; es bleibt nur „Ausführung bestätigen“.
   5. Rate ändern („Rate bearbeiten“) oder beenden („Sparplan beenden“ mit „Ende einschließlich“); „Verlauf“ zeigt die Versionen.
 - **Ergebnis:** Plan, Ausführungen und Abweichungen sind je Monat sichtbar; es ist kein Bankauftrag ausgelöst.
 - **Abnahmekriterien:**
   - Nach Bestätigung zeigt der Monat „Zugeordnet ausgeführt“, und der Kauf steht im Handelsverlauf des Instruments.
+  - Eine hochgeladene Sparplan-Abrechnung ohne eindeutig passende offene Ausführung wird als normaler Kauf vorgeschlagen; der Dialog sagt „Der Handel wird ohne Zuordnung zum Sparplan erfasst.“
   - „Monatlich gesamt“ ist die Summe der laufenden Raten.
   - Eine Ratenänderung gilt ab Datum; frühere Monate behalten die alte Rate (Verlauf).
   - Randfall: Das Ende darf nicht vor dem Beginn der Version liegen; ein Plan ohne laufende Raten zeigt „Keine laufenden oder vorgemerkten Sparpläne.“
-- **Status:** teilweise · **Verweis:** I17
+- **Status:** teilweise · **Verweis:** I17, #1099
   Fehlt noch: Vorschläge zur Änderung der Rate, privater Abgleich mit den Brokerausführungen.
 
 ### V-08 – Kennzahlen und Rendite vergleichen
@@ -289,19 +291,26 @@ Geteilt: V-06 und V-09 sind aufgeteilt (V-06a/V-06b, V-09a/V-09b). V-17 und V-18
 ### V-15 – Wertpapierabrechnungen als PDF einlesen
 - **Story:** Als Nutzer möchte ich Wertpapierabrechnungen (Sparplan, Round-up, Kauf/Verkauf) als PDF deterministisch einlesen lassen, damit ich Trades nicht abtippe und Tippfehler bei Stück, Betrag und Gebühren ausgeschlossen sind.
 - **Ausgangslage:** Der Broker hat eine Abrechnung als PDF geliefert; zentraler Upload für Dokumente existiert.
-- **Ablauf:** (geplant)
-  1. PDF über den zentralen Upload ablegen.
-  2. Die App liest Kopf (Datum, Ausführungs-ID, Sparplan-ID, Depot), Position (Name, ISIN, Stück, Kurs, Betrag), Gesamtbetrag und Abrechnungskonto, Kosten und Steuern aus (Schritt 1: reine Domänenlogik).
-  3. Im Posteingang (Konten › Prüfen) erscheint ein Handelsvorschlag mit Instrument per ISIN, Depot aus dem Kontext und der passenden Kontobuchung.
-  4. Ich prüfe und bestätige; erst dann entsteht der Handel (V-02).
-- **Ergebnis:** Der Handel ist ohne Tippen erfasst; es wird nichts automatisch gebucht.
+- **Ablauf:**
+  1. PDF über den zentralen Upload ablegen („Dokument hochladen“, I-04). Die App meldet „Erkannt: Wertpapierabrechnung“.
+  2. Die App liest Kopf (Datum, Ausführungs-ID, Sparplan-ID, Depot), Position (Name, ISIN, Stück, Kurs, Betrag), Gesamtbetrag und Abrechnungskonto, Kosten und Steuern aus und prüft sie gegeneinander (Stück × Kurs gegen Betrag, Betrag und Kosten gegen die Buchung des Verrechnungskontos).
+  3. Unter „Gelesene Angaben“ stehen Handelsart, Instrument mit ISIN, Handelsdatum, Stück, Bruttobetrag, Gebühren und einbehaltene Steuer. Was nicht sicher gelesen wurde, steht dort als „nicht sicher gelesen“. Gespeichert ist noch nichts.
+  4. „Weiter“ öffnet „Handel erfassen“ (V-02) als Vorschlag: Instrument per ISIN, Anlagekonto, wenn genau eines in der Währung der Abrechnung offen ist, dazu die gelesenen Werte. Nicht sicher gelesene Felder bleiben leer und werden im Dialog namentlich genannt („Nicht sicher gelesen und deshalb leer, bitte selbst eintragen: …“).
+  5. Bei einer Sparplan-Abrechnung mit genau einer passenden offenen Ausführung öffnet sich stattdessen „Sparplanausführung bestätigen“ mit denselben Werten (V-07).
+  6. Ich vergleiche mit der Abrechnung und bestätige mit „Handel erfassen“ bzw. „Ausführung bestätigen“; erst dann entstehen Handel und Kontobuchung, mit „Rückgängig“.
+- **Ergebnis:** Der Handel ist ohne Tippen erfasst; es wird nichts automatisch gebucht und nichts geschätzt.
 - **Abnahmekriterien:**
-  - Dasselbe PDF liefert immer dasselbe Ergebnis; zweimaliges Hochladen erzeugt keinen zweiten Vorschlag.
-  - Betrag laut Vorschlag entspricht der Kontobuchung des Verrechnungskontos.
-  - Randfall: Unbekannte ISIN oder abweichendes Layout landet als Prüfeintrag, ohne Handel.
+  - Dasselbe PDF liefert immer dasselbe Ergebnis.
+  - Eine vollständig gelesene und geprüfte Abrechnung füllt alle Felder; der Bruttobetrag samt Gebühren entspricht der Kontobuchung des Verrechnungskontos.
+  - Widersprechen sich Stück, Kurs und Betrag, bleiben Stück und Bruttobetrag leer; bei unbekannter Kostenzeile oder fehlender Buchungszeile bleiben Gebühren und Steuer leer. Ein leeres Pflichtfeld verhindert das Speichern.
+  - Ist der gedruckte Kurs zu grob gerundet, um Stück × Kurs zu prüfen, bleiben die gedruckten Werte stehen und der Dialog weist darauf hin.
+  - Eine bereits erfasste Abrechnung wird erkannt: „Diese Abrechnung ist bereits als Handel vom <Datum> erfasst. Es wird nichts doppelt angelegt.“, „Weiter“ ist gesperrt. Erkannt wird sie an der Ausführungs-ID (auch bei erneut heruntergeladener Datei) oder an einem vorhandenen Handel mit gleichem Instrument, Tag, Stück und Bruttobetrag (auch von Hand erfasst).
+  - Nach dem Löschen des Handels lässt sich dieselbe Abrechnung wieder vorschlagen.
+  - Randfall: Unbekannte oder doppelt angelegte ISIN lässt „Instrument“ leer und nennt die ISIN; passt die Währung der Abrechnung zu keinem offenen Anlagekonto, bleiben die Beträge leer.
+  - Randfall: Ein abweichendes Layout wird nicht als Wertpapierabrechnung erkannt und lässt sich nur als Beleg ablegen.
   - Dividenden, Zinsen und Steuerberichte sind ausdrücklich nicht Teil dieser Story.
-- **Status:** offen · **Verweis:** #1057
-  Fehlt noch: Parser (Schritt 1) und Dokumenttyp mit Vorschlag im Posteingang (Schritt 2).
+- **Status:** teilweise · **Verweis:** #1057, #1099
+  Fehlt noch: Vorschlag als Eintrag unter Konten › Prüfen (heute direkt aus dem Upload), Ablage der PDF als Beleg am Handel, Verknüpfung mit der Umbuchung vom Verrechnungskonto, Prüfung von Kauf/Verkauf-Orders an echten Mustern (Wortlaut bisher angenommen), Mehrfach-Upload.
 
 ### V-16 – Pensions- und Rentenlücke prüfen (zurückgestellt)
 - **Story:** Als Nutzer möchte ich die Pensions- und Rentenlücke prüfen, damit ich sehe, ob die erwartete Rente ein gewähltes Ausgabenziel zum Pensionsdatum deckt.

@@ -75,3 +75,4 @@ export * from './ledger/bulk-field-protection';
 export * from './ledger/account-purpose';
 export * from './receipts';
 export * from './broker-documents/trade-confirmation';
+export * from './broker-documents/trade-proposal';

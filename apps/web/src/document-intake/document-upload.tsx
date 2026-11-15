@@ -9,13 +9,21 @@ import { accountsQuery } from '../ledger/queries';
 import { PayslipUploadDialog } from '../reports/payslip-panel';
 import { postReceipt } from '../receipts/receipt-section';
 import { AccountStatementIntake } from '../statement-intake/statement-review-726';
-import type { ReceiptProposal } from '@budget/domain';
+import type { ReceiptProposal, TradeConfirmationIntake } from '@budget/domain';
 import { DocumentOutcome } from './document-outcome';
 import { proposalToEdit, ReceiptProposalPanel, type ReceiptEdit } from './receipt-proposal';
+import { TradeConfirmationHandoff, TradeConfirmationSummary } from './trade-confirmation';
 import './document-upload.css';
 
 export type DetectedType =
-  'card_statement' | 'bank_statement' | 'payslip' | 'bonus' | 'pension' | 'receipt' | 'unreadable';
+  | 'card_statement'
+  | 'bank_statement'
+  | 'payslip'
+  | 'bonus'
+  | 'pension'
+  | 'trade_confirmation'
+  | 'receipt'
+  | 'unreadable';
 export type Classification = {
   type: DetectedType;
   confidence: 'certain' | 'probable' | 'unknown';
@@ -23,14 +31,23 @@ export type Classification = {
   needsPassword: boolean;
   /** Receipt PDFs only: values read from the text layer. */
   receipt?: ReceiptProposal;
+  /** Broker trade confirmations only: the trade form proposal and its duplicate state. */
+  trade?: TradeConfirmationIntake;
 };
 /** What the owner can choose; unreadable documents are offered as receipts only. */
 export type Target =
-  'card_statement' | 'bank_statement' | 'payslip' | 'bonus' | 'pension' | 'receipt';
+  | 'card_statement'
+  | 'bank_statement'
+  | 'payslip'
+  | 'bonus'
+  | 'pension'
+  | 'trade_confirmation'
+  | 'receipt';
 const LABEL: Record<Target, string> = {
   card_statement: 'Kreditkartenabrechnung',
   bank_statement: 'Kontoauszug',
   payslip: 'Gehaltszettel',
+  trade_confirmation: 'Wertpapierabrechnung',
   receipt: 'Beleg',
   bonus: 'Bonus-Mitteilung',
   pension: 'Pensionskassen-Mitteilung',
@@ -46,6 +63,8 @@ const NEXT: Record<Target, string> = {
     'Das Original bleibt mit seiner Klassifikation im Mitteilungsarchiv auffindbar. Der Gehaltsimport-Vorschlag wird verworfen. Es wird nichts gebucht.',
   pension:
     'Das Original bleibt mit seiner Klassifikation im Mitteilungsarchiv auffindbar. Der Gehaltsimport-Vorschlag wird verworfen. Es wird nichts gebucht.',
+  trade_confirmation:
+    'Es öffnet sich „Handel erfassen“ mit den gelesenen Angaben als Vorschlag. Gespeichert wird erst, wenn du dort bestätigst; die PDF selbst wird dabei nicht abgelegt.',
   receipt: 'Die Datei wird als Beleg unter Prüfen abgelegt. Es wird nichts gebucht.',
 };
 const isStatement = (t: Target) => t === 'card_statement' || t === 'bank_statement';
@@ -75,11 +94,13 @@ async function classify(file: File, password: string): Promise<Classification> {
 
 type Route =
   | { kind: 'statement'; accountId: string; file: File; password: string; typeLabel: string }
-  | { kind: 'payslip'; file: File; password: string; typeLabel: string };
+  | { kind: 'payslip'; file: File; password: string; typeLabel: string }
+  | { kind: 'trade'; intake: TradeConfirmationIntake };
 
 /**
  * One upload for every document kind. The server only classifies; "Weiter" then hands the same
  * File to the existing receipt, statement-review or payslip flow, which keeps its own behaviour.
+ * A broker trade confirmation is not sent again: its read values open the existing trade form.
  */
 export function DocumentUploadButton({
   accountId,
@@ -232,6 +253,13 @@ function UploadFlow({
         });
       return;
     }
+    if (target === 'trade_confirmation') {
+      if (!result?.trade || result.trade.duplicate) return;
+      setRoute({ kind: 'trade', intake: result.trade });
+      setOpen(false);
+      reset();
+      return;
+    }
     const typed = password,
       typeLabel = LABEL[target];
     if (target === 'payslip') setRoute({ kind: 'payslip', file, password: typed, typeLabel });
@@ -243,9 +271,12 @@ function UploadFlow({
   // Statements and payslips are PDF-only; a photo can only be filed as a receipt.
   const targets = (Object.keys(LABEL) as Target[]).filter(
     (key) =>
-      ((key !== 'bonus' && key !== 'pension') || result?.type === key) &&
+      ((key !== 'bonus' && key !== 'pension' && key !== 'trade_confirmation') ||
+        result?.type === key) &&
       (key === 'receipt' || result?.hints.mime === 'application/pdf'),
   );
+  const tradeBlocked =
+    target === 'trade_confirmation' && (!result?.trade || !!result.trade.duplicate);
   const detected = result && result.type !== 'unreadable' ? LABEL[result.type] : null;
   return (
     <>
@@ -401,9 +432,15 @@ function UploadFlow({
               {target === 'receipt' && edit && (
                 <ReceiptProposalPanel value={edit} onChange={setEdit} disabled={busy} />
               )}
-              <p className="document-upload-next">{NEXT[target]}</p>
+              {target === 'trade_confirmation' && result.trade && (
+                <TradeConfirmationSummary intake={result.trade} />
+              )}
+              {!tradeBlocked && <p className="document-upload-next">{NEXT[target]}</p>}
               <div className="document-upload-actions">
-                <Button disabled={busy || needsAccount} onClick={() => void proceed()}>
+                <Button
+                  disabled={busy || needsAccount || tradeBlocked}
+                  onClick={() => void proceed()}
+                >
                   {target === 'bonus' || target === 'pension'
                     ? 'Als Bonus-/Pensionsmitteilung archivieren; keinen Gehaltsimport erstellen'
                     : 'Weiter'}
@@ -422,6 +459,9 @@ function UploadFlow({
           handoff={{ file: route.file, password: route.password, typeLabel: route.typeLabel }}
           onHandoffClose={() => setRoute(null)}
         />
+      )}
+      {route?.kind === 'trade' && (
+        <TradeConfirmationHandoff intake={route.intake} onClose={() => setRoute(null)} />
       )}
       {route?.kind === 'payslip' && (
         <PayslipUploadDialog

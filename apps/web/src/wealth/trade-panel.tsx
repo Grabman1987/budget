@@ -8,7 +8,12 @@ import {
   useToast,
   maskMoneyText,
 } from '@budget/ui';
-import { formatDecimal, parseAmount, type Cents } from '@budget/domain';
+import {
+  formatDecimal,
+  parseAmount,
+  type Cents,
+  type TradeConfirmationIntake,
+} from '@budget/domain';
 import { confirmSavings, type SavingsExecutionProposal } from './savings-api';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
@@ -22,6 +27,7 @@ import type { AccountRow } from '../ledger/types';
 import { instrumentsQuery, type SecurityRecord } from './portfolio-api';
 import { removeTrade, saveTrade, sourceMoney, tradeQuery, type TradeRow } from './trade-api';
 import {
+  applyTradePrefill,
   hasUnits,
   hasDeductions,
   TRADE_LABELS,
@@ -35,12 +41,18 @@ export function TradePanel({
   id,
   securityId,
   proposal,
+  prefill,
+  prefillNote,
   onClose,
   onSaved,
 }: {
   id: string;
   securityId?: string | undefined;
   proposal?: SavingsExecutionProposal | undefined;
+  /** Values read from an uploaded broker trade confirmation; saved only on confirmation. */
+  prefill?: TradeConfirmationIntake | undefined;
+  /** Extra line under the prefill note, e.g. why no savings plan was linked. */
+  prefillNote?: string | undefined;
   onClose: () => void;
   onSaved: (securityId: string) => void;
 }) {
@@ -149,6 +161,8 @@ export function TradePanel({
             date={accounts.data!.asOf}
             securityId={securityId}
             proposal={proposal}
+            prefill={prefill}
+            prefillNote={prefillNote}
             accounts={accounts.data!.accounts}
             eligible={eligible ?? []}
             securities={securities.data!.securities}
@@ -199,6 +213,8 @@ function TradeForm({
   date,
   securityId,
   proposal,
+  prefill,
+  prefillNote,
   accounts,
   eligible,
   securities,
@@ -211,6 +227,8 @@ function TradeForm({
   date: string;
   securityId?: string | undefined;
   proposal?: SavingsExecutionProposal | undefined;
+  prefill?: TradeConfirmationIntake | undefined;
+  prefillNote?: string | undefined;
   accounts: AccountRow[];
   eligible: AccountRow[];
   securities: SecurityRecord[];
@@ -220,17 +238,23 @@ function TradeForm({
   onSaved: (securityId: string) => void;
 }) {
   useAmountPrivacy();
-  const [original] = useState(() => ({
-    ...tradeDraft(date, securityId, eligible.length === 1 ? eligible[0]!.id : '', trade),
-    ...(proposal
-      ? {
-          accountId: proposal.accountId,
-          securityId: proposal.securityId,
-          date: proposal.date,
-          amount: formatDecimal(proposal.amountCents as Cents),
-        }
-      : {}),
-  }));
+  const [prefilled] = useState(() => {
+    const base = {
+      ...tradeDraft(date, securityId, eligible.length === 1 ? eligible[0]!.id : '', trade),
+      ...(proposal
+        ? {
+            accountId: proposal.accountId,
+            securityId: proposal.securityId,
+            date: proposal.date,
+            amount: formatDecimal(proposal.amountCents as Cents),
+          }
+        : {}),
+    };
+    return prefill && !trade
+      ? applyTradePrefill(base, prefill, eligible, !!proposal)
+      : { draft: base, open: [] };
+  });
+  const original = prefilled.draft;
   const [draft, setDraft] = useState(original);
   const [errors, setErrors] = useState<TradeErrors>({});
   const [busy, setBusy] = useState(false);
@@ -275,7 +299,14 @@ function TradeForm({
     try {
       const result = proposal
         ? await confirmSavings(proposal, validated.values)
-        : await saveTrade(validated.values, trade?.id);
+        : await saveTrade(validated.values, trade?.id, trade ? undefined : prefill?.importKey);
+      if ('duplicate' in result && result.duplicate) {
+        // The import key was taken meanwhile: the server wrote nothing.
+        setErrors({
+          form: 'Diese Abrechnung ist bereits als Handel erfasst. Es wurde nichts gespeichert.',
+        });
+        return;
+      }
       onDirty(false);
       await refresh();
       onSaved(result.trade.securityId);
@@ -352,6 +383,30 @@ function TradeForm({
               : 'Eine Einzahlung separat prüfen.'}{' '}
             Kein Bankauftrag und keine automatische Umbuchung.
           </p>
+        )}
+        {prefill && !trade && (
+          <>
+            <p className="vnote">
+              Vorschlag aus der Wertpapierabrechnung
+              {prefill.proposal.instrument
+                ? ` (${prefill.proposal.instrument.name}, ISIN ${prefill.proposal.instrument.isin})`
+                : ''}
+              . Bitte mit der Abrechnung vergleichen; gespeichert wird erst mit der Bestätigung.
+            </p>
+            {prefilled.open.length > 0 && (
+              <p className="vnote" role="status">
+                Nicht sicher gelesen und deshalb leer, bitte selbst eintragen:{' '}
+                {prefilled.open.join(', ')}.
+              </p>
+            )}
+            {prefill.proposal.unchecked && (
+              <p className="vnote">
+                Stück und Betrag stehen so in der Abrechnung; wegen des gerundeten Kurses ließ sich
+                Stück × Kurs nicht gegen den Betrag prüfen.
+              </p>
+            )}
+            {prefillNote && <p className="vnote">{prefillNote}</p>}
+          </>
         )}
         <Field label="Handelsart">
           {({ id }) => (

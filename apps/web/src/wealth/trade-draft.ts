@@ -6,6 +6,7 @@ import {
   settlementCents,
   unitsRuleViolation,
   type Cents,
+  type TradeConfirmationIntake,
 } from '@budget/domain';
 import { unitsText } from './portfolio-format';
 import type { ManualTrade, TradeRow } from './trade-api';
@@ -21,6 +22,7 @@ export type TradeDraft = {
   note: string;
 };
 export type TradeErrors = Partial<Record<keyof TradeDraft | 'form', string>>;
+const plainUnits = (unitsE8: number) => unitsText(unitsE8).replaceAll('.', '').replace('−', '-');
 export const tradeDraft = (
   date: string,
   securityId = '',
@@ -31,16 +33,63 @@ export const tradeDraft = (
   securityId: trade?.securityId ?? securityId,
   date: trade?.date ?? date,
   kind: trade?.kind ?? 'buy',
-  units: trade
-    ? unitsText(trade.kind === 'split' ? trade.unitsE8 : Math.abs(trade.unitsE8))
-        .replaceAll('.', '')
-        .replace('−', '-')
-    : '',
+  units: trade ? plainUnits(trade.kind === 'split' ? trade.unitsE8 : Math.abs(trade.unitsE8)) : '',
   amount: trade ? formatDecimal(trade.amountCents as Cents) : '',
   fee: formatDecimal((trade?.feeCents ?? 0) as Cents),
   tax: formatDecimal((trade?.taxCents ?? 0) as Cents),
   note: trade?.note ?? '',
 });
+/**
+ * A broker trade confirmation proposal (#1099) laid over a new draft. Only values the reader
+ * confirmed are filled; every other field is emptied and named in `open` (form labels with the
+ * reason where it helps), so nothing is guessed. `locked` keeps account and instrument of a
+ * savings plan execution.
+ */
+export function applyTradePrefill(
+  base: TradeDraft,
+  intake: TradeConfirmationIntake,
+  eligible: readonly { id: string; currency: string }[],
+  locked = false,
+): { draft: TradeDraft; open: string[] } {
+  const { proposal } = intake;
+  const open: string[] = [];
+  const draft = { ...base };
+  // Printed amounts are in the document currency: only an account in that currency takes them.
+  let moneyFits = true;
+  if (locked) {
+    moneyFits = eligible.find((a) => a.id === draft.accountId)?.currency === proposal.currency;
+  } else {
+    const fitting = eligible.filter((a) => a.currency === proposal.currency);
+    moneyFits = fitting.length > 0;
+    draft.accountId = fitting.length === 1 ? fitting[0]!.id : '';
+    if (!draft.accountId) open.push('Anlagekonto');
+    draft.kind = proposal.kind ?? 'buy';
+    if (!proposal.kind) open.push('Handelsart (steht auf Kauf, bitte prüfen)');
+    draft.securityId = intake.securityId ?? '';
+    if (!intake.securityId)
+      open.push(
+        proposal.instrument
+          ? `Instrument (ISIN ${proposal.instrument.isin} ist nicht eindeutig angelegt)`
+          : 'Instrument',
+      );
+  }
+  draft.date = proposal.date ?? '';
+  if (!proposal.date) open.push('Handelsdatum');
+  draft.units = proposal.unitsE8 === null ? '' : plainUnits(proposal.unitsE8);
+  if (proposal.unitsE8 === null) open.push('Stück');
+  const money = (cents: number | null, label: string) => {
+    if (cents !== null && moneyFits) return formatDecimal(cents as Cents);
+    open.push(
+      cents !== null ? `${label} (Währung der Abrechnung passt zu keinem Anlagekonto)` : label,
+    );
+    return '';
+  };
+  draft.amount = money(proposal.amountCents, 'Bruttobetrag');
+  draft.fee = money(proposal.feeCents, 'Gebühren');
+  draft.tax = money(proposal.taxCents, 'Einbehaltene Steuer');
+  return { draft, open };
+}
+
 /** Entry validation only; settlement and all analytics use shared domain rules. */
 export function validateTrade(draft: TradeDraft): {
   errors: TradeErrors;

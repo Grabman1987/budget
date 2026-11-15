@@ -94,13 +94,14 @@ Bildschirm Prüfen: `/konten/pruefen` (Konten › Prüfen). Zähler: „Umsätze
 
 ### I-04 – Dokument zentral hochladen
 - **Story:** Als Nutzer möchte ich jedes Dokument an einer Stelle hochladen und von der App erkennen lassen, was es ist, damit ich nicht erst überlegen muss, welcher Import für Kontoauszug, Gehaltszettel oder Beleg zuständig ist.
-- **Ausgangslage:** Der Nutzer hat ein PDF oder Foto (Kreditkartenabrechnung, Kontoauszug, Gehaltszettel, Bonus-/Pensionsmitteilung, Beleg). Der Knopf „Neues Dokument hochladen“ steht in der Kopfzeile, „Dokument hochladen“ in Prüfen und Buchung erfassen, am Konto der Upload dieses Kontos.
+- **Ausgangslage:** Der Nutzer hat ein PDF oder Foto (Kreditkartenabrechnung, Kontoauszug, Gehaltszettel, Bonus-/Pensionsmitteilung, Wertpapierabrechnung, Beleg). Der Knopf „Neues Dokument hochladen“ steht in der Kopfzeile, „Dokument hochladen“ in Prüfen und Buchung erfassen, am Konto der Upload dieses Kontos.
 - **Ablauf:**
   1. Nutzer klickt „Neues Dokument hochladen“. Der Dialog zeigt „Dokument ablegen“ und „Datei auswählen“ (Foto oder PDF, höchstens 15 MB).
   2. Er legt genau eine Datei ab oder wählt sie. Die App meldet „Dokument wird geprüft …“ und dann „Erkannt: <Typ>“, bei Unsicherheit „(nicht ganz sicher)“.
   3. Bei einem geschützten PDF gibt er unter „PDF-Passwort“ das Passwort ein und klickt „Mit Passwort prüfen“.
   4. Er prüft oder ändert den „Dokumenttyp“ und wählt bei Abrechnungen das „Konto“.
   5. Ein Hinweistext sagt, was „Weiter“ tut. Gespeichert wird erst nach „Weiter“. Danach öffnet sich der passende Ablauf (Abrechnungsprüfung, Gehaltszettel-Vorschau, Beleg).
+  5a. Bei einer Wertpapierabrechnung zeigt der Dialog „Gelesene Angaben“; „Weiter“ öffnet „Handel erfassen“ als Vorschlag, gespeichert wird erst dort (V-15). Die PDF selbst wird dabei nicht abgelegt.
   6. Der Abschluss zeigt, was passiert ist („nichts gebucht“, „n Zeilen warten unter Prüfen“), mit „Fertig“ oder „Weiteres Dokument“.
 - **Ergebnis:** Das Dokument ist gespeichert und im passenden Ablauf; gebucht wird nur, was eindeutig belegt ist, alles andere wartet unter Prüfen.
 - **Abnahmekriterien:**
@@ -109,7 +110,8 @@ Bildschirm Prüfen: `/konten/pruefen` (Konten › Prüfen). Zähler: „Umsätze
   3. Eine Datei über 15 MB oder ein falsches Passwort ergibt eine Meldung („Bitte eine Datei bis 15 MB auswählen.“, „Passwort falsch. Bitte erneut eingeben.“) und es wird nichts gespeichert.
   4. Dasselbe Dokument ein zweites Mal ergibt „Diese Datei war schon vorhanden. Es wurde nichts wiederholt.“
   5. Ein nicht lesbares Dokument lässt sich als Beleg ablegen; „Andere Datei“ setzt zurück.
-- **Status:** live — **Verweis:** #1039, #1053 (zentral #1060)
+  6. Der Typ „Wertpapierabrechnung“ steht nur zur Wahl, wenn die App das Layout erkannt hat. Ist die Abrechnung schon als Handel erfasst, meldet der Dialog das und „Weiter“ ist gesperrt (V-15).
+- **Status:** live — **Verweis:** #1039, #1053 (zentral #1060), #1099
 
 ### I-05 – Bonus- und Pensionskassenmitteilung archivieren
 - **Story:** Als Nutzer möchte ich Mitteilungen ohne Gehaltsbezug im Mitteilungsarchiv ablegen, damit sie weder als Gehaltszettel-Vorschlag offen bleiben noch verloren gehen.
