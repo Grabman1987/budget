@@ -623,12 +623,14 @@ function PositionSignalNote({
       ) : (
         <>
           Ziel {percent(signal.targetBp)} in jedem Trendzustand ({table}). Das Signal ändert diese
-          Position nicht; es steuert nur Nasdaq-100 und Anleihen.
+          Position nicht; es steuert nur die Zielgewichte von Nasdaq-100 (täglich 2×) und
+          kurzlaufenden EUR-Staatsanleihen.
         </>
       )}{' '}
-      Berechnet am {stamp(basis.knownAt ?? basis.observedAt)} aus dem Schluss vom{' '}
-      {longDay(basis.sessionDate)}, wirksam ab {longDay(basis.effectiveDate ?? basis.sessionDate)}.
-      Das Signal verkauft oder kauft nichts automatisch.
+      Signal aus dem Schluss vom {longDay(basis.sessionDate)}
+      {basis.knownAt && <>, als Monatsentscheidung gespeichert {stamp(basis.knownAt)}</>}, wirksam
+      ab {longDay(basis.effectiveDate ?? basis.sessionDate)}. Das Signal verkauft oder kauft nichts
+      automatisch.
     </p>
   );
 }
