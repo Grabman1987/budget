@@ -176,6 +176,7 @@ test('contact statement: edited allocation, excess credit, undo and retained bal
   ).toHaveCount(2);
   for (const theme of ['light', 'dark'] as const) {
     await page.emulateMedia({ colorScheme: theme });
+    await setTheme(page, theme);
     const result = await new AxeBuilder({ page }).include('main').analyze();
     expect(result.violations).toEqual([]);
     await page.evaluate(() => {
