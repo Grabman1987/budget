@@ -251,7 +251,7 @@ Add `-timestamp <utc>` for a point in time. To put that file on a new volume: ru
 ### 4.4 Drills
 
 - `scripts/restore-test.sh` (also CI job `restore-test`): no cloud, proves the pinned binary can back up and restore a WAL database. Set `LITESTREAM_BIN` if it is not on `PATH`.
-- Monthly and automatic: the server restores the replica into a throw-away copy and compares it with the live database (section 8.4). The quarterly manual restore below remains the check of the procedure itself and of the point-in-time path:
+- Monthly and automatic: the server restores the replica into a throw-away copy and compares it with the live database (section 8.4).
 - Quarterly: restore the real bucket into a temp file (4.2 side file or 4.3), run `PRAGMA integrity_check`, compare a row count with the app. A backup that was never restored is not a backup.
 - Twice a year: decrypt one encrypted copy with the offline key (section 8.3). CI decrypts a test copy with a throwaway key on every PR.
 
@@ -350,21 +350,23 @@ Older `.sqlite.age` copies contain only the DB: decrypt with `age --decrypt -i b
 
 **Restore test in CI**: `apps/server/src/backup/backup.test.ts` generates a throwaway age key pair for the test, backs up the synthetic ledger to a local fake S3 endpoint, downloads and decrypts the copy, checks `PRAGMA integrity_check`, every table count, retained receipt bytes and SHA-256, and shows that another key cannot decrypt it. The `check` job installs age and sets `BUDGET_REQUIRE_AGE=1`, so the test cannot silently skip. It never sees the owner's key.
 
+**Drill**: twice a year download one copy, decrypt it with the offline key (both the password-manager copy and the paper, typed in) and run `PRAGMA integrity_check`; verify receipt hashes and open/download a restored synthetic receipt.
+
 ### 8.4 Monthly automatic restore test
 
 Issue #1106, story E-07. **Design decision:** the server holds only the age *public* key (section 8), so it cannot decrypt its own night copies, and no private key is added to it. The automatic test therefore verifies what is verifiable without the key; the decryption itself stays the owner's twice-yearly drill (section 8.3).
 
 What one run does (`apps/server/src/backup/restore-test.ts`, in the server process, never touching the live database except to read it):
 
-1. **Night copy**: lists `encrypted/`, takes the newest `budget-YYYY-MM-DD.tar.age` and streams it once end to end, without storing it: length, ETag (MD5 of the single PUT) and the age header must match. No copy, or a damaged one, fails the test.
-2. **Free space** on the volume (`df`-style, via `statfs`): needs (database + WAL) x 1.25 plus a 100 MiB reserve. Otherwise the run is recorded as **skipped, "not enough space"** and nothing is written.
-3. **Replica restore**: `litestream restore` of the Litestream replica into a private throw-away folder below the OS temp folder (`budget-restore-test-*`, mode 0700). Litestream streams; measured peak RSS of the restore is about 45 MB for a 120 MB database, and the server process itself only runs `PRAGMA` and `count(*)`, so it stays far below 200 MB.
-4. **Checks on the copy** (opened read-only): `PRAGMA integrity_check` must be `ok`; every table's row count and every account's balance figures (balance, cleared, scheduled, booking counts, from the shared `accountSummaries` query) must equal the live database. The live figures are read before and after the restore; if the live database changed meanwhile, the run is repeated (3 attempts, then recorded as skipped "database changed").
-5. **Cleanup**: the folder is removed after every attempt, also on failure. A folder left by a killed process is swept at the start of the next run.
+1. **Night copy**: lists `encrypted/`, takes the newest `budget-YYYY-MM-DD.tar.age` and streams it once end to end, without storing it: length, ETag (MD5 of the single PUT) and the age header must match. No copy, a damaged one, or one older than three days (the nightly job has stopped) fails the test.
+2. **Free space** of the file system that holds the copy, which is the data volume: the copy goes to `/data/.restore-test/` next to the database. It needs (database + WAL) x 1.25 plus a 100 MiB reserve. Otherwise the run is recorded as **skipped, "not enough space"** and nothing is written.
+3. **Replica restore**: `litestream restore` of the Litestream replica into a private throw-away folder `/data/.restore-test/budget-restore-test-*` (mode 0700). The restore runs in the Litestream child process, which streams: its peak RSS was measured at about 43 MB for a synthetic 120 MB database (own measurement, not part of CI). The server process only reads (`PRAGMA integrity_check`, `count(*)`, the balance query) and yields between tables; `integrity_check` itself is one synchronous SQLite call on the copy, so on a database of many hundred MB it can stall the server for seconds (a few MB: milliseconds). It runs at night; a worker thread would be the next step if the database grows that far.
+4. **Checks on the copy** (opened read-only): `PRAGMA integrity_check` must be `ok`; every table's row count and every account's balance figures (balance, cleared, scheduled, booking counts, from the shared `accountSummaries` query) must equal the live database. The live figures are read before and after the restore; the restore waits 10, 30 and 60 s before attempts 1 to 3 so replication can catch up; if the live database changed meanwhile, or the copy still lags after the third attempt, the run is recorded as skipped "database changed" or failed "mismatch".
+5. **Cleanup**: the folder is removed after every attempt, also on failure. A folder left by a killed process is swept at the start of a later run once it is older than an hour (a concurrent operator run keeps its own).
 
 Schedule: every 15 minutes between 03:00 and 06:00 UTC (after the night copy) until a test has passed in the current UTC month; a failed or skipped test is repeated the next night. Only when replication is configured (`BUDGET_REPLICATE=1` or a bucket); state lives in the database, so restarts neither repeat nor forget a test.
 
-Result: stored in `app_setting` key `backup.restore_test` (date, backup name, status `ok`/`failed`/`skipped`, reason code, names of differing tables, last success; no figures, keys or storage details; additive, no migration) and shown under **Einstellungen › CSV-Export › Verschlüsselte Sicherung** as "Wiederherstellung zuletzt geprüft am …, in Ordnung". A **failed** test, or no success for more than **40 days**, opens one urgent entry under **Konten › Prüfen** ("Wiederherstellungsprobe fehlgeschlagen" / "überfällig"); the next success resolves it. The log has one line, `Restore test <status>: <file name> (<reason>)`.
+An unexpected exception inside a run is recorded as a failed test too, so the 40-day clock cannot stay blind. Result: stored in `app_setting` key `backup.restore_test` (date, backup name, status `ok`/`failed`/`skipped`, reason code, names of differing tables, last success; no figures, keys or storage details; additive, no migration) and shown under **Einstellungen › CSV-Export › Verschlüsselte Sicherung** as "Wiederherstellung zuletzt geprüft am …, in Ordnung". A **failed** test, or no success for more than **40 days**, opens one urgent entry under **Konten › Prüfen** ("Wiederherstellungsprobe fehlgeschlagen" / "überfällig", the latter once per overdue period); the next success resolves it. Skipped runs (no space, database changed) raise no entry of their own, only the overdue one after 40 days. The log has one line, `Restore test <status>: <file name> (<reason>)`.
 
 On demand (operator, after section 12's environment is set up; needs the same bucket variables as the server):
 
@@ -374,9 +376,7 @@ fly ssh console -a budget-fg -C "setpriv --reuid=node --regid=node --init-groups
 
 Exit code 0 = ok, 1 = failed, 3 = skipped. It writes the same result record as the scheduled run.
 
-**What this does not prove:** that the night copy decrypts (private key) and that the receipts inside it are intact; both stay with the drill in section 8.3 and the receipt checks of the nightly job. Litestream's replica and the night copy are different backups; this test covers the replica end to end and the night copy only as "present and readable".
-
-**Drill**: twice a year download one copy, decrypt it with the offline key (both the password-manager copy and the paper, typed in) and run `PRAGMA integrity_check`; verify receipt hashes and open/download a restored synthetic receipt.
+**What this does not prove:** that data *values* match (the comparison covers table row counts and account balances, so an edit that changes neither is not detected); that the night copy decrypts (private key) and that the receipts inside it are intact; both stay with the drill in section 8.3 and the receipt checks of the nightly job. Litestream's replica and the night copy are different backups; this test covers the replica end to end and the night copy only as "present and readable".
 
 ## 9. Lost all passkeys
 

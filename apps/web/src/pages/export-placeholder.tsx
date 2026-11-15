@@ -76,7 +76,9 @@ function RestoreTestRow() {
     const when = formatDay(status.checkedAt);
     if (status.status === 'ok') {
       headline = `Wiederherstellung zuletzt geprüft am ${when}, in Ordnung`;
-      detail = status.backupName ? `Geprüfte Sicherung: ${status.backupName}` : detail;
+      detail = status.backupName
+        ? `Stand im Sicherungsspeicher wiederhergestellt und verglichen; Nachtkopie ${status.backupName} lesbar.`
+        : detail;
     } else {
       headline = `Wiederherstellung zuletzt geprüft am ${when}, ${
         status.status === 'failed' ? 'fehlgeschlagen' : 'nicht durchgeführt'

@@ -10,12 +10,11 @@ import { todayInVienna } from '@budget/domain';
 import { and, eq, isNull } from 'drizzle-orm';
 import { spawn } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
-import { chmod, mkdtemp, readdir, rm, stat, statfs } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
-import { setTimeout as sleep } from 'node:timers/promises';
+import { chmod, mkdir, mkdtemp, readdir, rm, stat, statfs } from 'node:fs/promises';
+import { dirname, join } from 'node:path';
+import { setImmediate as yieldLoop, setTimeout as sleep } from 'node:timers/promises';
 import type { BackupConfig } from './backup';
-import { latestArchiveKey } from './retention';
+import { backupDay, latestArchiveKey } from './retention';
 import { S3Client, S3Error } from './s3';
 
 /**
@@ -29,8 +28,8 @@ import { S3Client, S3Error } from './s3';
  * 2. the Litestream replica restores into a throw-away file whose `PRAGMA integrity_check`, table
  *    row counts and account balances equal the live database it was replicated from.
  *
- * The live database is only read. The copy lives in a private temp folder that is removed after
- * every attempt, also on failure. No figure, key or storage detail leaves this module: results
+ * The live database is only read. The copy lives in a private folder next to the database (on the
+ * data volume, whose space is what is checked) and is removed after every attempt, also on failure. No figure, key or storage detail leaves this module: results
  * carry a status, a reason code, the backup file name and at most a few table names.
  */
 
@@ -40,6 +39,12 @@ export const RESTORE_TEST_OVERDUE_DAYS = 40;
 
 const DAY = 86_400_000;
 const SCRATCH_PREFIX = 'budget-restore-test-';
+/** A night copy older than this many UTC days means the nightly job has stopped. */
+const MAX_BACKUP_AGE_DAYS = 3;
+/** A leftover folder is only swept when it is older than any run can last. */
+const STALE_SCRATCH_MS = 60 * 60_000;
+/** Waits before the restore of attempt 1, 2, 3 (x settle base): replication needs time to catch up. */
+const SETTLE_STEPS = [1, 3, 6];
 /** The copy needs the database size once (Litestream writes `<out>.tmp`, then renames). */
 const SPACE_FACTOR = 1.25;
 /** Free space that must remain while the copy exists. */
@@ -54,7 +59,8 @@ export type RestoreTestReason =
   | 'copy_corrupt'
   | 'mismatch'
   | 'not_enough_space'
-  | 'database_busy';
+  | 'database_busy'
+  | 'backup_stale';
 
 export interface RestoreTestOutcome {
   status: 'ok' | 'failed' | 'skipped';
@@ -78,6 +84,8 @@ const REASON_TEXT: Record<RestoreTestReason, string> = {
   not_enough_space: 'Zu wenig freier Speicherplatz für die Prüfkopie. Die Probe wurde ausgelassen.',
   database_busy:
     'Die Datenbank wurde während der Probe geändert. Die Probe wird am nächsten Tag wiederholt.',
+  backup_stale:
+    'Die letzte verschlüsselte Nachtsicherung ist älter als drei Tage. Der Nachtlauf scheint nicht zu laufen.',
 };
 
 export const restoreTestMessage = (outcome: Pick<RestoreTestOutcome, 'reason' | 'differences'>) =>
@@ -142,34 +150,40 @@ interface Figures {
   balances: Record<string, string>;
 }
 
-/** Row count of every table and the balances of every account, in one read snapshot. */
-function readFigures(db: Db): Figures {
+/**
+ * Row count of every table and the balances of every account. Asynchronous with a yield between
+ * tables so a large database does not freeze the event loop; consistency of the live figures is
+ * established by reading them before and after the restore and comparing the two.
+ */
+async function readFigures(db: Db): Promise<Figures> {
   const sqlite = sqliteOf(db);
-  return sqlite.transaction(() => {
-    const tables = sqlite
-      .prepare(
-        "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name",
-      )
+  const tables = sqlite
+    .prepare(
+      `SELECT name FROM sqlite_master WHERE type = 'table'
+         AND name NOT LIKE 'sqlite!_%' ESCAPE '!' AND name NOT LIKE '!_litestream%' ESCAPE '!'
+       ORDER BY name`,
+    )
+    .pluck()
+    .all() as string[];
+  const counts: Record<string, number> = {};
+  for (const name of tables) {
+    counts[name] = sqlite
+      .prepare(`SELECT count(*) FROM "${name.replaceAll('"', '""')}"`)
       .pluck()
-      .all() as string[];
-    const counts: Record<string, number> = {};
-    for (const name of tables)
-      counts[name] = sqlite
-        .prepare(`SELECT count(*) FROM "${name.replaceAll('"', '""')}"`)
-        .pluck()
-        .get() as number;
-    const balances: Record<string, string> = {};
-    // The shared ledger query (the figures the app shows), not a second balance formula.
-    for (const a of accountSummaries(db, todayInVienna()))
-      balances[a.id] = [
-        a.balanceCents,
-        a.clearedCents,
-        a.scheduledCents,
-        a.bookingCount,
-        a.pendingCount,
-      ].join('|');
-    return { counts, balances };
-  })();
+      .get() as number;
+    await yieldLoop();
+  }
+  const balances: Record<string, string> = {};
+  // The shared ledger query (the figures the app shows), not a second balance formula.
+  for (const a of accountSummaries(db, todayInVienna()))
+    balances[a.id] = [
+      a.balanceCents,
+      a.clearedCents,
+      a.scheduledCents,
+      a.bookingCount,
+      a.pendingCount,
+    ].join('|');
+  return { counts, balances };
 }
 
 /** Table names whose counts differ, plus `account balances`; never a value. */
@@ -188,12 +202,13 @@ export interface RestoreTestDeps {
   config: Pick<BackupConfig, 's3' | 'prefix'>;
   restorer: Restorer;
   client?: S3Client;
-  /** Parent folder of the throw-away copy. Default: the OS temp folder, like the night copy. */
+  /** Parent folder of the throw-away copy. Default: `.restore-test` next to the database. */
   scratchDir?: string;
   /** Free bytes of the file system holding `dir`. */
   freeBytes?: (dir: string) => Promise<number>;
-  /** Wait between reading the live figures and restoring, so the last WAL frames are shipped. */
+  /** Base wait (x1, x3, x6 per attempt) before restoring, so the last WAL frames are shipped. */
   settleMs?: number;
+  now?: () => Date;
   attempts?: number;
   signal?: AbortSignal;
 }
@@ -210,17 +225,31 @@ const fileSize = (path: string) =>
   );
 
 /** Remove copies a killed process may have left behind (the folder name is ours alone). */
-async function sweepScratch(scratch: string) {
-  for (const name of await readdir(scratch).catch(() => [] as string[]))
-    if (name.startsWith(SCRATCH_PREFIX))
-      await rm(join(scratch, name), { recursive: true, force: true }).catch(() => undefined);
+async function sweepScratch(scratch: string, now: number) {
+  for (const name of await readdir(scratch).catch(() => [] as string[])) {
+    if (!name.startsWith(SCRATCH_PREFIX)) continue;
+    const path = join(scratch, name);
+    // Never a folder a concurrent run (scheduled or operator) may still be using.
+    const age = await stat(path).then(
+      (s) => now - s.mtimeMs,
+      () => 0,
+    );
+    if (age > STALE_SCRATCH_MS)
+      await rm(path, { recursive: true, force: true }).catch(() => undefined);
+  }
 }
 
 /** One restore test. Never throws for an expected failure; the copy is gone when it returns. */
 export async function runRestoreTest(deps: RestoreTestDeps): Promise<RestoreTestOutcome> {
   const signal = deps.signal ?? new AbortController().signal;
-  const scratch = deps.scratchDir ?? tmpdir();
-  await sweepScratch(scratch);
+  const now = deps.now ?? (() => new Date());
+  const scratch = deps.scratchDir ?? join(dirname(deps.databasePath), '.restore-test');
+  try {
+    await mkdir(scratch, { recursive: true, mode: 0o700 });
+  } catch {
+    return { status: 'failed', backupName: null, reason: 'restore_failed' };
+  }
+  await sweepScratch(scratch, now().getTime());
 
   // 1. The night copy: present and readable end to end (no decryption, no disk, constant memory).
   const client = deps.client ?? new S3Client(deps.config.s3);
@@ -232,6 +261,9 @@ export async function runRestoreTest(deps: RestoreTestDeps): Promise<RestoreTest
   }
   if (!key) return { status: 'failed', backupName: null, reason: 'backup_missing' };
   const backupName = key.slice(deps.config.prefix.length);
+  const day = backupDay(key);
+  if (!day || now().getTime() - Date.parse(`${day}T00:00:00Z`) > (MAX_BACKUP_AGE_DAYS + 1) * DAY)
+    return { status: 'failed', backupName, reason: 'backup_stale' };
   try {
     await client.verifyEncryptedObject(key, signal);
   } catch (error) {
@@ -255,11 +287,16 @@ export async function runRestoreTest(deps: RestoreTestDeps): Promise<RestoreTest
   // 3. Restore and compare. A write during the attempt, or one not yet shipped, repeats it.
   let last: RestoreTestOutcome = { status: 'skipped', backupName, reason: 'database_busy' };
   for (let attempt = 0; attempt < (deps.attempts ?? 3); attempt += 1) {
-    const dir = await mkdtemp(join(scratch, SCRATCH_PREFIX));
+    let dir: string;
+    try {
+      dir = await mkdtemp(join(scratch, SCRATCH_PREFIX));
+    } catch {
+      return { status: 'failed', backupName, reason: 'restore_failed' };
+    }
     try {
       await chmod(dir, 0o700);
-      const before = readFigures(deps.db);
-      await sleep(deps.settleMs ?? 3000);
+      const before = await readFigures(deps.db);
+      await sleep((deps.settleMs ?? 10_000) * (SETTLE_STEPS[attempt] ?? 6), undefined, { signal });
       const output = join(dir, 'budget.sqlite');
       let restored: 'restored' | 'missing';
       try {
@@ -277,7 +314,7 @@ export async function runRestoreTest(deps: RestoreTestDeps): Promise<RestoreTest
           const check = copy.sqlite.pragma('integrity_check') as { integrity_check: string }[];
           if (check.length !== 1 || check[0]?.integrity_check !== 'ok')
             return { status: 'failed', backupName, reason: 'copy_corrupt' };
-          copyFigures = readFigures(copy.db);
+          copyFigures = await readFigures(copy.db);
         } finally {
           copy.close();
         }
@@ -285,7 +322,7 @@ export async function runRestoreTest(deps: RestoreTestDeps): Promise<RestoreTest
         return { status: 'failed', backupName, reason: 'copy_corrupt' };
       }
 
-      const after = readFigures(deps.db);
+      const after = await readFigures(deps.db);
       const moved = differences(before, after);
       const diff = differences(copyFigures, before);
       if (moved.length === 0 && diff.length === 0) return { status: 'ok', backupName };
@@ -310,6 +347,8 @@ export interface RestoreTestState {
   lastOkAt?: string;
   /** First attempt ever: the overdue clock starts here until a test has passed. */
   firstCheckedAt: string;
+  /** The overdue entry was opened once for this overdue period (reset by a success). */
+  overdueReported?: boolean;
 }
 
 export function readRestoreTestState(db: Db): RestoreTestState | undefined {
@@ -396,7 +435,14 @@ function reportInbox(db: Db, title: string, detail: string, now: Date) {
  * unless a failure entry is already open. Best effort: skipped while an import holds the writes.
  */
 export function reportOverdueRestoreTest(db: Db, now: Date): void {
-  if (writesHeld(db) || !overdue(readRestoreTestState(db), now)) return;
+  const state = readRestoreTestState(db);
+  if (writesHeld(db) || !state || state.overdueReported || !overdue(state, now)) return;
+  // Once per overdue period: an entry the owner resolved does not come back every 15 minutes.
+  const value = JSON.stringify({ ...state, overdueReported: true });
+  db.update(schema.appSetting)
+    .set({ value })
+    .where(eq(schema.appSetting.id, RESTORE_TEST_SETTING))
+    .run();
   reportInbox(
     db,
     'Wiederherstellungsprobe überfällig',
@@ -421,6 +467,7 @@ export function recordRestoreTest(db: Db, outcome: RestoreTestOutcome, now: Date
     ...(outcome.differences?.length ? { differences: outcome.differences } : {}),
     ...(lastOkAt ? { lastOkAt } : {}),
     firstCheckedAt: previous?.firstCheckedAt ?? checkedAt,
+    ...(outcome.status !== 'ok' && previous?.overdueReported ? { overdueReported: true } : {}),
   };
   const value = JSON.stringify(state);
   db.transaction((tx) => {
@@ -489,7 +536,15 @@ export class RestoreTestScheduler {
       if (this.running || writesHeld(this.deps.db) || !this.due(now)) return undefined;
       this.running = true;
       try {
-        const outcome = await this.deps.run();
+        // An unexpected exception is a failed test like any other: recorded, so it is shown and
+        // the 40-day clock keeps running (a silent crash every night must not look like health).
+        const outcome = await this.deps.run().catch((): RestoreTestOutcome => ({
+          status: 'failed',
+          backupName: null,
+          reason: 'restore_failed',
+        }));
+        // An import may have started during the run: keep nothing half-done, retry at the next check.
+        if (writesHeld(this.deps.db)) return undefined;
         recordRestoreTest(this.deps.db, outcome, now);
         log(restoreTestLogLine(outcome));
         return outcome;

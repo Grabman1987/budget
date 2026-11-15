@@ -14,6 +14,7 @@ import {
   writeSync,
   closeSync,
   statSync,
+  utimesSync,
 } from 'node:fs';
 import { createServer, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
@@ -28,6 +29,7 @@ import {
   litestreamRestorer,
   readRestoreTestState,
   recordRestoreTest,
+  reportOverdueRestoreTest,
   replicationEnabled,
   restoreTestLogLine,
   restoreTestStatus,
@@ -139,6 +141,7 @@ const deps = (restorer: Restorer, extra: Partial<RestoreTestDeps> = {}): Restore
   restorer,
   scratchDir: scratch,
   settleMs: 0,
+  now: () => new Date('2026-11-15T03:00:00Z'),
   ...extra,
 });
 
@@ -196,6 +199,29 @@ describe('runRestoreTest', () => {
     expect((await runRestoreTest(deps(restorer))).reason).toBe('backup_unreadable');
     expect(restorer.calls).toBe(0);
     expect(leftovers()).toEqual([]);
+  });
+
+  it('fails when the newest night copy is stale', async () => {
+    const restorer = copyRestorer();
+    const outcome = await runRestoreTest(
+      deps(restorer, { now: () => new Date('2026-11-20T03:00:00Z') }),
+    );
+    expect(outcome).toEqual({
+      status: 'failed',
+      backupName: 'budget-2026-11-14.tar.age',
+      reason: 'backup_stale',
+    });
+    expect(restorer.calls).toBe(0);
+  });
+
+  it('keeps a fresh folder of a concurrent run and works next to the database by default', async () => {
+    const own = { ...deps(copyRestorer()) } as RestoreTestDeps;
+    delete (own as { scratchDir?: string }).scratchDir;
+    mkdirSync(join(scratch, 'budget-restore-test-running'));
+    expect((await runRestoreTest({ ...own, scratchDir: scratch })).status).toBe('ok');
+    expect(leftovers()).toEqual(['budget-restore-test-running']);
+    expect((await runRestoreTest(own)).status).toBe('ok');
+    expect(readdirSync(join(livePath, '..', '.restore-test'))).toEqual([]);
   });
 
   it('fails when there is no night copy, no replica, or the storage does not answer', async () => {
@@ -298,6 +324,8 @@ describe('runRestoreTest', () => {
   it('sweeps a copy left behind by a killed run', async () => {
     mkdirSync(join(scratch, 'budget-restore-test-stale'));
     writeFileSync(join(scratch, 'budget-restore-test-stale', 'budget.sqlite'), 'left over');
+    const old = new Date('2026-11-14T00:00:00Z');
+    utimesSync(join(scratch, 'budget-restore-test-stale'), old, old);
     writeFileSync(join(scratch, 'unrelated.txt'), 'keep');
     await runRestoreTest(deps(copyRestorer()));
     expect(leftovers()).toEqual(['unrelated.txt']);
@@ -468,16 +496,46 @@ describe('RestoreTestScheduler', () => {
     expect(s.runs()).toBe(2);
   });
 
-  it('waits while an import holds the writes and survives a throwing run', async () => {
+  it('records an unexpected exception as a failed test and waits while an import holds writes', async () => {
     const s = scheduler(() => Promise.reject(new Error(`unexpected ${SECRET}`)));
     holdWrites(live.db);
     expect(await s.instance.tick(new Date('2026-11-16T03:15:00Z'))).toBeUndefined();
     expect(s.runs()).toBe(0);
     releaseWrites(live.db);
-    expect(await s.instance.tick(new Date('2026-11-16T03:30:00Z'))).toBeUndefined();
-    expect(s.runs()).toBe(1);
-    expect(s.lines).toEqual(['Restore test could not run or be recorded; will retry']);
-    expect(readRestoreTestState(live.db)).toBeUndefined();
+    expect(await s.instance.tick(new Date('2026-11-16T03:30:00Z'))).toMatchObject({
+      status: 'failed',
+      reason: 'restore_failed',
+    });
+    expect(readRestoreTestState(live.db)?.status).toBe('failed');
+    expect(JSON.stringify(readRestoreTestState(live.db))).not.toContain(SECRET);
+    expect(s.lines).toEqual(['Restore test failed: no backup (restore_failed)']);
+  });
+
+  it('opens the overdue entry once per overdue period, not after every resolve', () => {
+    recordRestoreTest(
+      live.db,
+      { status: 'ok', backupName: 'budget-2026-10-01.tar.age' },
+      new Date('2026-10-01T03:15:00Z'),
+    );
+    const late = new Date('2026-11-12T03:15:00Z');
+    reportOverdueRestoreTest(live.db, late);
+    live.sqlite.exec(
+      "UPDATE inbox_item SET resolved_at = '2026-11-12T04:00:00Z' WHERE ref_type = 'restore_test'",
+    );
+    reportOverdueRestoreTest(live.db, new Date('2026-11-12T03:30:00Z'));
+    expect(
+      live.db
+        .select()
+        .from(schema.inboxItem)
+        .where(eq(schema.inboxItem.refType, RESTORE_TEST_INBOX_REF))
+        .all(),
+    ).toHaveLength(1);
+    recordRestoreTest(
+      live.db,
+      { status: 'ok', backupName: 'budget-2026-11-14.tar.age' },
+      new Date('2026-11-15T03:15:00Z'),
+    );
+    expect(readRestoreTestState(live.db)?.overdueReported).toBeUndefined();
   });
 });
 
