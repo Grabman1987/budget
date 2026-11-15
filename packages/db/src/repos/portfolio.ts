@@ -267,25 +267,35 @@ function computeHoldingValuation(db: Executor, asOf: string, estimate: boolean) 
   const heldSecurities = new Set<string>();
   for (const r of [...snapshots, ...trades])
     if (live.has(r.securityId)) heldSecurities.add(r.securityId);
-  // Read the latest stored quote on/before the day by index per held security.
-  const latestPrice = (securityId: string) =>
-    db
-      .select({
-        date: price.date,
-        priceMicro: price.priceMicro,
-        currency: price.currency,
-        source: price.source,
-      })
-      .from(price)
-      .where(and(eq(price.securityId, securityId), lte(price.date, asOf)))
-      .orderBy(desc(price.date))
-      .limit(1)
-      .get();
+  // Keep the indexed on/before lookup per security, but return all chosen quotes in one
+  // statement. Starting from security avoids scanning the full price history for every day.
+  const latestPrices = heldSecurities.size
+    ? db
+        .select({
+          securityId: security.id,
+          date: price.date,
+          priceMicro: price.priceMicro,
+          currency: price.currency,
+          source: price.source,
+        })
+        .from(security)
+        .innerJoin(
+          price,
+          and(
+            eq(price.securityId, security.id),
+            eq(
+              price.date,
+              sql`(select p.date from price p
+                   where p.security_id = ${security.id} and p.date <= ${asOf}
+                   order by p.date desc limit 1)`,
+            ),
+          ),
+        )
+        .where(inArray(security.id, [...heldSecurities]))
+        .all()
+    : [];
   const pricesBySecurity = new Map<string, Array<DatedPrice & { source: string }>>();
-  for (const securityId of heldSecurities) {
-    const found = latestPrice(securityId);
-    if (found) pricesBySecurity.set(securityId, [found]);
-  }
+  for (const found of latestPrices) pricesBySecurity.set(found.securityId, [found]);
   const rates = fxRateLookup(db);
 
   // Rows of each position (account x security), in the order they were read.

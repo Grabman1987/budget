@@ -53,14 +53,20 @@ it.each(baseline.responses)('keeps the stock response bytes of $path', async ({ 
 
 /** Rows each table returned to one request (a structural budget, independent of machine speed). */
 async function rowsRead(path: string) {
-  const rows = { price: 0, fxRate: 0, auditReplays: 0 };
+  const rows = { price: 0, fxRate: 0, auditReplays: 0, statements: 0 };
   const prepare = opened.sqlite.prepare.bind(opened.sqlite);
   const spy = vi.spyOn(opened.sqlite, 'prepare').mockImplementation(((sql: string) => {
     const statement = prepare(sql);
+    const get = statement.get.bind(statement);
+    statement.get = ((...params: unknown[]) => {
+      rows.statements++;
+      return get(...params);
+    }) as typeof statement.get;
     const all = statement.all.bind(statement);
     statement.all = ((...params: unknown[]) => {
+      rows.statements++;
       const result = all(...params) as unknown[];
-      if (/ from "price"/.test(sql)) rows.price += result.length;
+      if (/ (?:from|join) "price"/.test(sql)) rows.price += result.length;
       if (/ from "fx_rate"/.test(sql)) rows.fxRate += result.length;
       if (/"before_json" IS NOT NULL AND json_extract/.test(sql)) rows.auditReplays++;
       return result;
@@ -85,6 +91,8 @@ it('reads the price and rate history at most once per Heute request', async () =
   expect(rows.fxRate).toBeLessThanOrEqual(fxRows);
   // The account review chronology (audit log replay) once, not again for the inbox count.
   expect(rows.auditReplays).toBe(1);
+  // #1073: batch the indexed latest quotes instead of one statement per held security/day.
+  expect(rows.statements).toBeLessThanOrEqual(900);
 });
 
 it('finds the latest quotes for positions without reading the price history', async () => {

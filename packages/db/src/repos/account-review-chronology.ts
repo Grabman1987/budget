@@ -65,14 +65,17 @@ export function accountReviewChronology(
     'fx_fee_cents',
     'transfer_id',
   ];
+  // Only a live-to-live booking edit uses this predicate below. CASE avoids extracting ten
+  // pairs of fields for creations, deletions and checkpoints, preserving scalar IS semantics.
   // Project only predicates/identity, never whole private snapshots or money values into this model.
-  const financialChange = sql<boolean>`(${sql.join(
-    moneyFields.map(
-      (field) =>
-        sql`json_extract(${auditLog.beforeJson}, ${`$.${field}`}) IS NOT json_extract(${auditLog.afterJson}, ${`$.${field}`})`,
-    ),
-    sql` OR `,
-  )})`.mapWith(Boolean);
+  const financialChange = sql<boolean>`CASE WHEN ${auditLog.entityType} = 'booking'
+    AND ${beforeLive} AND ${afterLive} THEN (${sql.join(
+      moneyFields.map(
+        (field) =>
+          sql`json_extract(${auditLog.beforeJson}, ${`$.${field}`}) IS NOT json_extract(${auditLog.afterJson}, ${`$.${field}`})`,
+      ),
+      sql` OR `,
+    )}) ELSE 0 END`.mapWith(Boolean);
   const events = db
     .select({
       id: auditLog.id,
