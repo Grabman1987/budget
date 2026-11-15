@@ -19,8 +19,8 @@ Bereich: Plan (`/plan/monat`, `/plan/jahr`, `/plan/erwartet`, `/plan/sparziele`,
   3. Weise ich mehr zu, als zu verteilen ist, steht „Zu viel zugewiesen“ in Rot.
   4. Ein ungültiger Betrag wird mit „Das lässt sich nicht als Betrag lesen.“ abgelehnt.
   5. „Rückgängig“ stellt den alten Wert wieder her.
-  6. Nach beiden Rückwegen bleiben Position, Größe, Hintergrund und Rahmen von „Zu verteilen“ und dem Einnahmenblock unverändert, hell und dunkel auf Desktop und Telefon. Der Einnahmenblock bleibt am Desktop rechtsbündig; am Telefon bleibt er ausgeblendet und über die Maßkette erreichbar.
-- **Status:** live; Rückweg-Korrektur #1110 in Umsetzung, Live-Abnahme offen — **Verweis:** Y07, #1110
+  6. Nach beiden Rückwegen bleiben Position, Größe, Hintergrund und Rahmen von „Zu verteilen“ und dem Einnahmenblock unverändert, hell und dunkel auf Desktop und Telefon. Auch die Einnahmen-Detailseite verwendet durchgehend den Redesign-Kopf und dessen Abstände. Der Einnahmenblock bleibt am Desktop rechtsbündig; am Telefon bleibt er ausgeblendet und über die Maßkette erreichbar.
+- **Status:** live; Rückweg-Korrektur #1110 im PR #1114, visuelle Detailseiten-Erwartung migriert; CI und Live-Abnahme offen — **Verweis:** Y07, #1110
 
 ### P-02 – Kategorien, Gruppen und Klassen pflegen
 - **Story:** Als Nutzer möchte ich Kategorien und Gruppen anlegen, ordnen und als Bedarf, Wunsch oder Zukunft einstufen, damit die 50/30/20-Sicht in Plan und Reports meine echte Ausgabenstruktur zeigt.
