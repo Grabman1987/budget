@@ -219,8 +219,9 @@ was reused is detected. A bound or a malformed row beyond the cache takes the ol
 result never depends on the cache (`goal-lifecycle-cache-1073.test.ts` compares the warm result with a
 full read after appends, undo and a rollback). The Vienna day of an entry is computed on demand.
 
-Cost: about 23 MB of heap in the process that computes Heute (the read-model worker, heap limit 192 MB;
-it ends after 5 idle minutes). The first Heute after the worker starts reads everything once, as before.
+Cost: about 23 MB of heap per connection that reads goal lifecycles: the read-model worker (heap limit
+192 MB; it ends after 5 idle minutes) and the server thread, whose cache lives as long as the process
+(`listGoals` runs there too). The cache is never extended beyond the 30 000-entry evidence bound. The first Heute after the worker starts reads everything once, as before.
 Measured on the synthetic ledger (`scripts/perf/heute-positions-956.ts --only heute`, interleaved with
 stock `main` on the same machine, ms, median of 9): see PR #1073 for the numbers; digests unchanged.
 

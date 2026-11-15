@@ -182,7 +182,8 @@ function loadState(db: Executor): State {
   }
   return state;
 }
-function readEntriesUncached(db: Executor, after: number): Entry[] {
+/** The reader the cache must always agree with (exported for the equivalence test only). */
+export function readEntriesUncached(db: Executor, after: number): Entry[] {
   return parseEntries(
     db.all<Row>(sql`SELECT rowid AS sequence, id, ts, entity_type, entity_id,
     before_json, after_json, group_id, undo_of_id FROM audit_log WHERE rowid > ${after} ORDER BY rowid LIMIT ${MAX_AUDIT + 1}`),
@@ -212,22 +213,26 @@ export function resetGoalAuditCache(db: Executor): void {
   if (connection) auditCaches.delete(connection);
 }
 
-function readEntries(db: Executor, after = 0): Entry[] {
+/** Entries after `after`, from the cache when it is provably valid (exported for the test). */
+export function readEntries(db: Executor, after = 0): Entry[] {
   const connection = connectionOf(db);
   if (!connection) return readEntriesUncached(db, after);
   let cache = auditCaches.get(connection);
   if (cache) {
-    const check = db.get<{ n: number; id: string | null }>(
-      sql`SELECT (SELECT count(*) FROM audit_log WHERE rowid <= ${cache.lastRowid}) AS n,
-        (SELECT id FROM audit_log WHERE rowid = ${cache.lastRowid}) AS id`,
-    );
-    if (
-      check?.n !== cache.entries.length ||
-      (cache.entries.length && check.id !== cache.entries.at(-1)!.id)
-    ) {
-      auditCaches.delete(connection);
+    try {
+      const check = db.get<{ n: number; id: string | null }>(
+        sql`SELECT (SELECT count(*) FROM audit_log WHERE rowid <= ${cache.lastRowid}) AS n,
+          (SELECT id FROM audit_log WHERE rowid = ${cache.lastRowid}) AS id`,
+      );
+      const intact =
+        check?.n === cache.entries.length &&
+        (!cache.entries.length || check.id === cache.entries.at(-1)!.id);
+      if (!intact) cache = undefined;
+    } catch {
+      // A failing check is not proof: drop the cache and let the uncached read speak.
       cache = undefined;
     }
+    if (!cache) auditCaches.delete(connection);
   }
   const known = cache ?? { entries: [], lastRowid: 0 };
   let fresh: Entry[];

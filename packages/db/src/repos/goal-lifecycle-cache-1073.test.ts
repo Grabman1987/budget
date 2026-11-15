@@ -6,7 +6,7 @@ import { createBooking } from './bookings';
 import { assignMany, moveMoney } from './budget';
 import { createCategory, createCategoryGroup } from './categories';
 import { createGoal, listGoals } from './goals';
-import { resetGoalAuditCache } from './goal-lifecycle';
+import { readEntries, readEntriesUncached, resetGoalAuditCache } from './goal-lifecycle';
 
 /**
  * #1073: the goal lifecycle reads parsed audit entries from a per-connection, rowid-incremental
@@ -164,5 +164,40 @@ describe('goal lifecycle audit cache (#1073)', () => {
     const last = opened.sqlite.prepare('SELECT max(rowid) FROM audit_log').pluck().get();
     opened.sqlite.prepare('DELETE FROM audit_log WHERE rowid = ?').run(last);
     expect(warm()).toEqual(full());
+  });
+
+  it('returns exactly what the uncached read returns, for every watermark', () => {
+    resetGoalAuditCache(db);
+    for (const cents of [10000, 20000, 30000]) {
+      assignMany(db, MONTH, [{ categoryId, assignedCents: cents }], ACTOR);
+      readEntries(db); // cache follows each append
+    }
+    const last = opened.sqlite.prepare('SELECT max(rowid) FROM audit_log').pluck().get() as number;
+    for (const after of [0, 1, Math.floor(last / 2), last - 1, last, last + 5]) {
+      expect(readEntries(db, after)).toEqual(readEntriesUncached(db, after));
+    }
+    // Entries are shared and read-only: the lazy day is a plain value, also after serialising.
+    const [first] = readEntries(db, 0);
+    expect(JSON.parse(JSON.stringify(first)).day).toBe(first!.day);
+    expect(first!.day).toBe('2026-10-01');
+  });
+
+  it('lets the uncached read decide when a row beyond the cache is malformed', () => {
+    resetGoalAuditCache(db);
+    readEntries(db);
+    const last = opened.sqlite.prepare('SELECT max(rowid) FROM audit_log').pluck().get() as number;
+    opened.sqlite
+      .prepare(
+        `INSERT INTO audit_log (id, action, entity_type, entity_id, before_json, after_json)
+         VALUES ('bad-1073', 'create', 'unrelated', 'x', NULL, '{not json')`,
+      )
+      .run();
+    // After the bad row nothing is malformed: the old read succeeds, so must the cached one.
+    expect(readEntries(db, last + 1)).toEqual(readEntriesUncached(db, last + 1));
+    // The bad row lies after the watermark: both throw the same way.
+    expect(() => readEntriesUncached(db, last)).toThrow();
+    expect(() => readEntries(db, last)).toThrow();
+    // A row at or before the watermark is not read by the old query either.
+    expect(readEntries(db, last + 1)).toEqual([]);
   });
 });
