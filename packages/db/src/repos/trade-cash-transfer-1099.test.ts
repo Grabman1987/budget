@@ -6,7 +6,13 @@ import { accounts, createSecurity } from './index';
 import { seedBasics, testCtx } from './test-helpers';
 import { undo } from './audit';
 import { accountBalances } from './queries';
-import { createTrade, createTradeWithCashTransfer, TradeRuleError } from './trades';
+import {
+  createTrade,
+  createTradeWithCashTransfer,
+  deleteTrade,
+  TradeRuleError,
+  updateTrade,
+} from './trades';
 
 // Synthetic data only.
 let opened: OpenedDatabase;
@@ -36,7 +42,13 @@ const base = {
   unitsE8: 33_944_300,
   amountCents: 10_000,
 };
-const buy = (extra = {}) => ({ ...base, kind: 'buy' as const, feeCents: 100, ...extra });
+const buy = (extra = {}) => ({
+  ...base,
+  kind: 'buy' as const,
+  feeCents: 100,
+  importKey: 'wpa:1',
+  ...extra,
+});
 const legs = () => opened.db.select().from(booking).all();
 const balance = (id: string) =>
   accountBalances(opened.db).find((row) => row.accountId === id)?.balanceCents;
@@ -73,12 +85,13 @@ describe('trade with counter booking on the Verrechnungskonto (#1099)', () => {
   });
 
   it('moves the net proceeds of a sale back to the settlement account', () => {
-    createTrade(opened.db, { ...buy(), feeCents: 0 }, testCtx);
+    createTrade(opened.db, { ...buy(), importKey: 'wpa:open', feeCents: 0 }, testCtx);
     const giro = balance('giro')!;
     createTradeWithCashTransfer(
       opened.db,
       {
         ...base,
+        importKey: 'wpa:2',
         kind: 'sell',
         unitsE8: -33_944_300,
         amountCents: 12_000,
@@ -134,6 +147,55 @@ describe('trade with counter booking on the Verrechnungskonto (#1099)', () => {
     opened.db.update(account).set({ closedAt: '2026-11-01' }).where(eq(account.id, 'spar')).run();
     expect(() => createTradeWithCashTransfer(opened.db, buy(), 'spar', testCtx)).toThrow(/closed/);
     expect(opened.db.select().from(trade).all()).toHaveLength(0);
+    expect(legs()).toHaveLength(0);
+  });
+
+  it('takes the counter transfer along when the trade is deleted', () => {
+    const giro = balance('giro')!;
+    const { trade: row } = createTradeWithCashTransfer(opened.db, buy(), 'giro', testCtx);
+    deleteTrade(opened.db, row.id, { ...testCtx, groupId: 'synthetic-delete' });
+    expect(legs().filter((r) => r.deletedAt === null)).toHaveLength(0);
+    expect(balance('giro')).toBe(giro);
+    expect(balance('depot')).toBe(0);
+    // One undo restores trade, depot booking and transfer together.
+    undo(opened.db, { groupId: 'synthetic-delete' }, testCtx);
+    expect(legs().filter((r) => r.deletedAt === null)).toHaveLength(3);
+    expect(balance('giro')).toBe(giro - 10_100);
+    expect(balance('depot')).toBe(0);
+  });
+
+  it('refuses money, kind and day changes while a counter transfer exists, allows a note', () => {
+    const { trade: row } = createTradeWithCashTransfer(opened.db, buy(), 'giro', testCtx);
+    for (const patch of [{ amountCents: 9_000 }, { feeCents: 0 }, { date: '2026-11-10' }])
+      expect(() => updateTrade(opened.db, row.id, patch, testCtx)).toThrow(TradeRuleError);
+    expect(() => updateTrade(opened.db, row.id, { note: 'Synthetic note' }, testCtx)).not.toThrow();
+    expect(legs()).toHaveLength(3);
+    expect(balance('depot')).toBe(0);
+  });
+
+  it('keeps the counter transfers of the same reference in two depots apart', () => {
+    accounts.create(
+      opened.db,
+      {
+        id: 'depot2',
+        name: 'Second synthetic depot',
+        type: 'brokerage',
+        role: 'investment',
+        onBudget: false,
+        openingDate: '2026-09-01',
+      },
+      testCtx,
+    );
+    createTradeWithCashTransfer(opened.db, buy(), 'giro', testCtx);
+    createTradeWithCashTransfer(opened.db, buy({ accountId: 'depot2' }), 'giro', testCtx);
+    expect(balance('depot')).toBe(0);
+    expect(balance('depot2')).toBe(0);
+  });
+
+  it('refuses a counter booking without the confirmation reference', () => {
+    expect(() =>
+      createTradeWithCashTransfer(opened.db, buy({ importKey: null }), 'giro', testCtx),
+    ).toThrow(/reference/);
     expect(legs()).toHaveLength(0);
   });
 });

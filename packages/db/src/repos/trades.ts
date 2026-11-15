@@ -18,6 +18,7 @@ import {
 import {
   createBooking,
   createTransfer,
+  deleteBooking,
   deleteTradeSettlementBooking,
   getBooking,
   updateTradeSettlementBooking,
@@ -83,6 +84,25 @@ export function tradeCashTransferInput(t: TradeInput, cashAccountId: string): Tr
  * the trade (cost basis, cost report); no separate fee booking exists, so nothing counts twice.
  * Written in the caller's audit group: one undo reverts trade, depot booking and transfer.
  */
+/** Import key of the counter transfer's legs; unique per depot, so it identifies its trade. */
+const cashKey = (importKey: string, depotId: string) => `${importKey}:cash:${depotId}`;
+
+/** The live depot leg of a trade's counter transfer (#1099), if the trade has one. */
+function counterTransferLeg(tx: Executor, row: TradeRow): { id: string } | undefined {
+  if (!row.importKey) return undefined;
+  return tx
+    .select({ id: booking.id })
+    .from(booking)
+    .where(
+      and(
+        eq(booking.accountId, row.accountId),
+        eq(booking.importKey, cashKey(row.importKey, row.accountId)),
+        isNull(booking.deletedAt),
+      ),
+    )
+    .get();
+}
+
 function settleTradeCash(
   tx: Executor,
   input: TradeInput,
@@ -106,7 +126,7 @@ function settleTradeCash(
       ...transferInput,
       source: 'manual',
       memo: 'Verrechnung',
-      importKey: input.importKey ? `${input.importKey}:cash` : null,
+      importKey: cashKey(input.importKey!, input.accountId),
     },
     ctx,
   ).transferId;
@@ -122,6 +142,9 @@ export function createTradeWithCashTransfer(
   settlementAccountId: string,
   ctx: AuditContext,
 ): TradeResult & { transferId: string | null } {
+  // The reference ties the transfer to its trade (edit and delete follow it).
+  if (!input.importKey)
+    throw new TradeRuleError('A counter booking needs the reference of the confirmation');
   const grouped = withGroup(ctx);
   return runInTransaction(db, (tx) => {
     const result = createTrade(tx, input, grouped);
@@ -307,6 +330,18 @@ export function updateTrade(
   const grouped = withGroup(ctx);
   return runInTransaction(db, (tx) => {
     const cur = loadTrade(tx, id);
+    // Money, kind and day of a trade with a counter transfer cannot drift from that transfer.
+    if (
+      (patch.kind !== undefined ||
+        patch.amountCents !== undefined ||
+        patch.feeCents !== undefined ||
+        patch.taxCents !== undefined ||
+        patch.date !== undefined) &&
+      counterTransferLeg(tx, cur)
+    )
+      throw new TradeRuleError(
+        'Dieser Handel hat eine Umbuchung vom Verrechnungskonto. Bitte den Handel löschen (die Umbuchung wird mitgelöscht) und neu erfassen.',
+      );
     if (
       cur.savingsPlanId &&
       ((patch.kind && patch.kind !== 'buy') ||
@@ -382,7 +417,7 @@ export function updateTrade(
   });
 }
 
-/** Soft-delete a trade and its settlement booking in one audit group. */
+/** Soft-delete a trade, its settlement booking and its counter transfer in one audit group. */
 export function deleteTrade(
   db: Executor,
   id: string,
@@ -392,6 +427,9 @@ export function deleteTrade(
   const grouped = withGroup(ctx);
   runInTransaction(db, (tx) => {
     const cur = loadTrade(tx, id);
+    // The counter transfer of the same confirmation goes with the trade (both legs, one group).
+    const counter = counterTransferLeg(tx, cur);
+    if (counter) deleteBooking(tx, counter.id, grouped, options);
     updateTracked(tx, trade, [id], { deletedAt: new Date().toISOString() }, grouped, 'delete');
     if (cur.bookingId) {
       if (!getBooking(tx, cur.bookingId))

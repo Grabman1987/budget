@@ -663,8 +663,11 @@ function TradeForm({
           <div className="instrument-discard" role="alert">
             <p>
               Handel löschen? Die zugehörige Kontobuchung wird gemeinsam entfernt. Separate
-              Einzahlungen oder Umbuchungen bleiben bestehen. Ungespeicherte Angaben werden
-              verworfen.
+              Einzahlungen oder Umbuchungen bleiben bestehen.
+              {trade?.importKey
+                ? ' Eine mit der Abrechnung angelegte Umbuchung vom Verrechnungskonto wird mitgelöscht.'
+                : ''}{' '}
+              Ungespeicherte Angaben werden verworfen.
             </p>
             <Button type="button" variant="alert" onClick={() => void remove()}>
               Löschen bestätigen

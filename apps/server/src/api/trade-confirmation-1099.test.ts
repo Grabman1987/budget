@@ -296,7 +296,7 @@ it('books no counter booking without a chosen settlement account', async () => {
 
 it('refuses a settlement account in another currency without writing anything', async () => {
   const before = tables();
-  const refused = await book({ settlementAccountId: 'usd' });
+  const refused = await book({ importKey: 'wpa:1a2b-3c4d', settlementAccountId: 'usd' });
   expect(refused.status).toBeGreaterThanOrEqual(400);
   expect(refused.status).toBeLessThan(500);
   expect(tables()).toBe(before);
@@ -346,4 +346,18 @@ it('confirms a savings plan month with the confirmation key and counter booking'
       .map((t) => t.importKey),
   ).toEqual(['wpa:1a2b-3c4d']);
   expect(upload.trade?.duplicate?.date).toBe('2026-11-09');
+});
+
+it('deletes the counter transfer with the trade and refuses a counter booking without reference', async () => {
+  const noKey = await book({ settlementAccountId: 'giro' });
+  expect(noKey.status).toBeGreaterThanOrEqual(400);
+  expect(noKey.status).toBeLessThan(500);
+  expect(bookings()).toHaveLength(0);
+
+  const saved = await book({ importKey: 'wpa:1a2b-3c4d', settlementAccountId: 'giro' });
+  const { trade } = (await saved.json()) as { trade: { id: string } };
+  expect(bookings()).toHaveLength(3);
+  const removed = await app.request(`/api/trades/${trade.id}`, { method: 'DELETE', headers });
+  expect(removed.status).toBe(200);
+  expect(bookings().filter((r) => r.deletedAt === null)).toHaveLength(0);
 });
