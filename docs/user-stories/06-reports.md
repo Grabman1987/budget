@@ -483,6 +483,7 @@ Alle Reports mit Nummer laut `docs/FEATURES.md` (34 Reports, 1.1 bis 5.6). Jede 
 - **Status:** live · **Verweis:** 4.5
 
 ### RP-20 – Jahresreport
+- **Extension:** Owner decision #1118 extends this report; delivery scope and remaining acceptance are tracked in RP-20a below.
 - **Story:** Als Nutzer möchte ich das Jahr auf zwei A4-Seiten drucken, damit ich ein Ablagedokument für Steuer, Überblick und Jahresabschluss habe.
 - **Ausgangslage:** Mindestens ein abgeschlossenes Jahr.
 - **Ablauf:**
@@ -495,6 +496,22 @@ Alle Reports mit Nummer laut `docs/FEATURES.md` (34 Reports, 1.1 bis 5.6). Jede 
   - Nettovermögenskette entspricht Vermögen › Nettovermögen; Sparquote entspricht Sparquote und Geldalter.
   - Randfall: Nur volle Monate zählen; ein laufendes Jahr ist als Teiljahr erkennbar; Gehaltserhöhungen und Preisänderungen gibt es noch nicht als Befunde.
 - **Status:** live · **Verweis:** 5.1
+
+### RP-20a – Jahreskennzahlen und Vermögenszuwachs (#1118, first slice)
+- **Story:** Als Nutzer möchte ich Vermögenszuwachs und die Veränderung meiner bisherigen Jahreskennzahlen sehen, damit ich das Jahr beurteilen kann.
+- **Ausgangslage:** Mindestens ein voller Monat im Hauptbuch; Redesign aktiv.
+- **Ablauf:**
+  1. Reports › Jahresreport öffnen und das Jahr wählen; ein Teiljahr ist mit seinem letzten vollen Monat markiert.
+  2. Im Vermögensreport Anfang, Ende und Vermögensänderung in Euro und Prozent lesen; dieselbe Änderung steht neben der Vermögenskette im A4-Druckblatt.
+  3. In der Zusammenfassung Einnahmen, Konsum, Gespart und Kapitalerträge gegenüber genau denselben Vorjahresmonaten vergleichen; die Sparquote in Prozentpunkten vergleichen.
+  4. Die gewählte Darstellung weiterhin auf zwei A4-Seiten drucken.
+- **Abnahmekriterien:**
+  - Anfang und Ende stammen unverändert aus dem bestehenden Nettovermögens-Read-Model; Prozentänderung nutzt die gemeinsame Berechnung, auch bei negativem Anfangsvermögen.
+  - Anfangsvermögen null: Euroänderung bleibt sichtbar, Prozentänderung ist „nicht ermittelbar“ mit Grund. Fehlende oder geschätzte Bewertungen ergeben keine geschätzte neue Änderungskennzahl.
+  - Vorjahreswerte nutzen die gemeinsamen Monatsfiguren und die gemeinsame Sparquote. Fehlende Vorjahresmonate werden nicht auf ein Jahr hochgerechnet; der Vergleich ist dann „nicht ermittelbar“ mit Grund. Ein Vorjahreswert null verhindert nur dessen Prozentänderung.
+  - Die Summe der Geldwerte bleibt centgenau; keine Buchung und keine zentrale Finanzkennzahl wird geändert.
+- **Status:** implemented locally; PR review and live acceptance pending · **Verweis:** 5.1, #1118
+- **Remaining scope:** Investment values/contributions/TTWROR/money-weighted return; trading activity/results/costs/hit rate; household with/without market; investment/cash savings split; prior-year comparisons for wealth and the new investment/trading figures (including relative savings-rate change). Slice 2 context (inflation, benchmark, debt, income sources, spending changes, reserves, goals) remains open. RP-20's existing live status does not imply these additions are live.
 
 ### RP-21a – Finanz-Check-Verlauf
 - **Story:** Als Nutzer möchte ich sehen, welche Regeln verletzt sind und seit wann, damit ich zuerst die offene Regel der aktuellen Stufe behebe.
