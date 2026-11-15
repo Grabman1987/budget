@@ -2,8 +2,6 @@ import { readFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { Worker } from 'node:worker_threads';
-import type { Db } from '@budget/db';
-import { rememberedPayslipPassword } from '../payslips/password';
 import { parseStatementText, unavailableStatement, type StatementProposal } from '@budget/domain';
 import { PDF_TIME_LIMIT_MS } from '../pdf-time-limit';
 import { digest, RECEIPT_LIMIT, verifyReceiptFile } from '../receipts/files';
@@ -39,17 +37,6 @@ export function extractStatementText(
     worker.once('error', () => finish({ error: 'pdf' }));
     worker.once('exit', () => finish({ error: 'pdf' }));
   });
-}
-/**
- * Owner decision 2026-11-13: statement PDFs may be opened with the typed password, then the
- * remembered payroll password, then the server secret (same order as payslips). Nothing new is
- * remembered; no network and no document or password logging.
- */
-export function statementPasswordCandidates(db: Db, typed?: string): (string | undefined)[] {
-  const list = [typed, rememberedPayslipPassword(db), process.env['PAYSLIP_PDF_PASSWORD']].filter(
-    (p, i, all): p is string => Boolean(p) && all.indexOf(p) === i,
-  );
-  return list.length ? list : [undefined];
 }
 /** Extraction with the request-local password only (callers add the fallbacks). */
 export async function extractStatement(

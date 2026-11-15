@@ -12,7 +12,20 @@ import {
   readStatementAutomationOutcome,
   type Db,
 } from '@budget/db';
-import { extractStatementText, readStatementSource, statementPasswordCandidates } from './service';
+import { extractStatementText, readStatementSource } from './service';
+import { rememberedPayslipPassword } from '../payslips/password';
+
+/**
+ * Owner decision 2026-11-13: statement PDFs may be opened with the typed password, then the
+ * remembered payroll password, then the server secret (same order as payslips). Nothing new is
+ * remembered; no network and no document or password logging.
+ */
+function statementPasswordCandidates(db: Db, typed?: string): (string | undefined)[] {
+  const list = [typed, rememberedPayslipPassword(db), process.env['PAYSLIP_PDF_PASSWORD']].filter(
+    (p, i, all): p is string => Boolean(p) && all.indexOf(p) === i,
+  );
+  return list.length ? list : [undefined];
+}
 
 const review = (intakeId: string, reasons: string[]): StatementAutomationOutcome => ({
   intakeId,
