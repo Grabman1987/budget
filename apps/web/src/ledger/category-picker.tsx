@@ -64,6 +64,7 @@ export function CategoryCombobox({
   const hidden = useAmountPrivacy();
   // What is being typed to search; `null` shows the chosen name and the whole list.
   const [typing, setTyping] = useState<string | null>(null);
+  const [invalid, setInvalid] = useState(false);
   const [creating, setCreating] = useState(false);
   const created = useRef<{ id: string; seen: boolean } | null>(null);
   useEffect(() => {
@@ -88,6 +89,17 @@ export function CategoryCombobox({
     [leading, categories, hidden, trailing, allowCreate],
   );
   const showsAvailable = categories.some((c) => c.availableCents !== null);
+  const typedOption =
+    typing === null
+      ? undefined
+      : options.filter(
+          (option) =>
+            !option.alwaysVisible &&
+            option.label.trim().toLocaleLowerCase('de-AT') ===
+              typing.trim().toLocaleLowerCase('de-AT'),
+        );
+  const unresolved = capturePicker && typing !== null;
+  const invalidMessage = 'Bitte eine Kategorie aus der Liste wählen.';
   return (
     <>
       <Combobox
@@ -95,15 +107,29 @@ export function CategoryCombobox({
         value={typing ?? selectedName}
         filter={typing ?? ''}
         placeholder={placeholder}
-        error={error}
+        error={invalid && unresolved ? invalidMessage : error}
+        inputValidity={capturePicker && typing !== null ? invalidMessage : ''}
+        onInvalid={() => setInvalid(true)}
         listWhenEmpty
         captureCategory={capturePicker}
         pickFirst={pickFirst}
         emptyText="Keine Kategorie gefunden."
         options={options}
         {...(showsAvailable ? { hintHeading: 'Verfügbar' } : {})}
-        onChange={setTyping}
-        onFocusChange={(focused) => !focused && setTyping(null)}
+        onChange={(text) => {
+          setTyping(text);
+          if (capturePicker) onSelect('');
+        }}
+        onFocusChange={(focused) => {
+          if (focused) return;
+          if (capturePicker && typing !== null) {
+            if (typedOption?.length === 1) {
+              onSelect(typedOption[0]!.id);
+              setTyping(null);
+              setInvalid(false);
+            } else setInvalid(true);
+          } else setTyping(null);
+        }}
         onSelect={(o) => {
           if (o.id === CREATE_CATEGORY) setCreating(true);
           else {
@@ -111,6 +137,7 @@ export function CategoryCombobox({
             onSelect(o.id);
           }
           setTyping(null);
+          setInvalid(false);
         }}
       />
       {creating && (

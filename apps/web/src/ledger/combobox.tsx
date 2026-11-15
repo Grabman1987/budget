@@ -31,6 +31,8 @@ export interface ComboboxProps {
   onSelect: (option: ComboOption) => void;
   placeholder?: string;
   error?: string | undefined;
+  inputValidity?: string;
+  onInvalid?: () => void;
   /** Shown when the typed text matches nothing. */
   emptyText?: string;
   inputRef?: Ref<HTMLInputElement>;
@@ -82,6 +84,8 @@ export function Combobox({
   onSelect,
   placeholder,
   error,
+  inputValidity,
+  onInvalid,
   emptyText,
   inputRef,
   listWhenEmpty = false,
@@ -262,7 +266,6 @@ export function Combobox({
         >
           <TextInput
             id={id}
-            ref={inputRef}
             type={type}
             role="combobox"
             aria-expanded={open}
@@ -273,6 +276,12 @@ export function Combobox({
             aria-describedby={describedBy}
             autoComplete="off"
             value={value}
+            ref={(node) => {
+              node?.setCustomValidity(inputValidity ?? '');
+              if (typeof inputRef === 'function') inputRef(node);
+              else if (inputRef) inputRef.current = node;
+            }}
+            onInvalid={onInvalid}
             placeholder={overlayCapture && captureCategory ? 'Kategorie wählen' : placeholder}
             onFocus={(e) => {
               // A newly focused split row can be outside the sheet after it grows.

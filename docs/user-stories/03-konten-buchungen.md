@@ -63,9 +63,11 @@ Bereich: Konten (`/konten`, `/konten/$id`), Alle Buchungen (`/konten/buchungen`)
   2. Ich wähle „Art der Buchung“ (Ausgabe, Einnahme, Umbuchung), „Konto“, „Datum“ und „Betrag“.
   3. Ich wähle „Empfänger“ (Suchen oder neu anlegen) und Kategorie; optional „Projekt“, Notiz, „Belege“.
      Fehlt die Kategorie, wähle ich „Neue Kategorie …“, fülle Name und Gruppe im bestehenden Formular aus und speichere. Die Kategorie wird ausgewählt; der Buchungsentwurf bleibt erhalten.
+     Ich kann eine Kategorie anklicken, mit der Tastatur auswählen oder ihren eindeutigen vollständigen Namen tippen und das Feld verlassen. Anderer Suchtext bleibt sichtbar, wird nach Verlassen des Feldes als ungültig markiert und verhindert das Speichern.
   4. Bei einem Bargeld-Konto steht „Bargeldbuchungen sind sofort bestätigt“, sonst startet die Buchung „Vorgemerkt“.
   5. Optional wähle ich bei „Wiederholen“ Wöchentlich, Monatlich, Vierteljährlich oder Jährlich; die App legt eine wiederkehrende Zahlung an.
   6. Ich tippe „Buchung speichern“.
+     Mit „Speichern und neu“ beginne ich die nächste Buchung mit erhaltenem Datum, Konto und Empfänger sowie dessen Kategorie. Ein anderer Empfänger ersetzt nur die übernommenen Vorbelegungen durch Konto und Kategorie seiner letzten Buchung; ohne Verlauf werden diese geleert. Eine letzte Splitbuchung belegt keine Kategorie vor. Ein Registerkonto und meine in diesem neuen Formular selbst gewählten Werte bleiben erhalten.
 - **Ergebnis:** Die Buchung steht im Konto und in „Alle Buchungen“; mit „Wiederholen“ zusätzlich in Plan › Wiederkehrende Zahlungen.
 - **Abnahmekriterien:**
   1. Eine neue Bankbuchung startet „vorgemerkt“, eine Bargeldbuchung „bestätigt“.
@@ -75,7 +77,10 @@ Bereich: Konten (`/konten`, `/konten/$id`), Alle Buchungen (`/konten/buchungen`)
   5. Die Buchung ist über „Rückgängig“ bzw. „Buchung löschen?“ wieder entfernbar.
   6. Neue Kategorien lassen sich auch bei der Inline-Kategorieänderung und beim Bearbeiten unter Prüfen anlegen und auswählen. Doppelte Namen zeigen „Dieser Name wird schon verwendet.“; Abbrechen erhält den Entwurf und gibt den Fokus zurück.
   7. Die Kategorieanlage ist separat rückgängig machbar, solange die Kategorie unbenutzt ist. Erst das explizite Speichern der Buchung ordnet ihr Geld zu.
-- **Status:** Grundfunktion live; Kategorieanlage im Wähler #1104 implementiert, PR-/CI-Prüfung und Live-Abnahme offen — **Verweis:** Y03, #1104
+  8. Angezeigte Kategorie und gespeicherte Kategorie stimmen bei Tippen, Klick und Tastaturauswahl überein, auch nach „Speichern und neu“. Mehrdeutiger oder unbekannter Suchtext speichert keine alte Kategorie.
+  9. Konto und Kategorie aus dem vorigen Formular werden bei einem Empfängerwechsel gemeinsam ersetzt oder geleert; eigene Entscheidungen im aktuellen Formular werden nicht zurückgesetzt. Verspätete Antworten zum vorigen Formular werden ignoriert.
+  10. Fehlermeldungen zur Buchung erscheinen nach einem Speicherversuch; ungültiger Kategoriesuchtext wird nach Verlassen des Feldes erklärt. Ein frisches Formular zeigt keine Kategoriepflicht-Meldung während der Eingabe.
+- **Status:** Grundfunktion live; Kategorieanlage #1104 und Konsistenzkorrekturen #1145 implementiert, PR-/CI-Prüfung und Live-Abnahme offen — **Verweis:** Y03, #1104, #1145; Layout und Vorschlagschips separat #1142
 
 ### K-05a – Splitbuchung
 - **Story:** Als Nutzer möchte ich eine Buchung auf mehrere Kategorien aufteilen, damit ein Einkauf mit gemischtem Inhalt in den richtigen Envelopes landet.
