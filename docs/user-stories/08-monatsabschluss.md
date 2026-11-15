@@ -79,11 +79,11 @@ Bildschirm: `/monatsabschluss/<Monat>` (z. B. 2026-10). Einstieg: Plan › Kopfz
 ### M-03 – Wochen-, Quartals- und Jahresroutinen
 - **Story:** Als Nutzer möchte ich neben dem Monatsabschluss feste Routinen für Woche, Quartal und Jahr haben, damit regelmäßige Prüfungen nicht an meinem Gedächtnis hängen.
 - **Ausgangslage:** Heute gibt es nur den Monatsabschluss; Wochen-Prüfen, Gehaltstag-Verteilung, Quartals- und Jahresabschluss sind laut FEATURES nicht gebaut.
-- **Ablauf:** Ablauf unklar – zu klären: Welche Schritte hat je Routine (Woche, Quartal, Jahr) und wo erscheint sie (eigener Bildschirm, Heute oder Plan › Jahr)? Weder Code noch Issue beschreiben einen Ablauf.
-- **Ergebnis:** Zu klären (siehe Ablauf).
+- **Ablauf:** Entfällt. Es gibt keine eigenen Wochen-, Quartals- oder Jahresroutinen. Quartals- und Jahresberichte ergeben sich aus den Monatsabschlüssen (Monatsabschluss unter Reports).
+- **Ergebnis:** Keines; die Story entfällt.
 - **Abnahmekriterien:**
   1. Jede Routine ist über einen sichtbaren Einstieg abrufbar.
   2. Eine Routine ohne offene Punkte zeigt „nichts offen“ statt einer leeren Seite.
   3. Der Abschluss einer Routine ist wie beim Monat rückgängig machbar.
-- **Status:** offen — **Verweis:** Y24
-  Fehlt noch: gesamter Ablauf; nur der Monatsabschluss existiert.
+- **Status:** entfällt — **Verweis:** Y24
+  Grund: Keine eigenen Routinen; Quartal und Jahr folgen aus den Monatsabschlüssen (Entscheidung 15.11.2026).

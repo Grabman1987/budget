@@ -231,10 +231,11 @@ Bereich: Konten (`/konten`, `/konten/$id`), Alle Buchungen (`/konten/buchungen`)
 - **Story:** Als Nutzer möchte ich Umbuchungen und Wertpapierkäufe als einen zusammengehörigen Vorgang mit Zustand „unterwegs“ sehen, damit nichts doppelt oder fehlend wirkt, wenn die zwei Banken zu verschiedenen Zeiten buchen.
 - **Ausgangslage:** Ich überweise Geld aufs Depot und kaufe ein Wertpapier; Abgang und Eingang erscheinen an verschiedenen Tagen.
 - **Ablauf:** (geplant, laut Issue)
-  1. Ich öffne den Vorgang aus Konten oder Vermögen.
+  1. Ich öffne den Vorgang beim Konto: Umbuchung vom Girokonto auf das Verrechnungskonto, dort anschließend der Kauf.
   2. Eine Vorschau zeigt Bankabgang, Bankeingang, Gebühren, Kauf und Stückzahl, je Seite mit eigenem Datum und Status.
   3. Ist nur der Abgang bestätigt, steht der Vorgang auf „unterwegs“; das Empfängerkonto ändert sich noch nicht und es braucht keine Ausgleichsbuchung.
   4. Trifft der Eingang ein, verknüpft die App die vorhandene Buchung, statt eine neue anzulegen.
+- **Beispiel:** Am Montag überweise ich 500 € vom Girokonto aufs Verrechnungskonto. Das Girokonto zeigt den Abgang sofort, der Vorgang steht auf „unterwegs“. Am Mittwoch kommt das Geld an; die App verknüpft die Bankbuchung und der Vorgang gilt als angekommen. Am selben Tag kaufe ich 10 Stück zu je 45 € (450 €) plus 5 € Gebühr; 45 € bleiben auf dem Verrechnungskonto. Alles hängt an einem Vorgang.
 - **Ergebnis:** Ein Vorgang mit mehreren Seiten statt getrennter Buchungen.
 - **Abnahmekriterien:**
   1. Ein Vorgang zeigt beide Seiten, Gebühren und Kauf.
@@ -242,12 +243,16 @@ Bereich: Konten (`/konten`, `/konten/$id`), Alle Buchungen (`/konten/buchungen`)
   3. Nur dokumentierte Seiten werden bestätigt; vorhandene Buchungen werden bevorzugt verknüpft.
   4. Ein Abgang ohne Gegenseite hebt den bestätigten Saldo des Empfängers nicht an.
 - **Status:** offen — **Verweis:** #1080
-- Fehlt noch: gesamter Vorgang (Vorschau, Zustand „unterwegs“, Verknüpfung). Ablauf unklar – zu klären: von welcher Seite (Konten oder Vermögen) wird der Vorgang geöffnet?
+- Fehlt noch: gesamter Vorgang (Vorschau, Zustand „unterwegs“, Verknüpfung). Der Vorgang wird beim Konto geöffnet (Entscheidung 15.11.2026).
 
 ### K-13 – Wertpapierüberträge mit Kostenbasis
 - **Story:** Als Nutzer möchte ich Wertpapierüberträge mit belegter Kostenbasis erfassen, damit Gewinne und Verluste nach einem Depotwechsel stimmen.
 - **Ausgangslage:** Ich übertrage Stücke desselben Wertpapiers von einem Depot in ein anderes.
-- **Ablauf:** Ablauf unklar – zu klären: Das Issue beschreibt nur die Prüfung (Stufe A: Erhaltung von Stückzahl und Basis, FIFO/Durchschnitt); eine Oberfläche ist nicht festgelegt.
+- **Ablauf:** (geplant; das Issue beschreibt zunächst nur die Prüfung, Stufe A)
+  1. Ich öffne unter „Vermögen“ eine einfache Maske für den Übertrag, z. B. „von Broker A zu Broker B“.
+  2. Ich wähle Wertpapier, Stückzahl, Quell- und Zieldepot und nenne Kostenbasis und Beleg.
+  3. Die App prüft, dass Stückzahl und Basis erhalten bleiben (FIFO oder Durchschnitt), und bucht beide Seiten gemeinsam ohne realisierten Gewinn.
+  4. Bei unbekannter Basis bleibt der Fall zur manuellen Prüfung.
 - **Ergebnis:** (geplant) Stücke, Einstandswerte und Kaufdaten bleiben erhalten; es entsteht kein realisierter Gewinn.
 - **Abnahmekriterien:**
   1. Der Übertrag nennt Kostenbasis und Beleg.
@@ -255,20 +260,25 @@ Bereich: Konten (`/konten`, `/konten/$id`), Alle Buchungen (`/konten/buchungen`)
   3. Scheitert die zweite Seite, bleibt keine Hälfte stehen.
   4. Rückgängig stellt beide Seiten her.
 - **Status:** geplant — **Verweis:** #520
+- Wird noch nicht gebaut; bleibt offener Punkt (Entscheidung 15.11.2026). Gleiche Funktion wie V-17.
 - Fehlt noch: Nachweis der Erhaltung (Stufe A), danach Speicherung, Schnittstelle und Oberfläche.
 
 ### K-14 – Fremdwährungsüberträge
 - **Story:** Als Nutzer möchte ich Überträge in Fremdwährung begrenzt vorbereiten, damit Kurs, Betrag und Gebühr nachvollziehbar gebucht sind und nichts erraten wird.
 - **Ausgangslage:** Ich überweise Geld in oder aus einer Fremdwährung.
-- **Ablauf:** Ablauf unklar – zu klären: Das Issue legt Buchungs-Fixtures fest, aber keine Oberfläche. Vorgesehen: Quell- und Zielbetrag samt Währung, Kurs mit Herkunft und eine getrennte Gebühr erfassen.
-- **Ergebnis:** (geplant) Beide Seiten und die Gebühr werden gemeinsam gespeichert.
+- **Ablauf:** (offen, zu realisieren)
+  1. Ich öffne die Erfassung eines Fremdwährungsübertrags (Ort offen, siehe unten).
+  2. Ich gebe Quellkonto und Quellbetrag mit Währung, Zielkonto und Zielbetrag, den Kurs mit Herkunft und die Gebühr getrennt ein.
+  3. Die App speichert beide Seiten und die Gebühr gemeinsam; fehlt Betrag oder Kurs, wird nichts geschätzt.
+- **Beispiel:** 1.000 USD werden zu 920 € mit 5 € Gebühr. Das Dollar-Konto verliert 1.000 USD, das Euro-Konto erhält 920 €, die Gebühr von 5 € steht getrennt. Der Kurs ergibt sich aus den beiden Beträgen (0,92 €/USD) und wird nicht gerundet oder erraten.
+- **Ergebnis:** Beide Seiten und die Gebühr werden gemeinsam gespeichert.
 - **Abnahmekriterien:**
   1. Übertrag mit Währung, Kurs und Gebühr, im Umfang des Issues.
   2. Fehlende Beträge oder Kurse werden nicht erraten.
   3. Beide Seiten und Gebühr lassen sich gemeinsam rückgängig machen.
   4. Nicht unterstützte Fälle bleiben manuell.
-- **Status:** geplant — **Verweis:** #519
-- Fehlt noch: Fixtures, Speicherung und Oberfläche.
+- **Status:** offen — **Verweis:** #519
+- Fehlt noch: Fixtures, Speicherung und Oberfläche. Entscheidung 15.11.2026: wird realisiert. Offene Frage: Wo wird der Übertrag erfasst (Konten › Buchungen oder Konto-Detail)? Gleiche Funktion wie V-18.
 
 ### K-15 – Bankzeilen automatisch lesen
 - **Story:** Als Nutzer möchte ich Bankzeilen automatisch lesen lassen, damit ich weniger abtippe und neue Umsätze zur Prüfung bereitstehen.

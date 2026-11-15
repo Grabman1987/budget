@@ -212,14 +212,14 @@ Einstellungen erreicht der Nutzer über die Navigation „Einstellungen“. Die 
 - **Ablauf:** (geplant, nach Issue #490)
   1. Der Login zeigt Marke und bei Fehler eine Zeile mit Hilfe; der Anmeldeknopf ist mindestens 48 px hoch.
   2. Der Einstieg zeigt eine Checkliste Konto, Startsaldo, erste Buchung.
-  3. Ablauf unklar – zu klären: Wie und wo das Glossar erscheint; das Issue nennt es nur im Titel.
-- **Ergebnis:** Zu klären.
+  3. Das Glossar bleibt bewusst offen gelassen (Entscheidung 15.11.2026).
+- **Ergebnis:** Login und Einstieg wie beschrieben; das Glossar ist bewusst offen gelassen.
 - **Abnahmekriterien:**
   1. Ein neuer Nutzer kommt ohne Hilfe bis zur ersten Buchung.
   2. Ein Login-Fehler nennt, was zu tun ist.
   3. Am Handy ist alles ohne seitliches Scrollen bedienbar.
 - **Status:** geplant — **Verweis:** #490
-  Fehlt noch: Bewusst nach der Veröffentlichung; nicht vor den anderen Paketen bauen.
+  Bewusst offen gelassen (Glossar). Fehlt noch: Bewusst nach der Veröffentlichung; nicht vor den anderen Paketen bauen.
 
 ### E-11 – Konto anlegen und bearbeiten
 - **Story:** Als Nutzer möchte ich Konten mit Typ, Startsaldo, Limits und Konditionen anlegen und ändern, damit Salden, Gruppen und Prognosen zur Wirklichkeit passen.

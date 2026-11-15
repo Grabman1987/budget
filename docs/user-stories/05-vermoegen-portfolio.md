@@ -275,6 +275,7 @@ Geteilt: V-06 und V-09 sind aufgeteilt (V-06a/V-06b, V-09a/V-09b). V-17 und V-18
   3. Bei Krypto erklärt eine nachvollziehbare Bestandsrechnung, ob Zuordnung, fehlende Bewegung oder ein echter Unterschied vorliegt.
   4. Eine Korrektur der Quelle mit Vorschau erneut testen.
   5. Erst bei erfolgreicher Prüfung schließt die Warnung; „Als erledigt markieren“ täuscht keine Quellreparatur vor.
+- **Beispiel:** Die Börse meldet 0,50 einer Münze. Die App rechnet aus den erfassten Bewegungen nur 0,48. Die Ansicht zeigt beide Zahlen und die Bewegung, die fehlt (z. B. eine Gebühr von 0,02), damit ich sie nachtragen kann.
 - **Ergebnis:** Jede Warnung hat eine benannte Ursache und einen prüfbaren Abschluss.
 - **Abnahmekriterien:**
   - Jede Abweichung zeigt Ursache, Stichtag, Quelle, Instrument und betroffene Bewegungen.
@@ -283,7 +284,7 @@ Geteilt: V-06 und V-09 sind aufgeteilt (V-06a/V-06b, V-09a/V-09b). V-17 und V-18
   - Randfall: Viele Krypto-Bewegungen bleiben gruppiert prüfbar; am Handy ist die Ursachenansicht lesbar.
 - **Status:** offen · **Verweis:** #1081
   Fehlt noch: Ursachenansicht, Vorschau der Quellkorrektur, Abschluss nur nach erfolgreicher Prüfung.
-  Ablauf unklar – zu klären: Ort der Ursachenansicht (Konten › Prüfen oder Einstellungen › Datenquellen)?
+  Offene Frage: Soll die Ansicht unter Konten › Prüfen oder unter Einstellungen › Datenquellen stehen?
 
 ### V-15 – Wertpapierabrechnungen als PDF einlesen
 - **Story:** Als Nutzer möchte ich Wertpapierabrechnungen (Sparplan, Round-up, Kauf/Verkauf) als PDF deterministisch einlesen lassen, damit ich Trades nicht abtippe und Tippfehler bei Stück, Betrag und Gebühren ausgeschlossen sind.
@@ -315,35 +316,10 @@ Geteilt: V-06 und V-09 sind aufgeteilt (V-06a/V-06b, V-09a/V-09b). V-17 und V-18
   Fehlt noch: alles; Anforderungen und Beispiele fehlen.
 
 ### V-17 – Wertpapierüberträge mit belegter Kostenbasis (neu, geplant)
-- **Story:** Als Nutzer möchte ich ein Wertpapier von einem Depot ins andere übertragen, ohne dass ein Verkaufsgewinn entsteht, damit Stückzahl, Einstand und Kaufdatum erhalten bleiben und die Gewinnberechnung stimmt.
-- **Ausgangslage:** Dasselbe Wertpapier wird zwischen zwei Depots übertragen, Ausgangsposten und Einstand sind bekannt.
-- **Ablauf:** (geplant, nur Stufe A der Arbeitspakete beschrieben)
-  1. Übertrag erfassen mit beiden Seiten (Auslieferung und Einlieferung); beide Seiten müssen ausdrücklich gepaart sein.
-  2. Die App prüft, dass Stück und Einstand erhalten bleiben (FIFO oder Durchschnitt) und erzeugt keinen realisierten Gewinn.
-  3. Bei unbekanntem Einstand, mehrdeutiger Paarung, Fusion oder Abspaltung bleibt der Fall zur manuellen Prüfung.
-- **Ergebnis:** Bestand wechselt das Depot; Einstand und Kaufdatum bleiben.
-- **Abnahmekriterien:**
-  - Summe der Stücke und des Einstands vor und nach dem Übertrag ist gleich.
-  - Es entsteht kein realisierter Gewinn.
-  - Rückgängig stellt beide Seiten wieder her.
-  - Randfall: Fehlt eine Seite oder scheitert die zweite Seite, bleibt alles unverändert.
-- **Status:** geplant · **Verweis:** #520
-  Fehlt noch: Persistenz, Einstandsverfolgung, Erfassung und Prüfablauf.
-  Ablauf unklar – zu klären: In welchem Formular wird ein Übertrag erfasst (Handelsart „Einlieferung“/„Auslieferung“ oder neue Art)?
+Siehe K-13 (Wertpapierüberträge mit Kostenbasis, #520). Gleiche Funktion, dort beschrieben. Wird noch nicht gebaut (Entscheidung 15.11.2026).
+- **Status:** geplant — **Verweis:** #520
 
 ### V-18 – Fremdwährungsüberträge begrenzt erfassen (neu, geplant)
-- **Story:** Als Nutzer möchte ich Überträge zwischen Konten in verschiedenen Währungen mit Originalbeträgen und echten Gebühren erfassen, damit der Kurs nachvollziehbar bleibt und kein Einkommen erfunden wird.
-- **Ausgangslage:** Geld wandert zwischen Konten in verschiedenen Währungen; beide Beträge, die Kursrichtung und die Gebühren sind belegt.
-- **Ablauf:** (geplant, Anforderungen laut Ticket)
-  1. Beide Beträge samt Währung und Kurs sowie die echte Gebühr getrennt erfassen.
-  2. Beide Seiten und die Gebühr werden gemeinsam gespeichert und sind rückgängig machbar.
-  3. Die EUR-Bewertung folgt der bestehenden datierten Regel; nicht unterstützte Fälle (eingebettete Gebühr, Spread) bleiben zur manuellen Prüfung.
-- **Ergebnis:** Zwei Buchungen in Originalwährung, ein nachvollziehbarer Kurs, keine erfundenen Beträge.
-- **Abnahmekriterien:**
-  - Originalbeträge bleiben unverändert erhalten; es gibt keine Rundung auf Parität.
-  - Scheitert die zweite Seite, wird die erste zurückgerollt.
-  - Randfall: Fehlt Betrag oder Kurs, wird nicht geschätzt, der Eintrag wird abgelehnt.
-  - Kein automatischer Bankabgleich in der ersten Stufe.
-- **Status:** geplant · **Verweis:** #519
-  Fehlt noch: Posting-Modell, Erfassung, Rückgängig.
-  Ablauf unklar – zu klären: Wo wird der Fremdwährungsübertrag erfasst (Konten › Buchungen oder Konto-Detail)?
+Siehe K-14 (Fremdwährungsüberträge, #519). Gleiche Funktion, dort beschrieben. Wird realisiert (Entscheidung 15.11.2026).
+- **Status:** offen — **Verweis:** #519
+

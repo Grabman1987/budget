@@ -127,7 +127,7 @@ Bereich: Plan (`/plan/monat`, `/plan/jahr`, `/plan/erwartet`, `/plan/sparziele`,
   3. Ein ungedeckter Kauf erscheint als „davon neue Kartenschuld“ im Panel.
   4. Ohne Karte lässt sich keine Zahlungskategorie anlegen.
 - **Status:** teilweise — **Verweis:** Y08
-- Fehlt noch: Abgleich mit echten Karten und Zahlungssalden (Gate 2); Barvorschüsse sind im Plan nicht eigens beschriftet. Ablauf unklar – zu klären: wo genau wird ein Barvorschuss erfasst?
+- Fehlt noch: Abgleich mit echten Karten und Zahlungssalden (Gate 2); Barvorschüsse sind im Plan nicht eigens beschriftet. Offene Frage: Barvorschuss = Bargeld mit der Kreditkarte abheben. Nutzt der Nutzer das? Wenn nein, entfällt der Begriff.
 
 ### P-08 – Monat als Wasserfall mit Triage
 - **Story:** Als Nutzer möchte ich den Monat als Wasserfall (neun Stufen) mit Triage sehen, damit ich erkenne, welche Stufe als Nächstes Geld braucht und was dringend ist.

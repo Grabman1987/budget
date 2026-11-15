@@ -10,7 +10,7 @@ Bereich: Startseite „Heute“ (Route `/`). Status und Verweise wie in `docs/US
   2. Ich lese die große Zahl der Karte „Frei bis Gehalt“ (mit „bis <Datum> · N Tage“).
   3. Ich lese die Karte „Nettovermögen“ mit Gesamtbetrag und „… in 12 Monaten“. Antippen öffnet die Aufschlüsselung nach Vermögensart.
   4. Ich lese die Karte „Monat im Blick“ (Ausgegeben, Prognose Monatsende, Deckel).
-  5. Ich scrolle zu „Ziele finanzieren“. Dort steht „N Sparziele noch nicht finanziert“ mit Link nach Plan › Sparziele.
+  5. Ich scrolle zu „Ziele finanzieren“. Dort steht „N Sparziele noch nicht finanziert“ mit Link nach Plan › Sparziele. Das nächste Sparziel (nach Datum) steht in diesem Block; eine eigene Karte oben gibt es nicht (Entscheidung 15.11.2026).
 - **Ergebnis:** Nichts wird geändert. Jede Zahl führt per Antippen zur Herleitung bzw. zur Quellseite.
 - **Abnahmekriterien:**
   1. Die Karten stehen oben, auf dem Handy untereinander.
@@ -19,7 +19,7 @@ Bereich: Startseite „Heute“ (Route `/`). Status und Verweise wie in `docs/US
   4. Fällt eine Teilabfrage aus, zeigt die Karte „… nicht verfügbar“ mit Wiederholen statt einer falschen Zahl.
   5. Fehlt die Bewertung, steht „Bewertung nicht verfügbar“ statt 0 €.
 - **Status:** live — **Verweis:** Y13-C
-- Hinweis: Das Issue/FEATURES nennt „nächstes Sparziel“ als dritte Karte; im Code steht es im Block „Ziele finanzieren“. Ablauf unklar – zu klären: soll das nächste Sparziel (nach Datum) als eigene Karte oben stehen oder reicht der Block?
+- Hinweis: Das nächste Sparziel ist Teil des bestehenden Blocks „Ziele finanzieren“; keine eigene Karte (Entscheidung 15.11.2026).
 
 ### H-02 – Frei bis Gehalt verstehen
 - **Story:** Als Nutzer möchte ich „Frei bis Gehalt“ als Cashflow-Zahl sehen und in ihre Teile zerlegen können (Kontostand der Budget-Konten + erwartete Eingänge vor dem Gehalt − offene Abflüsse bis zum Gehalt + aktivierter Dispo-Rahmen), damit ich weiß, was ich bis zum Gehalt noch ausgeben kann, ohne ins Minus zu geraten.
