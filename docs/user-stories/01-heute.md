@@ -103,5 +103,7 @@ Bereich: Startseite „Heute“ (Route `/`). Status und Verweise wie in `docs/US
   2. Während des Ladens steht „lädt“, nicht „Nicht verfügbar“.
   3. Bei Fehler erscheint ein klarer Hinweis, keine Null und keine alte Zahl als neue.
   4. Die Antworten bleiben byte-identisch zu den abgelegten Prüfsummen.
-- **Status:** offen — **Verweis:** #1073, #956
-- Fehlt noch: Umbau der großen Lesemodelle (Kontoprüfung, Sparziele, Nettovermögensreihe) laut Schrittplan im Issue.
+  5. Account-review reads preserve checkpoint ordering, financial-edit detection and Undo/redo; the audit projection uses one direct primitive-row query, including in transactions.
+- **Status:** open — partial read optimization; the cold 500 ms target remains unaccepted. **References:** #1073, #956
+- Read flow: after a cache miss, account-review chronology reads the same audit predicates directly from SQLite before the unchanged replay; loading/error UI and all financial figures remain unchanged.
+- Remaining: incremental account-review replay, month-end valuation batching, the current-month whole-picture projection and finance-check fact reuse. Goal audit parsing is already cached by #1129.

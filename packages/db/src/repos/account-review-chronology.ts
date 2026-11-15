@@ -76,21 +76,23 @@ export function accountReviewChronology(
       ),
       sql` OR `,
     )}) ELSE 0 END`.mapWith(Boolean);
-  const events = db
+  const eventQuery = db
     .select({
       id: auditLog.id,
-      sequence: sql<number>`${auditLog}.rowid`.mapWith(Number),
+      sequence: sql<number>`${auditLog}.rowid`.as('sequence'),
       ts: auditLog.ts,
-      entityId: auditLog.entityId,
-      entityType: auditLog.entityType,
+      entityId: sql<string>`${auditLog.entityId}`.as('entityId'),
+      entityType: sql<string>`${auditLog.entityType}`.as('entityType'),
       action: auditLog.action,
-      groupId: auditLog.groupId,
-      undoOfId: auditLog.undoOfId,
-      beforeExists: sql<boolean>`${auditLog.beforeJson} IS NOT NULL`.mapWith(Boolean),
-      beforeLive,
-      afterLive,
-      financialChange,
-      afterAccountId: sql<string | null>`json_extract(${auditLog.afterJson}, '$.account_id')`,
+      groupId: sql<string | null>`${auditLog.groupId}`.as('groupId'),
+      undoOfId: sql<string | null>`${auditLog.undoOfId}`.as('undoOfId'),
+      beforeExists: sql<number>`${auditLog.beforeJson} IS NOT NULL`.as('beforeExists'),
+      beforeLive: beforeLive.as('beforeLive'),
+      afterLive: afterLive.as('afterLive'),
+      financialChange: financialChange.as('financialChange'),
+      afterAccountId: sql<string | null>`json_extract(${auditLog.afterJson}, '$.account_id')`.as(
+        'afterAccountId',
+      ),
     })
     .from(auditLog)
     .leftJoin(booking, and(eq(auditLog.entityType, 'booking'), eq(auditLog.entityId, booking.id)))
@@ -109,8 +111,24 @@ export function accountReviewChronology(
           : undefined,
       ),
     )
-    .orderBy(asc(sql`${auditLog}.rowid`))
-    .all();
+    .orderBy(asc(sql`${auditLog}.rowid`));
+  // SQLite already returns these projected primitives. Avoid ORM field/decoder mapping for
+  // every audit row; the predicates are 0/1 and are consumed only as truth values below.
+  const events = db.all<{
+    id: string;
+    sequence: number;
+    ts: string;
+    entityId: string;
+    entityType: string;
+    action: string;
+    groupId: string | null;
+    undoOfId: string | null;
+    beforeExists: number;
+    beforeLive: number;
+    afterLive: number;
+    financialChange: number;
+    afterAccountId: string | null;
+  }>(eventQuery.getSQL());
 
   const checkpointKey = (type: string, id: string) => `${type}:${id}`;
   const currentCheck = new Map<string, CheckEvent | null>();
