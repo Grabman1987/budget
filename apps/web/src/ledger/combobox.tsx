@@ -18,6 +18,8 @@ export interface ComboOption {
   hint?: ReactNode;
   /** Heading the option is listed under; consecutive options with the same group share it. */
   group?: string | undefined;
+  /** Creation actions remain available after filtering and the result cap. */
+  alwaysVisible?: boolean;
 }
 
 export interface ComboboxProps {
@@ -118,13 +120,17 @@ export function Combobox({
   const shown = useMemo(() => {
     const q = fold(filter ?? value);
     if (q === '' && !listWhenEmpty) return [];
-    const hits = q === '' ? [...options] : options.filter((o) => fold(o.label).includes(q));
+    const choices = options.filter((option) => !option.alwaysVisible);
+    const hits = q === '' ? choices : choices.filter((o) => fold(o.label).includes(q));
     // Prefix matches first, the order of the caller otherwise.
     if (q !== '' && !captureCategory)
       hits.sort(
         (a, b) => Number(!fold(a.label).startsWith(q)) - Number(!fold(b.label).startsWith(q)),
       );
-    return captureCategory ? hits : hits.slice(0, MAX_OPTIONS);
+    return [
+      ...(captureCategory ? hits : hits.slice(0, MAX_OPTIONS)),
+      ...options.filter((option) => option.alwaysVisible),
+    ];
   }, [options, value, filter, listWhenEmpty, captureCategory]);
 
   const open =

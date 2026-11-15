@@ -31,6 +31,7 @@ Bereich: Plan (`/plan/monat`, `/plan/jahr`, `/plan/erwartet`, `/plan/sparziele`,
   3. Im Feld „Klasse“ wähle ich Bedarf, Wunsch oder Zukunft.
   4. Ich verschiebe Kategorien mit den Pfeilen; „Reihenfolge gespeichert.“ erscheint.
   5. Ich öffne „Plan › Monat“ und sehe die Kategorie in der Gruppe; die Ansicht „Klassen“ gruppiert nach Klasse.
+  6. Beim Buchen wähle ich alternativ „Neue Kategorie …“ direkt im Kategorie-Wähler, gebe Name und Gruppe im bestehenden Formular ein und speichere. Die neue Kategorie ist danach ausgewählt.
 - **Ergebnis:** Struktur und Klasse sind gespeichert und wirken in Plan, Buchungs-Kategorien und Reports (z. B. 50/30/20).
 - **Abnahmekriterien:**
   1. Eine neue Kategorie erscheint in Plan und im Kategorie-Auswahlfeld.
@@ -38,7 +39,9 @@ Bereich: Plan (`/plan/monat`, `/plan/jahr`, `/plan/erwartet`, `/plan/sparziele`,
   3. Ohne Gruppe meldet die Seite „Noch keine Gruppen. Lege zuerst eine Gruppe an.“
   4. Ungespeicherte Änderungen werden beim Schließen mit einer Rückfrage geschützt.
   5. Bestehende Buchungen bleiben der Kategorie zugeordnet.
-- **Status:** live — **Verweis:** Y06
+  6. Im Buchungsdialog, bei der Inline-Kategorieänderung und unter Prüfen öffnet „Neue Kategorie …“ dasselbe Formular. Doppelte Namen werden mit „Dieser Name wird schon verwendet.“ abgelehnt.
+  7. „Rückgängig“ entfernt eine neu angelegte, noch unbenutzte Kategorie; ein offener Buchungsentwurf verliert dabei die entfernte Auswahl. Das Anlegen allein verändert keine Geldwerte.
+- **Status:** Grundfunktion live; Kategorieanlage im Wähler #1104 implementiert, PR-/CI-Prüfung und Live-Abnahme offen — **Verweis:** Y06, #1104
 
 ### P-03 – Kategoriestruktur wie im Vorsystem
 - **Story:** Als Nutzer möchte ich Gruppen und Kategorien wie in meiner früheren YNAB-Struktur wiederfinden (Reihenfolge, Einzelkategorien statt Sammelkategorien, versteckte Kategorien), damit ich mich nicht neu einarbeiten muss und alte Gewohnheiten weiter gelten.

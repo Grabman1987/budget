@@ -62,6 +62,7 @@ Bereich: Konten (`/konten`, `/konten/$id`), Alle Buchungen (`/konten/buchungen`)
   1. Ich tippe in „Alle Buchungen“ auf „Buchung erfassen“ (oder den Plus-Knopf).
   2. Ich wähle „Art der Buchung“ (Ausgabe, Einnahme, Umbuchung), „Konto“, „Datum“ und „Betrag“.
   3. Ich wähle „Empfänger“ (Suchen oder neu anlegen) und Kategorie; optional „Projekt“, Notiz, „Belege“.
+     Fehlt die Kategorie, wähle ich „Neue Kategorie …“, fülle Name und Gruppe im bestehenden Formular aus und speichere. Die Kategorie wird ausgewählt; der Buchungsentwurf bleibt erhalten.
   4. Bei einem Bargeld-Konto steht „Bargeldbuchungen sind sofort bestätigt“, sonst startet die Buchung „Vorgemerkt“.
   5. Optional wähle ich bei „Wiederholen“ Wöchentlich, Monatlich, Vierteljährlich oder Jährlich; die App legt eine wiederkehrende Zahlung an.
   6. Ich tippe „Buchung speichern“.
@@ -72,7 +73,9 @@ Bereich: Konten (`/konten`, `/konten/$id`), Alle Buchungen (`/konten/buchungen`)
   3. Ohne Konto meldet das Formular „Bitte ein verfügbares Konto wählen.“
   4. Beim Schließen mit Eingaben fragt „Eingaben verwerfen?“.
   5. Die Buchung ist über „Rückgängig“ bzw. „Buchung löschen?“ wieder entfernbar.
-- **Status:** live — **Verweis:** Y03
+  6. Neue Kategorien lassen sich auch bei der Inline-Kategorieänderung und beim Bearbeiten unter Prüfen anlegen und auswählen. Doppelte Namen zeigen „Dieser Name wird schon verwendet.“; Abbrechen erhält den Entwurf und gibt den Fokus zurück.
+  7. Die Kategorieanlage ist separat rückgängig machbar, solange die Kategorie unbenutzt ist. Erst das explizite Speichern der Buchung ordnet ihr Geld zu.
+- **Status:** Grundfunktion live; Kategorieanlage im Wähler #1104 implementiert, PR-/CI-Prüfung und Live-Abnahme offen — **Verweis:** Y03, #1104
 
 ### K-05a – Splitbuchung
 - **Story:** Als Nutzer möchte ich eine Buchung auf mehrere Kategorien aufteilen, damit ein Einkauf mit gemischtem Inhalt in den richtigen Envelopes landet.
