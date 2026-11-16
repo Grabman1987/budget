@@ -2,7 +2,7 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { afterEach, expect, it, vi } from 'vitest';
-import { setAmountsHidden } from '@budget/ui';
+import { ToastProvider, setAmountsHidden } from '@budget/ui';
 import { QuoteCause, type QuoteDiagnostics, type QuotePreview } from './quote-cause';
 import { request } from '../api/http';
 
@@ -50,11 +50,13 @@ function mount() {
     <QueryClientProvider
       client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
     >
-      <QuoteCause
-        securityId={diagnostics.securityId}
-        createdAt="2026-09-15T12:00:00Z"
-        detail="Fehlerklasse: currency_mismatch"
-      />
+      <ToastProvider>
+        <QuoteCause
+          securityId={diagnostics.securityId}
+          createdAt="2026-09-15T12:00:00Z"
+          detail="Fehlerklasse: currency_mismatch"
+        />
+      </ToastProvider>
     </QueryClientProvider>,
   );
 }
@@ -116,4 +118,34 @@ it('distinguishes a configured source currency from a returned currency and miss
   ).toBeTruthy();
   expect(screen.getByText(/Tatsächliche Kurswährung nicht verfügbar/)).toBeTruthy();
   expect(screen.queryByText(/Von der Quelle gemeldet/)).toBeNull();
+});
+
+it('#1203 records a reasoned "Nur manuelle Kurse" decision and offers the abort only without holding', async () => {
+  vi.mocked(request).mockImplementation(async (method: string, url: string) => {
+    if (method === 'GET')
+      return {
+        ...diagnostics,
+        quoteExchange: 'XETRA',
+        pricesEnabled: true,
+        held: false,
+        lastRun: { finishedAt: '2026-09-17T00:30:00Z', status: 'partial', errorClasses: 'http' },
+        lastSuccessRun: null,
+      };
+    return { resolved: 1, groupId: 'g', url };
+  });
+  mount();
+  expect(await screen.findByText('XETRA')).toBeTruthy();
+  expect(screen.getByText('Historischer Bestand: aktuell keine Stücke')).toBeTruthy();
+  const manual = screen.getByRole('button', { name: 'Nur manuelle Kurse' }) as HTMLButtonElement;
+  expect(manual.disabled).toBe(true);
+  fireEvent.change(screen.getByLabelText('Grund'), { target: { value: 'Quelle liefert USD' } });
+  fireEvent.click(manual);
+  await vi.waitFor(() =>
+    expect(request).toHaveBeenCalledWith(
+      'POST',
+      '/api/securities/synthetic-coin/quote-source-decision',
+      { mode: 'manual_only', reason: 'Quelle liefert USD' },
+    ),
+  );
+  expect(screen.getByRole('button', { name: /Abruf abschalten/ })).toBeTruthy();
 });

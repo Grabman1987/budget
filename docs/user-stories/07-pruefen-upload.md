@@ -179,6 +179,23 @@ Bildschirm Prüfen: `/konten/pruefen` (Konten › Prüfen). Zähler: „Umsätze
   3. Die Aufgabe verschwindet von selbst, sobald der Saldo wieder stimmt.
 - **Status:** in Arbeit (Entwurfs-PR) — **Verweis:** #1203 (Teil B)
 
+### I-05c – Kursquellen-Warnung nachvollziehen und bewusst abschalten
+- **Story:** Als Nutzer möchte ich bei „Kurse nicht abrufbar“ sehen, was die Quelle liefert, sie jetzt testen und notfalls mit Grund auf „nur manuelle Kurse“ stellen, damit die Warnung nicht ohne Ursache offen bleibt oder wegen eines manuellen Kurses nur scheinbar erledigt ist.
+- **Ausgangslage:** Eine Warnung nennt eine Fehlerklasse (`currency_mismatch`, `empty`, `http`).
+- **Ablauf:**
+  1. Nutzer öffnet „Warnung erklären“. Die Ansicht zeigt Symbol, Börse, erwartete und gelieferte Kurswährung, letzten gespeicherten Kurs und den letzten (erfolgreichen) automatischen Lauf.
+  2. „Quelle erneut testen (Vorschau)“ ruft die Quellen jetzt ab und zeigt Ergebnis und Testzeit; es wird nichts gespeichert.
+  3. Die Quelle lässt sich über „Instrument öffnen“ ändern (Symbol, Börse, Ariva-Link).
+  4. Ist sie nicht reparierbar, trägt der Nutzer einen Grund ein und klickt „Nur manuelle Kurse“. Ohne aktuellen Bestand gibt es zusätzlich „Abruf abschalten (historischer Bestand)“.
+  5. Der automatische Abruf ist aus, die Warnung ist mit dem Grund erledigt, „Rückgängig“ stellt beides wieder her.
+- **Ergebnis:** Kein Kurs wird gespeichert oder umgerechnet; ein Fremdwährungskurs wird nie als EUR abgelegt.
+- **Abnahmekriterien:**
+  1. Ein manueller Kurs schließt die Quellwarnung nicht.
+  2. Ohne Grund sind die Knöpfe gesperrt.
+  3. Der erste erfolgreiche automatische Abruf schließt Abruf-Warnungen weiter von selbst (#1101).
+  4. „Abruf abschalten“ wird bei vorhandenem Bestand vom Server abgelehnt.
+- **Status:** teilweise — Test, Quellanzeige und Abschalten mit Grund umgesetzt (Entwurfs-PR); offen: Umrechnung mit EZB-Kurs (braucht Schema), Zeitpunkt des letzten Abrufs je Instrument, Gruppe „historische Bestände“ in der Liste. — **Verweis:** #1203 (Teil A), #1081, #1101
+
 ### I-06 – Gehaltszettel automatisch lesen und bestätigen
 - **Story:** Als Nutzer möchte ich Gehaltszettel automatisch auslesen lassen und die Vorschläge nur noch bestätigen, damit ich Brutto, Abzüge und Auszahlung nicht abtippen muss.
 - **Ausgangslage:** Ein neuer Gehaltszettel liegt als PDF vor (Upload oder nächtlicher Dropbox-Abruf, wenn eingerichtet).

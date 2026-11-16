@@ -1,5 +1,7 @@
 import {
+  decideQuoteSource,
   EntityNotFoundError,
+  securityIsHeld,
   fxSeries,
   lastMarketRun,
   lastSuccessfulMarketRun,
@@ -99,6 +101,11 @@ export function marketRoutes(db: Db, today: () => string, sources: MarketSources
       symbol: sec.symbol,
       coingeckoId: sec.coingeckoId,
       hasQuoteUrl: !!sec.quoteUrl,
+      quoteExchange: sec.quoteExchange,
+      pricesEnabled: sec.pricesEnabled,
+      held: securityIsHeld(db, sec.id, today()),
+      lastRun: lastMarketRun(db) ?? null,
+      lastSuccessRun: lastSuccessfulMarketRun(db) ?? null,
       asOf: today(),
       latest,
       movements,
@@ -135,7 +142,28 @@ export function marketRoutes(db: Db, today: () => string, sources: MarketSources
         });
       }
     }
-    return c.json({ securityId: sec.id, currency: sec.currency, from, to, attempts });
+    return c.json({
+      securityId: sec.id,
+      currency: sec.currency,
+      symbol: sec.symbol,
+      testedAt: new Date().toISOString(),
+      from,
+      to,
+      attempts,
+    });
+  });
+
+  /** Owner decision: no repair, switch the automatic fetch off with a reason (closes the warnings). */
+  app.post('/securities/:id/quote-source-decision', async (c) => {
+    const sec = requireSecurity(c.req.param('id'));
+    const body = await readBody(
+      c,
+      z.strictObject({
+        mode: z.enum(['manual_only', 'fetch_off']),
+        reason: z.string().trim().min(3).max(200),
+      }),
+    );
+    return c.json(decideQuoteSource(db, sec.id, body, today(), { actor: ACTOR }));
   });
 
   app.put('/securities/:id/prices/:date', async (c) => {
