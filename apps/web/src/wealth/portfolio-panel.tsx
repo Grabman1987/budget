@@ -456,7 +456,7 @@ function ManualQuote({
       );
       setPrice('');
       onDirty(false);
-      await refresh();
+      void refresh().catch(() => undefined);
       toast.show({
         message: 'Manueller Kurs gespeichert.',
         actionLabel: 'Rückgängig',

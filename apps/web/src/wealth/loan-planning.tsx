@@ -90,7 +90,7 @@ export function useLoanWrite() {
             (error: unknown) => toast.show({ message: errorText(error) }),
           ),
       });
-      await refresh();
+      void refresh().catch(() => undefined);
       return result;
     } catch (error) {
       toast.show({ message: errorText(error) });

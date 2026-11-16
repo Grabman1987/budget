@@ -92,7 +92,8 @@ export function useBudgetWrite() {
     const current = () => history.revision() === revision && toast.revision() === toastRevision;
     try {
       const result = await run();
-      await refresh();
+      // #1201: reads refresh in the background; the dialog must not wait for them.
+      void refresh().catch(() => undefined);
       if (!current()) return result;
       const hint =
         'toBeAssignedCents' in result && typeof result.toBeAssignedCents === 'number'

@@ -336,7 +336,7 @@ function TradeForm({
         return;
       }
       onDirty(false);
-      await refresh();
+      void refresh().catch(() => undefined);
       onSaved(result.trade.securityId);
       toast.show({
         message: proposal
@@ -376,7 +376,7 @@ function TradeForm({
     try {
       const result = await removeTrade(trade.id);
       onDirty(false);
-      await refresh();
+      void refresh().catch(() => undefined);
       onSaved(trade.securityId);
       toast.show({
         message: trade.bookingId
