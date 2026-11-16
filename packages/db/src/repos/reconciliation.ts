@@ -1,6 +1,13 @@
 import { todayInVienna } from '@budget/domain';
-import { and, asc, eq, gte, inArray, isNull, lte, sql } from 'drizzle-orm';
-import { account, accountReconciliation, booking, payee, SYSTEM_PAYEE_IDS } from '../schema';
+import { and, asc, eq, gt, gte, inArray, isNull, lte, sql } from 'drizzle-orm';
+import {
+  account,
+  accountReconciliation,
+  auditLog,
+  booking,
+  payee,
+  SYSTEM_PAYEE_IDS,
+} from '../schema';
 import { insertTracked, updateTracked, withGroup, type AuditContext } from './audit';
 import { createBooking, deleteBooking } from './bookings';
 import {
@@ -99,6 +106,127 @@ export function bookedBalance(db: Executor, accountId: string, date: string): nu
     )
     .get();
   return acct.openingBalanceCents + (row?.total ?? 0);
+}
+
+export interface ReconciliationChange {
+  bookingId: string;
+  /** Audit timestamp of the change. */
+  at: string;
+  change: 'created' | 'changed' | 'deleted' | 'restored';
+  date: string;
+  payeeName: string | null;
+  amountBeforeCents: number | null;
+  amountAfterCents: number | null;
+  /** Effect of this single change on the booked balance of the checked day. */
+  effectCents: number;
+}
+export interface ReconciliationChanges {
+  checkId: string;
+  accountId: string;
+  date: string;
+  statementBalanceCents: number;
+  currentBalanceCents: number;
+  /** Sum of the listed effects; equals the difference when nothing else changed the balance. */
+  explainedCents: number;
+  /** `current - statement - explained`: changes the booking audit cannot account for (e.g. opening balance). */
+  unexplainedCents: number;
+  changes: ReconciliationChange[];
+}
+type BookingSnapshot = {
+  account_id?: string;
+  date?: string;
+  amount_cents?: number;
+  status?: string;
+  deleted_at?: string | null;
+  payee_id?: string | null;
+};
+const parseSnapshot = (json: string | null): BookingSnapshot | null => {
+  if (!json) return null;
+  try {
+    return JSON.parse(json) as BookingSnapshot;
+  } catch {
+    return null;
+  }
+};
+/**
+ * Bookings created, changed or deleted after a Kontoprüfung that lie inside its checked period
+ * (same account, date up to the checked day). Derived from the audit log, so it explains the
+ * difference to the cent without storing anything. Read-only; nothing is booked or adjusted.
+ */
+export function reconciliationChangesSince(
+  db: Executor,
+  checkId: string,
+): ReconciliationChanges | null {
+  const check = db
+    .select()
+    .from(accountReconciliation)
+    .where(and(eq(accountReconciliation.id, checkId), isNull(accountReconciliation.deletedAt)))
+    .get();
+  if (!check) return null;
+  const acct = liveAccount(db, check.accountId);
+  const counts = (b: BookingSnapshot | null) =>
+    Boolean(
+      b &&
+      b.account_id === check.accountId &&
+      !b.deleted_at &&
+      (b.status === 'confirmed' || b.status === 'reconciled') &&
+      (b.date ?? '') >= acct.openingDate &&
+      (b.date ?? '') <= check.date,
+    );
+  const inPeriod = (b: BookingSnapshot | null) =>
+    Boolean(b && b.account_id === check.accountId && (b.date ?? '') <= check.date);
+  const amountOf = (b: BookingSnapshot | null) => (counts(b) ? (b!.amount_cents ?? 0) : 0);
+  const rows = db
+    .select()
+    .from(auditLog)
+    .where(and(eq(auditLog.entityType, 'booking'), gt(auditLog.ts, check.createdAt)))
+    .orderBy(asc(auditLog.ts), sql`${auditLog}.rowid`)
+    .all();
+  const changes: ReconciliationChange[] = [];
+  for (const row of rows) {
+    const before = parseSnapshot(row.beforeJson),
+      after = parseSnapshot(row.afterJson);
+    if (!inPeriod(before) && !inPeriod(after)) continue;
+    const effectCents = amountOf(after) - amountOf(before);
+    const amountMoved = before?.amount_cents !== after?.amount_cents;
+    const dateMoved = before?.date !== after?.date;
+    if (effectCents === 0 && !amountMoved && !dateMoved && before && after) continue;
+    const shown = inPeriod(after) ? after : before;
+    const payeeId = shown?.payee_id ?? null;
+    const payeeName = payeeId
+      ? (db.select({ name: payee.name }).from(payee).where(eq(payee.id, payeeId)).get()?.name ??
+        null)
+      : null;
+    changes.push({
+      bookingId: row.entityId,
+      at: row.ts,
+      change:
+        !before || (before.deleted_at && !after?.deleted_at)
+          ? before
+            ? 'restored'
+            : 'created'
+          : !after || after.deleted_at
+            ? 'deleted'
+            : 'changed',
+      date: shown?.date ?? check.date,
+      payeeName,
+      amountBeforeCents: before?.amount_cents ?? null,
+      amountAfterCents: after?.amount_cents ?? null,
+      effectCents,
+    });
+  }
+  const currentBalanceCents = bookedBalance(db, check.accountId, check.date);
+  const explainedCents = changes.reduce((sum, c) => sum + c.effectCents, 0);
+  return {
+    checkId: check.id,
+    accountId: check.accountId,
+    date: check.date,
+    statementBalanceCents: check.statementBalanceCents,
+    currentBalanceCents,
+    explainedCents,
+    unexplainedCents: currentBalanceCents - check.statementBalanceCents - explainedCents,
+    changes,
+  };
 }
 
 /** Up to `max` subsets (smallest first) of `items` whose amounts add up to `target`. */

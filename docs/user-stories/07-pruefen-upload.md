@@ -164,6 +164,21 @@ Bildschirm Prüfen: `/konten/pruefen` (Konten › Prüfen). Zähler: „Umsätze
   3. „Rückgängig“ und „Wieder einbeziehen“ stellen die offene Aufgabe her.
 - **Status:** in Arbeit (Entwurfs-PR) — **Verweis:** #1203 (Teil C)
 
+### I-05b – Warum stimmt der Kontoabgleich nicht mehr?
+- **Story:** Als Nutzer möchte ich bei „Kontoprüfung stimmt nicht mehr“ sehen, welche Buchungen nach dem Abgleich im geprüften Zeitraum angelegt, geändert oder gelöscht wurden, damit ich die Differenz auf den Cent erklären kann.
+- **Ausgangslage:** Ein Konto wurde geprüft; danach änderte sich der gebuchte Saldo des Prüftags.
+- **Ablauf:**
+  1. Nutzer klickt in der Aufgabe auf „Was hat sich geändert?“.
+  2. Die App zeigt „Bei Erstellung“ (Kontoauszug), „Aktuell gebucht“ und die Differenz.
+  3. Darunter stehen die Änderungen mit Datum, Empfänger, Art (angelegt, geändert, gelöscht, wiederhergestellt), Betrag und Wirkung auf den Saldo.
+  4. Zum Neu-Abgleichen öffnet „Kontostand prüfen“ den normalen Ablauf.
+- **Ergebnis:** Die Differenz ist erklärt; es wird nichts automatisch gebucht oder angepasst.
+- **Abnahmekriterien:**
+  1. Die Summe der Wirkungen entspricht der Differenz; bleibt ein Rest, nennt die App ihn als „nicht durch Buchungsänderungen erklärt“.
+  2. Buchungen nach dem Prüftag oder auf anderen Konten erscheinen nicht.
+  3. Die Aufgabe verschwindet von selbst, sobald der Saldo wieder stimmt.
+- **Status:** in Arbeit (Entwurfs-PR) — **Verweis:** #1203 (Teil B)
+
 ### I-06 – Gehaltszettel automatisch lesen und bestätigen
 - **Story:** Als Nutzer möchte ich Gehaltszettel automatisch auslesen lassen und die Vorschläge nur noch bestätigen, damit ich Brutto, Abzüge und Auszahlung nicht abtippen muss.
 - **Ausgangslage:** Ein neuer Gehaltszettel liegt als PDF vor (Upload oder nächtlicher Dropbox-Abruf, wenn eingerichtet).

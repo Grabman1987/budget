@@ -31,6 +31,7 @@ import {
 } from '../reports/payslip-intake';
 import { InboxTypeIcon } from './type-icon';
 import { ReadSourceDetail, sourceWarningReason } from './read-source-detail';
+import { ReconciliationChanges } from './reconciliation-changes';
 import { QuoteCause } from './quote-cause';
 import { ReadSourceSummaries } from './read-source-summaries';
 import { AutoResolvedHistory } from './auto-resolved-history';
@@ -1515,6 +1516,9 @@ function InboxRow({
         )}
         {item.type === 'stored' && item.refType === 'payslip-intake' && item.refId && (
           <PayslipIntakeDetail id={item.refId} />
+        )}
+        {item.type === 'stored' && item.refType === 'account-reconciliation' && item.refId && (
+          <ReconciliationChanges accountId={item.refId} />
         )}
       </td>
       <td className="rev-act kact" colSpan={bankLayout ? 2 : undefined}>

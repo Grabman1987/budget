@@ -1,4 +1,9 @@
-import { getPayslipSourceConfig, accountReminders, accountReviewSummaries } from '@budget/db';
+import {
+  getPayslipSourceConfig,
+  accountReminders,
+  accountReviewSummaries,
+  reconciliationChangesSince,
+} from '@budget/db';
 import {
   account,
   valuation,
@@ -637,6 +642,14 @@ export function accountRoutes(db: Db, today: () => string): Hono {
     const id = c.req.param('id');
     summary(id);
     return c.json({ reconciliations: listReconciliations(db, id) });
+  });
+
+  /** Bookings changed after the newest check inside its period: explains a later difference. */
+  app.get('/:id/reconciliation-changes', (c) => {
+    const id = c.req.param('id');
+    summary(id);
+    const latest = listReconciliations(db, id)[0];
+    return c.json({ changes: latest ? reconciliationChangesSince(db, latest.id) : null });
   });
 
   app.post('/:id/reconciliation/preview', async (c) => {
