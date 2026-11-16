@@ -71,9 +71,12 @@ for (const year of [2026, 2025]) {
     });
     await expect(paperButton).toBeVisible();
     await paperButton.press('Enter');
-    await expect(page.getByRole('combobox', { name: 'Darstellung', exact: true })).toHaveValue(
-      'druckblatt',
-    );
+    await expect(page).toHaveURL(/darstellung=druckblatt/);
+    await page.getByLabel('Bericht wechseln', { exact: true }).click();
+    await expect(
+      page.getByRole('link', { name: 'A4 Druckblatt · Jahr', exact: true }),
+    ).toHaveAttribute('aria-current', 'page');
+    await page.keyboard.press('Escape');
     await expect(page.locator('.ov-sheet-fig')).toContainText('%');
     await page.setViewportSize({ width: 749, height: 1050 });
     await page.emulateMedia({ media: 'print' });
