@@ -401,6 +401,40 @@ export type ProjectIncomeExpenseReport = Pick<
 export type IncomeExpenseReportData =
   (ReportTables & { splits: OverviewSplit[] }) | ProjectIncomeExpenseReport;
 
+/** Read-only drill-down detail: account, memo, payee and whole amount; no figure changes. */
+function withBookingDetails(db: Executor, splits: OverviewSplit[]): OverviewSplit[] {
+  const wanted = new Set(splits.map((s) => s.bookingId));
+  const details = new Map(
+    db
+      .select({
+        id: booking.id,
+        accountName: account.name,
+        memo: booking.memo,
+        amountCents: booking.amountCents,
+        payeeName: payee.name,
+      })
+      .from(booking)
+      .innerJoin(account, eq(account.id, booking.accountId))
+      .leftJoin(payee, eq(payee.id, booking.payeeId))
+      .where(isNull(booking.deletedAt))
+      .all()
+      .filter((b) => wanted.has(b.id))
+      .map((b) => [b.id, b]),
+  );
+  return splits.map((s) => {
+    const d = details.get(s.bookingId);
+    return d
+      ? {
+          ...s,
+          payeeName: s.payeeName ?? d.payeeName,
+          accountName: d.accountName,
+          memo: d.memo,
+          bookingCents: d.amountCents,
+        }
+      : s;
+  });
+}
+
 /** 1.10 uses the same category/month facts as 1.6/1.8, including Zukunft set-aside. */
 export function incomeExpenseReport(
   db: Executor,
@@ -422,7 +456,7 @@ export function incomeExpenseReport(
     withSources: true,
     ...(scope ? { projectScope: scope } : {}),
   });
-  if (!scope) return { ...tables, splits: tables.splits ?? [] };
+  if (!scope) return { ...tables, splits: withBookingDetails(db, tables.splits ?? []) };
   // Global assignments, rules, wealth and age are not attributable to a booking-level project.
   return {
     asOf: tables.asOf,
@@ -432,7 +466,7 @@ export function incomeExpenseReport(
     categories: tables.categories,
     incomeTypes: tables.incomeTypes,
     payees: tables.payees,
-    splits: tables.splits ?? [],
+    splits: withBookingDetails(db, tables.splits ?? []),
     months: tables.months.map(({ month, income, spending }) => ({ month, income, spending })),
     project: scope.project,
     unavailable: ['assigned', 'moneyAgeDays', 'netWorthCents', 'targets'],
