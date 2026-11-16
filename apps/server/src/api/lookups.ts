@@ -6,8 +6,11 @@ import {
   createPayee,
   incomeType,
   institution,
+  listPayeeAliases,
   listPayees,
   mergePayees,
+  previewPayeeMerge,
+  removePayeeAlias,
   project,
   booking,
   getEntity,
@@ -47,6 +50,17 @@ export function payeeRoutes(db: Db): Hono {
     );
     return c.json(result);
   });
+
+  app.post('/merge/preview', async (c) => {
+    const { sourceIds, targetId } = await readBody(c, payeeMerge);
+    return c.json(previewPayeeMerge(db, sourceIds, targetId));
+  });
+
+  app.get('/aliases', (c) => c.json({ aliases: listPayeeAliases(db) }));
+
+  app.delete('/aliases/:id', (c) =>
+    c.json(removePayeeAlias(db, c.req.param('id'), { actor: ACTOR })),
+  );
 
   app.patch('/:id', async (c) => {
     const { name, defaultCategoryId } = await readBody(c, payeePatch);

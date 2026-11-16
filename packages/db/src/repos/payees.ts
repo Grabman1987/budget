@@ -1,7 +1,9 @@
-import { and, asc, eq, isNull, sql } from 'drizzle-orm';
-import { assignmentRule, booking, category, payee } from '../schema';
+import { createHash } from 'node:crypto';
+import { and, asc, eq, inArray, isNull, sql } from 'drizzle-orm';
+import { PAYEE_ALIAS_ALL_SOURCES, payeeAliasKeys } from '@budget/domain';
+import { assignmentRule, bankPayeeAlias, booking, category, payee } from '../schema';
 import { remapAssignmentReferences } from './assignment-rules';
-import { withGroup, updateTracked, type AuditContext } from './audit';
+import { insertTracked, withGroup, updateTracked, type AuditContext } from './audit';
 import type { WriteOptions } from './bookings';
 import { createEntity, getEntity, updateEntity } from './entities';
 import { CategoryRuleError, ConflictError, EntityNotFoundError } from './errors';
@@ -147,6 +149,128 @@ export interface PayeeMergeResult {
   /** Sources that still hold skipped bookings and therefore stay (not deleted). */
   keptSourceIds: string[];
   groupId: string;
+  /** Names remembered as aliases of the target (later bank lines with that text get the target). */
+  aliases: string[];
+}
+
+/**
+ * Remember the merged payee names as aliases of the target. No new table: `bank_payee_alias` (the
+ * bank-line learning) carries them under the source id `*`, which `suggestedBankPayee` reads for
+ * every bank source. Existing live aliases are re-pointed; the target's own name needs none.
+ */
+function writeMergeAliases(
+  db: Executor,
+  names: readonly string[],
+  target: { id: string; name: string },
+  ctx: ReturnType<typeof withGroup>,
+): string[] {
+  const own = new Set(payeeAliasKeys(target.name));
+  const written: string[] = [];
+  for (const name of names)
+    for (const rawKey of payeeAliasKeys(name)) {
+      if (own.has(rawKey)) continue;
+      const id = createHash('sha256')
+        .update(JSON.stringify([PAYEE_ALIAS_ALL_SOURCES, rawKey]))
+        .digest('hex');
+      const existing = db.select().from(bankPayeeAlias).where(eq(bankPayeeAlias.id, id)).get();
+      if (!existing)
+        insertTracked(
+          db,
+          bankPayeeAlias,
+          { id, sourceId: PAYEE_ALIAS_ALL_SOURCES, rawKey, payeeId: target.id },
+          ctx,
+        );
+      else if (existing.payeeId !== target.id || existing.deletedAt !== null)
+        updateTracked(db, bankPayeeAlias, [id], { payeeId: target.id, deletedAt: null }, ctx);
+      if (!written.includes(name)) written.push(name);
+    }
+  return written;
+}
+
+/** What a merge would change, without writing anything: the dialog shows it before confirming. */
+export interface PayeeMergePreview {
+  bookings: number;
+  /** Reconciled bookings among them: moved only when unlocked, otherwise they stay. */
+  reconciled: number;
+  rules: number;
+  aliases: string[];
+}
+
+export function previewPayeeMerge(
+  db: Executor,
+  sourceIds: readonly string[],
+  targetId: string,
+): PayeeMergePreview {
+  liveUserPayee(db, targetId);
+  const ids = [...new Set(sourceIds)].filter((id) => id !== targetId);
+  if (ids.length === 0) throw new ConflictError('Nothing to merge: pick other payees');
+  const names = ids.map((id) => liveUserPayee(db, id).name);
+  const rows = db
+    .select({ status: booking.status })
+    .from(booking)
+    .where(and(inArray(booking.payeeId, ids), isNull(booking.deletedAt)))
+    .all();
+  const rules = db
+    .select({
+      id: assignmentRule.id,
+      payeeId: assignmentRule.payeeId,
+      match: assignmentRule.matchJson,
+    })
+    .from(assignmentRule)
+    .where(isNull(assignmentRule.deletedAt))
+    .all()
+    .filter(
+      (r) =>
+        (r.payeeId !== null && ids.includes(r.payeeId)) ||
+        ids.some((id) => r.match.includes(JSON.stringify(id))),
+    );
+  return {
+    bookings: rows.length,
+    reconciled: rows.filter((r) => r.status === 'reconciled').length,
+    rules: rules.length,
+    aliases: names,
+  };
+}
+
+export interface PayeeAliasRow {
+  id: string;
+  rawKey: string;
+  payeeId: string;
+}
+
+/** Live aliases written by merges (source `*`), for the "Aliase" list under each payee. */
+export function listPayeeAliases(db: Executor): PayeeAliasRow[] {
+  return db
+    .select({
+      id: bankPayeeAlias.id,
+      rawKey: bankPayeeAlias.rawKey,
+      payeeId: bankPayeeAlias.payeeId,
+    })
+    .from(bankPayeeAlias)
+    .where(
+      and(eq(bankPayeeAlias.sourceId, PAYEE_ALIAS_ALL_SOURCES), isNull(bankPayeeAlias.deletedAt)),
+    )
+    .orderBy(asc(bankPayeeAlias.rawKey))
+    .all();
+}
+
+/** Remove one merge alias (soft delete, undoable through the returned group). */
+export function removePayeeAlias(db: Executor, id: string, ctx: AuditContext) {
+  const grouped = withGroup(ctx);
+  return runInTransaction(db, (tx) => {
+    const row = tx.select().from(bankPayeeAlias).where(eq(bankPayeeAlias.id, id)).get();
+    if (!row || row.deletedAt !== null || row.sourceId !== PAYEE_ALIAS_ALL_SOURCES)
+      throw new EntityNotFoundError('payee alias', id);
+    updateTracked(
+      tx,
+      bankPayeeAlias,
+      [id],
+      { deletedAt: new Date().toISOString() },
+      grouped,
+      'delete',
+    );
+    return { groupId: grouped.groupId };
+  });
 }
 
 /**
@@ -165,10 +289,10 @@ export function mergePayees(
 ): PayeeMergeResult {
   const grouped = withGroup(ctx);
   return runInTransaction(db, (tx) => {
-    liveUserPayee(tx, targetId);
+    const target = liveUserPayee(tx, targetId);
     const sources = [...new Set(sourceIds)].filter((id) => id !== targetId);
     if (sources.length === 0) throw new ConflictError('Nothing to merge: pick other payees');
-    for (const id of sources) liveUserPayee(tx, id);
+    const names = sources.map((id) => liveUserPayee(tx, id).name);
     let moved = 0;
     let skipped = 0;
     const keptSourceIds: string[] = [];
@@ -200,6 +324,7 @@ export function mergePayees(
       else
         updateTracked(tx, payee, [id], { deletedAt: new Date().toISOString() }, grouped, 'delete');
     }
-    return { moved, skipped, keptSourceIds, groupId: grouped.groupId };
+    const aliases = writeMergeAliases(tx, names, target, grouped);
+    return { moved, skipped, keptSourceIds, groupId: grouped.groupId, aliases };
   });
 }

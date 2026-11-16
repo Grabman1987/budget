@@ -10,6 +10,7 @@ import {
   undo,
   mergePayees,
   mergeCategories,
+  suggestedBankPayee,
   readAssignmentCandidate,
   readBookingAssignments,
   type OpenedDatabase,
@@ -1054,6 +1055,66 @@ describe('assignment API and owner confirmation', () => {
       'essen',
       'reise',
     ]);
+  });
+  it('suggests the main payee for merged names, lists and removes aliases, and undoes the merge', async () => {
+    opened.db
+      .insert(schema.payee)
+      .values([
+        { id: 'main', name: 'Baeckerei Muster' },
+        { id: 'dup', name: 'Payment for Baeckerei Muster' },
+        { id: 'typo', name: 'Baeckerei Mustr' },
+      ])
+      .run();
+    const preview = await call('POST', '/payees/merge/preview', {
+      sourceIds: ['dup', 'typo'],
+      targetId: 'main',
+    });
+    expect(preview.body).toMatchObject({
+      bookings: 0,
+      rules: 0,
+      aliases: ['Payment for Baeckerei Muster', 'Baeckerei Mustr'],
+    });
+    const before = opened.db.select().from(schema.bankPayeeAlias).all();
+    const merged = await call('POST', '/payees/merge', {
+      sourceIds: ['dup', 'typo'],
+      targetId: 'main',
+    });
+    expect(merged.body['aliases']).toEqual(['Payment for Baeckerei Muster', 'Baeckerei Mustr']);
+    // The merged name and its cleaned form now point at the main payee for any bank source.
+    for (const source of ['', 'some-source'])
+      for (const raw of ['PAYMENT FOR Baeckerei  Muster', 'BAECKEREI  MUSTR 4711']) {
+        const hit = suggestedBankPayee(opened.db, source, raw, '');
+        expect(hit.payeeId).toBe('main');
+      }
+    expect(suggestedBankPayee(opened.db, '', 'Tankstelle Beispiel', '').payeeId).toBeNull();
+    const listed = (await call('GET', '/payees/aliases')).body['aliases'] as Array<{
+      id: string;
+      payeeId: string;
+    }>;
+    expect(listed.length).toBeGreaterThan(0);
+    expect(listed.every((a) => a.payeeId === 'main')).toBe(true);
+    // Removing an alias is its own undoable step.
+    const removed = await call('DELETE', '/payees/aliases/' + listed[0]!.id);
+    expect(((await call('GET', '/payees/aliases')).body['aliases'] as unknown[]).length).toBe(
+      listed.length - 1,
+    );
+    await call('POST', '/undo', { groupId: removed.body['groupId'] });
+    expect(((await call('GET', '/payees/aliases')).body['aliases'] as unknown[]).length).toBe(
+      listed.length,
+    );
+    // One undo takes back bookings, rules, the payee deletion and the aliases.
+    await call('POST', '/undo', { groupId: merged.body['groupId'] });
+    expect(((await call('GET', '/payees/aliases')).body['aliases'] as unknown[]).length).toBe(0);
+    expect(
+      opened.db
+        .select()
+        .from(schema.bankPayeeAlias)
+        .all()
+        .filter((a) => a.deletedAt === null),
+    ).toEqual(before);
+    expect(suggestedBankPayee(opened.db, '', 'PAYMENT FOR Baeckerei Muster', '').payeeId).toBe(
+      'dup',
+    );
   });
   it('keeps source cleanup and aliases isolated, with undoable configuration', async () => {
     opened.db
