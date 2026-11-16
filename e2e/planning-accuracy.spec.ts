@@ -13,8 +13,9 @@ import {
 } from '@budget/db';
 import { test } from './isolated-ledger';
 
-test('Budgettreue shows observed forecasts, sorted category misses and booking drilldown', async ({
+test('retired forecast bookmarks retain snapshot facts, Budgettreue drilldown and the Heute note', async ({
   page,
+  request,
   isolatedLedger,
 }) => {
   const opened = openDatabase(isolatedLedger.databasePath);
@@ -75,12 +76,13 @@ test('Budgettreue shows observed forecasts, sorted category misses and booking d
     opened.close();
   }
   await page.goto('/reports/planungstreue?monat=2026-09');
-  await expect(page.getByRole('heading', { name: /Trefferquote 6 Monate: 3 von 3/ })).toBeVisible();
-  await expect(page.getByRole('group', { name: 'Monatliche Abweichung in Prozent' })).toBeVisible();
-  await expect(page.getByRole('link', { name: 'Synthetic food' })).toHaveAttribute(
-    'href',
-    /kategorie=accuracy-food/,
-  );
+  const accuracy = await (await request.get('/api/reports/planning-accuracy?month=2026-09')).json();
+  expect(accuracy.summary).toMatchObject({ count: 3, hits: 3 });
+  expect(accuracy.categories).toEqual([
+    expect.objectContaining({ categoryId: 'accuracy-food', actualCents: 30000 }),
+  ]);
+  await expect(page.getByTestId('budget-adherence')).toBeVisible();
+  await expect(page.getByTestId('planning-accuracy')).toHaveCount(0);
   for (const theme of ['light', 'dark']) {
     await page.evaluate(
       (value) => document.documentElement.setAttribute('data-theme', value),
