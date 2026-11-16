@@ -104,7 +104,7 @@ function Cell({
           {value === 0 ? (
             <span className="muted">·</span>
           ) : row.signed ? (
-            eur(value, { cents: false, sign: true })
+            eur(value, { cents: false })
           ) : (
             euroNumber(value)
           )}
@@ -123,14 +123,19 @@ function Change({ row, total, previous }: { row: TableRow; total: number; previo
   return (
     <td className="n">
       <span className={`dl ${tone}`}>
-        {eur(delta, { cents: false, sign: true })}
-        {bp !== null && ` · ${percentWhole(bp, true)}`}
+        {eur(delta, { cents: false })}
+        {bp !== null && ` · ${percentWhole(bp)}`}
       </span>
     </td>
   );
 }
 
 /**
+ * Sign and colour policy of every table on this shell (#1161): amounts never carry a "+"; a minus
+ * stays only where the figure really is negative, and the direction of a change is named by the
+ * column heading ("Veränderung"). Colour follows `row.good`: spending rows (`'low'`) tint "more"
+ * red, never green; income and saving rows (`'high'`) tint "more" green.
+ *
  * The monthly grid of the Jahresansicht and the Gesamttabelle: one row per position, one column
  * per month, a diverging heat per row (pastel red against the row's direction, green with it),
  * optional totals, averages and the comparison with the previous year. The first column stays in
@@ -256,7 +261,7 @@ export const RowsGrid = forwardRef<HTMLDivElement, RowsGridProps>(function RowsG
                             {eur(sum)}
                           </button>
                         ) : row.signed ? (
-                          eur(sum, { cents: false, sign: true })
+                          eur(sum, { cents: false })
                         ) : (
                           euroNumber(sum)
                         )}

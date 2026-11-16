@@ -106,10 +106,10 @@ for (const theme of ['light', 'dark'] as const) {
           await expect(item.locator('.lq-no')).toHaveText(String(i + 1).padStart(2, '0'));
         await expect(item).toContainText(row.label);
         await expect(item).toContainText(longDay(row.day));
-        const amount = (await redesignEnabled(page))
-          ? item.locator('td').nth(2)
-          : item.locator('strong');
-        await expect(amount).toHaveText(eur(row.cents, { sign: true }));
+        // The redesign table shows plain signed amounts; the classic list keeps its "+" prefix.
+        const redesign = await redesignEnabled(page);
+        const amount = redesign ? item.locator('td').nth(2) : item.locator('strong');
+        await expect(amount).toHaveText(eur(row.cents, { sign: !redesign }));
       }
       // Dates never run backwards, and every listed row is one of the plotted days.
       const days = expected.map((r) => r.day);

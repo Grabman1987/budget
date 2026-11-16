@@ -55,9 +55,7 @@ test('header, chart and month table agree with the API, which agrees with Nettov
   await expect(page.getByTestId('ad-net')).toHaveText(eur(end.netCents));
   await expect(page.getByTestId('ad-assets')).toHaveText(eur(end.assetsCents));
   await expect(page.getByTestId('ad-debts')).toHaveText(eur(end.debtsCents));
-  await expect(page.getByTestId('ad-change')).toHaveText(
-    eur(data.change.deltaCents, { sign: true }),
-  );
+  await expect(page.getByTestId('ad-change')).toHaveText(eur(data.change.deltaCents));
   await expect(page.getByTestId('ad-change-rate')).toContainText('%');
   await expect(page.getByTestId('assets-debts-chart')).toBeVisible();
   await expect(page.getByTestId('assets-debts-chart').locator('.bar-neg-outline')).toHaveCount(
@@ -134,9 +132,7 @@ test('the Zeitraum switch and a custom range follow the URL and change months an
   await expect(page).toHaveURL(/zeitraum=1J/);
   await expect(page.getByRole('heading', { name: /letzte 12 Monate/ })).toBeVisible();
   await expect(page.getByTestId('ad-months').locator('tbody tr')).toHaveCount(year.months.length);
-  await expect(page.getByTestId('ad-change')).toHaveText(
-    eur(year.change.deltaCents, { sign: true }),
-  );
+  await expect(page.getByTestId('ad-change')).toHaveText(eur(year.change.deltaCents));
   await page.reload();
   await expect(page.getByRole('button', { name: '1J', exact: true })).toHaveAttribute(
     'aria-pressed',
@@ -147,9 +143,7 @@ test('the Zeitraum switch and a custom range follow the URL and change months an
   await page.goto(`${REPORT}?zeitraum=2026-03..2026-06`);
   await expect(page.getByTestId('ad-months').locator('tbody tr')).toHaveCount(4);
   await expect(page.getByTestId('ad-net')).toHaveText(eur(range.months.at(-1)!.netCents));
-  await expect(page.getByTestId('ad-change')).toHaveText(
-    eur(range.change.deltaCents, { sign: true }),
-  );
+  await expect(page.getByTestId('ad-change')).toHaveText(eur(range.change.deltaCents));
   await expect(page.getByRole('alert')).toHaveCount(0);
 });
 

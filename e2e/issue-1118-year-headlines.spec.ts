@@ -23,9 +23,8 @@ test('1118 existing reader endpoints, partial-year comparison and two printed sh
   if (delta && data.report.netWorth && !data.incomplete?.length) {
     await expect(change).toContainText(eur(data.report.netWorth.startCents));
     await expect(change).toContainText(eur(data.report.netWorth.endCents));
-    await expect(change).toContainText(eur(delta.deltaCents, { sign: true }));
-    if (delta.changeBp !== null)
-      await expect(change).toContainText(bpText(delta.changeBp, { sign: true }));
+    await expect(change).toContainText(eur(delta.deltaCents));
+    if (delta.changeBp !== null) await expect(change).toContainText(bpText(delta.changeBp));
   } else {
     await expect(change).toContainText('nicht ermittelbar');
   }
@@ -118,11 +117,11 @@ test('1118 missing and estimated wealth are explicit, zero start keeps the euro 
       await expect(change).toContainText('nicht ermittelbar');
       await expect(change).toContainText('Bewertung ist unvollständig');
     } else if (mode === 'zero') {
-      await expect(change).toContainText(eur(2_501, { sign: true }));
+      await expect(change).toContainText(eur(2_501));
       await expect(change).toContainText('nicht ermittelbar (Anfangsvermögen null)');
     } else {
-      await expect(change).toContainText(eur(12_501, { sign: true }));
-      await expect(change).toContainText('+125,0 %');
+      await expect(change).toContainText(eur(12_501));
+      await expect(change).toContainText('125,0 %');
     }
     await page.unroute('**/api/overview/year*');
   }
@@ -158,11 +157,11 @@ test('1118 comparison shows literal deltas, percentage points and an unavailable
   await page.reload();
   const comparison = page.getByTestId('r5-year-comparison');
   for (const [label, expected] of [
-    ['Einnahmen', `${eur(100_000, { sign: true })} · +100,0 %`],
-    ['Konsum', `${eur(25_000, { sign: true })} · +33,3 %`],
-    ['Gespart', `${eur(75_000, { sign: true })} · +300,0 %`],
-    ['Kapitalerträge', `${eur(501, { sign: true })} · nicht ermittelbar (Vorjahreswert null)`],
-    ['Sparquote', '+25,0 Prozentpunkte'],
+    ['Einnahmen', `${eur(100_000)} · 100,0 %`],
+    ['Konsum', `${eur(25_000)} · 33,3 %`],
+    ['Gespart', `${eur(75_000)} · 300,0 %`],
+    ['Kapitalerträge', `${eur(501)} · nicht ermittelbar (Vorjahreswert null)`],
+    ['Sparquote', '25,0 Prozentpunkte'],
   ]) {
     await expect(
       comparison.locator('dl > div').filter({ has: page.getByText(label!, { exact: true }) }),

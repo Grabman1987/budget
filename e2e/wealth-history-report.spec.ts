@@ -55,7 +55,7 @@ test('figure, chain, chart and structure agree with the history API and the net 
   const total = rows.last().locator('td');
   await expect(total.nth(1)).toHaveText(eur(history.chain.startCents));
   await expect(total.nth(2)).toHaveText(eur(history.chain.nowCents));
-  await expect(total.nth(3)).toHaveText(eur(history.chain.deltaCents, { sign: true }));
+  await expect(total.nth(3)).toHaveText(eur(history.chain.deltaCents));
   for (const r of history.rows) {
     const row = rows.filter({ has: page.getByRole('cell', { name: r.label, exact: true }) });
     await expect(row.locator('td').nth(2)).toHaveText(eur(r.nowCents));

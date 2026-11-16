@@ -438,7 +438,7 @@ function Body({ data }: { data: SpendingReport }) {
                   <td>
                     {group.previous === null
                       ? '–'
-                      : eur(checkedSum([group.cents, -group.previous]), { sign: true })}
+                      : eur(checkedSum([group.cents, -group.previous]))}
                   </td>
                 </tr>,
                 ...group.rows.map((row) => (
@@ -446,7 +446,7 @@ function Body({ data }: { data: SpendingReport }) {
                     <th scope="row">{maskMoneyText(row.name)}</th>
                     <td>{eur(row.cents)}</td>
                     <td>{row.previous === null ? '–' : eur(row.previous)}</td>
-                    <td>{row.change === null ? '–' : eur(row.change, { sign: true })}</td>
+                    <td>{row.change === null ? '–' : eur(row.change)}</td>
                   </tr>
                 )),
               ])}

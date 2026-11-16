@@ -2,7 +2,8 @@ import type { InflationReport } from '@budget/db';
 import { useState } from 'react';
 import { LineLegend } from '@budget/ui';
 import { IndexChart } from './personal-inflation-report';
-import { bpText, monthShort, ScrollRegion } from './spending-shared';
+import { ReportTable } from './report-table';
+import { bpText, monthShort } from './spending-shared';
 import './inflation-explorer.css';
 
 const number = new Intl.NumberFormat('de-AT', {
@@ -11,7 +12,7 @@ const number = new Intl.NumberFormat('de-AT', {
 });
 const index = (value: number | null | undefined) => (value == null ? '–' : number.format(value));
 const pp = (value: number | null) =>
-  value === null ? '–' : `${value < 0 ? '−' : '+'}${number.format(Math.abs(value) / 100)} Pp`;
+  value === null ? '–' : `${value < 0 ? '−' : ''}${number.format(Math.abs(value) / 100)} Pp`;
 
 export function InflationExplorer({
   categories,
@@ -106,28 +107,30 @@ export function InflationExplorer({
                 Kein eigener Index ab Oktober 2023: Basispreis oder ausreichende Historie fehlt.
               </p>
             )}
-            <ScrollRegion label={`${row.name}: Index und Differenzen seit Oktober 2023`}>
-              <table className="sr-table">
-                <thead>
-                  <tr>
-                    <th scope="col">Eigener Index</th>
-                    <th scope="col">VPI-Index</th>
-                    <th scope="col">Differenz seit Basis</th>
-                    <th scope="col">Mengeneffekt</th>
-                    <th scope="col">Anteil an Ausgabendifferenz zum VPI</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td>{index(last?.index)}</td>
-                    <td>{index(last?.reference)}</td>
-                    <td>{pp(row.differenceBp)}</td>
-                    <td>{pp(row.volumeBp)}</td>
-                    <td>{bpText(row.volumeShareBp)}</td>
-                  </tr>
-                </tbody>
-              </table>
-            </ScrollRegion>
+            <ReportTable
+              caption={`${row.name}: Index und Differenzen seit Oktober 2023`}
+              regionLabel={`${row.name}: Index und Differenzen seit Oktober 2023`}
+              className="sr-table"
+            >
+              <thead>
+                <tr>
+                  <th scope="col">Eigener Index</th>
+                  <th scope="col">VPI-Index</th>
+                  <th scope="col">Differenz seit Basis</th>
+                  <th scope="col">Mengeneffekt</th>
+                  <th scope="col">Anteil an Ausgabendifferenz zum VPI</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>{index(last?.index)}</td>
+                  <td>{index(last?.reference)}</td>
+                  <td>{pp(row.differenceBp)}</td>
+                  <td>{pp(row.volumeBp)}</td>
+                  <td>{bpText(row.volumeShareBp)}</td>
+                </tr>
+              </tbody>
+            </ReportTable>
             <p className="sr-note">
               {row.source === 'booking-average'
                 ? 'Ausgaben je Buchung enthalten Preis und Einkaufsmix. Der Mengeneffekt zeigt die geänderte Buchungsanzahl, keine gemessenen Liter oder Stück. Sein Anteil bezieht sich auf die Ausgabenänderung minus VPI, einschließlich Preis-Mengen-Wechselwirkung; er kann negativ oder größer als 100 % sein.'
