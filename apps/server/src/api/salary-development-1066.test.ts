@@ -175,7 +175,8 @@ describe('salary development read API (#1066)', () => {
     map('100', 'base');
     const before = sqliteOf(opened.db).serialize();
     const result = await report();
-    expect(sqliteOf(opened.db).serialize()).toEqual(before);
+    // Byte comparison: a deep equality check of two database images takes seconds on CI.
+    expect(Buffer.compare(sqliteOf(opened.db).serialize(), before)).toBe(0);
     expect(result.months.map((m) => m.month)).toEqual([
       '2026-01',
       '2026-02',
