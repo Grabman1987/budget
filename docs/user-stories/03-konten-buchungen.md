@@ -62,6 +62,7 @@ Bereich: Konten (`/konten`, `/konten/$id`), Alle Buchungen (`/konten/buchungen`)
   1. Ich tippe in „Alle Buchungen“ auf „Buchung erfassen“ (oder den Plus-Knopf).
   2. Ich wähle „Art der Buchung“ (Ausgabe, Einnahme, Umbuchung), „Konto“, „Datum“ und „Betrag“.
   3. Ich wähle „Empfänger“ (Suchen oder neu anlegen) und Kategorie; optional „Projekt“, Notiz, „Belege“.
+     Fehlt die Kategorie, wähle ich „Neue Kategorie …“, fülle Name und Gruppe im bestehenden Formular aus und speichere. Die Kategorie wird ausgewählt; der Buchungsentwurf bleibt erhalten.
   4. Bei einem Bargeld-Konto steht „Bargeldbuchungen sind sofort bestätigt“, sonst startet die Buchung „Vorgemerkt“.
   5. Optional wähle ich bei „Wiederholen“ Wöchentlich, Monatlich, Vierteljährlich oder Jährlich; die App legt eine wiederkehrende Zahlung an.
   6. Ich tippe „Buchung speichern“.
@@ -72,7 +73,9 @@ Bereich: Konten (`/konten`, `/konten/$id`), Alle Buchungen (`/konten/buchungen`)
   3. Ohne Konto meldet das Formular „Bitte ein verfügbares Konto wählen.“
   4. Beim Schließen mit Eingaben fragt „Eingaben verwerfen?“.
   5. Die Buchung ist über „Rückgängig“ bzw. „Buchung löschen?“ wieder entfernbar.
-- **Status:** live — **Verweis:** Y03
+  6. Neue Kategorien lassen sich auch bei der Inline-Kategorieänderung und beim Bearbeiten unter Prüfen anlegen und auswählen. Doppelte Namen zeigen „Dieser Name wird schon verwendet.“; Abbrechen erhält den Entwurf und gibt den Fokus zurück.
+  7. Die Kategorieanlage ist separat rückgängig machbar, solange die Kategorie unbenutzt ist. Erst das explizite Speichern der Buchung ordnet ihr Geld zu.
+- **Status:** Grundfunktion live; Kategorieanlage im Wähler #1104 implementiert, PR-/CI-Prüfung und Live-Abnahme offen — **Verweis:** Y03, #1104
 
 ### K-05a – Splitbuchung
 - **Story:** Als Nutzer möchte ich eine Buchung auf mehrere Kategorien aufteilen, damit ein Einkauf mit gemischtem Inhalt in den richtigen Envelopes landet.
@@ -130,18 +133,19 @@ Bereich: Konten (`/konten`, `/konten/$id`), Alle Buchungen (`/konten/buchungen`)
 - **Ausgangslage:** Ich habe den Kontoauszug oder Bankstand vor mir, oder die App meldet „Konten prüfen“.
 - **Ablauf:**
   1. Ich öffne ein Konto und tippe „Kontostand prüfen“ (oder in Heute „Konten prüfen“ › „Abgleichen“).
-  2. Im Dialog „Kontostand prüfen · <Konto>“ gebe ich „Saldo laut Bank“ und „Stichtag“ ein (Schuld als Minus).
+  2. Im Dialog „Kontostand prüfen · <Konto>“ ist „Saldo laut Bank“ mit dem bekannten Bankstand von heute vorbelegt, mit sichtbarem Datum. Ohne passenden Bankstand gebe ich den Betrag ein (Schuld als Minus); geprüft wird heute.
   3. Die App zeigt „App-Saldo gebucht“ und „Differenz“; Vorgemerktes wird nicht gezählt.
   4. Bei Differenz prüfe ich „Kandidaten zuerst prüfen“ (mögliche doppelte Buchung, fehlende Buchung) oder gebe „Grund für den Ausgleich“ und „Kategorie für den Ausgleich“ an.
   5. Ich tippe „Bestätigen“. Passt der Stand, sperrt die App die bestätigten Buchungen bis zum Stichtag („bis heute“ ist die Obergrenze).
 - **Ergebnis:** Prüfstand und Sperre sind gespeichert; die Kontoübersicht zeigt „Prüfstand“ mit Datum; Änderung nur mit Entsperrung, rückgängig machbar.
 - **Abnahmekriterien:**
   1. Bankstand, Datum und Abrufzeit sind sichtbar.
-  2. Passt der Stand, sperrt „Bestätigen“ bis heute.
+  2. Passt der bekannte Bankstand von heute, bestätigt „Abgleich sperren bis heute“ mit einem Klick über die bestehende Bank-Sperraktion. Ohne passenden Bankstand bleibt die manuelle Prüfung erhalten.
   3. Ein Stichtag in der Zukunft wird abgewiesen („Geprüft wird höchstens bis heute.“).
   4. Ein ungültiger Betrag meldet „Bitte einen gültigen Betrag eingeben.“
   5. Bei Differenz ohne Ausgleichsgrund wird nicht gesperrt.
-- **Status:** live — **Verweis:** Y05
+  6. Die Differenz wird vor der Bestätigung angezeigt; Vorbelegen allein bucht und sperrt nichts. Rückgängig stellt Prüfstand und Buchungsstatus gemeinsam wieder her.
+- **Status:** live (bisherige Prüfung); Bankstand-Vorbelegung lokal implementiert (#1095), Veröffentlichung und Nutzerabnahme ausständig. — **Verweis:** Y05, #1095
 
 ### K-07 – Zuordnungsregeln („Immer so zuordnen“)
 - **Story:** Als Nutzer möchte ich Zuordnungsregeln pflegen, damit wiederkehrende Bankbuchungen automatisch dem richtigen Empfänger und der richtigen Kategorie zugeordnet werden und ich sie nicht jeden Monat neu zuordne.
@@ -307,4 +311,6 @@ Bereich: Konten (`/konten`, `/konten/$id`), Alle Buchungen (`/konten/buchungen`)
 - **Story:** Als Nutzer möchte ich eine bereits abgeglichene Buchung nach einer Rückfrage korrigieren können.
 - **Ablauf:** Ich öffne die Buchung und wähle „Trotzdem ändern“. Im Redesign erklärt „Geprüfte Buchung wirklich bearbeiten?“ den Abgleichschutz und mögliche Auswirkungen auf Kontostand und Kontaktanteile. „Abbrechen“ oder Escape lässt die Freigabe aus; „Bearbeitung freigeben“ erlaubt die anschließende Änderung oder Löschung über den bestehenden Speicherweg.
 - **Abnahmekriterien:** Die Rückfrage speichert nichts. Tab und Umschalt+Tab bleiben bei den Antworten. Nach Abbruch kehrt der Fokus zur Freigabe zurück. Erst die bestätigte Freigabe setzt beim Speichern das bestehende API-Flag `unlockReconciled`; die Änderung bleibt rückgängig machbar.
-- **Status:** teilweise, zur Review vorbereitet — **Verweis:** #1108. Dieser erste Teil ergänzt die Rückfrage an der vorhandenen Freigabe im Redesign. Noch offen: Rückfrage bereits vor Öffnen des Formulars, genaue Schutzdaten, eigener protokollierter Freigabegrund, Prüfen-Hinweis bei abweichendem Abgleich und weitere Schutzarten einschließlich Kontaktverknüpfungen. Keine Live-Abnahme behauptet.
+- **Weiterer Ablauf:** Weicht nach einer Änderung oder Löschung der gebuchte Saldo vom letzten nachweislich bestätigten Abgleich ab, erscheint unter „Prüfen › Aufgaben › Weitere Aufgaben“ eine dringende Aufgabe mit Konto, Abgleichdatum, bestätigtem und aktuellem Saldo sowie Differenz. „Kontostand prüfen“ öffnet den bestehenden Abgleich. Die Aufgabe lässt sich nicht als erledigt wegklicken; ein passender neuer Abgleich oder Rückgängig entfernt sie automatisch.
+- **Weitere Abnahmekriterien:** Der Hinweis vergleicht nur den neuesten Abgleich bis heute und verwendet dessen unveränderten bestätigten Saldo. Vorgemerkte und spätere Buchungen zählen wie bisher nicht zum gebuchten Stichtagssaldo. Reines Lesen schreibt nichts; Rückgängig stellt auch die abgeleitete Aufgabe wieder her. „Kontostand prüfen“ öffnet den Abgleich genau des betroffenen Kontos; das Öffnen bestätigt keinen neuen Stand. Historische Checkpoints ohne protokollierte Bestätigung werden in diesem Teil nicht nachträglich als belegter Abgleich interpretiert.
+- **Status:** teilweise, zweiter Teil unabhängig geprüft; erneute CI nach Main-Abgleich ausständig — **Verweis:** #1108. Rückfrage an der vorhandenen Freigabe und Prüfen-Hinweis für nachweislich bestätigte Abgleiche umgesetzt. Noch offen: Rückfrage bereits vor Öffnen des Formulars, genaue Schutzdaten im Dialog, eigener protokollierter Freigabegrund und weitere Schutzarten einschließlich Kontaktverknüpfungen und historischer Checkpoints ohne Bestätigungsnachweis. Keine Live-Abnahme behauptet.

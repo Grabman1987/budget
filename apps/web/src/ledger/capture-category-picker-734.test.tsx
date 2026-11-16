@@ -104,6 +104,7 @@ it('keeps the contact and contact creation reachable after sixty-one categories'
     'Für Kontakt auslegen → Kontakt Alpha',
   );
   expect(screen.getAllByRole('option').at(-1)?.textContent).toBe('Kontakt neu anlegen');
+  expect(screen.getByRole('button', { name: 'Neue Kategorie …' })).toBeTruthy();
   await user.keyboard('{ArrowDown>62/}{Enter}');
   expect(JSON.parse(screen.getByTestId('payload').textContent ?? '')).toMatchObject({
     ok: true,

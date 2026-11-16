@@ -24,6 +24,8 @@ import { categoryTree } from './categories';
 import { budget } from './queries';
 import {
   account,
+  accountReconciliation,
+  auditLog,
   booking,
   bookingSplit,
   inboxItem,
@@ -43,6 +45,7 @@ import { savingsExecutionProposals, type SavingsExecutionProposal } from './savi
 import { candidateMatches } from './bank-followups';
 import { payslipDocumentMetadata } from './payslip-intake';
 import { readAssignmentCandidate } from './assignment-rules';
+import { bookedBalance } from './reconciliation';
 import { AUTO_RESOLVED_HISTORY_DAYS, autoResolvedWarnings } from './market';
 
 export type BankSuggestion = { label: string; needsReview: boolean };
@@ -101,6 +104,62 @@ export interface InboxEnvelope {
 export type InboxEntry = InboxBooking | InboxStored | InboxEnvelope | SavingsExecutionProposal;
 export interface InboxOptions {
   excludeOverspent?: boolean;
+}
+
+/** Latest accepted statement per account; older checks are superseded, never rewritten. */
+function reconciliationTasks(db: Executor, today: string): InboxStored[] {
+  const checks = db
+    .select({
+      check: accountReconciliation,
+      name: account.name,
+      currency: account.currency,
+      accepted: sql<number>`EXISTS (SELECT 1 FROM ${auditLog}
+        WHERE ${auditLog.entityType} = 'account_reconciliation'
+          AND ${auditLog.entityId} = ${accountReconciliation.id}
+          AND ${auditLog.action} = 'create'
+          AND json_extract(${auditLog.afterJson}, '$.statement_balance_cents') = ${accountReconciliation.statementBalanceCents}
+          AND json_extract(${auditLog.afterJson}, '$.date') = ${accountReconciliation.date})`,
+    })
+    .from(accountReconciliation)
+    .innerJoin(account, eq(account.id, accountReconciliation.accountId))
+    .where(
+      and(
+        isNull(account.deletedAt),
+        isNull(accountReconciliation.deletedAt),
+        lte(accountReconciliation.date, today),
+      ),
+    )
+    .orderBy(
+      desc(accountReconciliation.date),
+      desc(accountReconciliation.createdAt),
+      desc(sql`${accountReconciliation}.rowid`),
+    )
+    .all();
+  const seen = new Set<string>();
+  return checks.flatMap(({ check, name, currency, accepted }) => {
+    if (seen.has(check.accountId)) return [];
+    seen.add(check.accountId);
+    // Imported legacy checkpoints without an acceptance record have no proven statement snapshot.
+    if (!accepted) return [];
+    const current = bookedBalance(db, check.accountId, check.date);
+    if (current === check.statementBalanceCents) return [];
+    const amount = (value: number) =>
+      formatEuro(cents(value)).replace('€', currency === 'EUR' ? '€' : currency);
+    const day = check.date.split('-').reverse().join('.');
+    return [
+      {
+        type: 'stored' as const,
+        id: `reconciliation-mismatch:${check.id}`,
+        kind: 'reconciliation' as const,
+        title: `Kontoprüfung stimmt nicht mehr · ${name}`,
+        detail: `Abgleich vom ${day}: bestätigt ${amount(check.statementBalanceCents)}, jetzt gebucht ${amount(current)}. Differenz (bestätigt − gebucht): ${amount(check.statementBalanceCents - current)}. Prüfe die nachträglich geänderten Buchungen oder gleiche das Konto erneut ab.`,
+        refType: 'account-reconciliation',
+        refId: check.accountId,
+        urgent: true,
+        createdAt: check.createdAt,
+      },
+    ];
+  });
 }
 
 /** Enrich only the response page. The booking dialog recomputes guarded choices before writing. */
@@ -448,6 +507,7 @@ export function readInbox(
             ...(options.excludeOverspent ? [] : envelopeTasks(tx, today)),
             ...bookings,
             ...savingsExecutionProposals(tx, today),
+            ...reconciliationTasks(tx, today),
             ...stored,
           ];
     if (bankSource) entries = filterBankSourceInbox(tx, entries, bankSource);
@@ -544,6 +604,7 @@ export function readInboxCount(db: Executor, today: string, options: InboxOption
         stored +
         listReceipts(tx).length +
         savingsExecutionProposals(tx, today).length +
+        reconciliationTasks(tx, today).length +
         accountReminders(tx, today).length,
     };
   });

@@ -1,5 +1,6 @@
 import { getPayslipSourceConfig, type Db } from '@budget/db';
 import {
+  acceptsTradeConfirmation,
   defaultPayslipAdapters,
   isPayrollNotice,
   parseCardDocument,
@@ -7,13 +8,22 @@ import {
   parseStatementText,
   extractReceiptProposal,
   type ReceiptProposal,
+  type TradeConfirmationIntake,
 } from '@budget/domain';
 import { digest, receiptMime } from '../receipts/files';
 import { extractPayslipText } from '../payslips/service';
 import { rememberedPayslipPassword } from '../payslips/password';
+import { tradeConfirmationIntake } from './trade-confirmation';
 
 export type DocumentType =
-  'card_statement' | 'bank_statement' | 'payslip' | 'bonus' | 'pension' | 'receipt' | 'unreadable';
+  | 'card_statement'
+  | 'bank_statement'
+  | 'payslip'
+  | 'bonus'
+  | 'pension'
+  | 'trade_confirmation'
+  | 'receipt'
+  | 'unreadable';
 export type DocumentClassification = {
   type: DocumentType;
   confidence: 'certain' | 'probable' | 'unknown';
@@ -22,12 +32,15 @@ export type DocumentClassification = {
   needsPassword: boolean;
   /** Editable proposal read from a receipt PDF's text layer; present only if something was found. */
   receipt?: ReceiptProposal;
+  /** Broker trade confirmations only: the trade form proposal and its duplicate state. */
+  trade?: TradeConfirmationIntake;
 };
 
 /**
  * Read-only "does this look like X" pass over the existing deterministic parsers. It stores
- * nothing, books nothing and never calls a network service. Order: finite card layouts, payroll
- * adapters, generic statement labels; everything else is a plain receipt.
+ * nothing, books nothing and never calls a network service. Order: broker trade confirmation
+ * (strict layout signature), finite card layouts, payroll adapters, generic statement labels;
+ * everything else is a plain receipt.
  */
 export async function classifyDocument(
   db: Db,
@@ -55,6 +68,14 @@ export async function classifyDocument(
   if (result.error || text === undefined || !text.trim() || text.length > 200000)
     return { type: 'unreadable', confidence: 'unknown', hints, needsPassword: false };
   const sha = digest(bytes);
+  if (acceptsTradeConfirmation(text))
+    return {
+      type: 'trade_confirmation',
+      confidence: 'certain',
+      hints,
+      needsPassword: false,
+      trade: tradeConfirmationIntake(db, text, sha),
+    };
   const card = parseCardDocument(text, sha, {
     accountId: 'classify',
     currency: 'EUR',

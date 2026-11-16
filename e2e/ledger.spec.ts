@@ -322,6 +322,25 @@ test('Kontostand prüfen: doppelt, Ausgleich, geprüft sperrt, undo', async ({ p
   await captureSaveControl(edit).click();
   await expect(balance(page)).toHaveText('474,00 €');
 
+  // The retained statement is not rewritten by the override; its mismatch stays actionable.
+  const accountUrl = page.url();
+  await page.goto('/konten/pruefen?teil=aufgaben');
+  const finding = page
+    .getByRole('row')
+    .filter({ hasText: `Kontoprüfung stimmt nicht mehr · ${name}` });
+  if (!(await finding.isVisible()))
+    await page
+      .getByRole('button', { name: /(?:Prüfen · Weitere Aufgaben|Weitere Aufgaben öffnen)/ })
+      .click();
+  await expect(finding).toContainText('bestätigt 475,00 €');
+  await expect(finding).toContainText('jetzt gebucht 474,00 €');
+  await expect(finding.getByRole('button', { name: 'Als erledigt markieren' })).toHaveCount(0);
+  const repair = finding.getByRole('link', { name: 'Kontostand prüfen' });
+  await expect(repair).toHaveAttribute('href', /pruefen=reconcile/);
+  await repair.click();
+  await expect(page.getByRole('dialog', { name: `Kontostand prüfen · ${name}` })).toBeVisible();
+  await page.goto(accountUrl);
+
   // The bank says 470: 4,00 missing; Ausgleich books it and stamps everything, undo reverts it.
   await page.getByRole('button', { name: 'Kontostand prüfen' }).click();
   const second = page.getByRole('dialog', { name: `Kontostand prüfen · ${name}` });
