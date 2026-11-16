@@ -1853,13 +1853,17 @@ function BankAccountHeader({
   account,
   collapsed,
   onToggle,
+  scoped,
+  hasMore,
 }: {
   account: ReturnType<typeof bankAccountGroups>[number];
   collapsed: boolean;
   onToggle: () => void;
+  scoped: boolean;
+  hasMore: boolean;
 }) {
   const meta = account.recap;
-  const open = account.entries.length > 0 || (meta?.openTotal ?? 0) > 0;
+  const open = account.entries.length > 0 || (!scoped && (meta?.openTotal ?? 0) > 0);
   const summary = (
     <>
       <strong>{maskMoneyText(account.name)}</strong>
@@ -1894,7 +1898,7 @@ function BankAccountHeader({
       {meta?.status === 'error' && (
         <p>Abruf fehlgeschlagen – angezeigt bleibt das letzte vollständige Ergebnis.</p>
       )}
-      {open && !account.entries.length && !collapsed && (
+      {open && !account.entries.length && !collapsed && hasMore && (
         <p>Weitere anzeigen lädt die offenen Umsätze dieses Kontos.</p>
       )}
     </div>
