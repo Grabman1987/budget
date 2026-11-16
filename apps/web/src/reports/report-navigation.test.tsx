@@ -37,6 +37,8 @@ const aliases = [
 const navigate = vi.fn();
 vi.mock('@tanstack/react-router', () => ({
   useNavigate: () => navigate,
+  useSearch: () => ({}),
+  useLocation: () => ({ hash: '' }),
   useLinkProps: ({
     to,
     onClick,
@@ -147,7 +149,7 @@ describe('report navigation', () => {
       key: 'ArrowRight',
     });
     expect(navigate).not.toHaveBeenCalled();
-    const summary = screen.getByText('Bericht wechseln', { selector: 'summary' });
+    const summary = screen.getByLabelText('Bericht wechseln');
     const disclosure = summary.parentElement as HTMLDetailsElement;
     fireEvent.click(summary);
     expect(disclosure.open).toBe(true);
