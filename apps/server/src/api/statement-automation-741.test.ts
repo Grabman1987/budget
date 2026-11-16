@@ -50,7 +50,10 @@ type Reply = {
 };
 const cell = (column: number, text: string) => ({ x: 40 + column * 5, text });
 // Every identifier/value is invented. Cells fit the page and pass through the real PDF worker.
-const pdfRows = (previous = false) => [
+const pdfRows = (previous = false, identified = true) => [
+  ...(identified
+    ? [[cell(0, `Abrechnungsnummer: SYNTHETIC-${previous ? '2030-12' : '2031-01'}`)]]
+    : []),
   [cell(0, `Datum ${previous ? '04.12.2030' : '04.01.2031'}`)],
   [cell(0, `Datum nächste Umsatznachricht ${previous ? '04.01.2031' : '04.02.2031'}`)],
   [cell(0, `Wird eingezogen am ${previous ? '12.12.2030' : '12.01.2031'}`)],
@@ -247,8 +250,8 @@ async function configure() {
   expect(response.status).toBe(200);
   return ((await response.json()) as { config: StatementAutomationConfig }).config;
 }
-async function prior() {
-  const bytes = await syntheticColumnarPayslipPdf(pdfRows(true), '');
+async function prior(identified = true) {
+  const bytes = await syntheticColumnarPayslipPdf(pdfRows(true, identified), '');
   const response = await upload(bytes);
   expect(response.status).toBe(201);
   const body = (await response.json()) as Reply;
@@ -257,78 +260,81 @@ async function prior() {
   return body.intake;
 }
 
-it('runs authenticated real PDF upload through retained-source extraction into money, links and whole Undo without mocking a plan', async () => {
-  await configure();
-  const originalId = createBooking(
-    opened.db,
-    {
-      accountId: CARD,
-      date: '2030-11-30',
-      amountCents: -10000,
-      memo: 'Synthetic earlier merchant',
-      splits: [{ categoryId: EXPENSE, amountCents: -10000 }],
-    },
-    { actor: 'synthetic-owner' },
-  );
-  const original = getBooking(opened.db, originalId),
-    originalAudit = history(opened.db, 'booking', originalId);
-  await prior();
-  const bytes = await syntheticColumnarPayslipPdf(pdfRows(), ''),
-    response = await upload(bytes, true);
-  expect(response.status).toBe(201);
-  expect(response.headers.get('cache-control')).toBe('no-store');
-  const body = (await response.json()) as Reply;
-  expect(body.automation).toMatchObject({
-    status: 'saved',
-    created: 1,
-    matched: 0,
-    credits: 0,
-    receiptLinks: 3,
-    pending: [],
-    reasons: [],
-  });
-  expect(body.intake).toMatchObject({ sha256: digest(bytes), status: 'pending', reviewed: null });
-  expect(readFileSync(join(dir, 'receipts', digest(bytes))).equals(bytes)).toBe(true);
-  const posted = body.automation.items!.map((i) => getBooking(opened.db, i.bookingId)!);
-  expect(posted.map((b) => b.amountCents).sort((a, b) => a - b)).toEqual([-17000, -7000, 17000]);
-  expect(posted.every((b) => b.status === 'pending' && b.source === 'import')).toBe(true);
-  expect(posted.filter((b) => b.transferId).map((b) => b.date)).toEqual([
-    '2031-01-12',
-    '2031-01-12',
-  ]);
-  expect(getBooking(opened.db, originalId)).toEqual(original);
-  expect(history(opened.db, 'booking', originalId)).toEqual(originalAudit);
-  const entries = opened.sqlite
-    .prepare('SELECT actor FROM audit_log WHERE group_id=?')
-    .all(body.automation.groupId) as { actor: string }[];
-  expect(entries.length).toBeGreaterThan(5);
-  expect(entries.every((e) => e.actor === 'document-automation:card')).toBe(true);
-  expect(JSON.stringify(body)).not.toContain('sourceProofJson');
-  expect(JSON.stringify(body)).not.toContain('proofJson');
-  const beforeReplay = financial(),
-    replay = await upload(bytes, true);
-  expect(replay.status).toBe(201);
-  expect(await replay.json()).toMatchObject({
-    duplicate: true,
-    automation: { status: 'unchanged', groupId: null },
-  });
-  expect(financial()).toBe(beforeReplay);
-  undo(opened.db, { groupId: body.automation.groupId! }, { actor: 'synthetic-owner' });
-  const afterUndo = financial(),
-    undone = await upload(bytes, true);
-  expect(undone.status).toBe(201);
-  expect(await undone.json()).toMatchObject({
-    duplicate: true,
-    automation: { status: 'undone', groupId: null, items: [] },
-  });
-  expect(financial()).toBe(afterUndo);
-  expect(
-    opened.sqlite
-      .prepare('SELECT amount_cents FROM booking WHERE deleted_at IS NULL AND account_id=?')
-      .all(CARD),
-  ).toEqual([{ amount_cents: -10000 }]);
-  expect(opened.sqlite.pragma('foreign_key_check')).toEqual([]);
-});
+it.each([true, false])(
+  'runs real PDF upload into money, links and whole Undo (printed number: %s)',
+  async (identified) => {
+    await configure();
+    const originalId = createBooking(
+      opened.db,
+      {
+        accountId: CARD,
+        date: '2030-11-30',
+        amountCents: -10000,
+        memo: 'Synthetic earlier merchant',
+        splits: [{ categoryId: EXPENSE, amountCents: -10000 }],
+      },
+      { actor: 'synthetic-owner' },
+    );
+    const original = getBooking(opened.db, originalId),
+      originalAudit = history(opened.db, 'booking', originalId);
+    await prior(identified);
+    const bytes = await syntheticColumnarPayslipPdf(pdfRows(false, identified), ''),
+      response = await upload(bytes, true);
+    expect(response.status).toBe(201);
+    expect(response.headers.get('cache-control')).toBe('no-store');
+    const body = (await response.json()) as Reply;
+    expect(body.automation).toMatchObject({
+      status: 'saved',
+      created: 1,
+      matched: 0,
+      credits: 0,
+      receiptLinks: 3,
+      pending: [],
+      reasons: [],
+    });
+    expect(body.intake).toMatchObject({ sha256: digest(bytes), status: 'pending', reviewed: null });
+    expect(readFileSync(join(dir, 'receipts', digest(bytes))).equals(bytes)).toBe(true);
+    const posted = body.automation.items!.map((i) => getBooking(opened.db, i.bookingId)!);
+    expect(posted.map((b) => b.amountCents).sort((a, b) => a - b)).toEqual([-17000, -7000, 17000]);
+    expect(posted.every((b) => b.status === 'pending' && b.source === 'import')).toBe(true);
+    expect(posted.filter((b) => b.transferId).map((b) => b.date)).toEqual([
+      '2031-01-12',
+      '2031-01-12',
+    ]);
+    expect(getBooking(opened.db, originalId)).toEqual(original);
+    expect(history(opened.db, 'booking', originalId)).toEqual(originalAudit);
+    const entries = opened.sqlite
+      .prepare('SELECT actor FROM audit_log WHERE group_id=?')
+      .all(body.automation.groupId) as { actor: string }[];
+    expect(entries.length).toBeGreaterThan(5);
+    expect(entries.every((e) => e.actor === 'document-automation:card')).toBe(true);
+    expect(JSON.stringify(body)).not.toContain('sourceProofJson');
+    expect(JSON.stringify(body)).not.toContain('proofJson');
+    const beforeReplay = financial(),
+      replay = await upload(bytes, true);
+    expect(replay.status).toBe(201);
+    expect(await replay.json()).toMatchObject({
+      duplicate: true,
+      automation: { status: 'unchanged', groupId: null },
+    });
+    expect(financial()).toBe(beforeReplay);
+    undo(opened.db, { groupId: body.automation.groupId! }, { actor: 'synthetic-owner' });
+    const afterUndo = financial(),
+      undone = await upload(bytes, true);
+    expect(undone.status).toBe(201);
+    expect(await undone.json()).toMatchObject({
+      duplicate: true,
+      automation: { status: 'undone', groupId: null, items: [] },
+    });
+    expect(financial()).toBe(afterUndo);
+    expect(
+      opened.sqlite
+        .prepare('SELECT amount_cents FROM booking WHERE deleted_at IS NULL AND account_id=?')
+        .all(CARD),
+    ).toEqual([{ amount_cents: -10000 }]);
+    expect(opened.sqlite.pragma('foreign_key_check')).toEqual([]);
+  },
+);
 
 it('keeps a legacy upload manual even after automatic configuration, then permits explicit retained-source automation', async () => {
   await configure();
@@ -349,6 +355,49 @@ it('keeps a legacy upload manual even after automatic configuration, then permit
   expect(await result.json()).toMatchObject({
     automation: { status: 'saved', created: 1, receiptLinks: 3 },
   });
+});
+
+it('keeps different identifier-less originals with the same printed issue date in review without posting money', async () => {
+  await configure();
+  const previous = await prior(false),
+    before = financial(),
+    bytes = await syntheticColumnarPayslipPdf(
+      pdfRows(false, false).map((row) =>
+        row.map((cell) =>
+          cell.text === 'Datum 04.01.2031' ? { ...cell, text: 'Datum 04.12.2030' } : cell,
+        ),
+      ),
+      '',
+    ),
+    response = await upload(bytes, true);
+  expect(response.status).toBe(201);
+  const body = (await response.json()) as Reply;
+  expect(body.intake.id).not.toBe(previous.id);
+  expect(body.intake.receiptId).not.toBe(previous.receiptId);
+  expect(body.intake.proposal.relatedIntakeIds).toEqual([previous.id]);
+  expect(body.intake.proposal.warnings).toContain('possible_amendment');
+  const blocked = {
+    status: 'review',
+    runId: null,
+    groupId: null,
+    created: 0,
+    matched: 0,
+    credits: 0,
+    receiptLinks: 0,
+    pending: [],
+    reasons: ['possible_amendment'],
+    items: [],
+  };
+  expect(body.automation).toMatchObject(blocked);
+  expect(financial()).toBe(before);
+  const retained = await json(
+    'POST',
+    `/api/statement-intake/${body.intake.id}/automate`,
+    cas(body.intake),
+  );
+  expect(retained.status).toBe(200);
+  expect(await retained.json()).toMatchObject({ automation: blocked });
+  expect(financial()).toBe(before);
 });
 
 it('discovers only opaque/masked card hints without enabling automation or writing money', async () => {

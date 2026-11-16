@@ -28,7 +28,12 @@ import './statement-review-726.css';
 
 const PATH = '/api/statement-intake';
 const KEY = [...LEDGER_KEY, 'statement-intake'] as const;
-type Draft = Record<Exclude<keyof StatementFacts, 'payableCents'>, string> & { amount: string };
+type Draft = Record<Exclude<keyof StatementFacts, 'payableCents'>, string> & {
+  amount: string;
+  cardReference: string;
+  numberNotPrinted: string;
+  periodNotPrinted: string;
+};
 const TEXT_FIELDS = [
   ['reference', 'Abrechnungsnummer'],
   ['issueDate', 'Ausstellungsdatum'],
@@ -52,6 +57,13 @@ const factsFromView = (view: StatementIntakeView): StatementFacts => {
 const fromView = (view: StatementIntakeView): Draft => {
   const facts = factsFromView(view);
   return {
+    cardReference: (view.reviewed?.reviewNotes ?? view.proposal.reviewNotes)?.cardReference ?? '',
+    numberNotPrinted: (view.reviewed?.reviewNotes ?? view.proposal.reviewNotes)?.numberNotPrinted
+      ? 'yes'
+      : '',
+    periodNotPrinted: (view.reviewed?.reviewNotes ?? view.proposal.reviewNotes)?.periodNotPrinted
+      ? 'yes'
+      : '',
     reference: facts.reference ?? '',
     issueDate: facts.issueDate ? longDay(facts.issueDate) : '',
     periodFrom: facts.periodFrom ? longDay(facts.periodFrom) : '',
@@ -344,7 +356,9 @@ function AccountStatements({
   const valid = Boolean(facts?.success && (!draft?.amount.trim() || amount?.ok));
   const complete =
     facts?.success &&
-    (facts.data.reference || (facts.data.periodFrom && facts.data.periodTo)) &&
+    (facts.data.reference ||
+      (facts.data.periodFrom && facts.data.periodTo) ||
+      (draft?.numberNotPrinted && draft?.periodNotPrinted)) &&
     facts.data.issueDate &&
     facts.data.payableCents !== null &&
     facts.data.currency &&
@@ -375,6 +389,19 @@ function AccountStatements({
         ? {
             ...tuple,
             facts: facts?.success ? facts.data : null,
+            ...(draft?.numberNotPrinted ||
+            draft?.periodNotPrinted ||
+            draft?.cardReference.trim() ||
+            current.proposal.reviewNotes ||
+            current.reviewed?.reviewNotes
+              ? {
+                  reviewNotes: {
+                    numberNotPrinted: Boolean(draft?.numberNotPrinted),
+                    periodNotPrinted: Boolean(draft?.periodNotPrinted),
+                    cardReference: draft?.cardReference.trim() ?? '',
+                  },
+                }
+              : {}),
             ...(action === 'pending' ? { savePending: true } : {}),
           }
         : { ...tuple, ...(action === 'reparse' && password ? { password } : {}) };
@@ -691,6 +718,57 @@ function AccountStatements({
                       oder zusammengeführt.
                     </p>
                   )}
+                  <p>
+                    Dokument-ID (SHA-256): <code>{current.sha256}</code>
+                  </p>
+                  <p>
+                    Die Kartenreferenz gilt für mehrere Abrechnungen und ersetzt keine
+                    Abrechnungsnummer.
+                  </p>
+                  <Field label="Kartenreferenz">
+                    {({ id }) => (
+                      <TextInput
+                        id={id}
+                        value={draft.cardReference}
+                        maxLength={128}
+                        disabled={!pending || busy}
+                        onChange={(event) => update('cardReference', event.target.value)}
+                      />
+                    )}
+                  </Field>
+                  {(['numberNotPrinted', 'periodNotPrinted'] as const).map((key) => (
+                    <label className="check-row" key={key}>
+                      <input
+                        type="checkbox"
+                        checked={Boolean(draft[key])}
+                        disabled={!pending || busy}
+                        onChange={(event) =>
+                          setDraft((previous) =>
+                            previous
+                              ? {
+                                  ...previous,
+                                  [key]: event.target.checked ? 'yes' : '',
+                                  ...(event.target.checked
+                                    ? key === 'numberNotPrinted'
+                                      ? { reference: '' }
+                                      : { periodFrom: '', periodTo: '' }
+                                    : {}),
+                                }
+                              : previous,
+                          )
+                        }
+                      />{' '}
+                      {key === 'numberNotPrinted' ? 'Abrechnungsnummer' : 'Zeitraum'}: im Original
+                      nicht angegeben
+                    </label>
+                  ))}
+                  {!complete && pending && (
+                    <p>
+                      Abrechnungsnummer oder vollständigen Zeitraum angeben; fehlen beide im
+                      Original, bitte beide Vermerke setzen. Betrag, Währung, Ausstellungsdatum und
+                      Einzugsdatum bleiben erforderlich.
+                    </p>
+                  )}
                   <div className="statement-fields-726">
                     {TEXT_FIELDS.map(([key, label]) => (
                       <Field
@@ -720,7 +798,13 @@ function AccountStatements({
                             placeholder={isDateField(key) ? 'TT.MM.JJJJ' : undefined}
                             value={draft[key]}
                             maxLength={128}
-                            disabled={!pending || busy}
+                            disabled={
+                              !pending ||
+                              busy ||
+                              (key === 'reference' && Boolean(draft.numberNotPrinted)) ||
+                              ((key === 'periodFrom' || key === 'periodTo') &&
+                                Boolean(draft.periodNotPrinted))
+                            }
                             onChange={(event) => update(key, event.target.value)}
                           />
                         )}
