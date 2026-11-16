@@ -17,12 +17,21 @@ export type MarketErrorKind = (typeof MARKET_ERROR_KINDS)[number];
  * store. `kind` is the "error class" of the inbox item.
  */
 export class MarketError extends Error {
+  /** Allowlisted currency evidence only; never derive it from the free-form message. */
+  readonly currencyEvidence: { currency: string; origin: 'response' | 'mapping' } | null;
   constructor(
     readonly kind: MarketErrorKind,
     detail?: string,
+    currencyEvidence?: { currency: unknown; origin: 'response' | 'mapping' },
   ) {
     super(detail ? `${kind}: ${detail}` : kind);
     this.name = 'MarketError';
+    this.currencyEvidence =
+      kind === 'currency_mismatch' &&
+      typeof currencyEvidence?.currency === 'string' &&
+      /^[A-Za-z]{3}$/.test(currencyEvidence.currency)
+        ? { currency: currencyEvidence.currency, origin: currencyEvidence.origin }
+        : null;
   }
 }
 

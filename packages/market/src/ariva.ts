@@ -114,7 +114,10 @@ export function parseArivaHtml(
     if ((cells[close + 1] ?? '').includes('*')) continue;
     const { priceMicro, currency } = parsePriceCell(text);
     if (currency !== undefined && currency !== ref.currency)
-      throw new MarketError('currency_mismatch', `${currency} instead of ${ref.currency}`);
+      throw new MarketError('currency_mismatch', undefined, {
+        currency: currency,
+        origin: 'response',
+      });
     if (priceMicro > 0) byDate.set(date, priceMicro);
   }
   return [...byDate]

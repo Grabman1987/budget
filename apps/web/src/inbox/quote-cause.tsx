@@ -24,7 +24,12 @@ export interface QuotePreview {
   currency: string;
   from: string;
   to: string;
-  attempts: { source: string; error: string | null; latest: Quote | null }[];
+  attempts: {
+    source: string;
+    error: string | null;
+    latest: Quote | null;
+    currencyEvidence?: { currency: string; origin: 'response' | 'mapping' } | null;
+  }[];
 }
 
 const ERRORS: Record<string, string> = {
@@ -115,8 +120,20 @@ export function QuoteCause({
                 {attempt.source}:{' '}
                 {attempt.latest
                   ? `${quoteText({ ...attempt.latest, currency: preview.data.currency, source: attempt.source })} · ${longDay(attempt.latest.date)}`
-                  : (ERRORS[attempt.error ?? ''] ??
-                    'Abruf fehlgeschlagen. Fehlerklasse: ' + attempt.error)}
+                  : attempt.error === 'currency_mismatch' &&
+                      attempt.currencyEvidence?.origin === 'mapping'
+                    ? 'Die Quellzuordnung verwendet eine andere Kurswährung.'
+                    : (ERRORS[attempt.error ?? ''] ??
+                      'Abruf fehlgeschlagen. Fehlerklasse: ' + attempt.error)}
+                {attempt.error === 'currency_mismatch' && (
+                  <span>
+                    {' '}
+                    Erwartet: {preview.data.currency} ·{' '}
+                    {attempt.currencyEvidence
+                      ? `${attempt.currencyEvidence.origin === 'mapping' ? 'In der Quellzuordnung' : 'Von der Quelle gemeldet'}: ${attempt.currencyEvidence.currency}`
+                      : 'Tatsächliche Kurswährung nicht verfügbar.'}
+                  </span>
+                )}
               </li>
             ))}
           </ul>

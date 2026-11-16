@@ -107,7 +107,10 @@ describe('quote cause diagnostics', () => {
           quotes: {
             id: 'ariva',
             async history() {
-              throw new MarketError('currency_mismatch', 'DO_NOT_EXPOSE_RESPONSE');
+              throw new MarketError('currency_mismatch', 'DO_NOT_EXPOSE_RESPONSE', {
+                currency: 'USD',
+                origin: 'response',
+              });
             },
           },
           moreQuotes: [
@@ -138,7 +141,12 @@ describe('quote cause diagnostics', () => {
       from: '2026-03-01',
       to: TODAY,
       attempts: [
-        { source: 'ariva', error: 'currency_mismatch', latest: null },
+        {
+          source: 'ariva',
+          error: 'currency_mismatch',
+          latest: null,
+          currencyEvidence: { currency: 'USD', origin: 'response' },
+        },
         { source: 'coingecko', error: 'not_configured', latest: null },
         { source: 'yfinance', error: null, latest: { date: TODAY, priceMicro: 80_000_000 } },
       ],
@@ -156,6 +164,41 @@ describe('quote cause diagnostics', () => {
     expect((await call('POST', '/securities/s1/quote-preview', { currency: 'USD' })).status).toBe(
       400,
     );
+  });
+  it('never exposes free-form currency errors and does not invent missing currency evidence', async () => {
+    app = createApp({
+      webDir,
+      auth: signedIn,
+      ledger: {
+        db,
+        today: () => TODAY,
+        market: {
+          quotes: {
+            id: 'ariva',
+            async history() {
+              throw new MarketError('currency_mismatch', 'DO_NOT_EXPOSE_RESPONSE', {
+                currency: 'USD DO_NOT_EXPOSE_RESPONSE',
+                origin: 'response',
+              });
+            },
+          },
+          fallbackQuotes: {
+            id: 'yfinance',
+            async history() {
+              throw new Error('DO_NOT_EXPOSE_RESPONSE');
+            },
+          },
+          fx: fixtureFxSource({ anchorsFor: () => [] }),
+        },
+      },
+    });
+    const result = await call('POST', '/securities/s1/quote-preview', {});
+    expect(result.status).toBe(200);
+    expect(result.body.attempts).toEqual([
+      { source: 'ariva', error: 'currency_mismatch', latest: null, currencyEvidence: null },
+      { source: 'yfinance', error: 'network', latest: null, currencyEvidence: null },
+    ]);
+    expect(JSON.stringify(result.body)).not.toContain('DO_NOT_EXPOSE_RESPONSE');
   });
 });
 
