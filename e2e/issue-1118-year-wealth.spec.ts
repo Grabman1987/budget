@@ -21,7 +21,7 @@ for (const year of [2026, 2025]) {
     const n = data.report.netWorth!;
     const change = n.endCents - n.startCents;
     const rate = ratioBp(change, n.startCents);
-    const expected = `${eur(change, { sign: true })} · ${rate === null ? 'Prozent nicht ermittelbar (Anfangsvermögen nicht positiv)' : bpText(rate, { sign: true })}`;
+    const expected = `${eur(change)} · ${rate === null ? 'Prozent nicht ermittelbar (Anfangsvermögen nicht positiv)' : bpText(rate)}`;
     const changeRow = summary
       .locator('dl > div')
       .filter({ has: page.getByText('Vermögensänderung', { exact: true }) });

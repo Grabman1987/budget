@@ -72,25 +72,33 @@
 [data-budget-redesign='1'] .period-summary-chart {
   min-width: 0;
 }
-[data-budget-redesign='1'] .period-summary-table {
+[data-budget-redesign='1'] .period-summary-table.report-table {
   width: 100%;
   border-collapse: collapse;
   font-size: var(--fs-table);
   font-variant-numeric: tabular-nums;
 }
-[data-budget-redesign='1'] .period-summary-table :is(th, td) {
+[data-budget-redesign='1'] .period-summary-table.report-table :is(th, td) {
   padding: 6px 0;
   border-bottom: 1px solid var(--rule);
   text-align: right;
 }
-[data-budget-redesign='1'] .period-summary-table tr > :first-child {
+[data-budget-redesign='1'] .period-summary-table.report-table thead th {
+  position: static;
+  background: none;
+  color: inherit;
+  font: inherit;
+  letter-spacing: normal;
+  white-space: normal;
+}
+[data-budget-redesign='1'] .period-summary-table.report-table tr > :first-child {
   text-align: left;
   font-weight: 500;
   padding-right: 8px;
   overflow-wrap: anywhere;
 }
-[data-budget-redesign='1'] .period-summary-table tfoot th,
-[data-budget-redesign='1'] .period-summary-table tfoot td {
+[data-budget-redesign='1'] .period-summary-table.report-table tfoot th,
+[data-budget-redesign='1'] .period-summary-table.report-table tfoot td {
   font-weight: 650;
 }
 [data-budget-redesign='1'] .period-wealth-line {
@@ -389,10 +397,10 @@
   [data-budget-redesign='1'] .period-kpis > div {
     padding: 8px 10px;
   }
-  [data-budget-redesign='1'] .period-summary-table :is(th, td) {
+  [data-budget-redesign='1'] .period-summary-table.report-table :is(th, td) {
     padding-block: 4px;
   }
-  [data-budget-redesign='1'] .period-summary-table thead {
+  [data-budget-redesign='1'] .period-summary-table.report-table thead {
     display: table-header-group;
   }
   [data-budget-redesign='1'] .period-month-summary .period-summary-table td:nth-child(n + 3) {

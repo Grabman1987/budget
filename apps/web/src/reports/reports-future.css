@@ -291,6 +291,30 @@
 .rf-table .is-rest td {
   color: var(--ink-2);
 }
+/* Keep the density of the former .rf-scroll wrapper when .rf-table sits in the shared ReportTable shell. */
+.report-table-scroll:has(> .rf-table) {
+  margin-top: 10px;
+}
+.report-table-scroll table.report-table.rf-table {
+  font-size: inherit;
+  line-height: inherit;
+}
+.report-table-scroll table.report-table.rf-table th {
+  padding: 8px;
+  font-size: var(--fs-label);
+  vertical-align: baseline;
+}
+.report-table-scroll table.report-table.rf-table td {
+  padding: 10px 8px;
+  vertical-align: top;
+}
+.report-table-scroll table.report-table.rf-table .rf-grp th {
+  padding-top: 14px;
+  font-size: var(--fs-body);
+}
+.report-table-scroll table.report-table.rf-table .rf-grp td {
+  padding-top: 14px;
+}
 .rf-moves td:nth-child(2) {
   min-width: 220px;
 }
