@@ -38,15 +38,15 @@ it('lists the exact sixteen mapped reports in four groups without removing the o
   expect(HUB_GROUPS.map((g) => HUB_REPORTS.filter((r) => r.group === g.id).length)).toEqual([
     8, 1, 3, 4,
   ]);
-  // Current main already moved liquiditaet to Plan; preserve that route plus all 33 report bodies.
-  expect(REPORTS).toHaveLength(33);
-  expect(new Set([LIQUIDITY_FORECAST.id, ...REPORTS.map((r) => r.id)]).size).toBe(34);
+  // Historical positions stay stable after removing the five standalone catalog entries.
+  expect(REPORTS).toHaveLength(29);
+  expect(new Set([LIQUIDITY_FORECAST.id, ...REPORTS.map((r) => r.id)]).size).toBe(30);
   expect(hubReport('prendite')?.id).toBe('pallocation');
-  expect(hubReport('planungstreue')?.id).toBe('budgettreue');
+  expect(hubReport('planungstreue')).toBeUndefined();
 });
 it('finds literal names and question text, preserving catalog numbers when filtered', () => {
   expect(matchingHubReports(' INFLATION ').map((r) => [r.no, r.id])).toEqual([[8, 'inflation']]);
-  expect(matchingHubReports('treffsicher').map((r) => r.id)).toEqual(['budgettreue']);
+  expect(matchingHubReports('Halten wir den Plan').map((r) => r.id)).toEqual(['budgettreue']);
   expect(matchingHubReports('', 'portfolio').map((r) => r.no)).toEqual([10, 11, 12]);
   expect(matchingHubReports('inflation', 'wealth')).toEqual([]);
 });

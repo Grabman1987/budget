@@ -84,8 +84,16 @@ const SEARCH_TERMS: Record<string, readonly string[]> = {
   'page:/plan/jahr': ['jahresplanung'],
   'action:posteingang': ['posteingang'],
   'page:/konten/pruefen': ['posteingang'],
-  'page:/plan/prognose': ['baby', 'einkommenspause', 'elternzeit', 'karenz', 'liquidität'],
-  'page:/plan/sparziele': ['sparen', 'sparziel', 'notgroschen'],
+  'page:/plan/prognose': [
+    'baby',
+    'einkommenspause',
+    'elternzeit',
+    'karenz',
+    'liquidität',
+    'liquiditätsprognose',
+  ],
+  'page:/plan/erwartet': ['jahresvorschau zahlungen', 'vorschau'],
+  'page:/plan/sparziele': ['sparen', 'sparziel', 'notgroschen', 'sparziele-fortschritt'],
   'page:/vermoegen/schulden': ['dispo', 'kredit', 'tilgung'],
   'report:kosten': ['gebühren', 'bankgebühren', 'zinskosten'],
 };

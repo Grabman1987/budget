@@ -9,8 +9,6 @@ export async function retainBudgetCostInflationReaders(page: Page) {
         'adherence-categories',
         'adherence-allocation',
         'adherence-deviation',
-        'accuracy-method',
-        'accuracy-categories',
         'contracts-history',
         'contracts-increases',
         'contracts-list',

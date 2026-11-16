@@ -1,10 +1,10 @@
 # User-Stories – Reports
 
-Alle Reports mit Nummer laut `docs/FEATURES.md` (34 Reports, 1.1 bis 5.6). Jede Nummer steht genau einmal im Feld „Verweis“. Berichte werden sonst nur mit Namen genannt.
+Historical references follow `docs/FEATURES.md` (positions 1.1–5.6). The hub retains 16 main reports and the source catalog retains 29 entries after #1156. Plan destinations and the total Explorer template retain their old URLs; Prognosegenauigkeit is retired.
 
-**Gemeinsamer Einstieg (für alle Stories):** Reports im Hauptmenü öffnen (`/reports`). Dort „Alle Berichte“ nach Gruppe („Berichtsgruppen“) filtern oder mit „Name oder Frage suchen“ suchen; „Zuletzt geöffnet“ führt zurück. Im Bericht wechselt „Bericht wechseln“ (oder Alt+Shift+Pfeil links/rechts) zum Nachbarn. Zeitraumberichte haben die „Zeitraum-Schnellauswahl“ (Dieser Monat, Letzter Monat, 3 Monate, 6 Monate, 12 Monate, Dieses Jahr, Letztes Jahr, Alles, Benutzerdefiniert), „Voriger Zeitraum“/„Nächster Zeitraum“ und „Zeitraum wählen“; die Wahl steht in der Adresse (`?zeitraum=`). Monatsberichte haben „Monat“ mit „Vormonat“/„Nächster Monat“, Jahresberichte „Jahr“. Fachbegriffe mit gepunkteter Unterstreichung öffnen eine Erklärung (RP-24). „Berechnung und Einordnung“ zeigt die Rechenbasis. Die Liquiditätsprognose liegt unter Plan › Prognose, ist aber hier aufgeführt.
+**Shared entry:** Open Reports (`/reports`) and search by report name or question. The redesign groups its 16 main reports into columns; recent active reports remain available. In a report, use "Bericht wechseln" or Alt+Shift+Left/Right to switch reports. Period reports retain their shared period controls and remembered period; explicit URL periods take precedence. Monthly and annual reports retain their own month/year controls. "Berechnung und Einordnung" explains the calculation. Plan destinations and the total Explorer template are documented below for bookmark compatibility; they have no standalone report entries.
 
-**Aufteilungen:** RP-05, RP-07, RP-11, RP-12, RP-13, RP-15, RP-16, RP-17, RP-18, RP-21 und RP-23 sind in a/b(/c) geteilt, weil sie unabhängige Berichte bündeln. Namen folgen dem Katalog der App: RP-05b „Einnahmen und Cashflow“ (früher „Einnahmen und Ausgaben“), RP-11a „Prognosegenauigkeit“ (in der alten Tabelle als Budgettreue geführt), RP-11b „Budgettreue“, RP-13a „Verträge und Kosten“, RP-18a „Portfolio-Auswertung“.
+**Aufteilungen:** RP-05, RP-07, RP-11, RP-12, RP-13, RP-15, RP-16, RP-17, RP-18, RP-21 und RP-23 sind in a/b(/c) geteilt, weil sie unabhängige Berichte bündeln. Namen folgen dem Katalog der App: RP-05b „Einnahmen und Cashflow“ (früher „Einnahmen und Ausgaben“), RP-11a (retired forecast-accuracy report; redirects to Budgettreue), RP-11b „Budgettreue“, RP-13a „Verträge und Kosten“, RP-18a „Portfolio-Auswertung“.
 
 ### RP-00 – Zeitraum zwischen Reports behalten
 - **Story:** Als Nutzer möchte ich meinen Zeitraum beim Reportwechsel behalten, damit ich mehrere Berichte ohne erneute Auswahl lesen kann.
@@ -184,20 +184,11 @@ Alle Reports mit Nummer laut `docs/FEATURES.md` (34 Reports, 1.1 bis 5.6). Jede 
   - Randfall: Ein laufender Monat bekommt keine Quote; bei zu wenigen Monaten fehlt die rollierende Linie.
 - **Status:** live · **Verweis:** 1.7
 
-### RP-09 – Gesamttabelle
-- **Story:** Als Nutzer möchte ich alle Monate seit Beginn in einer Tabelle mit Nettovermögen und CSV haben, damit ich Zahlen außerhalb der App weiterverwenden und prüfen kann.
-- **Ausgangslage:** Aufzeichnungen seit 01.10.2023.
-- **Ablauf:**
-  1. Reports › Gesamttabelle öffnen.
-  2. „Detailtiefe“ wählen und in der Tabelle seitlich in die Vergangenheit scrollen.
-  3. Nettovermögen am Monatsende ablesen.
-  4. „CSV“ klicken.
-- **Ergebnis:** Eine Datei mit der Monatsübersicht.
-- **Abnahmekriterien:**
-  - Die CSV enthält genau die angezeigten Zeilen und Spalten.
-  - Nettovermögen je Monatsende stimmt mit Vermögen › Nettovermögen überein.
-  - Randfall: Am Handy bleibt die Tabelle scrollbar; das laufende Monat ist enthalten und als solches erkennbar.
-- **Status:** live · **Verweis:** 1.8
+### RP-09 – Gesamttabelle (Explorer template)
+- **Story:** Export the displayed monthly overview, including month-end net worth, for external checks.
+- **Flow:** Open Reports > Auswertung, select “Gesamttabelle”, choose detail depth, inspect the horizontally scrollable table and export CSV. The retained “Alle Monate: Nettovermögen und CSV” disclosure provides the existing full table.
+- **Acceptance:** No standalone report entry or alias link appears in the hub. `/reports/gesamttabelle` still opens the total Explorer template, preserving explicit period, month, filters and hash. CSV contains exactly its displayed rows and columns; monthly net worth still uses the existing valuation. The running month remains identifiable, mobile tables remain scrollable and privacy masks amounts.
+- **Status:** implemented for review (#1156); CI and owner acceptance pending. **Verweis:** 1.8
 
 ### RP-10 – Projekte und Nebeneinkünfte
 - **Story:** Als Nutzer möchte ich Gewinn und Verlust je Nebenprojekt sehen, damit ich entscheide, ob sich ein Projekt lohnt.
@@ -215,19 +206,11 @@ Alle Reports mit Nummer laut `docs/FEATURES.md` (34 Reports, 1.1 bis 5.6). Jede 
 - **Status:** live · **Verweis:** 1.9
   Fehlt noch: Projektstunden und Stundensätze.
 
-### RP-11a – Prognosegenauigkeit
-- **Story:** Als Nutzer möchte ich sehen, wie treffsicher die Hochrechnung am 15. war, damit ich der Prognose im laufenden Monat vertraue oder meine Planung anpasse.
-- **Ausgangslage:** Die App hält jeweils am 15. den Stand fest; mindestens ein abgeschlossener Monat.
-- **Ablauf:**
-  1. Reports › Prognosegenauigkeit, „Monat“ wählen.
-  2. „Trefferquote“ und „Prognose am 15. vs. Ist am Monatsende“ ansehen (Prognose, Ist, Abweichung € und %, Treffer).
-  3. „größte Abweichungen zuerst“ je Kategorie lesen.
-- **Ergebnis:** Ich sehe, welche Kategorien sich schlecht prognostizieren lassen.
-- **Abnahmekriterien:**
-  - Das Ist am Monatsende entspricht dem Konsum im One-Pager des Monats.
-  - Die Abweichung ist Ist minus Prognose, in Cent exakt.
-  - Randfall: Monate ohne festgehaltenen Stand am 15. sind als nicht bewertet markiert, nicht als Treffer.
-- **Status:** live · **Verweis:** 1.11
+### RP-11a – Retired Prognosegenauigkeit
+- **Story:** Existing forecast-accuracy bookmarks remain useful after the owner retires this report.
+- **Flow:** Open `/reports/planungstreue` or a saved Budgettreue link with `darstellung=planungstreue`; read Budgettreue for the retained month and period.
+- **Acceptance:** No report entry, search result, subview selector or forecast-accuracy body remains. The old report address redirects to Budgettreue with month, explicit period and hash intact; reload works. Geldfluss remains an independent report. Stored snapshots, financial calculations and the Heute Pace note remain unchanged.
+- **Status:** retirement implemented for review (#1156), per owner decision 2026-11-15; CI and owner acceptance pending. **Verweis:** 1.11
 
 ### RP-11b – Budgettreue mit 50/30/20
 - **Story:** Als Nutzer möchte ich Plan gegen Ist je Kategorie und die 50/30/20-Verteilung sehen, damit ich weiß, wo ich den Plan überschreite und ob die Verteilung zu meinen Zielen passt.
@@ -322,17 +305,18 @@ Alle Reports mit Nummer laut `docs/FEATURES.md` (34 Reports, 1.1 bis 5.6). Jede 
 - **Story:** Als Nutzer möchte ich sehen, ob das Geld auf den Budget-Konten bis zu 12 Monate reicht, auch mit geplanten Ereignissen, damit ich rechtzeitig umschichte oder Zahlungen verschiebe.
 - **Ausgangslage:** Wiederkehrende Zahlungen und Sparpläne sind gepflegt; geplante Ereignisse optional.
 - **Ablauf:**
-  1. Plan › Prognose öffnen (der Bericht liegt im Bereich Plan).
+  1. Open Plan › Prognose. `/reports/liquiditaet` redirects here; this destination no longer appears in Reports.
   2. „Prognosezeitraum“ wählen (90 Tage, 6 oder 12 Monate); die Linie mit Band zeigt „Budget-Konten“.
   3. Unter „Werkzeuge“ Einkommenspausen, Ereignisse, Stellschrauben und Buchungen streichen testen; „Ohne Ereignisse“ zeigt den Vergleich.
   4. „Nächste Buchungsereignisse“ prüfen; „Einzelkontovorschau“ je Konto öffnen.
 - **Ergebnis:** Ich sehe den tiefsten Punkt und das Urteil für die nächsten 6 Monate.
 - **Abnahmekriterien:**
+  - The Reports hub and recents omit this destination; its old URL preserves month, period and hash on redirect and reload.
   - Der Startsaldo entspricht der Summe der Budget-Konten in Konten › Übersicht.
   - Ein Ereignis (hinzufügen, abschalten, entfernen) ändert die Linie sofort und ist rückgängig machbar.
   - Der 10-%-Puffer ist als Band sichtbar.
   - Randfall: Ohne größere Buchungen „Im Prognosezeitraum stehen keine größeren Buchungen an.“
-- **Status:** live · **Verweis:** 3.1
+- **Status:** existing Plan flow retained; catalog cleanup implemented for review (#1156), CI and owner acceptance pending · **Verweis:** 3.1
 
 ### RP-15b – Cashflow-Verlauf
 - **Story:** Als Nutzer möchte ich sehen, ob ich mehr verdiene als ich ausgebe, damit ich weiß, ob der Haushalt wirklich Überschuss erzeugt.
@@ -352,16 +336,17 @@ Alle Reports mit Nummer laut `docs/FEATURES.md` (34 Reports, 1.1 bis 5.6). Jede 
 - **Story:** Als Nutzer möchte ich die Zahlungen der nächsten 12 Monate im Kalender sehen, damit ich große Fälligkeiten (Versicherung, Steuern) vorab abdecke.
 - **Ausgangslage:** Wiederkehrende Zahlungen, Sparpläne und künftige Umbuchungen sind gepflegt.
 - **Ablauf:**
-  1. Reports › Jahresvorschau Zahlungen öffnen.
+  1. Open Plan › Zahlungen and select the calendar. `/reports/vorschau` redirects here; Jahresvorschau no longer appears in Reports.
   2. „Jahreskalender Zahlungen“ und „Zahlungskalender“ lesen; „Maßkette Jahresvorschau“ zeigt die EUR-Summe.
   3. „Fälligkeiten und Verknüpfungen“ prüfen (Fällig, Vertrag, Status/Buchung).
   4. „Wiederkehrende Zahlungen öffnen“ führt zur Pflege.
 - **Ergebnis:** Ich weiß, wann welcher Betrag fällig wird.
 - **Abnahmekriterien:**
+  - The Reports hub and recents omit this destination; its old URL preserves month, period and hash on redirect and reload.
   - Die Summe der Monate entspricht den erwarteten Abgängen in Plan › Zahlungen plus Sparplanausführungen.
   - Eine Zahlung wird nicht doppelt gezählt, wenn Umbuchung und Zeitplan dasselbe Ereignis sind.
   - Randfall: Nicht verknüpfte erwartete Zahlungen bleiben getrennt und werden nicht geraten; ein „Abrechnungsausgleich“ zeigt Einzugstermin und Betrag.
-- **Status:** live · **Verweis:** 3.4
+- **Status:** existing Plan flow retained; catalog cleanup implemented for review (#1156), CI and owner acceptance pending · **Verweis:** 3.4
 
 ### RP-16a – Vermögensverläufe
 - **Story:** Als Nutzer möchte ich sehen, woraus das Vermögen über die Zeit besteht, damit ich erkenne, wie sich die Mischung aus Konten, Anlagen und Schulden verschiebt.
@@ -381,15 +366,16 @@ Alle Reports mit Nummer laut `docs/FEATURES.md` (34 Reports, 1.1 bis 5.6). Jede 
 - **Story:** Als Nutzer möchte ich sehen, ob die Sparziele im Plan liegen, damit ich Rate oder Termin rechtzeitig anpasse.
 - **Ausgangslage:** Sparziele unter Plan › Ziele angelegt; für Tagesgeld ist die Zuordnung zu Zielen erfasst.
 - **Ablauf:**
-  1. Reports › Sparziele-Fortschritt, „Monat“ wählen (Sparziele · Monat).
+  1. Open Plan › Ziele and select the progress view and month. `/reports/sparziele` redirects here; Sparziele no longer appears in Reports.
   2. Fortschrittsbalken mit Soll-Marke lesen; „Tagesgeld-Zuordnung · bis heute“ ansehen.
   3. „Zielstände und Quellen“ prüfen.
 - **Ergebnis:** Ich sehe Stand je Ziel und Notgroschen in Monaten.
 - **Abnahmekriterien:**
+  - The Reports hub and recents omit this destination; its old URL preserves month, period and hash on redirect and reload.
   - Der Zielstand entspricht Plan › Ziele für denselben Monat.
   - Die Reserve in Monaten entspricht geschlossenem Bedarf laut Finanz-Check.
   - Randfall: Fremdwährungsreserven sind ausdrücklich unvollständig markiert; Konten ohne Zielzuordnung zählen nicht zu einem Ziel.
-- **Status:** live · **Verweis:** 3.5
+- **Status:** existing Plan flow retained; catalog cleanup implemented for review (#1156), CI and owner acceptance pending · **Verweis:** 3.5
   Fehlt noch: Zuordnung geteilter Konten und Kategorien zu Zielen (keine Quelle).
 
 ### RP-16c – Vermögen und Schulden

@@ -14,9 +14,9 @@ const landings = [
   ['gesamttabelle', '/reports/explorer', 'Gesamttabelle'],
   ['projekte', '/reports/einnahmen-ausgaben', 'Projekt-Ergebnisse'],
   ['einnahmen-ausgaben', '/reports/einnahmen-ausgaben', 'Einnahmen und Ausgaben'],
-  ['planungstreue', '/reports/budgettreue', 'Planungstreue'],
+  ['planungstreue', '/reports/budgettreue', ''],
   ['ausgaben', '/reports/ausgaben', 'Gruppen und Kategorien'],
-  ['budgettreue', '/reports/budgettreue', 'Plan und Ist'],
+  ['budgettreue', '/reports/budgettreue', ''],
   ['abos', '/reports/abos', 'Verträge'],
   ['inflation', '/reports/inflation', ''],
   ['empfaenger', '/reports/ausgaben', 'Empfänger'],
@@ -44,30 +44,17 @@ async function selectedView(page: Page, target: string, view: string) {
   if (!view) return;
   if (
     (await redesignReportsOn(page)) &&
-    [
-      '/reports/einnahmen-ausgaben',
-      '/reports/ausgaben',
-      '/reports/budgettreue',
-      '/reports/abos',
-    ].includes(target)
+    ['/reports/einnahmen-ausgaben', '/reports/ausgaben', '/reports/abos'].includes(target)
   ) {
     const label =
-      target === '/reports/budgettreue'
-        ? 'Ansicht der Budgettreue'
-        : target === '/reports/abos'
-          ? 'Ansicht von Verträgen und Kosten'
-          : target === '/reports/ausgaben'
-            ? 'Ansicht der Ausgabenanalyse'
-            : 'Ansicht von Einnahmen und Cashflow';
+      target === '/reports/abos'
+        ? 'Ansicht von Verträgen und Kosten'
+        : target === '/reports/ausgaben'
+          ? 'Ansicht der Ausgabenanalyse'
+          : 'Ansicht von Einnahmen und Cashflow';
     await expect(
       page.getByRole('combobox', { name: label, exact: true }).locator('option:checked'),
-    ).toHaveText(
-      view === 'Planungstreue'
-        ? 'Prognosegenauigkeit'
-        : view === 'Plan und Ist'
-          ? 'Budgettreue'
-          : view,
-    );
+    ).toHaveText(view);
   } else if ((await redesignReportsOn(page)) && target === '/reports/explorer') {
     await expect(
       page.getByRole('combobox', { name: 'Darstellung der Auswertung' }).locator('option:checked'),
