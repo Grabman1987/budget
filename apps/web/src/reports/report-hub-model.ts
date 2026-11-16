@@ -185,25 +185,38 @@ const REDESIGN_HUB_REPORTS: readonly HubReport[] = redesignOrder.map((id, index)
     name:
       id === 'kontakte'
         ? 'Kontakte'
-        : id === 'vermoegen-schulden'
-          ? 'Vermögensreport'
-          : original!.name,
-    question: original?.question ?? source.question,
+        : id === 'psteuern'
+          ? 'Kosten und Steuern'
+          : id === 'abos'
+            ? 'Verträge und Abos'
+            : id === 'vermoegen-schulden'
+              ? 'Vermögensreport'
+              : original!.name,
+    question:
+      id === 'abos'
+        ? 'Welche Verträge binden uns, und was wurde teurer?'
+        : id === 'psteuern'
+          ? 'Was kostet uns das Geld, und was bleibt nach Steuern?'
+          : (original?.question ?? source.question),
     group: index < 3 ? 'reports' : index < 5 ? 'analysis' : index < 8 ? 'portfolio' : 'income',
     no: index + 1,
     sources:
       id === 'onepager'
         ? ['onepager', 'finanzcheck']
-        : id === 'vermoegen-schulden'
-          ? [
-              'vermoegen-schulden',
-              'vermoegen',
-              'gesamtuebersicht',
-              'pallocation',
-              'peinzahlungen',
-              'prendite',
-            ]
-          : (original?.sources ?? [id]),
+        : id === 'psteuern'
+          ? ['psteuern', 'kosten']
+          : id === 'abos'
+            ? ['abos']
+            : id === 'vermoegen-schulden'
+              ? [
+                  'vermoegen-schulden',
+                  'vermoegen',
+                  'gesamtuebersicht',
+                  'pallocation',
+                  'peinzahlungen',
+                  'prendite',
+                ]
+              : (original?.sources ?? [id]),
   };
 });
 export const HUB_REPORTS = REDESIGN_ENABLED ? REDESIGN_HUB_REPORTS : LEGACY_HUB_REPORTS;

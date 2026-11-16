@@ -1,3 +1,4 @@
+import { useCoverAllPreview } from './cover-all-preview';
 import { usePlanGroupOrder } from './plan-group-order';
 import { PlanContactAdvances } from './plan-contact-advances';
 import { AllocationBar } from '../reports/allocation-bar';
@@ -514,6 +515,7 @@ function PlanBody({
   });
   const [bulkSource, setBulkSource] = useState('suggested');
   const [covering, setCovering] = useState(false);
+  const coverPreview = useCoverAllPreview(month, data);
 
   useEffect(() => {
     const keydown = (event: KeyboardEvent) => {
@@ -904,7 +906,7 @@ function PlanBody({
               reason: !coverPool.length && tba <= 0 ? 'Kein freies Geld zum Decken' : undefined,
               covering,
               sourceLabel: coverLabel,
-              onCover: () => void coverMonth(),
+              onCover: () => (REDESIGN_ENABLED ? coverPreview.show(source) : void coverMonth()),
             }
           : null
       }
@@ -1670,6 +1672,7 @@ function PlanBody({
           />
         }
       />
+      {REDESIGN_ENABLED && coverPreview.dialog}
       <SettingsFormDialog
         open={targetPreview}
         onClose={closeTargetPreview}

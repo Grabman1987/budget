@@ -2,6 +2,8 @@ import { expect } from '@playwright/test';
 import { mkdirSync } from 'node:fs';
 import { redesignReportsOn } from './report-frame';
 import { sampleTest as test } from './sample';
+import type { DebtsView } from '../apps/web/src/wealth/debts-api';
+import { eur } from '../apps/web/src/ledger/format';
 
 const aliases = [
   ['pallocation', 'einzahlungen', 'einzahlungen', '.portfolio-contributions-report'],
@@ -41,7 +43,7 @@ for (const [alias, incoming, view, body] of aliases)
   });
 
 const wealthAliases = [
-  ['/vermoegen/freiheit', '/reports/vermoegen-schulden', 'freiheit', '.freedom-report'],
+  ['/vermoegen/freiheit', '/vermoegen/freiheit', '', '.freedom-report'],
   [
     '/vermoegen/portfolio/kennzahlen',
     '/reports/vermoegen-schulden',
@@ -99,5 +101,40 @@ for (const [alias, destination, view, body] of wealthAliases)
     if (view) expect(target.searchParams.get('darstellung')).toBe(view);
     await page.reload();
     await expect(page).toHaveURL(target.href);
+    await expect(page.locator(body)).toBeVisible();
+  });
+
+for (const [view, destination, body] of [
+  ['freiheit', '/vermoegen/freiheit', '.freedom-report'],
+  ['schulden', '/vermoegen/schulden', '.debts-view'],
+] as const)
+  test(`1157 retired ${view} report preserves context at its wealth destination`, async ({
+    page,
+  }) => {
+    await page.goto(
+      `/reports/vermoegen-schulden?darstellung=${view}&zeitraum=3J&monat=2026-08#details`,
+    );
+    if (!(await redesignReportsOn(page))) return;
+    await expect(page).toHaveURL(
+      (url) =>
+        url.pathname === destination &&
+        url.searchParams.get('zeitraum') === '3J' &&
+        url.searchParams.get('monat') === '2026-08' &&
+        !url.searchParams.has('darstellung') &&
+        url.hash === '#details',
+    );
+    await expect(page.locator(body)).toBeVisible();
+    if (view === 'schulden') {
+      const debt = (await (await page.request.get('/api/wealth/debts')).json()) as DebtsView;
+      await expect(page.getByTestId('debt-total')).toHaveText(
+        debt.totalEurCents === null ? '—' : eur(debt.totalEurCents),
+      );
+      await page.locator('.debt-rechenweg > summary').click();
+      for (const account of debt.accounts)
+        await expect(page.locator('.debt-accounts')).toContainText(account.name);
+    }
+    const target = page.url();
+    await page.reload();
+    await expect(page).toHaveURL(target);
     await expect(page.locator(body)).toBeVisible();
   });

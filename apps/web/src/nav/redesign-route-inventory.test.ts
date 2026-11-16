@@ -110,15 +110,17 @@ describe.each([false, true])('actual A2 router, redesign=%s', (enabled) => {
         `${concrete(from)}?monat=2026-08&period=month&zeitraum=2026-01..2026-08#details`,
       );
       expect(router.state.location.pathname).toBe(
-        enabled && from === '/reports/kontakte'
-          ? '/reports/kontakte'
-          : offFinanzcheck
-            ? '/'
-            : enabled && from === '/vermoegen'
-              ? '/vermoegen'
-              : enabled && target === '/reports/pallocation'
-                ? '/reports/vermoegen-schulden'
-                : concrete(target),
+        enabled && from === '/reports/kosten'
+          ? '/reports/psteuern'
+          : enabled && from === '/reports/kontakte'
+            ? '/reports/kontakte'
+            : offFinanzcheck
+              ? '/'
+              : enabled && from === '/vermoegen'
+                ? '/vermoegen'
+                : enabled && target === '/reports/pallocation'
+                  ? '/reports/vermoegen-schulden'
+                  : concrete(target),
       );
       expect(router.state.location.hash).toBe('details');
       expect(router.state.matches.at(-1)?.search).toMatchObject({
@@ -130,6 +132,23 @@ describe.each([false, true])('actual A2 router, redesign=%s', (enabled) => {
       expect(reloaded.state.location.href).toBe(router.state.location.href);
     },
   );
+
+  it('preserves the former contract bank-cost bookmark and raw query context', async () => {
+    const router = await open(
+      '/reports/abos?darstellung=bankkosten&monat=2026-08&zeitraum=3M&fokus=synthetic#details',
+    );
+    expect(router.state.location.pathname).toBe(enabled ? '/reports/psteuern' : '/reports/abos');
+    expect(router.state.location.hash).toBe('details');
+    expect(router.state.location.searchStr).toContain('fokus=synthetic');
+    expect(router.state.matches.at(-1)?.search).toMatchObject({
+      darstellung: 'bankkosten',
+      monat: '2026-08',
+      zeitraum: '3M',
+    });
+    expect((await open(router.state.location.href)).state.location.href).toBe(
+      router.state.location.href,
+    );
+  });
 
   it('retains each current hub identity and each planned identity’s current working destination', async () => {
     const { HUB_REPORTS } = await import('../reports/report-hub-model');
@@ -145,7 +164,7 @@ describe.each([false, true])('actual A2 router, redesign=%s', (enabled) => {
   });
 
   it.each([
-    ['/vermoegen/freiheit', '/reports/vermoegen-schulden', 'freiheit'],
+    ['/vermoegen/freiheit', '/vermoegen/freiheit', undefined],
     ['/vermoegen/portfolio/kennzahlen', '/reports/vermoegen-schulden', 'rendite'],
     ['/vermoegen/nettovermoegen', '/vermoegen', undefined],
   ])(

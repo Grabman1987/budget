@@ -5,7 +5,9 @@ import { execFileSync } from 'node:child_process';
 import { appendFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 
-export const REQUIRED_CHECKS = ['check', 'check-windows', 'docker', 'restore-test'];
+// `visual` only succeeds in the full lane (label `ci:full`); in the quick or focused lanes it is
+// skipped. Requiring it proves that the pull request ran the same suite a push to main would run.
+export const REQUIRED_CHECKS = ['check', 'check-windows', 'docker', 'restore-test', 'visual'];
 const CI_PATH = '.github/workflows/ci.yml';
 
 // A check-run's details_url is self-reported (an API-created run can point anywhere), so the

@@ -1,5 +1,7 @@
 import {
   addExpectedVersion,
+  acknowledgeIncomeReceipt,
+  incomeReceiptCandidates,
   account,
   createBooking,
   ensureAdvanceCategory,
@@ -285,6 +287,20 @@ export function expectedRoutes(db: Db, today: () => string): Hono {
   );
 
   // Skip one occurrence in the plan without touching the rule (also one not materialised yet).
+  app.get('/:id/receipt-candidates', (c) => {
+    const { dueDate } = readQuery(c, expectedSkipBody);
+    return c.json({ candidates: incomeReceiptCandidates(db, c.req.param('id'), dueDate, today()) });
+  });
+  app.post('/:id/acknowledge-receipt', async (c) => {
+    const { dueDate, bookingId } = await readBody(
+      c,
+      expectedSkipBody.extend(expectedLinkBody.shape),
+    );
+    return c.json(
+      acknowledgeIncomeReceipt(db, c.req.param('id'), dueDate, bookingId, audit(), today()),
+    );
+  });
+
   app.post('/:id/skip', async (c) => {
     const { dueDate } = await readBody(c, expectedSkipBody);
     return c.json(skipOccurrence(db, c.req.param('id'), dueDate, audit(), today()));

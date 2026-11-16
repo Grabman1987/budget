@@ -277,7 +277,14 @@ h4.xp-sub {
 .xp-inc > li {
   grid-template-areas:
     'date amt'
-    'state state';
+    'state state'
+    'act act';
+}
+.xp-inc .xp-occ-act .btn {
+  max-width: 100%;
+  min-height: 44px;
+  height: auto;
+  white-space: normal;
 }
 .xp-inc .xp-sub {
   display: inline;

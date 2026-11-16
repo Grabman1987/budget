@@ -49,9 +49,10 @@ jobs:
   # proceeds. Anything missing or unreadable means reuse=false, i.e. the full suite. Pull request
   # runs skip this job and are unaffected. Logic and tests: scripts/ci/reuse-validated-tree.mjs.
   reuse:
-    # Package mode (2026-11-15): pull requests run the quick lane only, so a PR run no longer proves
-    # the tree. The reuse shortcut is off and every run on main executes the full suite.
-    if: ${{ false }}
+    # Integration trains (2026-11-16): a pull request labelled `ci:full` runs the full suite, so its
+    # green run proves the tree. Quick-lane pull requests never qualify (their `visual` job is
+    # skipped), so a push to main from one of them still executes the full suite.
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:

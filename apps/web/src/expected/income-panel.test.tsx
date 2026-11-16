@@ -3,7 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, cleanup, render, screen } from '@testing-library/react';
 import { afterEach, expect, it } from 'vitest';
 import { setAmountsHidden, ToastProvider } from '@budget/ui';
-import { incomeQuery, type MonthIncome } from './api';
+import { incomeQuery, incomeReceiptCandidatesQuery, type MonthIncome } from './api';
 import { IncomeBody } from './income-panel';
 
 afterEach(() => {
@@ -11,7 +11,7 @@ afterEach(() => {
   setAmountsHidden(false);
 });
 
-function showOctoberIncome(closed = false, currency = 'EUR') {
+function showOctoberIncome(closed = false, currency = 'EUR', proposal = false) {
   const month = '2026-10';
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false, staleTime: Infinity } },
@@ -48,6 +48,12 @@ function showOctoberIncome(closed = false, currency = 'EUR') {
     income.byIncomeType = [];
     income.expectedCents = 0;
   }
+  client.setQueryData(
+    incomeReceiptCandidatesQuery('synthetic-october-payment', '2026-10-15').queryKey,
+    proposal
+      ? [{ bookingId: 'test-receipt', date: '2026-10-14', amountCents: 30000, currency: 'EUR' }]
+      : [],
+  );
   client.setQueryData(incomeQuery(month).queryKey, income);
   return render(
     <QueryClientProvider client={client}>
@@ -144,4 +150,15 @@ it('does not show "0 von X" for a line linked to a booking that does not count t
   expect(screen.getByText(/Gebucht, zählt nicht in diesem Monat · erwartet 300,00 €/)).toBeTruthy();
   expect(screen.queryByText(/^von 300,00 €$/)).toBeNull();
   expect(screen.queryByRole('button', { name: 'Bereits erhalten' })).toBeNull();
+});
+
+it('offers the explicit dated receipt link with private amounts and keeps acknowledgment available', () => {
+  showOctoberIncome(false, 'EUR', true);
+  expect(screen.getByRole('button', { name: /Mit Zahlung vom.*300,00.*verknüpfen/ })).toBeTruthy();
+  expect(screen.getByRole('button', { name: 'Bereits erhalten' })).toBeTruthy();
+  act(() => setAmountsHidden(true));
+  expect(screen.queryByRole('button', { name: /300,00/ })).toBeNull();
+  expect(screen.getByRole('button', { name: /Mit Zahlung vom.*verknüpfen/ }).textContent).toContain(
+    '•••',
+  );
 });

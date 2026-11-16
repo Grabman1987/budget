@@ -4,7 +4,9 @@ Historical references follow `docs/FEATURES.md` (positions 1.1–5.6). The hub r
 
 **Shared entry:** Open Reports (`/reports`) and search by report name or question. The redesign groups its 16 main reports into columns; recent active reports remain available. In a report, “Bericht wechseln” opens the shared menu; Alt+Shift+Left/Right still navigates to adjacent reports. Monthly and annual reports offer indented paper presentations, and the monthly report also offers “Finanz-Check-Verlauf”. Period reports retain “Zeitraum-Schnellauswahl” (Dieser Monat, Letzter Monat, 3 Monate, 6 Monate, 12 Monate, Dieses Jahr, Letztes Jahr, Alles, Benutzerdefiniert), “Voriger Zeitraum”/“Nächster Zeitraum” and “Zeitraum wählen”, with the selection in `?zeitraum=`. The remembered period remains available; explicit URL periods take precedence. Monthly reports retain “Monat”, “Vormonat” and “Nächster Monat”; annual reports retain “Jahr”. Dotted terminology opens RP-24 explanations, and “Berechnung und Einordnung” explains the calculation basis. Plan destinations and the total Explorer template are documented below for bookmark compatibility; they have no standalone report entries. The liquidity forecast remains under Plan › Prognose.
 
-**Aufteilungen:** RP-05, RP-07, RP-11, RP-12, RP-13, RP-15, RP-16, RP-17, RP-18, RP-21 und RP-23 sind in a/b(/c) geteilt, weil sie unabhängige Berichte bündeln. Namen folgen dem Katalog der App: RP-05b „Einnahmen und Cashflow“ (früher „Einnahmen und Ausgaben“), RP-11a (retired forecast-accuracy report; redirects to Budgettreue), RP-11b „Budgettreue“, RP-13a „Verträge und Kosten“, RP-18a „Portfolio-Auswertung“.
+**Shared table continuation (#1161):** RP-05b, the retained RP-07a year grid, RP-08 monthly grid and RP-09 full-history grid use the same register table shell as RP-14. Read the named table, scroll within its region (keyboard or phone), and keep the header and nested row hierarchy visible. Acceptance: aligned tabular numbers, register typography/density, unchanged drilldowns, CSV and masked amounts, with print showing the full table. Status: layout foundation implemented for review; each existing grid retains its current row heat/sign policy pending the later report-group slices. RP-07b's separate category-list table and other report tables remain outside this slice.
+
+**Aufteilungen:** RP-05, RP-07, RP-11, RP-12, RP-13, RP-15, RP-16, RP-17, RP-18, RP-21 und RP-23 sind in a/b(/c) geteilt, weil sie unabhängige Berichte bündeln. Namen folgen dem Katalog der App: RP-05b „Einnahmen und Cashflow“ (früher „Einnahmen und Ausgaben“), RP-11a (retired forecast-accuracy report; redirects to Budgettreue), RP-11b „Budgettreue“, RP-13a „Verträge und Abos“, RP-18a „Portfolio-Auswertung“.
 
 ### RP-Header – Compact report header and subreports
 - **Story:** As a user, I want to switch reports through one shared menu and find the figure controls immediately below it.
@@ -93,14 +95,16 @@ Historical references follow `docs/FEATURES.md` (positions 1.1–5.6). The hub r
   2. Leitwert „Grundgehalt brutto pro Monat“ als Stufenlinie mit jeder Erhöhung (Datum, Betrag, Prozent).
   3. Jahresvergleich und Monatsvergleich je Komponente; Monate mit Sonderzahlung oder Bonus sind markiert; Bonus je Jahr mit Anteil am Grundgehalt.
   4. „Real gegen nominal“: Index gegen VPI und persönliche Inflation, kumuliert in Prozent und Euro.
+  5. Technischer Zwischenstand für die spätere Ansicht: Die angemeldete Sitzung kann die nominale Entwicklung bis zu einem gewählten Monat über `GET /api/payslips/development?throughMonth=YYYY-MM` lesen; ohne Auswahl gilt der aktuelle Monat. Der Ablauf in der Oberfläche bleibt bis zum geprüften Entwurf geplant.
 - **Ergebnis:** Ich sehe den echten Zuwachs und Kaufkraftverlust.
 - **Abnahmekriterien:**
   - Sachbezüge und Spesen verzerren die Entwicklung nicht; sie stehen getrennt.
   - Fehlende Monate sind Lücken, keine Fortschreibung.
   - Der Inflationsvergleich nutzt VPI und den vorhandenen Warenkorb (Persönliche Inflation).
   - Randfall: Eine Lohnart ohne Zuordnung blockiert nur ihren Monat und wird genannt.
-- **Status:** offen · **Verweis:** #1066
-  Fehlt noch: Komponentenmodell, Zuordnung der Lohnarten, Ansichten, VPI-Datenquelle.
+  - Der nominale Datenpfad verwendet gespeicherte Lohnzeilen und Komponenten-Zuordnungen sowie die gemeinsame Rechenlogik. Spätere und gelöschte Gehaltszettel sind ausgeschlossen; Lesen verändert weder Daten noch Buchungen.
+- **Status:** teilweise implementiert für Review (Lohnzeilen/Komponentenmodell aus #1082; nominaler Lese-Endpunkt in dieser Fortsetzung), Oberfläche und Live-Abnahme offen · **Verweis:** #1066
+  Fehlt noch: geprüfter UI-Entwurf, Zuordnungsoberfläche und Schreib-Endpunkte, Ansichten, Vorschau/Bestätigung des expliziten PDF-Neulesens, Anbindung des vorhandenen VPI und der persönlichen Inflation, Ereignismarker und gedruckte Arbeitgeberbeiträge.
 
 ### RP-04 – Monat mit Sonderzahlung korrekt darstellen (geplant)
 - **Story:** Als Nutzer möchte ich einen Monat mit Sonderzahlung ohne erfundene Netto- oder Steueraufteilung sehen, damit der Report die Auszahlung korrekt abbildet und keine falsche Warnung zu einem fehlenden Sondergehalt erscheint.
@@ -124,8 +128,8 @@ Historical references follow `docs/FEATURES.md` (positions 1.1–5.6). The hub r
 - **Ausgangslage:** Einnahmen sind gebucht, wiederkehrende Zahlungen unter Plan › Zahlungen gepflegt.
 - **Ablauf:**
   1. Reports › Einnahmen öffnen, „Monat“ wählen.
-  2. „Einnahmen nach Art und Monat“ (12 Monate gestapelt) und die Tabelle mit Anteil ansehen.
-  3. „Erwartet gegen eingegangen“: Spalten Zahlung, Erwartet, Eingegangen, Status prüfen.
+  2. In the redesign, inspect open expectations first, above the income chart. Expand received and unplanned income when needed; the disclosure remembers its state.
+  3. „Einnahmen nach Art und Monat“ (12 Monate gestapelt) und die Tabelle mit Anteil ansehen.
   4. Kapitalerträge („Kapitalerträge, kein Einkommen“) und „Sonstige Einnahmen · Ausgleich Kontakt“ getrennt ablesen.
 - **Ergebnis:** Ich erkenne fehlende erwartete Einnahmen und die Verteilung nach Art.
 - **Abnahmekriterien:**
@@ -133,8 +137,11 @@ Historical references follow `docs/FEATURES.md` (positions 1.1–5.6). The hub r
   - Eine nicht eingegangene erwartete Zahlung zeigt den Status offen.
   - Randfall: Keine Einnahmen im Zeitraum: „Keine Einnahmen im Zeitraum.“; ohne erwartete Einnahmen: „Für diesen Monat sind keine Einnahmen erwartet.“
   - Randfall: Noch nicht zugeordnete Vorkommen zeigen „nicht zugeordnet“.
+- **#1159 first slice criteria:** Pending, missing, overdue, unlinked and deviating expectations remain visible at the top. Received and unplanned entries remain available in a collapsed disclosure. Empty, fully received and unavailable project expectations are distinct. Existing domain amounts, privacy masking and the OFF reader are preserved.
+- **#1159 status:** First slice ready for review, not live-accepted. Report consolidation, previous-year comparison and indented project navigation remain open; RP-05b and RP-15b retain their current readers until that continuation.
 - **Acknowledgment continuation (#1109, P-09a):** In Plan's income detail, “Bereits erhalten” removes an unlinked occurrence from open expectations without displaying a shortfall or reducing the booked monthly result. The retained amount is a “Planwert”; no extra received income is invented. Undo restores the open expectation. Expected totals remain received household income plus genuinely open remainders.
-- **Continuation status:** Acknowledgment wording and presentation ready for review after local verification; optional receipt linking, combined/payslip settlement and contact compensation expectations remain open. The existing report body is unchanged and this continuation is not live-accepted.
+- **Receipt-link continuation (#1109):** Plan additionally offers a one-click explicit link to an unclaimed same-payer EUR receipt in the same month/window, with the same income type and an amount within the existing range/tolerance. Server-side revalidation and grouped Undo preserve the original receipt and received total. A stale proposal leaves the expectation open. The existing report body remains unchanged.
+- **Continuation status:** Acknowledgment wording and the bounded receipt-link continuation are ready for review after local verification; broader receipt linking, combined/payslip settlement and contact compensation expectations remain open. The existing report body is unchanged and this continuation is not live-accepted.
 - **Status:** live · **Verweis:** 1.3
 
 ### RP-05b – Einnahmen und Cashflow
@@ -188,7 +195,7 @@ Historical references follow `docs/FEATURES.md` (positions 1.1–5.6). The hub r
 - **Story:** Als Nutzer möchte ich jede Kategorie mit Verlauf, Summe und Änderung sehen, damit ich weiß, welche Kategorie wächst und wo ich nachsteuere.
 - **Ausgangslage:** Buchungen mit Kategorien im Zeitraum.
 - **Ablauf:**
-  1. Reports › Kategorieübersicht, „Zeitraum“ wählen.
+  1. Reports › Ausgabenanalyse öffnen, „Kategorien und Verlauf“ wählen und „Zeitraum“ einstellen.
   2. In der Liste Verlaufslinie, Summe, Durchschnitt, Änderung zur Vorperiode und Anteil am Konsum lesen.
   3. Eine Zeile öffnen: Ist/Plan-Verlauf, „Höchster Monat“ und „Empfänger“.
   4. Über „Kategorien vergleichen“ den Kategorietrend wählen (mindestens eine Kategorie).
@@ -197,7 +204,8 @@ Historical references follow `docs/FEATURES.md` (positions 1.1–5.6). The hub r
   - Die Summe je Kategorie stimmt mit Ausgabenanalyse und Explorer für denselben Zeitraum überein.
   - Plan entspricht dem zugewiesenen Betrag.
   - Randfall: Ohne ausgewählte Kategorie steht „Wähle mindestens eine Kategorie für den Verlauf.“; Zukunft-Kategorien sind gekennzeichnet.
-- **Status:** live · **Verweis:** 1.6
+- **Continuation (#1158, first slice):** The redesign exposes the existing monthly category reader at `/reports/ausgaben?darstellung=kategorien`. Largest absolute changes come first, with category ID as the stable tie-breaker; unavailable comparisons follow available ones. The period and category selection remain in the URL across view changes and reload. The default period matches the spending report (1J); explicit and remembered periods still take precedence. Monthly scope, Zukunft separation and amount privacy remain visible. The existing Explorer and legacy category bookmark remain unchanged.
+- **Status:** existing reader live; consolidated category view implemented for review (#1158), CI and owner acceptance pending. **Verweis:** 1.6
 
 ### RP-08 – Sparquote und Geldalter
 - **Story:** Als Nutzer möchte ich Sparquote und Geldalter im Verlauf sehen, damit ich weiß, ob ich das Sparziel halte und ob das Geld, das ich ausgebe, schon lange vor mir liegt.
@@ -265,12 +273,14 @@ Historical references follow `docs/FEATURES.md` (positions 1.1–5.6). The hub r
   2. „Konsum nach Gruppe“ mit Vergleich zum Vorzeitraum lesen.
   3. „Größte Veränderungen“ ansehen; eine Kategorie öffnet ihre Buchungen.
   4. „Klassen und Zukunft“ und die 12-Monats-Heatmap prüfen.
+  5. „Kategorien und Verlauf“ wählen: Monatsübersicht nach größter Änderung lesen, Kategorien für den Trend auswählen; mit derselben Zeitraumwahl zu Gruppen oder Empfängern zurückkehren.
 - **Ergebnis:** Ich kenne die größten Treiber der Ausgaben.
 - **Abnahmekriterien:**
   - Die Summe der Gruppen entspricht der „Maßkette Konsum“ und der Kategorieübersicht im selben Zeitraum.
   - Erstattungen sind gegen ihre Kategorie gerechnet; Zukunft steht getrennt und ist kein Konsum.
   - Randfall: Für „Alles“ gibt es keinen gleich langen Vorzeitraum („Kein gleich langer Vorzeitraum verfügbar.“); ohne Monatsdaten „Noch keine Monatsdaten“.
-- **Status:** live · **Verweis:** 2.1
+- **Continuation criteria (#1158):** In ON, `darstellung=kategorien` reopens the category reader after reload; selected categories and period survive switching among all three views. Existing group/payee figures and the OFF view set remain unchanged.
+- **Status:** existing body live; first consolidation slice implemented for review (#1158). Remaining: unified title/menu hierarchy, group-level trend/change ordering, comparison modes (previous period/year/custom) with URL state and calculation chain, and final legacy-address consolidation. **Verweis:** 2.1
 
 ### RP-12b – Empfänger-Analyse
 - **Story:** Als Nutzer möchte ich sehen, bei wem ich das meiste Geld lasse und wie oft ich dort zahle, damit ich Gewohnheiten und Verträge mit Händlern prüfe.
@@ -286,11 +296,11 @@ Historical references follow `docs/FEATURES.md` (positions 1.1–5.6). The hub r
   - Randfall: Ausgaben ohne Kategorie und Überweisungen sind bewusst nicht enthalten (Hinweis im Bericht).
 - **Status:** live · **Verweis:** 2.5
 
-### RP-13a – Verträge und Kosten
+### RP-13a – Verträge und Abos
 - **Story:** Als Nutzer möchte ich meine Verträge und Abos mit Preis und Preisverlauf sehen, damit ich Preiserhöhungen bemerke und überlege, was ich kündigen kann.
 - **Ausgangslage:** Wiederkehrende Zahlungen sind unter Plan › Zahlungen gepflegt und mit Buchungen verknüpft.
 - **Ablauf:**
-  1. Reports › Verträge und Kosten öffnen.
+  1. Reports › Verträge und Abos öffnen.
   2. „Gebunden je Monat“ (Fixkosten plus periodische Zahlungen geteilt durch 12) mit „Monatsbindung und Preisverlauf“ lesen.
   3. „Preis prüfen“ nennt erhöhte Preise; „Alle Verträge und Abos“ zeigt „Letzte Preisänderung“.
   4. „Fremdwährung“ zeigt Verträge in anderer Währung; „Wiederkehrende Zahlungen pflegen“ führt zu Plan › Zahlungen.
@@ -299,7 +309,9 @@ Historical references follow `docs/FEATURES.md` (positions 1.1–5.6). The hub r
   - Die Monatsbindung entspricht der Summe der Beträge in Plan › Zahlungen (geteilt durch Intervall).
   - Preise stammen aus verknüpften Buchungen und sind als abgeleitet markiert.
   - Randfall: Ohne Verträge „Noch keine Verträge“; Zahlungen mit Enddatum zählen nicht zur Bindung; Kündigungsfristen gibt es nicht (nicht im Datenmodell).
-- **Status:** live · **Verweis:** 2.3
+- **Status:** implementation in review (#1160 navigation slice); owner acceptance pending · **Verweis:** 2.3
+
+- **Navigation acceptance (#1160):** No bank-cost selector remains in contracts. The former `/reports/abos?darstellung=bankkosten` bookmark redirects to `/reports/psteuern?darstellung=bankkosten`, preserving query context and hash.
 
 ### RP-13b – Persönliche Inflation
 - **Story:** Als Nutzer möchte ich meine persönliche Inflation gegen den Verbraucherpreisindex sehen, damit ich weiß, ob meine Kosten schneller steigen als die allgemeine Teuerung und woran es liegt.
@@ -320,16 +332,23 @@ Historical references follow `docs/FEATURES.md` (positions 1.1–5.6). The hub r
 - **Story:** Als Nutzer möchte ich sehen, was mich das Geld selbst kostet (Zinsen, Gebühren, Dispo), damit ich einen teuren Kredit, ein teures Konto oder Depot ablöse.
 - **Ausgangslage:** Mindestens ein geschlossener Monat; Kredite haben gepflegte Konditionen.
 - **Ablauf:**
-  1. Reports › Bank- und Zinskosten öffnen.
+  1. Reports › Portfolio › Kosten und Steuern öffnen; Darstellung „Bank- und Zinskosten“ wählen.
   2. „Kosten nach Art“ und „Maßkette erfasste Bank- und Zinskosten“ lesen (Kreditzinsen, Bank- und Kartengebühren, Handelsgebühren, Fremdwährung, Überziehung).
   3. „Haben- und Dividenden-Erträge“ separat ansehen; „Kredit- und Dispolinien · Originalwährungen“ prüfen.
   4. „Quellen und Abgrenzung“ öffnen.
+  5. Read cost types, sources, credit lines and calendar years in the shared register tables; scroll additional columns horizontally on phone or with the keyboard.
 - **Ergebnis:** Ich kenne die größte Kostenquelle und die Jahressummen.
 - **Abnahmekriterien:**
   - Die Summe nach Art entspricht der Maßkette; Tilgung zählt nicht als Kosten.
   - Zinskosten decken sich mit Kosten im Report Kosten, Steuern, Erträge für Wertpapierkosten.
+  - Tables share register density, right-aligned tabular figures and a sticky header within the scroll region; the page itself does not scroll horizontally (1440/390, light/dark).
+  - Positive amounts and changes have no plus prefix; negative values retain their minus. Historical costs and changes use neutral ink; higher expenses are never coloured green.
+  - “Beträge verbergen” still masks all money, including native currency; source links and legacy report addresses remain available.
   - Randfall: Ohne gebuchte Zinsen dienen gespeicherte Kreditkonditionen als markierte Schätzung; Spreads und TER ohne Daten sind nicht enthalten.
-- **Status:** live · **Verweis:** 2.6
+- **Status:** implementation in review (#1160 navigation slice); owner acceptance pending · **Verweis:** 2.6
+
+- **Navigation acceptance (#1160):** Bank costs share the Portfolio report and selector. `/reports/kosten` and former contract bank-cost bookmarks retain the bank reader; source amounts, estimates, privacy, reload and Back remain intact.
+- **Remaining (#1160):** One deduplicated annual total across bank costs, broker taxes and TER, and a cost ratio against portfolio value. Current bank and portfolio readers retain their distinct source-defined periods; their subtotals must not be added together.
 
 ### RP-15a – Liquiditätsprognose
 - **Story:** Als Nutzer möchte ich sehen, ob das Geld auf den Budget-Konten bis zu 12 Monate reicht, auch mit geplanten Ereignissen, damit ich rechtzeitig umschichte oder Zahlungen verschiebe.
@@ -415,13 +434,14 @@ Historical references follow `docs/FEATURES.md` (positions 1.1–5.6). The hub r
   1. Reports › Vermögen & Schulden, „Zeitraum“ wählen (Standard Alles).
   2. Kopfzahlen Nettovermögen, Vermögenswerte, Schulden und Veränderung lesen; Balken je Monatsende, Linie Nettovermögen.
   3. Mit `?monat=` bzw. einem Monat „Monatsenden“ die Konten dieses Monats öffnen.
-  4. „Schulden nach Konto“ vergleichen.
+  4. „Schulden nach Konto“ vergleichen. Detailed debt planning and financial freedom open under Vermögen; neither is a separate wealth-report view.
 - **Ergebnis:** Ich kenne Vermögen, Schulden und Veränderung je Monat.
 - **Abnahmekriterien:**
   - Endwert und Anfangswert entsprechen Vermögen › Nettovermögen.
   - Ein Konto zählt als Vermögen, solange es positiv ist, und als Schuld, solange es negativ ist.
   - Randfall: Monate mit geschätzten Kursen tragen „≈“; die Monatstabelle ist die lesbare Alternative am Handy.
-- **Status:** live · **Verweis:** 3.6
+- **Acceptance addition (#1157):** In redesign ON, old `darstellung=schulden` and `darstellung=freiheit` report bookmarks redirect to `/vermoegen/schulden` and `/vermoegen/freiheit`, preserving period, month and fragment through reload. Existing figures, goal edits, privacy and Undo remain unchanged.
+- **Status:** existing report live; duplicate-view removal implemented for review, CI and owner acceptance pending (#1157). Wealth-view consolidation and portfolio menu/value-development work remain open. · **Verweis:** 3.6
 
 ### RP-17a – Depots im Vergleich
 - **Story:** Als Nutzer möchte ich meine Depots nebeneinander vergleichen, damit ich erkenne, welcher Broker oder welches Konto am besten läuft.
@@ -483,12 +503,12 @@ Historical references follow `docs/FEATURES.md` (positions 1.1–5.6). The hub r
 - **Status:** live · **Verweis:** 4.4
   Fehlt noch: Abnahme gegen Portfolio Performance.
 
-### RP-19 – Kosten, Steuern, Erträge
+### RP-19 – Kosten und Steuern
 - **Story:** Als Nutzer möchte ich sehen, was von den Erträgen nach Gebühren und Steuern bleibt, damit ich teure Produkte erkenne und die Nettorendite kenne.
 - **Ausgangslage:** Dividenden, Zinsen, Gebühren und Steuern sind erfasst.
 - **Ablauf:**
-  1. Reports › Kosten, Steuern, Erträge öffnen.
-  2. Mit „Darstellung“ zwischen „Gebühren und Steuern“, „Erträge“ und „Kosten im Verlauf“ wechseln.
+  1. Reports › Portfolio › Kosten und Steuern öffnen.
+  2. Mit „Darstellung“ zwischen „Bank- und Zinskosten“, „Gebühren und Steuern“, „Erträge“ und „Kosten im Verlauf“ wechseln.
   3. „Erträge nach Kosten und Steuern, 12 Monate“ lesen: brutto, „Einbehalt laut Broker, wie gebucht“, „Gebühren und TER“, „Netto nach Steuern und Kosten“.
   4. Stückliste je Produkt ansehen; CSV je Währung.
 - **Ergebnis:** Ich kenne Nettoertrag und Kosten je Produkt.
@@ -496,7 +516,10 @@ Historical references follow `docs/FEATURES.md` (positions 1.1–5.6). The hub r
   - Ertrag minus Steuer minus Gebühren ergibt Netto; die Summe der Produkte stimmt.
   - Steuern erscheinen wie gebucht; es gibt keine zweite Berechnung (illustrative latente KESt ist als Beispiel gekennzeichnet).
   - Randfall: Nicht erfasste Spreads fehlen und sind benannt.
-- **Status:** live · **Verweis:** 4.5
+- **Status:** implementation in review (#1160 navigation slice); owner acceptance pending · **Verweis:** 4.5
+
+- **Navigation acceptance (#1160):** Bank costs share the Portfolio report and selector. `/reports/kosten` and former contract bank-cost bookmarks retain the bank reader; source amounts, estimates, privacy, reload and Back remain intact.
+- **Remaining (#1160):** One deduplicated annual total across bank costs, broker taxes and TER, and a cost ratio against portfolio value. Current bank and portfolio readers retain their distinct source-defined periods; their subtotals must not be added together.
 
 ### RP-20 – Jahresreport
 - **Extension:** Owner decision #1118 extends this report; delivery scope and remaining acceptance are tracked in RP-20a below.
@@ -593,7 +616,7 @@ Historical references follow `docs/FEATURES.md` (positions 1.1–5.6). The hub r
   - „Summe Konsum · alle Kategorien“ stimmt mit der Ausgabenanalyse beider Zeiträume überein.
   - Kapitalerträge stehen getrennt von Einkommen und Sparquote.
   - Randfall: Die Vergleichsart steht nicht in der Adresse; Monate werden paarweise verglichen und fehlende Monate nicht erfunden.
-- **Status:** live · **Verweis:** 5.5
+- **Status:** existing comparison live; integration as an Ausgaben mode with URL-selected comparison and custom periods remains open under #1158. **Verweis:** 5.5
 
 ### RP-23b – Gesamtübersicht
 - **Story:** Als Nutzer möchte ich sehen, was Sparen und Markt zum Vermögen beigetragen haben, damit ich weiß, ob mein Fortschritt von mir oder vom Markt kommt.

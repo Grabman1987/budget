@@ -47,6 +47,9 @@ vi.mock('./spending-analysis-report', () => ({
     </div>
   ),
 }));
+vi.mock('./category-report', () => ({
+  CategoryReport: ({ viewControl }: { viewControl: ReactNode }) => <div>{viewControl}</div>,
+}));
 vi.mock('../pages/portfolio-allocation-report', () => ({
   PortfolioAllocationReport: ({ viewControl }: { viewControl: ReactNode }) => (
     <div>{viewControl}</div>

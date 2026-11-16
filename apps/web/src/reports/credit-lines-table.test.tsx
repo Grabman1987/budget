@@ -1,10 +1,14 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen, within } from '@testing-library/react';
+import { act, cleanup, render, screen, within } from '@testing-library/react';
+import { setAmountsHidden } from '@budget/ui';
 import { afterEach, expect, it } from 'vitest';
 import type { CreditLineRow } from '@budget/db';
 import { CreditLinesTable } from './bank-costs-report';
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  act(() => setAmountsHidden(false));
+});
 const line: CreditLineRow = {
   id: 'synthetic-line',
   name: 'Musterrahmen',
@@ -67,4 +71,20 @@ it('distinguishes missing rate and limit from a known zero rate and unused line'
 it('explains an empty credit-line list', () => {
   render(<CreditLinesTable lines={[]} />);
   expect(screen.getByText('Keine offenen Kredit- oder Dispolinien.')).toBeTruthy();
+});
+
+it('keeps the credit-line table named and keyboard scrollable while hiding native amounts', () => {
+  render(<CreditLinesTable lines={[line]} />);
+  const region = screen.getByRole('region', { name: 'Tabelle der Kredit- und Dispolinien' });
+  expect(region.tabIndex).toBe(0);
+  expect(
+    within(region).getByRole('table', { name: 'Tabelle der Kredit- und Dispolinien' }),
+  ).toBeTruthy();
+  act(() => setAmountsHidden(true));
+  const row = screen.getByRole('row', { name: /Musterrahmen/ });
+  expect(row.textContent).not.toContain('1.000,01');
+  expect(row.textContent).not.toContain('2.000,00');
+  expect(within(row).getAllByRole('cell').at(-1)?.textContent).not.toContain('10,00');
+  act(() => setAmountsHidden(false));
+  expect(row.textContent).toContain('1.000,01');
 });

@@ -107,7 +107,7 @@ Bereich: Plan (`/plan/monat`, `/plan/jahr`, `/plan/erwartet`, `/plan/sparziele`,
   1. Ich tippe in Heute auf „Decken“ oder öffne Plan › Monat mit dem Filter „Überzogen“ (Triage).
   2. Ich tippe bei einer Zeile „Decken“. Der Vorschlag nennt die Quelle („Mit … decken“, „Zu verteilen“ oder die Kategorie mit dem größten ausreichenden Guthaben).
   3. Alternativ wähle ich im Panel „Decken oder verschieben“ und gebe Betrag, Richtung „Hierher“ oder „Von hier weg“ an.
-  4. Für mehrere: „Überzogene decken“ (Menü „Verteilen ▾“) bzw. „Alle aus <Quelle> decken“.
+  4. Für mehrere: „Überzogene decken“ (Menü „Verteilen ▾“) öffnet dieselbe Vorschau wie Monatsabschluss Schritt 3: Quelle wählen, Quellen/Ziele/Beträge und Rest prüfen, „Deckung anwenden“. Die bisherigen direkten Quellaktionen „Alle aus <Quelle> decken“ bleiben verfügbar.
   5. Die App meldet „… von <Quelle> zu <Kategorie> verschoben“, bei Rest „… bleiben offen“.
 - **Ergebnis:** Geld ist zwischen Kategorien verschoben; die Kontosumme bleibt gleich. Als eine Gruppe rückgängig machbar.
 - **Abnahmekriterien:**
@@ -116,7 +116,8 @@ Bereich: Plan (`/plan/monat`, `/plan/jahr`, `/plan/erwartet`, `/plan/sparziele`,
   3. Ist kein freies Geld da, ist die Aktion mit „Kein freies Geld zum Decken“ gesperrt.
   4. Eine Teildeckung nennt den Rest, der offen bleibt.
   5. Verweigert der Server (Regelverstoß), erscheint die deutsche Meldung als Hinweis.
-- **Status:** live — **Verweis:** Y10
+  6. Die gemeinsame Vorschau schreibt nichts dauerhaft. Abbrechen verändert nichts; bei zwischenzeitlicher Änderung verweigert der Server das Anwenden bis zur erneuten Vorschau.
+- **Status:** live; Vorschau-Erweiterung implementiert, unabhängig geprüft; Live-Abnahme offen — **Verweis:** Y10, #1096
 
 ### P-07 – Zahlungskategorien für Kreditkarten
 - **Story:** Als Nutzer möchte ich Kreditkarten und Barvorschüssen eine Zahlungskategorie zuordnen, damit Kartenkäufe Geld in die Zahlungskategorie schieben und die Kartenschuld gedeckt ist.
@@ -196,7 +197,9 @@ Bereich: Plan (`/plan/monat`, `/plan/jahr`, `/plan/erwartet`, `/plan/sparziele`,
 - **Summary continuation (#1116):** The monthly expected total and income-type totals show received household income plus unresolved occurrence remainders. Acknowledging an unlinked occurrence removes only its open amount; received income remains counted, and Undo restores the open amount. Overpayments cannot produce a negative remainder. Unresolved partial payments and deviation labels retain their current behavior. Bookings outside the month/as-of scope retain the existing comparison behavior.
 - **Verification flow:** Check the action and Undo both without a separate receipt and with an existing unlinked receipt. For the synthetic case with 7,501 received cents and a 10,001-cent open occurrence, acknowledgment changes expected from 17,502 to 7,501 cents and leaves received at 7,501 cents. The retained 10,001 cents are a plan value, never a missing payment or invented receipt. Check native currency, privacy, both themes and desktop/phone layouts.
 - **Status:** Earlier slices merged in #1113 and #1116. The next slice implements the owner's 2026-11-15 acknowledgment wording and no-shortfall presentation using the existing audited single-occurrence action (previous month through twelve months ahead); ready for review after local verification, not live-accepted. No migration.
-- **Remaining #1109:** Optional same-payer receipt linking (including already-linked combined payments), combined-payment proposal and confirmation, automatic regular/special payslip settlement, settling a linked partial payment, explained-deviation settlement/labels, and outstanding monthly contact compensation claims. These are not delivered by this slice. Receipt linking requires extending the current one-booking/one-occurrence model; acknowledgment without a link already works.
+- **Receipt-link continuation:** For an open unlinked EUR occurrence, offer unclaimed receipts of the same payer, account, income type and month, within its date window and received by today. Only pure income bookings whose amount settles the occurrence under its existing range/tolerance are offered. A single click on the dated, amount-labelled proposal confirms the link; the server revalidates it atomically. The original acknowledgment without a link remains available. Undo restores the open expectation, while the existing booking and received total stay unchanged. Amount privacy also masks proposals. Received early income is excluded from the shared cash forecast (Heute and liquidity) once its live booking is dated on or before the forecast date; Undo restores the expectation. Contract schedules and other financial figures stay unchanged.
+- **Receipt-link verification/status:** Repository and API regressions cover explicit linking, stale proposals and grouped Undo; UI/e2e cover the proposal, monthly totals, privacy, themes and phone layout. This continuation is ready for review after local checks, not live-accepted. No migration.
+- **Remaining #1109:** Same-payer receipt linking for mismatched amounts, foreign currency, different-month receipts and already-linked combined payments, combined-payment proposal and confirmation, automatic regular/special payslip settlement, settling a linked partial payment, explained-deviation settlement/labels, and outstanding monthly contact compensation claims. These are not delivered by this slice. Combined-payment linking requires extending the current one-booking/one-occurrence model; acknowledgment without a link already works.
 
 ### P-10 – Sparziele und Rücklagen
 - **Story:** Als Nutzer möchte ich Sparziele und Rücklagen führen und Kategorieziele übernehmen, damit ich sehe, wie weit ich bin und wie viel ich monatlich zurücklegen muss.

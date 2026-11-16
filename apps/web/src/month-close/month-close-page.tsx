@@ -1,3 +1,4 @@
+import { useCoverAllPreview } from '../budget/cover-all-preview';
 import { useAmountPrivacy, Button, Field, TextInput, TitleBlock } from '@budget/ui';
 import { todayInVienna, type CloseWork } from '@budget/domain';
 import { useQuery } from '@tanstack/react-query';
@@ -137,6 +138,7 @@ function CloseFlow({
   // Keep all historical account/ledger values from the existing as-of query.
   const currentAccounts = useQuery({ ...accountsQuery(), enabled: step === 2 });
   const rows = budget.data ? planRows(budget.data) : [];
+  const coverPreview = useCoverAllPreview(data.month, budget.data);
   const open = data.work.filter(
     (w) =>
       w.step === step &&
@@ -517,6 +519,20 @@ function CloseFlow({
             {budget.isError && (
               <ErrorNote what="Plan" error={budget.error} onRetry={() => void budget.refetch()} />
             )}
+            {REDESIGN_ENABLED && rows.some((row) => row.overspentCents > 0) && (
+              <>
+                <Button
+                  disabled={busy || !fresh || budget.isFetching}
+                  onClick={() => {
+                    setChosenStep(3);
+                    coverPreview.show();
+                  }}
+                >
+                  Überzogene decken
+                </Button>
+                {coverPreview.dialog}
+              </>
+            )}
             {rows
               .filter((r) => r.overspentCents > 0)
               .map((r) => (
@@ -548,7 +564,9 @@ function CloseFlow({
                   )}
                 </div>
               ))}
-            {budget.data && data.overspent.length === 0 && <p>Keine Kategorie ist überzogen.</p>}
+            {budget.data && !rows.some((row) => row.overspentCents > 0) && (
+              <p>Keine Kategorie ist überzogen.</p>
+            )}
           </>
         )}
         {step === 4 && (

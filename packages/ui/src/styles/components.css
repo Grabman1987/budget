@@ -1049,8 +1049,7 @@ button.ct-term .ct-val {
   font-size: var(--fs-body);
   font-weight: 600;
 }
-.budget-state-met,
-.booking-status-confirmed {
+.budget-state-met {
   color: var(--primary);
 }
 .budget-state-open {
@@ -1063,9 +1062,15 @@ button.ct-term .ct-val {
   color: var(--good);
 }
 .budget-state-neutral,
-.booking-status-pending,
-.booking-status-reconciled {
+.booking-status-pending {
   color: var(--ink-2);
+}
+/* Status glyphs keep their meaning independently of parent/row ink. */
+.booking-status-confirmed {
+  color: var(--good);
+}
+.booking-status-reconciled {
+  color: var(--ink);
 }
 .count {
   min-width: 22px;

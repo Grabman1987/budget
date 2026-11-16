@@ -10,7 +10,6 @@ import { findReport } from '../nav/reports-catalog';
 import { PortfolioAllocationReport } from '../pages/portfolio-allocation-report';
 import { PortfolioContributionsReport } from '../pages/portfolio-contributions-report';
 import { PortfolioPerformanceReport } from '../pages/portfolio-performance-report';
-import { FreedomReport } from './freedom-report';
 import { WholePictureReport } from './whole-picture-report';
 import { REDESIGN_ENABLED } from '../shell/redesign-flag';
 import './report-views.css';
@@ -22,8 +21,6 @@ const WEALTH_VIEWS = [
   { value: 'gesamt', label: 'Gesamtübersicht' },
   ...(REDESIGN_ENABLED
     ? [
-        { value: 'schulden' as const, label: 'Schulden-Verlauf' },
-        { value: 'freiheit' as const, label: 'Finanzielle Freiheit' },
         { value: 'verteilung' as const, label: 'Verteilung über Zeit' },
         { value: 'einzahlungen' as const, label: 'Einzahlungen und Wert' },
         { value: 'rendite' as const, label: 'Rendite & Risiko' },
@@ -110,18 +107,9 @@ export function WealthReportViews({ report, meta }: { report: ReportEntry; meta:
         presentation={view === 'rendite' ? 'all' : view}
       />
     );
-  if (view === 'freiheit')
-    return <FreedomReport report={report} meta={meta} viewControl={control} />;
   if (view === 'verlauf')
     return <WealthHistoryReport report={report} meta={meta} viewControl={control} />;
   if (view === 'gesamt')
     return <WholePictureReport report={report} meta={meta} viewControl={control} />;
-  return (
-    <AssetsDebtsReport
-      report={report}
-      meta={meta}
-      viewControl={control}
-      debtOnly={view === 'schulden'}
-    />
-  );
+  return <AssetsDebtsReport report={report} meta={meta} viewControl={control} />;
 }

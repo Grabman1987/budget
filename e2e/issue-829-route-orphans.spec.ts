@@ -472,7 +472,7 @@ for (const [row, url, body] of direct)
       ? on
         ? '/einstellungen/profil'
         : '/einstellungen/konten'
-      : on && [23, 28, 32].includes(row)
+      : on && [23, 28].includes(row)
         ? row === 23
           ? '/vermoegen'
           : '/reports/vermoegen-schulden'
@@ -536,11 +536,14 @@ for (const [slug, legacyPath, legacyIntent, view, legacyBody] of reportAliases)
   test(`A2 report alias ${slug}`, async ({ page }) => {
     await page.goto('/plan/monat?monat=2026-08');
     const finanzcheck = (await flag(page)) && slug === 'finanzcheck';
-    const path = finanzcheck
-      ? '/reports/onepager'
-      : (await flag(page)) && slug === 'kontakte'
-        ? '/reports/kontakte'
-        : legacyPath;
+    const path =
+      (await flag(page)) && slug === 'kosten'
+        ? '/reports/psteuern'
+        : finanzcheck
+          ? '/reports/onepager'
+          : (await flag(page)) && slug === 'kontakte'
+            ? '/reports/kontakte'
+            : legacyPath;
     const intent = finanzcheck ? 'darstellung=finanzcheck' : legacyIntent;
     const body = finanzcheck
       ? 'finanzcheck'
@@ -563,7 +566,11 @@ for (const [slug, legacyPath, legacyIntent, view, legacyBody] of reportAliases)
       expect(url.hash).toBe('#details');
       for (const [key, value] of new URLSearchParams(intent))
         expect(url.searchParams.get(key)).toBe(value);
-      if (view) {
+      if ((await redesignReportsOn(page)) && path === '/reports/psteuern' && slug === 'kosten') {
+        await expect(
+          page.getByRole('combobox', { name: 'Darstellung von Kosten, Steuern und Ertr\u00e4gen' }),
+        ).toHaveValue('bankkosten');
+      } else if (view) {
         if (
           (await redesignReportsOn(page)) &&
           ['/reports/einnahmen-ausgaben', '/reports/ausgaben', '/reports/abos'].includes(path)

@@ -69,6 +69,7 @@ import {
   FINANZCHECK_HEADING_HASHES,
   validateReportSearch,
   normalizeHistoryPeriod,
+  wealthReportDestination,
 } from './reports/report-search';
 import { validateLiquiditySearch } from './reports/liquidity-selection';
 
@@ -525,9 +526,6 @@ const freedomRoute = createRoute({
   getParentRoute: () => shellRoute,
   path: VERMOEGEN_FREIHEIT_META.path,
   staticData: { meta: VERMOEGEN_FREIHEIT_META },
-  beforeLoad: ({ location }) => {
-    if (REDESIGN_ENABLED) legacyWealthReport(location, 'freiheit');
-  },
   component: lazyRouteComponent(() => import('./wealth/freedom-page'), 'FreedomPage'),
 });
 
@@ -718,7 +716,9 @@ const redirects = [
   redirectRoute('/reports/projekte', '/reports/einnahmen-ausgaben', { darstellung: 'projekte' }),
   redirectRoute('/reports/empfaenger', '/reports/ausgaben', { darstellung: 'empfaenger' }),
   redirectRoute('/reports/planungstreue', '/reports/budgettreue', { darstellung: 'budget' }),
-  redirectRoute('/reports/kosten', '/reports/abos', { darstellung: 'bankkosten' }),
+  redirectRoute('/reports/kosten', REDESIGN_ENABLED ? '/reports/psteuern' : '/reports/abos', {
+    darstellung: 'bankkosten',
+  }),
   redirectRoute('/reports/vermoegen', '/reports/vermoegen-schulden', { darstellung: 'verlauf' }),
   redirectRoute('/reports/gesamtuebersicht', '/reports/vermoegen-schulden', {
     darstellung: 'gesamt',
@@ -830,6 +830,20 @@ const reportRoute = createRoute({
   path: '/reports/$reportId',
   validateSearch: validateReportSearch,
   beforeLoad: ({ params, search, location }) => {
+    const wealthDestination = wealthReportDestination(params.reportId, search.darstellung);
+    if (wealthDestination) {
+      const target = new URL(
+        `${wealthDestination}${location.searchStr}${location.hash ? `#${location.hash}` : ''}`,
+        'https://budget.invalid',
+      );
+      target.searchParams.delete('darstellung');
+      throw redirect({ href: `${target.pathname}${target.search}${target.hash}`, replace: true });
+    }
+    if (REDESIGN_ENABLED && params.reportId === 'abos' && search.darstellung === 'bankkosten')
+      throw redirect({
+        href: `/reports/psteuern${location.searchStr}${location.hash ? `#${location.hash}` : ''}`,
+        replace: true,
+      });
     const remembered = REDESIGN_ENABLED
       ? rememberedReportPeriod(params.reportId, search)
       : undefined;

@@ -7,7 +7,7 @@ Bildschirm Prüfen: `/konten/pruefen` (Konten › Prüfen). Zähler: „Umsätze
 - **Story:** Als Nutzer möchte ich jeden neuen Bankumsatz einzeln bestätigen oder nicht übernehmen, damit nur Umsätze im Budget landen, die ich selbst gesehen habe.
 - **Ausgangslage:** Der Bankabruf hat neue Umsätze gebracht. Sie zählen noch nicht zum Kontostand, wenn die Verbindung „Erst nach Bestätigung zählen“ nutzt. Der Zähler „Umsätze“ ist größer als 0.
 - **Ablauf:**
-  1. Nutzer öffnet Konten › Prüfen und wählt den Teil „Umsätze“.
+  1. Nutzer öffnet Konten › Prüfen und wählt den Teil „Umsätze“. Ist eine vorherige Ansicht hinterlegt, steht der Rücklink zuerst in der Werkzeugleiste, vor dem Ansichtsmenü „Prüfen“.
   2. Die App zeigt je Umsatz Empfänger, Konto · Quelle, Vorschlag (oder „Unbekannt“) und Aktion.
   3. Nutzer klickt bei einem sicheren Vorschlag „Bestätigen“, sonst „Prüfen“. Der Dialog „Buchung übernehmen“ zeigt Empfänger, Kategorie und mögliche Treffer.
   4. Nutzer wählt Kategorie und Empfänger und klickt „Als Buchung bestätigen“ („Übernehmen“ bei einem gelernten Vorschlag).
@@ -20,7 +20,9 @@ Bildschirm Prüfen: `/konten/pruefen` (Konten › Prüfen). Zähler: „Umsätze
   3. „Rückgängig“ stellt den offenen Eintrag wieder her; der Zähler steigt wieder.
   4. Ohne offene Einträge steht „Alles geprüft“ mit dem Hinweis, dass neue Buchungen aus dem Bank-Sync hier erscheinen.
   5. Am Handy sind „Bestätigen“ und „Nicht übernehmen“ mit dem Finger treffbar (mind. 44 px) und brechen nicht um.
-- **Status:** live — **Verweis:** Y16
+  6. Rücklink, Ansichtsmenü, Umsätze/Aufgaben und Filter stehen am Desktop (1440 px) in einer Zeile. Rücklink und Abruf-Rückblick beginnen an derselben linken Rasterkante; bei 390 px bricht die Werkzeugleiste ohne horizontalen Überlauf um, hell und dunkel.
+- **Status:** teilweise — **Verweis:** Y16, #1187
+  Der bisherige Dialogablauf ist live. Die Kopfzeilen-Korrektur aus #1187 ist implementiert und unabhängig geprüft; Live-Abnahme offen. Die übrigen Anforderungen aus #1187 bleiben offen: direkte Empfänger-/Vorschlags-/Kategorie-Auswahl in der Zeile, Kategorie-Spalte, Hakerl/X mit Vollständigkeits- und Sperrgrundanzeige sowie Zell-/Zeilentastatur. Der bestehende Prüfdialog und seine Buchungs-/Rückgängig-Aktionen bleiben bis dahin der Bearbeitungsweg.
 
 ### I-01a – Mehrere Bankumsätze auf einmal bearbeiten
 - **Story:** Als Nutzer möchte ich mehrere eindeutige Bankumsätze in einem Zug bestätigen oder nicht übernehmen, damit ein Abruf mit vielen Umsätzen nicht Klick für Klick abgearbeitet werden muss.
@@ -45,6 +47,7 @@ Bildschirm Prüfen: `/konten/pruefen` (Konten › Prüfen). Zähler: „Umsätze
 - **Ablauf:**
   1. Nutzer öffnet Konten › Prüfen und wählt „Aufgaben“. Die Liste ist nach Quelle gruppiert („Aufgaben nach Quelle“).
   2. Bei einer Importwarnung klickt er „Warnung erklären“. Die App zeigt die Einzelpunkte unter „Einzelpunkte anzeigen“. Bei Kurswarnungen öffnet sich die Ursachenansicht mit einer schreibfreien Quellvorschau (V-14).
+     Währungskonflikte nennen erwartete und belegte Währung je Quelle; eine Quellzuordnung wird nicht als Abrufantwort ausgegeben.
   3. Er behebt die Ursache an der Quelle (Link „Quelle“) oder entscheidet, dass nichts zu tun ist.
   4. Bei allgemein erledigbaren Aufgaben klickt er „Als erledigt markieren“. Die App löst den Eintrag auf und senkt den Zähler. Kurswarnungen bleiben bis zum erfolgreichen automatischen Abruf offen; eine Vorschau oder ein manueller Kurs schließt sie nicht.
   5. Warnungen zu einem fehlgeschlagenen Kurs- oder Wechselkursabruf („Kurse nicht abrufbar“, „Wechselkurs nicht abrufbar“) muss er nicht schließen: Der nächste erfolgreiche Abruf für dasselbe Instrument oder dieselbe Währung schließt sie. Unter „Automatisch geschlossene Warnungen“ steht je Eintrag der Verlauf (geöffnet am, Fehlerklasse, geschlossen am, Begründung mit Quelle und Stand), für die letzten 30 Tage, höchstens die 20 neuesten.
@@ -58,7 +61,7 @@ Bildschirm Prüfen: `/konten/pruefen` (Konten › Prüfen). Zähler: „Umsätze
   6. Warnungen zu echten Abweichungen (Bestand, fehlende Bewegung, abweichender Schlusskurs) schließen sich nie von selbst.
   7. Kurswarnungen bieten keinen pauschalen Abschluss; der allgemeine Erledigen-Endpunkt weist ihn ebenfalls zurück.
 - **Status:** teilweise — **Verweis:** Y16, #1081, #1101
-  Allgemeine Aufgaben sind live. Die Ursachenansicht und Quellvorschau für Kurswarnungen sind in PR #1112 umgesetzt; verbleibender Umfang und private Abnahme siehe V-14. Selbstschließende Abrufwarnungen mit Verlauf (#1101) sind umgesetzt, private Abnahme offen.
+  Allgemeine Aufgaben sind live. Die Ursachenansicht und Quellvorschau für Kurswarnungen sind in PR #1112 umgesetzt; sichere Währungsbelege je Vorschauquelle sind im zweiten Schritt ergänzt. Gespeicherte historische Fehlerbelege, weitere verbleibende Kriterien und private Abnahme siehe V-14. Selbstschließende Abrufwarnungen mit Verlauf (#1101) sind umgesetzt, private Abnahme offen.
 
 ### I-02 – Prüfen geführt durchgehen
 - **Story:** Als Nutzer möchte ich die offenen Umsätze der Reihe nach mit Fortschrittsanzeige durchgehen, damit ich in einer Sitzung fertig werde und sehe, wie viel noch fehlt.

@@ -1,0 +1,74 @@
+// @vitest-environment jsdom
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { afterEach, expect, it, vi } from 'vitest';
+import { findReport } from '../nav/reports-catalog';
+import { SpendingReportViews } from './spending-report-views';
+import { validateReportSearch } from './report-search';
+
+const state = vi.hoisted(() => ({
+  search: {} as Record<string, unknown>,
+  navigate: vi.fn(),
+  REDESIGN_ENABLED: true,
+}));
+vi.mock('../shell/redesign-flag', () => state);
+vi.mock('@tanstack/react-router', () => ({
+  useSearch: () => state.search,
+  useNavigate: () => state.navigate,
+}));
+vi.mock('./spending-analysis-report', () => ({
+  SpendingAnalysisReport: ({ viewControl }: { viewControl: React.ReactNode }) => (
+    <div>
+      {viewControl}
+      <p>Group body</p>
+    </div>
+  ),
+}));
+vi.mock('./category-report', () => ({
+  CategoryReport: ({ viewControl }: { viewControl: React.ReactNode }) => (
+    <div>
+      {viewControl}
+      <p>Category body</p>
+    </div>
+  ),
+}));
+vi.mock('../pages/payee-analysis-report', () => ({
+  PayeeAnalysisReport: () => <p>Payee body</p>,
+}));
+afterEach(() => {
+  cleanup();
+  state.search = {};
+  state.REDESIGN_ENABLED = true;
+  state.navigate.mockReset();
+});
+const props = {
+  report: findReport('ausgaben')!,
+  meta: { area: 'reports', title: 'Ausgaben', fills: 'Reports', spec: 'Synthetic report' } as const,
+};
+
+it('retains the category view in validated URLs and opens it directly in ON', () => {
+  state.search = validateReportSearch({ darstellung: 'kategorien', kategorien: ['synthetic'] });
+  expect(state.search.darstellung).toBe('kategorien');
+  render(<SpendingReportViews {...props} />);
+  expect(screen.getByText('Category body')).toBeTruthy();
+  expect(screen.getByRole('combobox')).toHaveProperty('value', 'kategorien');
+});
+
+it('changes only the view, preserving period and selected categories', () => {
+  render(<SpendingReportViews {...props} />);
+  fireEvent.change(screen.getByRole('combobox'), { target: { value: 'kategorien' } });
+  const options = state.navigate.mock.calls[0]![0];
+  expect(options.search({ zeitraum: '3M', kategorien: ['synthetic'] })).toEqual({
+    zeitraum: '3M',
+    kategorien: ['synthetic'],
+    darstellung: 'kategorien',
+  });
+});
+
+it('keeps the OFF view set and fallback unchanged', () => {
+  state.REDESIGN_ENABLED = false;
+  state.search = { darstellung: 'kategorien' };
+  render(<SpendingReportViews {...props} />);
+  expect(screen.getByText('Group body')).toBeTruthy();
+  expect(screen.getAllByRole('button')).toHaveLength(2);
+  expect(validateReportSearch({ darstellung: 'kategorien' }).darstellung).toBeUndefined();
+});

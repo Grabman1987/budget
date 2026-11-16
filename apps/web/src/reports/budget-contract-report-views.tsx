@@ -6,6 +6,7 @@ import { BudgetAdherenceReportPage } from './budget-adherence-report';
 import { ContractsReportPage } from './contracts-report';
 import { BankCostsReportPage } from './bank-costs-report';
 import './report-views.css';
+import { REDESIGN_ENABLED } from '../shell/redesign-flag';
 
 const CONTRACT_VIEWS = [
   { value: 'vertraege', label: 'Verträge' },
@@ -19,6 +20,14 @@ export function BudgetReportViews({ report, meta }: { report: ReportEntry; meta:
 
 /** As-of contracts and closed-month bank costs retain separate, source-defined periods. */
 export function ContractsReportViews({ report, meta }: { report: ReportEntry; meta: PageMeta }) {
+  return REDESIGN_ENABLED ? (
+    <ContractsReportPage report={report} meta={meta} />
+  ) : (
+    <LegacyContractsReportViews report={report} meta={meta} />
+  );
+}
+
+function LegacyContractsReportViews({ report, meta }: { report: ReportEntry; meta: PageMeta }) {
   const search = useSearch({ strict: false }) as { darstellung?: string };
   const navigate = useNavigate();
   const view = search.darstellung === 'bankkosten' ? 'bankkosten' : 'vertraege';

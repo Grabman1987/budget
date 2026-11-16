@@ -45,6 +45,14 @@ describe('decide', () => {
     ['different tree', { headTree: 't2' }],
     ['PR head behind main', { parentInHead: false }],
     ['unreadable PR head', { headTree: undefined }],
+    [
+      'quick-lane PR (visual skipped)',
+      {
+        checks: REQUIRED_CHECKS.map((n) =>
+          check(n, n === 'visual' ? { conclusion: 'skipped' } : {}),
+        ),
+      },
+    ],
     ['missing check', { checks: REQUIRED_CHECKS.slice(1).map((name) => check(name)) }],
     [
       'failed check',

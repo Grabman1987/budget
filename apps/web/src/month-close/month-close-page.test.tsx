@@ -131,6 +131,11 @@ it('opens a quiet month directly at Ergebnis and closes it with one click', asyn
   vi.useFakeTimers({ toFake: ['Date'] });
   vi.setSystemTime(new Date('2026-10-11T12:00:00+02:00'));
   vi.stubGlobal('scrollTo', () => {});
+  vi.stubGlobal('matchMedia', () => ({
+    matches: false,
+    addEventListener() {},
+    removeEventListener() {},
+  }));
   vi.stubGlobal(
     'ResizeObserver',
     class {

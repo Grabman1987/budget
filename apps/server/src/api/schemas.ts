@@ -363,7 +363,17 @@ export const quickAssignBody = z
   .strict();
 export const moveBody = z.union([
   z.object({ fromId: id.nullable(), toId: id.nullable(), amountCents: cents.positive() }).strict(),
-  z.object({ coverAll: z.literal(true), fromId: id.nullable().optional() }).strict(),
+  z
+    .object({
+      coverAll: z.literal(true),
+      fromId: id.nullable().optional(),
+      preview: z.literal(true).optional(),
+      expectedBasis: z
+        .string()
+        .regex(/^[a-f0-9]{64}$/)
+        .optional(),
+    })
+    .strict(),
 ]);
 export const coverBody = z.object({
   categoryId: id,
