@@ -84,6 +84,7 @@ export function useBudgetWrite() {
   return async function write<T extends { groupId: string }>(
     run: () => Promise<T>,
     message: (result: T) => string,
+    options?: { awaitRefresh?: boolean },
   ): Promise<T | undefined> {
     history.set(null);
     toast.dismiss();
@@ -93,7 +94,9 @@ export function useBudgetWrite() {
     try {
       const result = await run();
       // #1201: reads refresh in the background; the dialog must not wait for them.
-      void refresh().catch(() => undefined);
+      const refreshing = refresh().catch(() => undefined);
+      // Callers that show an optimistic override until the server state arrives wait for it.
+      if (options?.awaitRefresh) await refreshing;
       if (!current()) return result;
       const hint =
         'toBeAssignedCents' in result && typeof result.toBeAssignedCents === 'number'

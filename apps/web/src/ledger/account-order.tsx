@@ -66,6 +66,7 @@ export function useOrderedAccounts(accounts: AccountRow[] | undefined) {
           write(
             () => orderAccounts(next),
             () => 'Reihenfolge der Konten gespeichert.',
+            { awaitRefresh: true },
           ),
         )
         .finally(() => {
