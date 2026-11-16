@@ -1,10 +1,5 @@
 import { captureSaveControl } from './ledger-helpers';
-import {
-  categorySuggestions,
-  redesignLoaded,
-  categoryLineControl,
-  contactShareControl,
-} from './ledger-helpers';
+import { redesignLoaded, categoryLineControl, contactShareControl } from './ledger-helpers';
 
 import AxeBuilder from '@axe-core/playwright';
 import { controlBoxes } from './control-geometry';
@@ -287,7 +282,7 @@ for (const scenario of ['category', 'outlay', 'percent', 'amount', 'several'] as
   });
 }
 
-test('at most three suggestions in one line without overflow; Mehr and Notiz', async ({
+test('no suggestion chips; Mehr and Notiz stay reachable', async ({
   page,
   request,
   baseURL,
@@ -304,27 +299,8 @@ test('at most three suggestions in one line without overflow; Mehr and Notiz', a
   const dialog = await openNew(page, account.id);
   await dialog.getByLabel('Betrag', { exact: true }).fill('12');
   await choose(dialog, 'Kategorie', 'Essen', /^Essen/);
-  await categorySuggestions(dialog);
-  const rail = dialog.getByRole('group', { name: 'Vorschläge' });
-  const chips = rail.getByRole('button');
-  expect(await chips.count()).toBeLessThanOrEqual(3);
-  expect(await chips.count()).toBeGreaterThan(0);
-  expect(await rail.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
-  const ys = await chips.evaluateAll((els) =>
-    els.map((el) => Math.round(el.getBoundingClientRect().y)),
-  );
-  expect(new Set(ys).size).toBe(1);
-  const railBox = (await rail.boundingBox())!;
-  const chipBoxes = await chips.evaluateAll((els) =>
-    els.map((el) => {
-      const { x, width, height } = el.getBoundingClientRect();
-      return { right: x + width, height };
-    }),
-  );
-  for (const chip of chipBoxes) {
-    expect(chip.right).toBeLessThanOrEqual(railBox.x + railBox.width + 1);
-    expect(chip.height).toBeGreaterThanOrEqual(44);
-  }
+  // Owner decision on #1142: no category suggestion chips in the dialog.
+  await expect(dialog.getByRole('group', { name: 'Vorschläge' })).toHaveCount(0);
 
   // The note is a visible textarea; Mehr is closed and offers Projekt (when projects exist).
   const note = dialog.getByLabel('Notiz');

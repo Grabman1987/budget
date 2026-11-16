@@ -291,7 +291,10 @@
     margin: 0 auto;
     max-height: calc(100dvh - 96px);
   }
+  /* Fixed card height: the footer buttons keep their y while contact shares or splits expand;
+     only the body scrolls (#1146). */
   .bk-focus-scope dialog.overlay.modal:has(.bkform-redesign) .overlay-inner {
+    height: min(760px, calc(100dvh - 98px));
     max-height: calc(100dvh - 98px);
   }
   .bkform-redesign .bk-body {
@@ -802,11 +805,6 @@
 
 .bkform-redesign .combo-option {
   min-height: 44px;
-}
-
-.bkform-redesign .bk-suggestions {
-  padding-inline-end: 2px;
-  scroll-padding-inline-end: 2px;
 }
 
 /* Phone capture prioritises the amount and category above the keyboard. */

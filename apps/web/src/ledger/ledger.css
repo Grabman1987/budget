@@ -1967,26 +1967,6 @@ button.kstatus-btn:focus-visible {
 .bk-share-toggle {
   align-self: end;
 }
-.bk-suggestions {
-  display: flex;
-  flex-wrap: nowrap;
-  gap: 4px;
-  overflow-x: auto;
-  min-width: 0;
-}
-.bk-suggestions .chip {
-  flex: 0 1 auto;
-  min-width: 0;
-  padding-inline: 8px;
-  font-size: var(--fs-label);
-}
-/* Up to three suggestions share one line; a long name is cut, never wrapped or scrolled. */
-.bk-chip-name {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
 .bk-share {
   display: grid;
   grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);

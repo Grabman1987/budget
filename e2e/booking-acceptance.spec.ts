@@ -277,9 +277,6 @@ test('keyboard reaches labelled controls, traps focus, cancels and returns to op
         : [
             dialog.getByLabel('Bezahlt von'),
             dialog.getByLabel('Kategorie', { exact: true }),
-            dialog
-              .getByRole('group', { name: 'Vorschläge' })
-              .getByRole('button', { name: 'Kategorie Tastatur' }),
             await categoryLineControl(dialog),
           ]),
       dialog.getByLabel('Notiz'),
@@ -352,12 +349,6 @@ test('keyboard reaches labelled controls, traps focus, cancels and returns to op
     await expect(dialog.getByLabel('Kategorie', { exact: true })).toBeFocused();
     await page.keyboard.press('Tab');
     await expect(await contactShareControl(dialog)).toBeFocused();
-    await page.keyboard.press('Tab');
-    await expect(
-      dialog
-        .getByRole('group', { name: 'Vorschläge' })
-        .getByRole('button', { name: 'Kategorie Tastatur' }),
-    ).toBeFocused();
     await page.keyboard.press('Tab');
     await expect(await categoryLineControl(dialog)).toBeFocused();
     await page.keyboard.press('Tab');

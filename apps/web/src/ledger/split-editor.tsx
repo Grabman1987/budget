@@ -3,7 +3,6 @@
   AmountInput,
   Button,
   Segmented,
-  ClassSwatch,
   maskMoneyText,
 } from '@budget/ui';
 import { parseAmount } from '@budget/domain';
@@ -49,7 +48,6 @@ export interface SplitEditorProps {
   hasAdvanceCategory: boolean;
   locked: boolean;
   error: string | undefined;
-  suggestions?: ReadonlyArray<PickCategory>;
   /** Explicit choices take precedence over asynchronous payee suggestions. */
   onCategoryChoose?: () => void;
   singleMetadata?: Partial<SplitDraft>;
@@ -101,7 +99,6 @@ export function SplitEditor({
   contacts,
   locked,
   error,
-  suggestions = [],
   onCategoryChoose,
   singleMetadata,
   contactHost,
@@ -173,7 +170,11 @@ export function SplitEditor({
       aria-label={compact && !multiple ? 'Kategorie hinzufügen' : undefined}
       onClick={() => {
         const focused = document.activeElement;
+        // Adding a split keeps the form body where it is (#1146).
+        const body = editorRef.current?.closest<HTMLElement>('.bk-body');
+        const top = body?.scrollTop ?? 0;
         update([...lines, { ...newSplit(), shares: [] }]);
+        if (!compact && body) requestAnimationFrame(() => (body.scrollTop = top));
         if (compact)
           requestAnimationFrame(() => {
             // The add control can unmount, but a delayed frame must not steal new field focus.
@@ -346,22 +347,6 @@ export function SplitEditor({
         const categoryHints = (
           <>
             {' '}
-            {index === 0 && line.type === 'category' && suggestions.length > 0 && (
-              <div className="bk-suggestions" role="group" aria-label="Vorschläge">
-                {suggestions.map((c) => (
-                  <button
-                    key={c.id}
-                    type="button"
-                    className="chip"
-                    aria-pressed={c.id === line.categoryId}
-                    onClick={() => choose(line, c.id)}
-                  >
-                    {c.cls && <ClassSwatch kind={c.cls} />}
-                    <span className="bk-chip-name">{c.name}</span>
-                  </button>
-                ))}
-              </div>
-            )}
             {line.type === 'category' &&
               category?.availableCents !== null &&
               category?.availableCents !== undefined && (
@@ -432,17 +417,16 @@ export function SplitEditor({
             )}
             {compact && !multiple && (
               <div className="bk-category-tools">
-                {line.type === 'category' &&
-                  (suggestions.length > 0 || category?.availableCents != null) && (
-                    <KontenMenu
-                      className="bk-category-context"
-                      label="Vorschläge und Verfügbarkeit"
-                      icon={<Info size={16} strokeWidth={1.75} aria-hidden="true" />}
-                      iconOnly
-                    >
-                      {categoryHints}
-                    </KontenMenu>
-                  )}
+                {line.type === 'category' && category?.availableCents != null && (
+                  <KontenMenu
+                    className="bk-category-context"
+                    label="Vorschläge und Verfügbarkeit"
+                    icon={<Info size={16} strokeWidth={1.75} aria-hidden="true" />}
+                    iconOnly
+                  >
+                    {categoryHints}
+                  </KontenMenu>
+                )}
                 {addLineControl}
               </div>
             )}

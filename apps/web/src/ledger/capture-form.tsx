@@ -475,11 +475,6 @@ export function CaptureForm({
     [all, draft.kind, splitCategoryKey],
   );
   const selected = all.find((c) => c.id === draft.categoryId);
-  const payeeDefault = (() => {
-    const name = draft.payee.trim().toLowerCase();
-    const row = payees.data?.payees.find((p) => p.name.toLowerCase() === name);
-    return row?.defaultCategoryId ?? null;
-  })();
 
   // Contact shares (Auslage / Rückzahlung) run through the Auslagen category.
   const advanceCategoryId =
@@ -790,9 +785,15 @@ export function CaptureForm({
         projectId: d.projectId,
       }));
       setErrors({});
-      requestAnimationFrame(() =>
-        formRef.current?.querySelector<HTMLElement>('.amount-input')?.focus(),
-      );
+      // Save and new keeps the form body's scroll position (#1146).
+      const body = formRef.current?.querySelector<HTMLElement>('.bk-body');
+      const top = body?.scrollTop ?? 0;
+      requestAnimationFrame(() => {
+        formRef.current
+          ?.querySelector<HTMLElement>('.amount-input')
+          ?.focus({ preventScroll: true });
+        if (body) body.scrollTop = top;
+      });
     } catch (error) {
       if (error instanceof ApiError && error.code === 'booking_queued') return onDone();
       if (
@@ -909,17 +910,6 @@ export function CaptureForm({
 
   const categoryName =
     selected?.name ?? (draft.kind === 'income' && draft.categoryId === '' ? 'Zu verteilen' : '');
-  const chips = [
-    ...new Set([
-      ...(payeeDefault ? [payeeDefault] : []),
-      ...memory.categories,
-      ...pickable.map((c) => c.id),
-    ]),
-  ]
-    .map((id) => pickable.find((c) => c.id === id))
-    .filter((c): c is NonNullable<typeof c> => Boolean(c))
-    .slice(0, 3);
-
   const pickCategory = (id: string) => set('categoryId', id === NONE ? '' : id);
 
   const leading = useMemo(
@@ -1053,7 +1043,6 @@ export function CaptureForm({
       hasAdvanceCategory={Boolean(advanceCategoryId)}
       locked={splitLocked}
       error={splitError ?? errors.category}
-      suggestions={chips}
       singleMetadata={singleMetadata}
       contactHost={REDESIGN_ENABLED ? contactHost : undefined}
       compact={REDESIGN_ENABLED && isPhone}
