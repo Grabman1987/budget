@@ -3,7 +3,8 @@ import { cents } from '@budget/domain';
 import { useAmountPrivacy } from '@budget/ui';
 import type { ReactNode } from 'react';
 import { ReportProjectScopeNote } from './report-project-scope';
-import type { IncomeLineStatus } from '@budget/domain';
+import type { ExpectedIncomeLine, IncomeLineStatus } from '@budget/domain';
+import { REDESIGN_ENABLED } from '../shell/redesign-flag';
 import { useQuery } from '@tanstack/react-query';
 import {
   CircleAlert,
@@ -145,6 +146,7 @@ function IncomeBody({ data }: { data: IncomeReportData }) {
   )}: ${eur(income.earnedCents)} im gewählten Monat.`;
   return (
     <>
+      {REDESIGN_ENABLED && <IncomeExpectations data={data} />}
       <section className="mr-card" aria-labelledby="inc-title">
         <div className="tbd-head">
           <h2 id="inc-title">Einnahmen {title}</h2>
@@ -232,88 +234,7 @@ function IncomeBody({ data }: { data: IncomeReportData }) {
         </section>
       )}
 
-      <ReportBodyDisclosure id="income-expected" label="Erwartet gegen eingegangen">
-        {expected === null ? (
-          <section className="mr-card" aria-labelledby="inc-exp-title">
-            <div className="tbd-head">
-              <h2 id="inc-exp-title">Erwartet gegen eingegangen</h2>
-            </div>
-            <p className="vnote">
-              Erwartete Zahlungen sind keinem Projekt zugeordnet. Für diesen Projektfilter sind
-              Erwartungswerte und Fehlend-Status daher nicht verfügbar; tatsächliche Einnahmen
-              bleiben sichtbar.
-            </p>
-          </section>
-        ) : (
-          <section className="mr-card" aria-labelledby="inc-exp-title">
-            <div className="tbd-head">
-              <h2 id="inc-exp-title">Erwartet gegen eingegangen</h2>
-            </div>
-            {expected.lines.length > 0 ? (
-              <div
-                className="mr-scroll"
-                role="region"
-                aria-label="Wiederkehrende Zahlungen, bei Bedarf horizontal verschiebbar"
-                // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- Keyboard users must be able to scroll the table.
-                tabIndex={0}
-              >
-                <table className="mr-table is-expected" data-testid="income-expected">
-                  <thead>
-                    <tr>
-                      <th className="tech">Zahlung</th>
-                      <th className="tech n">Erwartet</th>
-                      <th className="tech n">Eingegangen</th>
-                      <th className="tech">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {expected.lines.map((line) => {
-                      const s = STATUS[line.status];
-                      const Icon = s.icon;
-                      return (
-                        <tr key={line.key} data-status={line.status}>
-                          <td>
-                            <strong>{line.name}</strong>
-                            <small>
-                              {line.sub}
-                              {line.dueDate ? ` · ${shortDay(line.dueDate)}` : ''}
-                            </small>
-                          </td>
-                          <td className="n">
-                            {line.status === 'unplanned' ? '–' : eur(line.expectedCents)}
-                          </td>
-                          <td className="n">
-                            {line.receivedCents > 0 ? eur(line.receivedCents) : '–'}
-                          </td>
-                          <td>
-                            <span className={`mr-status ${s.tone}`}>
-                              <Icon size={16} strokeWidth={1.75} aria-hidden="true" />
-                              {s.label}
-                              {line.status === 'diff'
-                                ? ` ${eur(line.differenceCents, { sign: true })}`
-                                : ''}
-                            </span>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            ) : (
-              <p className="vnote">Für diesen Monat sind keine Einnahmen erwartet.</p>
-            )}
-            <p className="vnote">
-              {data.expectedMaterialised
-                ? 'Wiederkehrende Zahlungen ordnet der Nachtlauf automatisch zu; Abweichungen landen unter Prüfen.'
-                : 'Die wiederkehrenden Zahlungen stammen aus dem Zahlungsplan und sind für diesen Monat noch nicht zugeordnet; ob sie eingegangen sind, zeigt die Tabelle darunter.'}
-              {data.foreignCurrencyCount !== null && data.foreignCurrencyCount > 0
-                ? ` ${data.foreignCurrencyCount} wiederkehrende Zahlung${data.foreignCurrencyCount === 1 ? '' : 'en'} in Fremdwährung ${data.foreignCurrencyCount === 1 ? 'ist' : 'sind'} hier nicht enthalten.`
-                : ''}
-            </p>
-          </section>
-        )}
-      </ReportBodyDisclosure>
+      {!REDESIGN_ENABLED && <IncomeExpectations data={data} />}
       <ReportBodyDisclosure id="income-types" label="Einnahmen nach Art und Monat">
         <section className="mr-card mr-wide" aria-labelledby="inc-type-title">
           <div className="tbd-head">
@@ -426,5 +347,112 @@ function CapitalSection({ data }: { data: IncomeReportData }) {
           : ''}
       </p>
     </section>
+  );
+}
+
+/** Presentation only: unresolved domain statuses stay visible; no receipt is inferred. */
+export function IncomeExpectations({
+  data,
+}: {
+  data: Pick<IncomeReportData, 'expected' | 'expectedMaterialised' | 'foreignCurrencyCount'>;
+}) {
+  useAmountPrivacy();
+  const { expected } = data;
+  const open =
+    expected?.lines.filter(
+      (line) => !REDESIGN_ENABLED || (line.status !== 'ok' && line.status !== 'unplanned'),
+    ) ?? [];
+  const received =
+    expected?.lines.filter((line) => line.status === 'ok' || line.status === 'unplanned') ?? [];
+  return (
+    <section className="mr-card" aria-labelledby="inc-exp-title">
+      <div className="tbd-head">
+        <h2 id="inc-exp-title">Erwartet gegen eingegangen</h2>
+      </div>
+      {expected === null ? (
+        <p className="vnote">
+          Erwartete Zahlungen sind keinem Projekt zugeordnet. Für diesen Projektfilter sind
+          Erwartungswerte und Fehlend-Status daher nicht verfügbar; tatsächliche Einnahmen bleiben
+          sichtbar.
+        </p>
+      ) : (
+        <div data-testid={expected.lines.length ? 'income-expected' : undefined}>
+          {open.length > 0 ? (
+            <ExpectedIncomeTable lines={open} />
+          ) : (
+            <p className="vnote">
+              {expected.lines.length
+                ? 'Keine offenen erwarteten Einnahmen.'
+                : 'Für diesen Monat sind keine Einnahmen erwartet.'}
+            </p>
+          )}
+          {REDESIGN_ENABLED && received.length > 0 && (
+            <ReportBodyDisclosure
+              id="income-received"
+              label={`Eingegangene und ungeplante Einnahmen · ${received.length}`}
+            >
+              <ExpectedIncomeTable lines={received} />
+            </ReportBodyDisclosure>
+          )}
+          <p className="vnote">
+            {data.expectedMaterialised
+              ? 'Wiederkehrende Zahlungen ordnet der Nachtlauf automatisch zu; Abweichungen landen unter Prüfen.'
+              : 'Die wiederkehrenden Zahlungen stammen aus dem Zahlungsplan und sind für diesen Monat noch nicht zugeordnet; ob sie eingegangen sind, zeigt die Tabelle darunter.'}
+            {data.foreignCurrencyCount !== null && data.foreignCurrencyCount > 0
+              ? ` ${data.foreignCurrencyCount} wiederkehrende Zahlung${data.foreignCurrencyCount === 1 ? '' : 'en'} in Fremdwährung ${data.foreignCurrencyCount === 1 ? 'ist' : 'sind'} hier nicht enthalten.`
+              : ''}
+          </p>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function ExpectedIncomeTable({ lines }: { lines: ExpectedIncomeLine[] }) {
+  return (
+    <div
+      className="mr-scroll"
+      role="region"
+      aria-label="Wiederkehrende Zahlungen, bei Bedarf horizontal verschiebbar"
+      // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- Keyboard users must be able to scroll the table.
+      tabIndex={0}
+    >
+      <table className="mr-table is-expected">
+        <thead>
+          <tr>
+            <th className="tech">Zahlung</th>
+            <th className="tech n">Erwartet</th>
+            <th className="tech n">Eingegangen</th>
+            <th className="tech">Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {lines.map((line) => {
+            const s = STATUS[line.status];
+            const Icon = s.icon;
+            return (
+              <tr key={line.key} data-status={line.status}>
+                <td>
+                  <strong>{line.name}</strong>
+                  <small>
+                    {line.sub}
+                    {line.dueDate ? ` · ${shortDay(line.dueDate)}` : ''}
+                  </small>
+                </td>
+                <td className="n">{line.status === 'unplanned' ? '–' : eur(line.expectedCents)}</td>
+                <td className="n">{line.receivedCents > 0 ? eur(line.receivedCents) : '–'}</td>
+                <td>
+                  <span className={`mr-status ${s.tone}`}>
+                    <Icon size={16} strokeWidth={1.75} aria-hidden="true" />
+                    {s.label}
+                    {line.status === 'diff' ? ` ${eur(line.differenceCents, { sign: true })}` : ''}
+                  </span>
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
   );
 }

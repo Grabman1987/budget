@@ -51,7 +51,7 @@ for (const [name, path, ready] of [
       await expect(page.locator('.r8-months tbody tr')).toHaveCount(3);
     }
     if (name === 'income') {
-      await expect(page.locator('.income-report > [data-r8-detail]')).toHaveCount(3);
+      await expect(page.locator('.income-report > [data-r8-detail]')).toHaveCount(2);
       await expect(page.locator('.income-report > [data-r8-detail][open]')).toHaveCount(0);
     }
     if (name === 'spending') await expect(page.getByTestId('spending-period-chart')).toBeVisible();
