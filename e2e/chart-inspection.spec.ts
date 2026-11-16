@@ -77,17 +77,14 @@ test('report navigation, daily values, keyboard and touch inspection', async ({ 
       url.searchParams.get('zeitraum') === 'YTD',
   );
   const redesign = (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
-  if (redesign) {
-    await page.getByLabel('Bericht wechseln', { exact: true }).click();
-    await page.getByRole('link', { name: '7. Depots im Vergleich', exact: true }).click();
-  } else {
-    await page
-      .getByRole('button', {
-        name: 'Nächster Bericht: Kosten, Steuern, Erträge',
-        exact: true,
-      })
-      .click();
-  }
+  await page
+    .getByRole('button', {
+      name: redesign
+        ? 'Nächster Bericht: Depots im Vergleich'
+        : 'Nächster Bericht: Kosten, Steuern, Erträge',
+      exact: true,
+    })
+    .click();
   await expect(page).toHaveURL(
     (url) =>
       url.pathname === (redesign ? '/reports/pdepots' : '/reports/psteuern') &&
@@ -108,19 +105,11 @@ test('report navigation, daily values, keyboard and touch inspection', async ({ 
       page.getByRole('button', { name: 'Verteilung über Zeit', exact: true }),
     ).toHaveAttribute('aria-pressed', 'true');
   await page.goto(redesign ? '/reports/onepager' : '/reports/einnahmen-ausgaben');
-  if (redesign)
-    await expect(page.getByRole('button', { name: /^Vorheriger Bericht/ })).toHaveCount(0);
-  else
-    await expect(
-      page.getByRole('button', { name: 'Vorheriger Bericht', exact: true }),
-    ).toBeDisabled();
+  await expect(
+    page.getByRole('button', { name: 'Vorheriger Bericht', exact: true }),
+  ).toBeDisabled();
   await page.goto(redesign ? '/reports/inflation' : '/reports/jahresreport');
-  if (redesign)
-    await expect(page.getByRole('button', { name: /^Nächster Bericht/ })).toHaveCount(0);
-  else
-    await expect(
-      page.getByRole('button', { name: 'Nächster Bericht', exact: true }),
-    ).toBeDisabled();
+  await expect(page.getByRole('button', { name: 'Nächster Bericht', exact: true })).toBeDisabled();
 });
 
 test('every rendered chart has shared inspection across reports and main pages', async ({

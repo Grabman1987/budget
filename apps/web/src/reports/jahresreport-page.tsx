@@ -11,7 +11,7 @@ import {
 } from '@budget/domain';
 import { useQuery } from '@tanstack/react-query';
 import { YearSummary, YearWealthChange } from './period-report-summary';
-import { usePaperView } from './period-presentation';
+import { PeriodPresentation, usePaperView } from './period-presentation';
 import { REDESIGN_ENABLED } from '../shell/redesign-flag';
 import { Printer } from 'lucide-react';
 import { useState } from 'react';
@@ -99,7 +99,10 @@ export function JahresreportPage({ report, meta }: { report: ReportEntry; meta: 
       }
       {...(REDESIGN_ENABLED
         ? {
-            extraFields: [{ label: 'Jahr', value: yearControls }],
+            extraFields: [
+              { label: 'Jahr', value: yearControls },
+              ...(paperView ? [{ label: 'Darstellung', value: <PeriodPresentation /> }] : []),
+            ],
           }
         : {})}
       verdict={
