@@ -14,15 +14,13 @@ export async function revealReportDetail(page: Page) {
 
 export async function openPaperView(page: Page) {
   if (await redesignReportsOn(page)) {
-    const yearly = new URL(page.url()).pathname === '/reports/jahresreport';
-    await page.getByLabel('Bericht wechseln', { exact: true }).click();
-    await page
-      .getByRole('link', {
-        name: yearly ? 'A4 Druckblatt · Jahr' : 'A4 Druckblatt · Monat',
-        exact: true,
-      })
-      .click();
-    await expect(page).toHaveURL(/darstellung=druckblatt/);
+    const select = page.getByRole('combobox', { name: 'Darstellung', exact: true });
+    if (!(await select.count()))
+      await page
+        .getByRole('button', { name: 'A4 Druckblatt und alle Details öffnen', exact: true })
+        .click();
+    else await select.selectOption('druckblatt');
+    await expect(select).toHaveValue('druckblatt');
   }
 }
 export async function revealComparisonDetail(page: Page) {
