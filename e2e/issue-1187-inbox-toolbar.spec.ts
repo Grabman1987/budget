@@ -16,10 +16,12 @@ for (const theme of ['light', 'dark'] as const) {
           accounts: [
             {
               sourceId: 'synthetic-source',
+              accountId: 'synthetic-account',
               name: 'Synthetic account',
               syncedAt: null,
               result: null,
               open: 0,
+              openTotal: 0,
               running: false,
               status: 'active',
             },
@@ -27,16 +29,17 @@ for (const theme of ['light', 'dark'] as const) {
         },
       }),
     );
-    await page.goto('/konten/pruefen?von=%2Fkonten%2Fbuchungen');
+    await page.goto('/konten/pruefen?teil=umsaetze&von=%2Fkonten%2Fbuchungen');
     await expect(page.locator('.app')).toHaveAttribute('data-budget-redesign', '1');
     const toolbar = page.locator('.konten-frame-inbox .konten-view-bar');
     const back = toolbar.getByRole('link', { name: 'Zurück zur vorherigen Ansicht' });
     const menu = toolbar.locator('.area-page-menu > summary');
     const segments = toolbar.locator('.inbox-segments');
     const filter = toolbar.getByLabel('Filter', { exact: true });
-    const recap = page.getByRole('heading', { name: 'Rückblick nach Bankabruf' });
+    const recap = page.locator('.bank-v1-table');
     await expect(back).toHaveAttribute('href', '/konten/buchungen');
     await expect(recap).toBeVisible();
+    await expect(recap).toContainText('Synthetic account');
     for (const control of [back, menu, segments, filter]) await expect(control).toBeVisible();
     const boxes = await Promise.all(
       [back, menu, segments, filter, toolbar, recap].map((item) => item.boundingBox()),

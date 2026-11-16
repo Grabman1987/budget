@@ -151,19 +151,22 @@ async function openBatch(page: Page, sourceId: string) {
 
 for (const theme of ['light', 'dark']) {
   recapTest(
-    `read-only per-account recap in ${theme}`,
+    `read-only per-account list in ${theme}`,
     async ({ page, request, isolatedLedger, recapSource }, info) => {
       const before = await balances(request, isolatedLedger.origin);
       const writes: string[] = [];
       page.on('request', (req) => {
         if (req.method() === 'POST') writes.push(new URL(req.url()).pathname);
       });
-      await page.goto(`/konten/pruefen?bankSource=${recapSource}`);
+      void recapSource;
+      await page.goto('/konten/pruefen?teil=umsaetze');
       await expect(page.locator('[data-budget-redesign="1"]')).toBeVisible();
-      const recap = page.getByRole('region', { name: 'Rückblick nach Bankabruf' });
+      const recap = page.locator('.kinbox-bank-v1');
       await expect(recap).toContainText('3 abgerufen · 0 verknüpft · 2 neu vorgemerkt');
       await expect(recap).toContainText('Synthetisches Zweitkonto');
-      await expect(recap).toContainText('Keine neuen Umsätze dieses Abrufs offen.');
+      await expect(recap).toContainText('nichts offen');
+      await expect(recap.locator('.bank-inbox-row')).toHaveCount(3);
+      await expect(page.getByRole('region', { name: 'Rückblick nach Bankabruf' })).toHaveCount(0);
       await page.evaluate((value) => {
         document.documentElement.dataset.theme = value;
       }, theme);
@@ -171,12 +174,10 @@ for (const theme of ['light', 'dark']) {
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
         true,
       );
-      const bounds = await recap
-        .getByRole('link', { name: 'Neue Umsätze prüfen (2)' })
-        .boundingBox();
-      expect(bounds!.height).toBeGreaterThanOrEqual(
-        await minimumControlHeight(recap.getByRole('link', { name: 'Neue Umsätze prüfen (2)' })),
-      );
+      const header = recap.getByRole('button', { name: /Synthetisches Haushaltskonto/ });
+      await expect(header).toHaveAttribute('aria-expanded', 'true');
+      const bounds = await header.boundingBox();
+      expect(bounds!.height).toBeGreaterThanOrEqual(await minimumControlHeight(header));
       await page.screenshot({
         path: info.outputPath(`sync-recap-${info.project.name}-${theme}.png`),
         fullPage: true,
@@ -230,22 +231,21 @@ for (const action of ['cancel', 'confirm'] as const) {
 }
 
 recapTest(
-  'recap link opens new rows for individual confirmation and preserves older work',
+  'account list opens rows for individual confirmation and preserves older work',
   async ({ page, request, isolatedLedger, recapSource }) => {
     const before = await balances(request, isolatedLedger.origin);
     await page.goto(`/konten/pruefen?bankSource=${recapSource}`);
-    const recap = page.getByRole('region', { name: 'Rückblick nach Bankabruf' });
-    await recap.getByRole('link', { name: 'Neue Umsätze prüfen (2)' }).click();
-    await expect(page.locator('.bank-inbox-row')).toHaveCount(2);
+    await expect(page.locator('.bank-inbox-row')).toHaveCount(3);
     const one = page.locator('.bank-inbox-row').filter({ hasText: 'Synthetic new A' });
     await (await bankPreviewControl(one)).click();
     const dialog = page.getByRole('dialog', { name: 'Buchung übernehmen' });
     await dialog.getByRole('button', { name: 'Als Buchung bestätigen', exact: true }).click();
-    await expect(page.locator('.bank-inbox-row')).toHaveCount(1);
-    await toast(page).getByRole('button', { name: 'Rückgängig' }).click();
     await expect(page.locator('.bank-inbox-row')).toHaveCount(2);
-    expect(await balances(request, isolatedLedger.origin)).toEqual(before);
-    await page.getByRole('link', { name: 'Alle Aufgaben dieser Quelle', exact: true }).click();
+    await toast(page).getByRole('button', { name: 'Rückgängig' }).click();
     await expect(page.locator('.bank-inbox-row')).toHaveCount(3);
+    expect(await balances(request, isolatedLedger.origin)).toEqual(before);
+    await expect(
+      page.locator('.bank-inbox-row').filter({ hasText: 'Synthetic older open' }),
+    ).toBeVisible();
   },
 );

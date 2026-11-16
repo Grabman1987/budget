@@ -114,6 +114,8 @@ function server(
     }
     if (url.pathname === '/api/bank-sync') return json({ configured: false, connections: [] });
     if (url.pathname === '/api/bank-sync/recap') return json({ accounts: [] });
+    if (url.pathname.startsWith('/api/budget/'))
+      return json({ summary: { envelopes: [], toBeAssignedCents: 0 }, groups: [], categories: [] });
     return json({});
   });
 }

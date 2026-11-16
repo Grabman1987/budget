@@ -80,7 +80,9 @@ export function readBankSyncRecap(db: Db, today: string) {
         ...row,
         openTotal: entries.filter((entry) =>
           entry.type === 'booking'
-            ? entry.source === 'bank' && entry.accountId === row.accountId
+            ? entry.source === 'bank' &&
+              entry.status !== 'reconciled' &&
+              entry.accountId === row.accountId
             : entry.type === 'stored' && entry.bankCandidate?.accountId === row.accountId,
         ).length,
         name: row.name ?? row.sourceName,

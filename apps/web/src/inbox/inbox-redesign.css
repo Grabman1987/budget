@@ -893,7 +893,13 @@
     grid-column: 2;
     grid-row: 2;
   }
+  .konten-frame-inbox [data-konten-slot='inbox-info'] .konten-menu-content {
+    inset-inline-end: -44px;
+  }
   .konten-frame-inbox .konten-inbox-filters-slot {
+    grid-column: 3;
+  }
+  .konten-frame-inbox .konten-inbox-selection-slot {
     grid-column: 3;
   }
   .konten-frame-inbox .konten-view-bar:has(.inbox-back) [data-konten-slot='inbox-info'] {

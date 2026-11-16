@@ -97,7 +97,7 @@ for (const theme of ['light', 'dark'] as const) {
           )
           .map((node) => node.target[0] as string);
         if (area === 'Prüfen') {
-          for (const selector of ['.inbox-guided-entry > a', '.inbox-count-rule summary']) {
+          for (const selector of ['[data-konten-slot="inbox-actions"] a']) {
             expect(
               await page
                 .locator(selector)
@@ -138,6 +138,50 @@ for (const theme of ['light', 'dark'] as const) {
         });
         expect(grid.image).toContain('linear-gradient');
         expect(grid.size).toBe('40px 40px, 40px 40px, 8px 8px, 8px 8px');
+        if (area === 'Prüfen') {
+          await page.getByLabel('Was zählt bei Prüfen?', { exact: true }).click();
+          const explanation = page.locator(
+            '[data-konten-slot="inbox-info"] .konten-menu-content p',
+          );
+          await expect(explanation).toBeVisible();
+          // Axe cannot resolve the differing stacks beneath overlay text (elmPartiallyObscuring).
+          // Check its actual opaque foreground/surface pair against the same WCAG text threshold.
+          const contrast = await explanation.evaluate((element) => {
+            const text = getComputedStyle(element);
+            const surface = getComputedStyle(element.closest('.konten-menu-content')!);
+            const luminance = (color: string) => {
+              const channels = color.match(/[\d.]+/g)!.map(Number);
+              if (channels.length > 3 && channels[3] !== 1)
+                throw new Error('Expected opaque contrast colors');
+              return channels.slice(0, 3).reduce((sum, channel, index) => {
+                const value = channel / 255;
+                return (
+                  sum +
+                  [0.2126, 0.7152, 0.0722][index]! *
+                    (value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4)
+                );
+              }, 0);
+            };
+            const foreground = luminance(text.color);
+            const background = luminance(surface.backgroundColor);
+            return {
+              ratio:
+                (Math.max(foreground, background) + 0.05) /
+                (Math.min(foreground, background) + 0.05),
+              textOpacity: text.opacity,
+              surfaceOpacity: surface.opacity,
+              backgroundImage: surface.backgroundImage,
+            };
+          });
+          expect(contrast.textOpacity).toBe('1');
+          expect(contrast.surfaceOpacity).toBe('1');
+          expect(contrast.backgroundImage).toBe('none');
+          expect(contrast.ratio).toBeGreaterThanOrEqual(4.5);
+          expect(
+            await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
+          ).toBe(true);
+          await page.screenshot({ path: info.outputPath('inbox-help.png') });
+        }
       });
     }
   });

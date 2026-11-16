@@ -139,6 +139,7 @@ it('filters unresolved candidates by real account identity, with no balance, boo
       currency: 'EUR',
       memo: 'a-one',
       payeeName: null,
+      accountId: A,
       accountName: 'Gleiches Konto',
     },
     {
@@ -147,6 +148,7 @@ it('filters unresolved candidates by real account identity, with no balance, boo
       currency: 'EUR',
       memo: 'a-two',
       payeeName: null,
+      accountId: A,
       accountName: 'Gleiches Konto',
     },
   ]);

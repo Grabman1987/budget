@@ -9,7 +9,7 @@ tick/X, full review and Undo come from #1189; booked unchecked rows retain their
 assignment dialogs. #1135 adds the reviewed independently dated transfer API and
 single-counted same-currency bank transit valuation; combined transfer/purchase UI
 and the other remaining #1080 scope are not claimed. No migration or automatic
-acceptance. Integration CI, publication and owner acceptance remain pending.
+acceptance. Integration CI, publication and owner acceptance are separate gates.
 
 Report verdict visibility (#1155): the redesign report frame shows its existing
 domain-generated verdict directly after the header, before report content. The
