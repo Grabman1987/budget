@@ -1,5 +1,12 @@
 # Budget feature coverage: YNAB and Portfolio Performance replacement
 
+Report verdict visibility (#1155): the redesign report frame shows its existing
+domain-generated verdict directly after the header, before report content. The
+calculation chain remains available in “Berechnung und Einordnung”. Views without
+verdict facts explicitly explain that evaluation data is missing. Amount privacy,
+existing report addresses and period selection are retained. Ready for review;
+required CI and owner visual acceptance remain open.
+
 2026-10-15 reading guide: [Traceability](product/traceability.md) maps all 50 Y/I
 feature IDs to current contracts, source/test starting points and acceptance
 examples. [Report contracts](product/report-contracts.md) covers the 34 current

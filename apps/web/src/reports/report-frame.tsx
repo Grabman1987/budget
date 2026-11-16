@@ -106,30 +106,6 @@ function RedesignReportFrame({
           </div>
         </div>
         <div className="redesign-report-calculation" data-testid="report-calculation">
-          {calculation && (
-            <div className="redesign-report-equation">
-              {calculation.displayTerms ? (
-                <div className="chain-inline" role="group" aria-label={calculation.label}>
-                  {calculation.displayTerms.map((term, index) => (
-                    <span className="ct-pair" key={index}>
-                      {term.op && <span className="ct-op">{term.op}</span>}
-                      <span className="ct-term">
-                        <span className="ct-label">{term.label}</span>
-                        <span className="ct-val">{privateAmount(term.text)}</span>
-                      </span>
-                    </span>
-                  ))}
-                </div>
-              ) : (
-                <DimensionChain
-                  label={calculation.label}
-                  terms={inputs ?? []}
-                  precision={calculation.precision ?? 'cent'}
-                />
-              )}
-              <span aria-hidden="true">=</span>
-            </div>
-          )}
           <strong className="redesign-report-result" data-testid="report-frame-result">
             {metricText(result, calculation?.signed, calculation?.pointsLabel)}
           </strong>
@@ -155,11 +131,46 @@ function RedesignReportFrame({
         </div>
         {reportControls && <div className="redesign-report-extra-controls">{reportControls}</div>}
       </header>
-      {(explanation || verdict || calculation) && (
+      {verdict ? (
+        <VerdictLine facts={verdict} {...(verdictTestId ? { testId: verdictTestId } : {})} />
+      ) : (
+        <p className="report-verdict" data-testid={verdictTestId ?? 'report-verdict'}>
+          Keine Bewertung möglich: Für diese Ansicht liegen noch keine auswertbaren Bewertungsdaten
+          vor.
+        </p>
+      )}
+      {(explanation || calculation) && (
         <details className="redesign-report-detail">
           <summary>Berechnung und Einordnung</summary>
           {explanation && (
             <p>{typeof explanation === 'string' ? maskMoneyText(explanation) : explanation}</p>
+          )}
+          {calculation && (
+            <div className="redesign-report-equation">
+              {calculation.displayTerms ? (
+                <div className="chain-inline" role="group" aria-label={calculation.label}>
+                  {calculation.displayTerms.map((term, index) => (
+                    <span className="ct-pair" key={index}>
+                      {term.op && <span className="ct-op">{term.op}</span>}
+                      <span className="ct-term">
+                        <span className="ct-label">{term.label}</span>
+                        <span className="ct-val">{privateAmount(term.text)}</span>
+                      </span>
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                <DimensionChain
+                  label={calculation.label}
+                  terms={inputs ?? []}
+                  precision={calculation.precision ?? 'cent'}
+                />
+              )}
+              <span aria-hidden="true">=</span>
+              <strong>
+                {metricText(calculation.result, calculation.signed, calculation.pointsLabel)}
+              </strong>
+            </div>
           )}
           {calculation && (
             <dl>
@@ -191,9 +202,6 @@ function RedesignReportFrame({
                 </dd>
               </div>
             </dl>
-          )}
-          {verdict && (
-            <VerdictLine facts={verdict} {...(verdictTestId ? { testId: verdictTestId } : {})} />
           )}
         </details>
       )}

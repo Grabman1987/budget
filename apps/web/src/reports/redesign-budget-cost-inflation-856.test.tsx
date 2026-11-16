@@ -133,8 +133,10 @@ it('ON renders actual percentage inputs and Pp without currency, masks them, and
   const props = { meta: REPORTS_CATALOG, title: 'Persönliche Inflation', calculation };
   const view = render(<ReportFrame {...props} />);
   expect(screen.getByTestId('report-frame-result').textContent).toBe('+0,7 Pp');
-  expect(screen.getByTestId('report-calculation').textContent).toContain('+4,3 %');
-  expect(screen.getByTestId('report-calculation').textContent).not.toContain('€');
+  fireEvent.click(screen.getByText('Berechnung und Einordnung'));
+  const equation = screen.getByRole('group', { name: calculation.label });
+  expect(equation.textContent).toContain('+4,3 %');
+  expect(equation.textContent).not.toContain('€');
   expect(
     inflationCalculation({
       latestComparison: null,
@@ -157,7 +159,7 @@ it('ON renders actual percentage inputs and Pp without currency, masks them, and
   ).toBe(0);
 
   act(() => setAmountsHidden(true));
-  expect(screen.getByTestId('report-calculation').textContent).not.toContain('4,3');
+  expect(equation.textContent).not.toContain('4,3');
   flag.REDESIGN_ENABLED = false;
   view.rerender(
     <ReportFrame {...props}>

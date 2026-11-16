@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ToastProvider, setAmountsHidden } from '@budget/ui';
-import { act, cleanup, render, screen, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { ContactReportPage } from './contact-report';
 import type { ContactOverview, ContactReportStatement } from './contact-api';
@@ -161,6 +161,7 @@ it('shows both sides of a zero net header and credit in the default list and aut
     (screen.getByRole('checkbox', { name: 'Auch ausgeglichene Kontakte' }) as HTMLInputElement)
       .checked,
   ).toBe(false);
+  fireEvent.click(screen.getByText('Berechnung und Einordnung'));
   const chain = screen.getByRole('group', { name: 'Maßkette Kontakte' });
   expect(chain.textContent).toContain('Wir bekommen');
   expect(chain.textContent).toContain('Wir schulden');

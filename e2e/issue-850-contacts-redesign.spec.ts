@@ -2,7 +2,7 @@ import AxeBuilder from '@axe-core/playwright';
 import { mkdir } from 'node:fs/promises';
 import { expect } from '@playwright/test';
 import { test } from './isolated-ledger';
-import { redesignReportsOn } from './report-frame';
+import { redesignReportsOn, revealReportDetail } from './report-frame';
 
 test.use({ ledgerToday: '2026-10-02', reducedMotion: 'reduce' });
 test('961/962 contacts: zero net retains credit and movement source context', async ({
@@ -69,6 +69,7 @@ test('961/962 contacts: zero net retains credit and movement source context', as
   const list = page.getByRole('region', { name: 'Kontaktsalden' });
   const sheet = page.getByRole('region', { name: 'Kontaktkontoauszug' });
   await expect(page.getByTestId('report-frame-result')).toHaveText('0,00 €');
+  await revealReportDetail(page);
   const chain = page.getByRole('group', { name: 'Maßkette Kontakte' });
   await expect(chain).toContainText('Wir bekommen');
   await expect(chain).toContainText('Wir schulden');
@@ -233,7 +234,8 @@ test('850 contacts: 5000-cent debt forgiveness, exact shortfall, cash unchanged,
   await page.keyboard.press('Escape');
   await expect(source).toBeFocused();
   await history.locator(':scope > summary').click();
-  const calculation = page.getByTestId('report-calculation');
+  await revealReportDetail(page);
+  const calculation = page.locator('.redesign-report-equation');
   await expect(calculation.getByText('Wir bekommen', { exact: true })).toBeVisible();
   await expect(calculation).toContainText('50,00 €');
   await expect(calculation).toContainText('20,00 €');

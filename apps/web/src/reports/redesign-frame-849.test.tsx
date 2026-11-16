@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cents } from '@budget/domain';
+import { cents, reportVerdict, type VerdictFacts } from '@budget/domain';
 import { setAmountsHidden } from '@budget/ui';
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import type { ReactNode } from 'react';
@@ -54,7 +54,7 @@ const props = {
 };
 
 describe('shared R2 report frame', () => {
-  it('ON puts exact supplied terms/result in the head and keeps controls, sources and explanation accessible', () => {
+  it('ON shows the verdict after the head and keeps exact calculation terms in the disclosure', () => {
     render(
       <ReportFrame
         {...props}
@@ -75,15 +75,21 @@ describe('shared R2 report frame', () => {
     const head = screen.getByTestId('redesign-report-head');
     expect(head.textContent).not.toContain('Wie lief der Monat?');
     expect(head.textContent).toContain('Monatsbericht');
-    expect(screen.getByRole('group', { name: 'Berechnung Planabweichung' }).textContent).toContain(
-      '50,00 €',
-    );
     expect(screen.getByTestId('report-frame-result').textContent).toBe('−15,00 €');
     expect(screen.getByRole('button', { name: 'August' })).toBeTruthy();
     expect(head.contains(screen.getByRole('button', { name: 'Darstellung' }))).toBe(true);
     expect(screen.getByTestId('report-frame-source').textContent).toContain('31.08.2026');
     const detail = screen.getByText('Berechnung und Einordnung').closest('details')!;
+    const verdict = screen.getByTestId('report-verdict');
+    expect(head.nextElementSibling).toBe(verdict);
+    expect(detail.contains(verdict)).toBe(false);
+    expect(detail.open).toBe(false);
+    expect(detail.nextElementSibling).toBe(screen.getByRole('table', { name: 'Quelldaten' }));
+    expect(head.querySelector('.redesign-report-equation')).toBeNull();
     fireEvent.click(screen.getByText('Berechnung und Einordnung'));
+    expect(screen.getByRole('group', { name: 'Berechnung Planabweichung' }).textContent).toContain(
+      '50,00 €',
+    );
     expect(detail.open).toBe(true);
     expect(screen.getByText('Wie lief der Monat?')).toBeTruthy();
     expect(screen.getByRole('table', { name: 'Quelldaten' })).toBeTruthy();
@@ -94,6 +100,7 @@ describe('shared R2 report frame', () => {
   it('keeps missing metrics separate from zero and OFF delegates its exact legacy layout', () => {
     const view = render(<ReportFrame {...props} calculation={undefined} />);
     expect(screen.getByTestId('report-frame-result').textContent).toBe('—');
+    expect(screen.getByTestId('report-verdict').textContent).toContain('Keine Bewertung möglich:');
     view.rerender(
       <ReportFrame
         {...props}
@@ -122,6 +129,21 @@ describe('shared R2 report frame', () => {
     );
     expect(screen.queryByTestId('redesign-report-head')).toBeNull();
     expect(screen.getByTestId('legacy-frame').textContent).toBe('Unveränderter Report');
+  });
+  it('retains supplied verdict facts, custom identity and amount privacy outside the disclosure', () => {
+    const facts: VerdictFacts = {
+      reportId: 'ausgaben',
+      period: '2026-08',
+      metric: { label: 'Ausgaben', value: 6500, unit: 'money', better: 'lower' },
+      comparisons: [{ reference: 'im Vormonat', value: 5000 }],
+    };
+    render(<ReportFrame {...props} verdict={facts} verdictTestId="synthetic-verdict" />);
+    const verdict = screen.getByTestId('synthetic-verdict');
+    expect(verdict.textContent).toBe(reportVerdict(facts).text);
+    act(() => setAmountsHidden(true));
+    expect(verdict.textContent).toBe(reportVerdict(facts, { hidden: true }).text);
+    expect(verdict.textContent).toContain('•••');
+    expect(verdict.closest('details')).toBeNull();
   });
 });
 

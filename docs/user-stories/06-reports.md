@@ -22,6 +22,26 @@ Alle Reports mit Nummer laut `docs/FEATURES.md` (34 Reports, 1.1 bis 5.6). Jede 
   - Die Vorbelegung bleibt lokal im Browser; gesperrter Browserspeicher verhindert keine Reportanzeige. Finanzberechnungen, Audit und Rückgängig bleiben unverändert.
 - **Status:** implementiert für Review (#1100); CI und Live-Abnahme offen.
 
+### RP-00a – Read the report verdict before its details
+
+- **Story:** As a user, I want the report's existing interpretation directly below
+  its header so I can understand the result before reading tables and charts.
+- **Starting point:** Open any report using the shared redesign report frame.
+- **Flow:**
+  1. Open the report or a retained report link and select its period or view.
+  2. Read the verdict immediately below the header with calculation details closed.
+  3. Open “Berechnung und Einordnung” to inspect the existing calculation inputs.
+  4. Hide amounts; the verdict and calculation retain the existing privacy masking.
+- **Acceptance criteria:**
+  - The existing domain-generated verdict precedes tables, charts and disclosures.
+  - A view without verdict facts states “Keine Bewertung möglich” and explains
+    that evaluation data is missing, without guessing a financial judgement.
+  - Header controls, remembered periods, explicit deep links and legacy redirects
+    retain their existing behavior. No financial figure or formula changes.
+  - The verdict is readable at desktop 1440 and phone 390 in light and dark themes.
+    One-Pager printing retains only the sheet's own verdict.
+- **Status:** Implemented for review (#1155); required CI and owner acceptance open.
+
 ### RP-01 – Monats-One-Pager
 - **Story:** Als Nutzer möchte ich den Monat auf einem Blatt mit Ergebniskette und 50/30/20 sehen und drucken, damit ich am Monatsende ohne Suchen entscheide, ob der Monat gut lief und was ich im nächsten ändere.
 - **Ausgangslage:** Monatsende oder laufender Monat; Buchungen und Plan des Monats sind vorhanden.
