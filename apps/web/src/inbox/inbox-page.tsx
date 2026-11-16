@@ -1,6 +1,6 @@
 import { SpritmonitorReview } from '../pages/spritmonitor-source';
 import { TaskSourceSummary } from './task-source-summary';
-import { Check, CircleHelp, CircleCheck, Filter, MoreHorizontal } from 'lucide-react';
+import { Check, ChevronDown, CircleHelp, CircleCheck, Filter, MoreHorizontal } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import type { ReactNode } from 'react';
 import { KontenMenu } from '../ledger/konten-menu';
@@ -13,7 +13,9 @@ import {
 } from './bank-candidate';
 import { BankBulkActions, isBankInboxRow } from './bank-bulk-actions';
 import { BankCandidateRow } from './bank-candidate-row';
-import { BankSyncRecap } from './bank-sync-recap';
+import type { BankSyncRecapData } from './bank-sync-recap';
+import { bankAccountGroups, BANK_COLLAPSE_KEY, readCollapsedAccounts } from './bank-account-groups';
+import { OverspentCategories } from './overspent-categories';
 import { GuidedReview } from './guided-review';
 import { AssignmentLearnOffer, BookingAssignmentReview } from '../assignment/review';
 import {
@@ -58,6 +60,7 @@ import {
   inboxDetailQuery,
   inboxQuery,
   INBOX_PAGE_SIZE,
+  INBOX_KEY,
   resolveInbox,
   readSourceMovementsQuery,
   useInboxRefreshing,
@@ -128,7 +131,6 @@ export function InboxPage() {
         </InboxHeaderItem>
       )}
       {(!REDESIGN_ENABLED || isPhone) && sourceStatus}
-      {REDESIGN_ENABLED && !search.bankRecap && <BankSyncRecap />}
       {REDESIGN_ENABLED && search.bankRecap && search.bankSource && (
         <div className="inbox-source-line">
           <p>
@@ -149,17 +151,6 @@ export function InboxPage() {
         <GuidedReview />
       ) : (
         <>
-          {REDESIGN_ENABLED && !search.bankSource && (
-            <div className="inbox-guided-entry">
-              <AppLink
-                className="btn"
-                to="/konten/pruefen"
-                search={{ ...search, modus: 'gefuehrt' }}
-              >
-                Prüfen durchgehen
-              </AppLink>
-            </div>
-          )}
           <InboxWorkflow bankSource={search.bankSource} />
         </>
       )}
@@ -318,7 +309,6 @@ export function InboxWorkflow({
     <>
       {REDESIGN_ENABLED ? (
         <div className="inbox-redesign" data-redesign="inbox">
-          <DocumentUploadButton />
           {body}
         </div>
       ) : (
@@ -730,10 +720,26 @@ function PaginatedInboxBodyContent({
           />
         </InboxHeaderItem>
       )}
-      {segmentCounts && <InboxCountRule refreshing={refreshing} />}
+      {segmentCounts && (
+        <InboxHeaderItem slot="inbox-info">
+          <InboxCountRule refreshing={refreshing} />
+        </InboxHeaderItem>
+      )}
       {REDESIGN_ENABLED ? (
         <>
           {!isPhone && <InboxHeaderItem slot="inbox-sort">{sortControl}</InboxHeaderItem>}
+          <InboxHeaderItem slot="inbox-actions">
+            <DocumentUploadButton />
+            {!search.bankSource && (
+              <AppLink
+                className="btn btn-ghost"
+                to="/konten/pruefen"
+                search={{ ...search, modus: 'gefuehrt' }}
+              >
+                Prüfen durchgehen
+              </AppLink>
+            )}
+          </InboxHeaderItem>
           <InboxHeaderItem slot="inbox-filters">
             <KontenMenu
               label="Filter"
@@ -825,6 +831,9 @@ function PaginatedInboxBodyContent({
           loadMore={() => void fetchNextPage()}
         />
       )}
+      {REDESIGN_ENABLED && firstPage && shown === 'umsaetze' && (
+        <OverspentCategories month={firstPage.asOf.slice(0, 7)} />
+      )}
       {REDESIGN_ENABLED && firstPage && (
         <p className="inbox-source-date">Stand {longDay(firstPage.asOf)}</p>
       )}
@@ -842,14 +851,17 @@ function InboxCountRule({ refreshing }: { refreshing: boolean }) {
       <p className="inbox-counts-status" aria-hidden="true">
         {refreshing ? 'Zahlen werden aktualisiert …' : ''}
       </p>
-      <details>
-        <summary>Was zählt bei Prüfen?</summary>
+      <KontenMenu
+        label="Was zählt bei Prüfen?"
+        icon={<CircleHelp size={16} aria-hidden="true" />}
+        iconOnly
+      >
         <p>
           Die Zahl bei „Prüfen“ ist die Summe aus Umsätzen und Aufgaben. „Bewegungen zu prüfen“ aus
           Datenquellen, etwa der Krypto-Lesequelle, stehen getrennt unter Aufgaben mit eigener
           Anzahl und sind in dieser Zahl nicht enthalten.
         </p>
-      </details>
+      </KontenMenu>
     </div>
   );
 }
@@ -942,12 +954,48 @@ function InboxBodyContent({
     );
     setBusy(null);
   };
-  const bankLayout = REDESIGN_ENABLED && entries.some(isBankInboxRow);
+  const groupAccounts =
+    REDESIGN_ENABLED && !accountScoped && !detailView && segmentCounts?.shown === 'umsaetze';
+  const recap = useQuery({
+    queryKey: [...INBOX_KEY, 'bank-sync-recap'],
+    queryFn: () => request<BankSyncRecapData>('GET', '/api/bank-sync/recap'),
+    enabled: groupAccounts,
+    refetchInterval: 30_000,
+  });
+  const [collapsed, setCollapsed] = useState(readCollapsedAccounts);
+  const toggleAccount = (id: string) => {
+    setCollapsed((previous) => {
+      const next = new Set(previous);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      try {
+        localStorage.setItem(BANK_COLLAPSE_KEY, JSON.stringify([...next]));
+      } catch {
+        /* Device storage can be unavailable. */
+      }
+      return next;
+    });
+  };
+  const accountGroups = groupAccounts
+    ? bankAccountGroups(
+        entries,
+        (recap.data?.accounts ?? []).filter(
+          (account) => !search.bankSource || account.sourceId === search.bankSource,
+        ),
+      )
+    : [];
+  const bankLayout = REDESIGN_ENABLED && (groupAccounts || entries.some(isBankInboxRow));
   const groups: (Exclude<InboxKind, 'overspent'> | null)[] =
     bankLayout || accountScoped || search.bankSource || groupByTitle
       ? [null]
       : (Object.keys(LABELS) as Exclude<InboxKind, 'overspent'>[]);
-  let room = serverPaginated ? entries.length : shown;
+  const displayGroups = groupAccounts
+    ? accountGroups.map((account) => ({ kind: null, account, all: account.entries }))
+    : groups.map((kind) => ({
+        kind,
+        account: undefined,
+        all: kind ? entries.filter((item) => item.kind === kind) : entries,
+      }));
   const canLoadMore = serverPaginated ? Boolean(hasMore) : entries.length > shown;
   const remaining = serverPaginated
     ? Math.max((totalEntries ?? entries.length) - entries.length, 0)
@@ -1010,6 +1058,13 @@ function InboxBodyContent({
       />
       {!REDESIGN_ENABLED && reviewProgress}
       {pending && <LoadingNote what="Aufgaben" />}
+      {groupAccounts && recap.isError && (
+        <ErrorNote
+          what="Kontenübersicht"
+          error={recap.error}
+          onRetry={() => void recap.refetch()}
+        />
+      )}
       {learnBookingId && <AssignmentLearnOffer bookingId={learnBookingId} />}
       {error && <ErrorNote what="Aufgaben" error={error} onRetry={onRetry} />}
       {!pending && !error && readSourceSummaries && (
@@ -1053,7 +1108,7 @@ function InboxBodyContent({
             : 'Keine offenen Aufgaben in diesem Zeitraum.'}
         </EmptyNote>
       )}
-      {entries.length > 0 && (
+      {(entries.length > 0 || accountGroups.length > 0) && (
         <>
           {search.bankSource && (
             <BankBulkActions
@@ -1109,122 +1164,150 @@ function InboxBodyContent({
               </thead>
             )}
             <tbody>
-              {groups.flatMap((kind) => {
-                const all = kind ? entries.filter((item) => item.kind === kind) : entries;
-                if (!all.length || (!serverPaginated && room <= 0)) return [];
+              {displayGroups.flatMap(({ kind, account, all }, index) => {
+                const room = serverPaginated
+                  ? all.length
+                  : Math.max(
+                      0,
+                      shown -
+                        displayGroups
+                          .slice(0, index)
+                          .reduce((sum, group) => sum + group.all.length, 0),
+                    );
+                if (!account && (!all.length || room <= 0)) return [];
                 const items = all.slice(0, room);
-                room -= items.length;
                 return [
                   <tr
-                    className={`kgroup${bankLayout ? ' sr-only' : ''}`}
-                    key={kind ?? 'bank-source'}
+                    className={
+                      account ? 'bank-account-header' : `kgroup${bankLayout ? ' sr-only' : ''}`
+                    }
+                    data-account-id={account?.id}
+                    key={account?.id ?? kind ?? 'bank-source'}
                   >
-                    <td className="rev-mark" />
-                    <th scope="rowgroup" colSpan={bankLayout ? 7 : 2}>
-                      {kind
-                        ? LABELS[kind]
-                        : accountScoped
-                          ? 'Bankumsätze dieses Kontos'
-                          : groupByTitle
-                            ? 'Quellbewegungen'
-                            : 'Aufgaben dieser Bankquelle'}{' '}
-                      <span className="kgcount">
-                        {kind ? (countsByKind?.[kind] ?? all.length) : (totalEntries ?? all.length)}
-                      </span>
+                    {!account && <td className="rev-mark" />}
+                    <th scope="rowgroup" colSpan={account ? 8 : bankLayout ? 7 : 2}>
+                      {account ? (
+                        <BankAccountHeader
+                          account={account}
+                          collapsed={collapsed.has(account.id)}
+                          onToggle={() => toggleAccount(account.id)}
+                        />
+                      ) : (
+                        <>
+                          {kind
+                            ? LABELS[kind]
+                            : accountScoped
+                              ? 'Bankumsätze dieses Kontos'
+                              : groupByTitle
+                                ? 'Quellbewegungen'
+                                : 'Aufgaben dieser Bankquelle'}{' '}
+                          <span className="kgcount">
+                            {kind
+                              ? (countsByKind?.[kind] ?? all.length)
+                              : (totalEntries ?? all.length)}
+                          </span>
+                        </>
+                      )}
                     </th>
                   </tr>,
-                  ...items.flatMap((item) => {
-                    const causeOf = (entry: InboxEntry) =>
-                      groupByTitle && entry.type === 'stored' ? entry.title : inboxCause(entry);
-                    const cause = !serverPaginated || detailView ? null : causeOf(item);
-                    const members = cause
-                      ? items.filter((member) => causeOf(member) === cause)
-                      : [item];
-                    const total = cause ? (countsByCause?.[cause] ?? members.length) : 1;
-                    if ((total > 1 || groupByTitle) && members[0]?.id !== item.id) return [];
-                    const expanded =
-                      groupByTitle || accountScoped
-                        ? expandedTitle === cause
-                        : search.gruppe === item.id;
-                    const group =
-                      total > 1 || groupByTitle ? (
-                        <tr className="inbox-cause" key={`cause-${item.id}`}>
-                          <td />
-                          <td colSpan={bankLayout ? 7 : 2}>
-                            <Button
-                              variant="ghost"
-                              aria-expanded={expanded}
-                              onClick={() =>
-                                groupByTitle || accountScoped
-                                  ? setExpandedTitle(expanded ? null : cause)
-                                  : void navigate({
-                                      to: '.',
-                                      search: { ...search, gruppe: expanded ? undefined : item.id },
-                                      replace: true,
-                                    } as never)
-                              }
-                            >
-                              {item.type === 'stored'
-                                ? groupByTitle
-                                  ? item.title
-                                  : `${item.title} · ${maskMoneyText(sourceWarningReason(item.detail))}`
-                                : 'Datenprüfung'}{' '}
-                              · {total} Aufgaben ·{' '}
-                              {expanded ? 'Einzelpunkte ausblenden' : 'Einzelpunkte anzeigen'}
-                            </Button>
-                            {members.length < total && (
-                              <p>
-                                {members.length} von {total} geladen · Weitere anzeigen lädt die
-                                nächsten Einzelpunkte.
-                              </p>
-                            )}
-                          </td>
-                        </tr>
-                      ) : null;
-                    return [
-                      group,
-                      ...((total > 1 || groupByTitle) && !expanded
-                        ? []
-                        : members.map((item) => (
-                            <InboxRow
-                              key={item.id}
-                              item={item}
-                              bankLayout={bankLayout}
-                              bankSelected={selectedBank.has(item.id)}
-                              onBankSelect={
-                                // Bulk actions need the source whose queue is shown.
-                                search.bankSource
-                                  ? (checked) =>
-                                      setSelectedBank((current) => {
-                                        const next = new Set(current);
-                                        if (checked && next.size < 100) next.add(item.id);
-                                        else next.delete(item.id);
-                                        return next;
-                                      })
-                                  : undefined
-                              }
-                              onBankPrepare={prepareBank}
-                              detailView={detailView || groupByTitle}
-                              onBankConfirmed={setLearnBookingId}
-                              busy={
-                                busy === item.id ||
-                                (loadingId !== null &&
-                                  item.type === 'booking' &&
-                                  loadingId === item.bookingId)
-                              }
-                              onEdit={onEdit}
-                              onSavings={onSavings}
-                              onResolve={() => {
-                                if (item.type === 'stored') void resolve(item);
-                              }}
-                              onConfirm={(id) =>
-                                writes.patch.mutate({ id, patch: { status: 'confirmed' } })
-                              }
-                              confirming={writes.patch.isPending}
-                            />
-                          ))),
-                    ];
-                  }),
+                  ...(account && collapsed.has(account.id)
+                    ? []
+                    : items.flatMap((item) => {
+                        const causeOf = (entry: InboxEntry) =>
+                          groupByTitle && entry.type === 'stored' ? entry.title : inboxCause(entry);
+                        const cause =
+                          groupAccounts || !serverPaginated || detailView ? null : causeOf(item);
+                        const members = cause
+                          ? items.filter((member) => causeOf(member) === cause)
+                          : [item];
+                        const total = cause ? (countsByCause?.[cause] ?? members.length) : 1;
+                        if ((total > 1 || groupByTitle) && members[0]?.id !== item.id) return [];
+                        const expanded =
+                          groupByTitle || accountScoped
+                            ? expandedTitle === cause
+                            : search.gruppe === item.id;
+                        const group =
+                          total > 1 || groupByTitle ? (
+                            <tr className="inbox-cause" key={`cause-${item.id}`}>
+                              <td />
+                              <td colSpan={bankLayout ? 7 : 2}>
+                                <Button
+                                  variant="ghost"
+                                  aria-expanded={expanded}
+                                  onClick={() =>
+                                    groupByTitle || accountScoped
+                                      ? setExpandedTitle(expanded ? null : cause)
+                                      : void navigate({
+                                          to: '.',
+                                          search: {
+                                            ...search,
+                                            gruppe: expanded ? undefined : item.id,
+                                          },
+                                          replace: true,
+                                        } as never)
+                                  }
+                                >
+                                  {item.type === 'stored'
+                                    ? groupByTitle
+                                      ? item.title
+                                      : `${item.title} · ${maskMoneyText(sourceWarningReason(item.detail))}`
+                                    : 'Datenprüfung'}{' '}
+                                  · {total} Aufgaben ·{' '}
+                                  {expanded ? 'Einzelpunkte ausblenden' : 'Einzelpunkte anzeigen'}
+                                </Button>
+                                {members.length < total && (
+                                  <p>
+                                    {members.length} von {total} geladen · Weitere anzeigen lädt die
+                                    nächsten Einzelpunkte.
+                                  </p>
+                                )}
+                              </td>
+                            </tr>
+                          ) : null;
+                        return [
+                          group,
+                          ...((total > 1 || groupByTitle) && !expanded
+                            ? []
+                            : members.map((item) => (
+                                <InboxRow
+                                  key={item.id}
+                                  item={item}
+                                  bankLayout={bankLayout}
+                                  bankSelected={selectedBank.has(item.id)}
+                                  onBankSelect={
+                                    // Bulk actions need the source whose queue is shown.
+                                    search.bankSource
+                                      ? (checked) =>
+                                          setSelectedBank((current) => {
+                                            const next = new Set(current);
+                                            if (checked && next.size < 100) next.add(item.id);
+                                            else next.delete(item.id);
+                                            return next;
+                                          })
+                                      : undefined
+                                  }
+                                  onBankPrepare={prepareBank}
+                                  detailView={detailView || groupByTitle}
+                                  onBankConfirmed={setLearnBookingId}
+                                  busy={
+                                    busy === item.id ||
+                                    (loadingId !== null &&
+                                      item.type === 'booking' &&
+                                      loadingId === item.bookingId)
+                                  }
+                                  onEdit={onEdit}
+                                  onSavings={onSavings}
+                                  onResolve={() => {
+                                    if (item.type === 'stored') void resolve(item);
+                                  }}
+                                  onConfirm={(id) =>
+                                    writes.patch.mutate({ id, patch: { status: 'confirmed' } })
+                                  }
+                                  confirming={writes.patch.isPending}
+                                />
+                              ))),
+                        ];
+                      })),
                 ];
               })}
             </tbody>
@@ -1764,4 +1847,56 @@ function SourceLink({ item }: { item: InboxStored }) {
       </AppLink>
     );
   return null;
+}
+
+function BankAccountHeader({
+  account,
+  collapsed,
+  onToggle,
+}: {
+  account: ReturnType<typeof bankAccountGroups>[number];
+  collapsed: boolean;
+  onToggle: () => void;
+}) {
+  const meta = account.recap;
+  const open = account.entries.length > 0 || (meta?.openTotal ?? 0) > 0;
+  const summary = (
+    <>
+      <strong>{maskMoneyText(account.name)}</strong>
+      <span className="text-muted">
+        {meta?.syncedAt &&
+          `${new Date(meta.syncedAt).toLocaleString('de-AT', { timeZone: 'Europe/Vienna' })} · `}
+        {!open
+          ? 'nichts offen'
+          : meta?.result
+            ? `${meta.result.fetched} abgerufen · ${meta.result.linked} verknüpft · ${meta.result.new} neu vorgemerkt`
+            : 'Offene Umsätze'}
+      </span>
+    </>
+  );
+  return (
+    <div className={`bank-account-summary${!open ? ' is-muted' : ''}`}>
+      {open ? (
+        <Button variant="ghost" aria-expanded={!collapsed} onClick={onToggle}>
+          <ChevronDown
+            size={16}
+            aria-hidden="true"
+            className={collapsed ? 'is-collapsed' : undefined}
+          />
+          {summary}
+        </Button>
+      ) : (
+        <div>{summary}</div>
+      )}
+      {meta?.running && (
+        <p role="status">Abruf läuft – angezeigt bleibt das letzte vollständige Ergebnis.</p>
+      )}
+      {meta?.status === 'error' && (
+        <p>Abruf fehlgeschlagen – angezeigt bleibt das letzte vollständige Ergebnis.</p>
+      )}
+      {open && !account.entries.length && !collapsed && (
+        <p>Weitere anzeigen lädt die offenen Umsätze dieses Kontos.</p>
+      )}
+    </div>
+  );
 }

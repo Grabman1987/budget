@@ -814,3 +814,99 @@
     grid-area: category;
   }
 }
+
+/* Account groups share the row list; disclosure changes only this device's view. */
+.konten-inbox-actions-slot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-inline-start: auto;
+}
+.konten-frame-inbox .konten-inbox-sort-slot:empty {
+  display: none;
+}
+.konten-frame-inbox .inbox-count-rule {
+  margin: 0;
+}
+.konten-frame-inbox .inbox-counts-status:empty {
+  display: none;
+}
+.bank-account-header th {
+  padding: 0;
+  text-align: start;
+  border-block-start: 1px solid var(--rule);
+}
+.bank-account-summary > :is(button, div) {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  align-items: center;
+  padding: 12px;
+  width: 100%;
+  justify-content: start;
+}
+.bank-account-summary button {
+  text-align: start;
+}
+.bank-account-summary .text-muted {
+  font-size: var(--fs-meta);
+  font-weight: normal;
+}
+.bank-account-summary p {
+  padding-inline: 12px;
+  font-weight: normal;
+  font-size: var(--fs-meta);
+}
+.inbox-overspent {
+  margin-block: 24px;
+}
+.inbox-overspent ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.inbox-overspent li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  border-block-end: 1px solid var(--rule);
+}
+.inbox-overspent li > div {
+  display: grid;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+}
+.inbox-overspent li .text-muted {
+  font-size: var(--fs-meta);
+}
+@media (max-width: 767px) {
+  .konten-inbox-actions-slot {
+    margin-inline-start: 0;
+    flex-wrap: wrap;
+  }
+  .kinbox-v1 .bank-v1-table .bank-account-header {
+    display: block;
+    background: var(--surface);
+    border: 1px solid var(--rule);
+  }
+  .kinbox-v1 .bank-v1-table .bank-account-header th {
+    display: block;
+    border: 0;
+  }
+  .bank-account-summary > :is(button, div) {
+    display: grid;
+  }
+}
+
+.bank-account-summary.is-muted strong {
+  color: var(--ink-2);
+  font-weight: normal;
+}
+.bank-account-summary svg {
+  flex-shrink: 0;
+}
+.bank-account-summary svg.is-collapsed {
+  transform: rotate(-90deg);
+}

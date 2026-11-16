@@ -1,6 +1,6 @@
 # User-Stories – Prüfen/Posteingang und Dokument-Upload
 
-Bereich 07. Gesamtkatalog, Status- und Verweis-Legende: `docs/USER-STORIES.md`. Stand: 15.11.2026.
+Bereich 07. Gesamtkatalog, Status- und Verweis-Legende: `docs/USER-STORIES.md`. Stand: 16.11.2026.
 Bildschirm Prüfen: `/konten/pruefen` (Konten › Prüfen). Zähler: „Umsätze“ und „Aufgaben“ oben, daneben „n offen“.
 
 ### I-01 – Bankumsatz bestätigen oder nicht übernehmen
@@ -23,9 +23,17 @@ Bildschirm Prüfen: `/konten/pruefen` (Konten › Prüfen). Zähler: „Umsätze
   6. Das Hakerl bleibt ohne Konto, Empfänger und gültige Kategorie bzw. nachgewiesenes Regel-/Umbuchungsziel gesperrt. Tooltip und markierte Zelle benennen den fehlenden Wert. Laufende, fehlgeschlagene oder mehrdeutige Prüfungen blockieren; der Server prüft weiterhin vor jedem Schreiben.
   7. Eindeutige Gegenbuchungen sind ausdrücklich als Vorschlag wählbar. Mehrdeutige Treffer und bereits vorbereitete Gegenumsätze bleiben im vollständigen Formular; kein Vorschlag wird automatisch gebucht. Archivierte Kategorien werden nicht neu angeboten.
   8. Bestätigung und Ablehnung behalten ihr Rückgängig. Zellenauswahl allein verändert keine Buchung und keinen Kontostand.
-  9. R?cklink, Ansichtsmen?, Ums?tze/Aufgaben und Filter stehen am Desktop in einer Zeile und brechen bei 390 px ohne horizontalen ?berlauf um.
+  9. Rücklink, Ansichtsmenü, Umsätze/Aufgaben und Filter stehen am Desktop in einer Zeile und brechen bei 390 px ohne horizontalen Überlauf um.
 - **Status:** teilweise — **Verweis:** Y16, #1187
-  Zeilenbearbeitung, Kategorie-Spalte, Hakerl/X und Tastaturwege für offene Bankkandidaten sind implementiert; Review und Live-Abnahme offen. Bereits gebuchte ungeprüfte Zeilen behalten ihre bestehenden Zuordnungsdialoge. Die Kopfzeilenkorrektur aus #1188 ist enthalten; R?cklink und Ansichtsmen? teilen sich die Werkzeugleiste.
+  Zeilenbearbeitung, Kategorie-Spalte, Hakerl/X und Tastaturwege für offene Bankkandidaten sind implementiert; Review und Live-Abnahme offen. Bereits gebuchte ungeprüfte Zeilen behalten ihre bestehenden Zuordnungsdialoge. Die Kopfzeilenkorrektur aus #1188 ist enthalten; Rücklink und Ansichtsmenü teilen sich die Werkzeugleiste.
+
+### I-01c – Review one list per account (#1191)
+
+- **Flow:** Open Konten › Prüfen › Umsätze. Each account header contains its latest fetch date and result counts directly above the existing rows. Accounts with open rows start expanded; the device remembers explicit collapse choices. Accounts without open rows occupy one muted line. Multiple sources mapped to the same account share one group; identically named accounts remain separate.
+- **Actions:** The toolbar contains “Dokument hochladen”, “Prüfen durchgehen” and Filter. The info control beside the tab counters explains their scope. In-row selection, tick/X, full review, server checks and Undo retain I-01 behavior. No recap block duplicates the rows or requires a filtering click.
+- **Overspending:** A nonempty “Überzogene Kategorien” section below the rows lists category, group and the canonical current-month shortfall. “Decken” opens the existing envelope cover/move form with that category and its exact shortfall. Nothing is moved until the user submits. These categories do **not** enter the Aufgaben or Umsätze counters; existing task-count semantics stay unchanged.
+- **Acceptance:** Two accounts are expanded on first load, each candidate appears exactly once, and a candidate can be edited and accepted immediately. Undo restores it. Collapse survives reload on the same device, while other groups keep their state. Desktop and 390 px phone use the same order. The cover dialog displays the original deficit and reuses the existing guarded writer.
+- **Status:** implemented for review; focused model/browser evidence, independent review, CI and owner acceptance remain separate. Pagination remains explicit through “Weitere anzeigen”; account headers whose open rows are on a later page explain this. Already booked unchecked rows retain their existing assignment dialogs (remaining extension of #1187).
 
 ### I-01a – Mehrere Bankumsätze auf einmal bearbeiten
 - **Story:** Als Nutzer möchte ich mehrere eindeutige Bankumsätze in einem Zug bestätigen oder nicht übernehmen, damit ein Abruf mit vielen Umsätzen nicht Klick für Klick abgearbeitet werden muss.

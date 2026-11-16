@@ -1,0 +1,61 @@
+import type { InboxEntry, InboxEnvelope } from './api';
+import type { BankSyncRecapData } from './bank-sync-recap';
+import { isBankInboxRow } from './bank-bulk-actions';
+
+export type BankAccountGroup = {
+  id: string;
+  name: string;
+  entries: Exclude<InboxEntry, InboxEnvelope>[];
+  recap?: BankSyncRecapData['accounts'][number];
+};
+
+/** Stable account identity keeps identically named accounts and pagination separate. */
+export function bankAccountGroups(entries: InboxEntry[], accounts: BankSyncRecapData['accounts']) {
+  const groups = new Map<string, BankAccountGroup>();
+  for (const account of accounts) {
+    if (!account.accountId) continue;
+    const previous = groups.get(account.accountId);
+    if (!previous || (account.syncedAt ?? '') > (previous.recap?.syncedAt ?? ''))
+      groups.set(account.accountId, {
+        id: account.accountId,
+        name: account.name,
+        entries: [],
+        recap: account,
+      });
+  }
+  for (const entry of entries) {
+    if (entry.type === 'envelope') continue;
+    const bank = isBankInboxRow(entry);
+    const row =
+      entry.type === 'booking' ? entry : entry.type === 'stored' ? entry.bankCandidate : undefined;
+    const id =
+      bank && row?.accountId
+        ? row.accountId
+        : bank
+          ? `legacy:${row?.accountName ?? entry.id}`
+          : 'other';
+    let group = groups.get(id);
+    if (!group) {
+      group = {
+        id,
+        name: bank ? (row?.accountName ?? 'Bankumsätze') : 'Weitere Umsätze',
+        entries: [],
+      };
+      groups.set(id, group);
+    }
+    group.entries.push(entry);
+  }
+  return [...groups.values()];
+}
+
+export const BANK_COLLAPSE_KEY = 'budget.inbox.collapsed-accounts.v1';
+export function readCollapsedAccounts(): Set<string> {
+  try {
+    const value: unknown = JSON.parse(localStorage.getItem(BANK_COLLAPSE_KEY) ?? '[]');
+    return new Set(
+      Array.isArray(value) ? value.filter((id): id is string => typeof id === 'string') : [],
+    );
+  } catch {
+    return new Set();
+  }
+}

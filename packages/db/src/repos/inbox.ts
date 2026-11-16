@@ -57,6 +57,7 @@ export interface InboxBooking {
   kind: 'uncategorized';
   urgent: false;
   date: string;
+  accountId?: string;
   accountName: string;
   payeeName: string | null;
   memo: string | null;
@@ -84,6 +85,7 @@ export interface InboxStored {
         currency: string;
         memo: string;
         payeeName: string | null;
+        accountId?: string;
         accountName: string;
         suggestion?: BankSuggestion;
       }
@@ -273,6 +275,7 @@ function uncategorizedBookings(db: Executor, today: string): InboxBooking[] {
     .select({
       id: booking.id,
       date: booking.date,
+      accountId: account.id,
       accountName: account.name,
       payeeName: payee.name,
       memo: booking.memo,
@@ -322,6 +325,7 @@ export function readInbox(
           currency: bankSyncCandidate.currency,
           memo: bankSyncCandidate.memo,
           payeeName: bankSyncCandidate.rawPayee,
+          accountId: account.id,
           accountName: account.name,
         })
         .from(bankSyncCandidate)

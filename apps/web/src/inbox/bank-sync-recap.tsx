@@ -9,10 +9,12 @@ import './bank-sync-recap.css';
 export type BankSyncRecapData = {
   accounts: {
     sourceId: string;
+    accountId?: string | null;
     name: string;
     syncedAt: string | null;
     result: { fetched: number; linked: number; new: number } | null;
     open: number | null;
+    openTotal?: number;
     running: boolean;
     status: string;
   }[];

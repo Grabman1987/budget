@@ -106,6 +106,8 @@ function RedesignKontenFrame({
             {view === 'inbox' && (
               <>
                 <div data-konten-slot="inbox-segments" className="konten-inbox-segments-slot" />
+                <div data-konten-slot="inbox-info" />
+                <div data-konten-slot="inbox-actions" className="konten-inbox-actions-slot" />
                 <div data-konten-slot="inbox-sort" className="konten-inbox-sort-slot" />
                 <div data-konten-slot="inbox-filters" className="konten-inbox-filters-slot" />
                 <div data-konten-slot="inbox-selection" className="konten-inbox-selection-slot" />
