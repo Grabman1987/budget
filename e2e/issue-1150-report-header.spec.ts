@@ -1,6 +1,7 @@
 import { sampleTest as test, expect } from './sample';
 import AxeBuilder from '@axe-core/playwright';
 import { setTheme } from './theme';
+import { expectScreenshot } from './visual';
 
 for (const theme of ['light', 'dark'] as const)
   test(`compact report header and nested menu (${theme})`, async ({ page }, info) => {
@@ -8,6 +9,7 @@ for (const theme of ['light', 'dark'] as const)
     await setTheme(page, theme);
     const head = page.getByTestId('redesign-report-head');
     await expect(page.getByTestId('r5-month-saved')).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1);
     await page.getByLabel('Bericht wechseln', { exact: true }).click();
     const parent = page.getByRole('link', { name: '1. Monatsbericht', exact: true });
     const child = page.getByRole('link', { name: 'Finanz-Check-Verlauf', exact: true });
@@ -15,10 +17,12 @@ for (const theme of ['light', 'dark'] as const)
     const childBox = (await child.boundingBox())!;
     expect(childBox.x).toBeGreaterThan(parentBox.x);
     await page.screenshot({ path: info.outputPath(`report-menu-${theme}.png`) });
+    await expectScreenshot(page, `report-menu-${theme}.png`);
     await child.click();
     await expect(page).toHaveURL(/darstellung=finanzcheck/);
     await expect(page.getByTestId('fc-ok-count')).toBeVisible();
     await expect(head.getByRole('heading', { level: 1 })).toHaveText('Finanz-Check-Verlauf');
+    await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1);
     await expect(head.getByRole('combobox', { name: 'Darstellung', exact: true })).toHaveCount(0);
     await expect(head.locator('.redesign-report-number')).toHaveCount(0);
     await expect(head.getByRole('button', { name: /Bericht:/ })).toHaveCount(0);
@@ -42,6 +46,7 @@ for (const theme of ['light', 'dark'] as const)
         .violations,
     ).toEqual([]);
     await page.screenshot({ path: info.outputPath(`report-header-${theme}.png`) });
+    await expectScreenshot(page, `report-header-${theme}.png`);
     await page.reload();
     await expect(head.getByRole('heading', { level: 1 })).toHaveText('Finanz-Check-Verlauf');
     await page.goBack();
