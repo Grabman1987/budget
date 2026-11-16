@@ -1,0 +1,546 @@
+import { Button, Select, useAmountPrivacy, useIsPhone } from '@budget/ui';
+import { useQuery } from '@tanstack/react-query';
+import { Check, CircleHelp, MoreHorizontal, Pencil, X } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
+import { request } from '../api/http';
+import { candidateAssignmentQuery } from '../assignment/api';
+import { useBudgetWrite } from '../budget/use-category-writes';
+import { CategoryCombobox } from '../ledger/category-picker';
+import { pickableCategories } from '../ledger/capture-model';
+import { nativeCurrency, shortDay } from '../ledger/format';
+import { KontenMenu } from '../ledger/konten-menu';
+import {
+  accountsQuery,
+  bookingsQuery,
+  LEDGER_KEY,
+  lookupsQuery,
+  payeesQuery,
+} from '../ledger/queries';
+import type { InboxStored } from './api';
+import { BankCandidate, type PreparedBankSuggestion } from './bank-candidate';
+import { bankRowMissing } from './bank-row-model';
+
+type Match = { id: string; accountName: string; date: string };
+type Matches = { merge: Match[]; link?: Match[]; transfers: Match[] };
+type Draft = {
+  payeeId?: string | undefined;
+  categoryId?: string | undefined;
+  ruleId?: string | null | undefined;
+  revision: string;
+  target?: string | undefined;
+};
+
+/** Local choices only: confirmation and rejection retain the audited writers and grouped Undo. */
+export function BankCandidateRow({
+  item,
+  selected,
+  onSelect,
+  onPrepared,
+  onConfirmed,
+  onResolve,
+  busy,
+}: {
+  item: InboxStored;
+  selected: boolean;
+  onSelect: ((checked: boolean) => void) | undefined;
+  onPrepared: (id: string, suggestion: PreparedBankSuggestion | undefined) => void;
+  onConfirmed: (id: string) => void;
+  onResolve: () => void;
+  busy: boolean;
+}) {
+  useAmountPrivacy();
+  const isPhone = useIsPhone();
+  const id = item.refId!;
+  const [active, setActive] = useState(false);
+  const review = useQuery({ ...candidateAssignmentQuery(id), enabled: active });
+  const matches = useQuery({
+    queryKey: [...LEDGER_KEY, 'bank-matches', id],
+    queryFn: () =>
+      request<Matches>('GET', `/api/bank-sync/candidates/${encodeURIComponent(id)}/matches`),
+    enabled: active,
+  });
+  const lookups = useQuery({ ...lookupsQuery(), enabled: active });
+  const payees = useQuery({ ...payeesQuery(), enabled: active });
+  const accounts = useQuery({ ...accountsQuery(), enabled: active });
+  const [draft, setDraft] = useState<Draft>();
+  const [editing, setEditing] = useState<'payee' | 'suggestion' | 'category'>();
+  const [saving, setSaving] = useState(false);
+  const [fullRequest, setFullRequest] = useState(0);
+  const [formPrepared, setFormPrepared] = useState<{
+    suggestion: PreparedBankSuggestion | undefined;
+  } | null>(null);
+  const row = useRef<HTMLTableRowElement>(null);
+  const write = useBudgetWrite();
+  const prepareForm = useCallback(
+    (suggestion: PreparedBankSuggestion | undefined) => setFormPrepared({ suggestion }),
+    [],
+  );
+  const data = review.data;
+  const suggestions = data?.suggestions ?? [];
+  const first = suggestions.find((suggestion) => !suggestion.unavailable);
+  const ruleId = draft?.ruleId === undefined ? first?.id : draft.ruleId;
+  const rule = suggestions.find((suggestion) => suggestion.id === ruleId);
+  const targets = useMemo(
+    () => [
+      ...(matches.data?.merge ?? []).map((match) => ({ ...match, action: 'merge' as const })),
+      ...(matches.data?.link ?? []).map((match) => ({ ...match, action: 'merge' as const })),
+      ...(matches.data?.transfers ?? []).map((match) => ({
+        ...match,
+        action: 'transfer' as const,
+      })),
+    ],
+    [matches.data],
+  );
+  const target = targets.find((match) => `${match.action}:${match.id}` === draft?.target);
+  const payeeId = draft?.payeeId ?? rule?.actions.payeeId ?? data?.cleanup.payeeId ?? '';
+  const payee = payees.data?.payees.find((payee) => payee.id === payeeId);
+  const needsHistory =
+    active && payees.isSuccess && Boolean(payeeId) && !payee?.defaultCategoryId && !rule;
+  const history = useQuery({
+    ...bookingsQuery({ payeeId, sort: 'date', direction: 'desc' }, undefined, 1),
+    enabled: needsHistory,
+  });
+  const latestSplits = history.data?.items[0]?.splits;
+  const categoryId =
+    draft?.categoryId ??
+    rule?.actions.categoryId ??
+    payee?.defaultCategoryId ??
+    (latestSplits?.length === 1 ? latestSplits[0]?.categoryId : undefined) ??
+    '';
+  const categories = pickableCategories(undefined, lookups.data).filter(
+    (category) =>
+      !lookups.data?.categories.find((entry) => entry.id === category.id)?.hiddenAt &&
+      ((item.bankCandidate?.amountCents ?? 0) >= 0 || category.kind !== 'income'),
+  );
+  const category = categories.find((category) => category.id === categoryId);
+  const transferId = rule?.actions.transferAccountId;
+  const counterAccount = accounts.data?.accounts.find((account) => account.id === transferId);
+  const ready =
+    review.isSuccess &&
+    matches.isSuccess &&
+    !review.isFetching &&
+    !matches.isFetching &&
+    lookups.isSuccess &&
+    payees.isSuccess &&
+    accounts.isSuccess &&
+    (!needsHistory || history.isSuccess);
+  const hasMatches = Boolean(
+    matches.data &&
+    (matches.data.merge.length || matches.data.link?.length || matches.data.transfers.length),
+  );
+  const blocked =
+    review.isError ||
+    matches.isError ||
+    lookups.isError ||
+    payees.isError ||
+    accounts.isError ||
+    (needsHistory && history.isError)
+      ? 'Vorschläge konnten nicht geladen werden. Bitte im Formular erneut prüfen.'
+      : draft && draft.revision !== data?.candidateRevision
+        ? 'Bankumsatz hat sich geändert. Bitte im Formular erneut prüfen.'
+        : data?.existingTransfer || (hasMatches && (!target || targets.length !== 1))
+          ? targets.length === 1 && !data?.existingTransfer
+            ? 'Gegenbuchung unter Vorschlag wählen.'
+            : 'Mehrere mögliche Gegenbuchungen. Bitte im Formular prüfen.'
+          : rule?.unavailable
+            ? 'Regel nicht verfügbar. Bitte im Formular prüfen.'
+            : rule &&
+                draft?.ruleId === undefined &&
+                (!rule.automatic ||
+                  suggestions.filter((suggestion) => !suggestion.unavailable).length !== 1)
+              ? 'Regelvorschlag bitte im Formular prüfen.'
+              : undefined;
+  const missing = bankRowMissing({
+    ready: ready || Boolean(blocked),
+    blocked,
+    account: Boolean(data?.candidate.accountId),
+    payee: Boolean(payee),
+    category: Boolean(category || rule?.actions.splits?.length || rule?.actions.incomeTypeId),
+    transfer: Boolean((transferId && counterAccount) || target),
+    knownRule: Boolean(
+      rule &&
+      (rule?.automatic || draft?.ruleId === rule?.id) &&
+      (rule.actions.categoryId || rule.actions.splits?.length || rule.actions.incomeTypeId),
+    ),
+  });
+  const locked = busy || saving;
+  const missingReason = missing?.reason;
+  const safeRule =
+    ready &&
+    !missing &&
+    !hasMatches &&
+    rule?.automatic &&
+    suggestions.filter((suggestion) => suggestion.automatic && !suggestion.unavailable).length === 1
+      ? rule
+      : undefined;
+  useEffect(() => {
+    onPrepared(
+      item.id,
+      formPrepared
+        ? ready && formPrepared.suggestion?.candidateRevision === data?.candidateRevision
+          ? formPrepared.suggestion
+          : undefined
+        : target?.action === 'merge' && data && ready && !missingReason
+          ? {
+              action: 'merge',
+              bookingId: target.id,
+              candidateRevision: data.candidateRevision,
+              label: `Mit Buchung ${shortDay(target.date)} zusammenführen`,
+            }
+          : safeRule && data
+            ? {
+                action: 'rule',
+                ruleId: safeRule.id,
+                revision: safeRule.revision,
+                candidateRevision: data.candidateRevision,
+                label: safeRule.name,
+                bulkSafe: true,
+              }
+            : undefined,
+    );
+  }, [onPrepared, item.id, safeRule, data, target, ready, missingReason, formPrepared]);
+  useEffect(() => {
+    if (editing)
+      row.current
+        ?.querySelector<HTMLInputElement | HTMLSelectElement>(
+          '.bank-row-editor input, .bank-row-editor select',
+        )
+        ?.focus();
+  }, [editing]);
+  const choose = (changes: Partial<Omit<Draft, 'revision'>>) => {
+    if (!data) return;
+    setFormPrepared(null);
+    setDraft((current) => ({ revision: data!.candidateRevision, ...current, ...changes }));
+    setEditing(undefined);
+    row.current?.focus();
+  };
+  const openFullForm = () => {
+    if (!locked) setFullRequest((request) => request + 1);
+  };
+  const navigate = (event: KeyboardEvent<HTMLTableRowElement>) => {
+    if (
+      !row.current?.contains(event.target as Node) ||
+      (event.target as HTMLElement).closest('dialog')
+    )
+      return;
+    if (editing) {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        setEditing(undefined);
+        row.current?.focus();
+      }
+      return;
+    }
+    if (event.key === 'Enter' && event.target === event.currentTarget) {
+      event.preventDefault();
+      openFullForm();
+    }
+    if (
+      (event.key === 'ArrowDown' || event.key === 'ArrowUp') &&
+      (event.target === event.currentTarget || (event.target as HTMLElement).tagName === 'BUTTON')
+    ) {
+      const rows = [
+        ...event.currentTarget
+          .closest('tbody')!
+          .querySelectorAll<HTMLTableRowElement>('.bank-v1-row'),
+      ];
+      const next = rows[rows.indexOf(event.currentTarget) + (event.key === 'ArrowDown' ? 1 : -1)];
+      if (next) {
+        event.preventDefault();
+        next.focus();
+      }
+    }
+  };
+  const pill = (cell: 'payee' | 'category' | 'suggestion', text: string, fixed: boolean) => (
+    <button
+      type="button"
+      className={`bank-suggestion-pill${fixed ? ' is-safe' : ''}${missing?.cell === cell ? ' is-missing' : ''}`}
+      aria-label={`${cell === 'payee' ? 'Empfänger' : cell === 'category' ? (transferId || target ? 'Gegenkonto' : 'Kategorie') : 'Vorschlag'} bearbeiten: ${text}`}
+      title={missing?.cell === cell ? missing.reason : text}
+      disabled={locked}
+      onClick={() =>
+        (transferId || target) && cell === 'category' ? setEditing('suggestion') : setEditing(cell)
+      }
+    >
+      {fixed ? <Check size={14} aria-hidden="true" /> : <CircleHelp size={14} aria-hidden="true" />}
+      {text}
+    </button>
+  );
+  return (
+    <tr
+      ref={row}
+      tabIndex={0}
+      className="rev-row bank-inbox-row bank-v1-row bank-editable-row"
+      data-testid="inbox-row"
+      onFocus={() => setActive(true)}
+      onPointerEnter={() => setActive(true)}
+      onKeyDown={navigate}
+      onKeyDownCapture={(event) => {
+        if (
+          !row.current?.contains(event.target as Node) ||
+          (event.target as HTMLElement).closest('dialog')
+        )
+          return;
+        if (editing && event.key === 'Escape') {
+          event.preventDefault();
+          event.stopPropagation();
+          setEditing(undefined);
+          row.current?.focus();
+        }
+      }}
+      onDoubleClick={(event) => {
+        if (!(event.target as HTMLElement).closest('button, input, select')) openFullForm();
+      }}
+    >
+      <td className="bank-v1-select">
+        {onSelect && !isPhone && (
+          <label className="bank-select">
+            <input
+              type="checkbox"
+              checked={selected}
+              disabled={locked}
+              aria-label={`Bankzeile auswählen: ${item.bankCandidate?.payeeName ?? item.id}`}
+              onChange={(event) => onSelect(event.target.checked)}
+            />
+          </label>
+        )}
+      </td>
+      <td className="bank-v1-payee">
+        <strong>{item.bankCandidate?.payeeName || item.bankCandidate?.memo || item.title}</strong>
+        {editing === 'payee' ? (
+          <div className="bank-row-editor">
+            <Select
+              aria-label="Empfänger"
+              value=""
+              onChange={(event) =>
+                choose({
+                  payeeId: event.target.value,
+                  ruleId: null,
+                  categoryId: undefined,
+                  target: undefined,
+                })
+              }
+            >
+              <option value="" disabled hidden>
+                Empfänger wählen
+              </option>
+              {payee && <option value={payee.id}>{payee.name} · Vorschlag</option>}
+              {payees.data?.payees
+                .filter((entry) => !entry.systemKind && entry.id !== payeeId)
+                .map((payee) => (
+                  <option key={payee.id} value={payee.id}>
+                    {payee.name}
+                  </option>
+                ))}
+            </Select>
+          </div>
+        ) : (
+          pill('payee', payee?.name ?? 'Empfänger fehlt', draft?.payeeId !== undefined)
+        )}
+        <span>{item.bankCandidate ? shortDay(item.bankCandidate.date) : ''}</span>
+        <small className="bank-v1-phone-source">
+          {item.bankCandidate?.accountName} · Bank-Sync
+        </small>
+      </td>
+      <td className="bank-v1-source" data-missing={missing?.cell === 'source' || undefined}>
+        <span>{item.bankCandidate?.accountName ?? 'Konto fehlt'}</span>
+        <small>Bank-Sync</small>
+      </td>
+      <td className="bank-v1-suggestion">
+        {editing === 'suggestion' ? (
+          <div className="bank-row-editor">
+            <Select
+              aria-label="Vorschlag"
+              value=""
+              onChange={(event) =>
+                choose({
+                  ruleId: event.target.value === 'manual' ? null : event.target.value,
+                  categoryId: undefined,
+                  payeeId: undefined,
+                  target: targets.some(
+                    (match) => `${match.action}:${match.id}` === event.target.value,
+                  )
+                    ? event.target.value
+                    : undefined,
+                })
+              }
+            >
+              <option value="" disabled hidden>
+                Vorschlag wählen
+              </option>
+              {targets.map((match) => (
+                <option key={`${match.action}:${match.id}`} value={`${match.action}:${match.id}`}>
+                  {match.action === 'transfer' ? 'Umbuchung' : 'Mit Buchung zusammenführen'}:{' '}
+                  {match.accountName} · {shortDay(match.date)} · Vorschlag
+                </option>
+              ))}
+              {suggestions.map((suggestion) => (
+                <option
+                  key={suggestion.id}
+                  value={suggestion.id}
+                  disabled={Boolean(suggestion.unavailable)}
+                >
+                  Regel: {suggestion.name} · Vorschlag
+                  {suggestion.unavailable ? ' · nicht verfügbar' : ''}
+                </option>
+              ))}
+              <option value="manual">Manuell zuordnen</option>
+            </Select>
+          </div>
+        ) : (
+          pill(
+            'suggestion',
+            target
+              ? `${target.action === 'transfer' ? 'Umbuchung' : 'Zusammenführen'}: ${target.accountName}`
+              : rule
+                ? `Regel: ${rule.name}`
+                : active && ready
+                  ? 'Manuell zuordnen'
+                  : (item.bankCandidate?.suggestion?.label ?? 'Vorschläge prüfen'),
+            draft?.ruleId !== undefined,
+          )
+        )}
+      </td>
+      <td className="bank-v1-category">
+        {editing === 'category' ? (
+          <div className="bank-row-editor">
+            <CategoryCombobox
+              label="Kategorie"
+              categories={categories.filter((entry) => entry.id !== category?.id)}
+              capturePicker
+              allowCreate
+              selectedName={category?.name ?? ''}
+              leading={category ? [{ id: category.id, label: `${category.name} · Vorschlag` }] : []}
+              onSelect={(id) =>
+                choose({ categoryId: id, ruleId: null, payeeId, target: undefined })
+              }
+            />
+          </div>
+        ) : (
+          pill(
+            'category',
+            target
+              ? target.accountName
+              : transferId
+                ? (counterAccount?.name ?? 'Gegenkonto fehlt')
+                : (category?.name ??
+                  (rule?.actions.splits
+                    ? 'Aufteilung laut Regel'
+                    : rule?.actions.incomeTypeId
+                      ? 'Einkommen laut Regel'
+                      : 'Kategorie fehlt')),
+            draft?.categoryId !== undefined || Boolean(draft?.ruleId),
+          )
+        )}
+      </td>
+      <td className="bank-v1-amount num">
+        {item.bankCandidate
+          ? nativeCurrency(item.bankCandidate.amountCents, item.bankCandidate.currency)
+          : '—'}
+      </td>
+      <td className="bank-v1-action">
+        <div className="inbox-row-actions">
+          <span title={missing?.reason ?? 'Übernehmen'}>
+            <button
+              type="button"
+              className="kstatus-btn"
+              aria-label="Übernehmen"
+              disabled={locked || Boolean(missing)}
+              onClick={() => {
+                if (!data || missing) return;
+                setSaving(true);
+                void write(
+                  () =>
+                    request<{ groupId: string; bookingId?: string }>(
+                      'POST',
+                      `/api/bank-sync/candidates/${encodeURIComponent(id)}/${target?.action ?? 'confirm'}`,
+                      target
+                        ? { bookingId: target.id }
+                        : rule
+                          ? {
+                              categoryId: null,
+                              ruleId: rule.id,
+                              revision: rule.revision,
+                              candidateRevision: data.candidateRevision,
+                            }
+                          : {
+                              categoryId,
+                              candidateRevision: data.candidateRevision,
+                              actions: { categoryId, payeeId },
+                            },
+                    ),
+                  () => 'Bankumsatz als Buchung bestätigt.',
+                )
+                  .then((result) => {
+                    if (result?.bookingId) onConfirmed(result.bookingId);
+                  })
+                  .finally(() => setSaving(false));
+              }}
+            >
+              <Check size={16} aria-hidden="true" />
+            </button>
+          </span>
+          <button
+            type="button"
+            className="kstatus-btn"
+            aria-label="Nicht übernehmen"
+            title="Nicht übernehmen"
+            disabled={locked}
+            onClick={onResolve}
+          >
+            <X size={16} aria-hidden="true" />
+          </button>
+        </div>
+      </td>
+      <td className="bank-v1-more">
+        <BankCandidate
+          id={id}
+          openRequest={fullRequest}
+          disabled={locked}
+          initialDraft={draft ? { payeeId, categoryId, ruleId: ruleId ?? null } : undefined}
+          description={
+            item.bankCandidate
+              ? `${item.bankCandidate.payeeName || item.bankCandidate.memo} · ${nativeCurrency(item.bankCandidate.amountCents, item.bankCandidate.currency)} · ${item.bankCandidate.accountName}`
+              : item.title
+          }
+          onConfirmed={onConfirmed}
+          onPrepared={prepareForm}
+          renderTrigger={(open) => (
+            <button
+              type="button"
+              className="bank-row-full-form"
+              aria-label="Prüfen"
+              title="Alle Felder prüfen"
+              disabled={locked}
+              onClick={open}
+            >
+              <Pencil size={16} aria-hidden="true" />
+            </button>
+          )}
+        />
+        {isPhone && onSelect && (
+          <KontenMenu
+            label="Weitere Aktionen"
+            icon={<MoreHorizontal size={16} aria-hidden="true" />}
+            iconOnly
+          >
+            <label className="bank-select">
+              <input
+                type="checkbox"
+                checked={selected}
+                disabled={locked}
+                aria-label={`Bankzeile auswählen: ${item.bankCandidate?.payeeName ?? item.id}`}
+                onChange={(event) => onSelect(event.target.checked)}
+              />
+              Auswählen
+            </label>
+            <Button variant="ghost" disabled={locked} onClick={openFullForm}>
+              Alle Felder
+            </Button>
+          </KontenMenu>
+        )}
+        {missing && <span className="sr-only">{missing.reason}</span>}
+      </td>
+    </tr>
+  );
+}

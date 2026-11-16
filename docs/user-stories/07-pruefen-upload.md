@@ -7,22 +7,25 @@ Bildschirm Prüfen: `/konten/pruefen` (Konten › Prüfen). Zähler: „Umsätze
 - **Story:** Als Nutzer möchte ich jeden neuen Bankumsatz einzeln bestätigen oder nicht übernehmen, damit nur Umsätze im Budget landen, die ich selbst gesehen habe.
 - **Ausgangslage:** Der Bankabruf hat neue Umsätze gebracht. Sie zählen noch nicht zum Kontostand, wenn die Verbindung „Erst nach Bestätigung zählen“ nutzt. Der Zähler „Umsätze“ ist größer als 0.
 - **Ablauf:**
-  1. Nutzer öffnet Konten › Prüfen und wählt den Teil „Umsätze“. Ist eine vorherige Ansicht hinterlegt, steht der Rücklink zuerst in der Werkzeugleiste, vor dem Ansichtsmenü „Prüfen“.
-  2. Die App zeigt je Umsatz Empfänger, Konto · Quelle, Vorschlag (oder „Unbekannt“) und Aktion.
-  3. Nutzer klickt bei einem sicheren Vorschlag „Bestätigen“, sonst „Prüfen“. Der Dialog „Buchung übernehmen“ zeigt Empfänger, Kategorie und mögliche Treffer.
-  4. Nutzer wählt Kategorie und Empfänger und klickt „Als Buchung bestätigen“ („Übernehmen“ bei einem gelernten Vorschlag).
+  1. Nutzer öffnet Konten › Prüfen und wählt den Teil „Umsätze“.
+  2. Die App zeigt je Bankkandidat Empfänger, Konto · Quelle, Vorschlag, Kategorie (bei Umbuchungen Gegenkonto), Betrag und Aktionen. Detailprüfungen laden beim Fokussieren oder Berühren der Zeile.
+  3. Nutzer wählt Empfänger, Regelvorschlag oder Kategorie direkt in der Zeile. Vorschläge stehen zuerst und sind gestrichelt; die ausdrückliche Auswahl macht sie durchgezogen. Eine gültige letzte Einzelkategorie des Empfängers dient als Vorschlag, wenn kein gespeicherter Standard besteht. Kategorien lassen sich getrennt neu anlegen.
+  4. Erst das Hakerl „Übernehmen“ bucht. Doppelklick auf die Zeile, Enter auf der fokussierten Zeile oder der Stift „Prüfen“ öffnen weiterhin „Buchung übernehmen“ für Aufteilung, Anteile, Notiz und Datum. Am Handy bleibt zusätzlich „Auswählen“ im Menü.
   5. Die App legt die Buchung an, löst den Eintrag auf und senkt den Zähler um 1. Ein Hinweis bietet „Rückgängig“ an.
-  6. Alternativ klickt der Nutzer „Nicht übernehmen“. Dann entsteht keine Buchung.
+  6. Alternativ klickt der Nutzer das X „Nicht übernehmen“. Dann entsteht keine Buchung. Pfeil auf/ab wechseln die Zeile; Enter öffnet die fokussierte Zelle, Escape verlässt die Zellbearbeitung ohne Änderung.
 - **Ergebnis:** Bestätigt: Buchung mit Status „Bestätigt“ in Konten › Alle Buchungen, Saldo aktualisiert. Nicht übernommen: Eintrag erledigt, keine Buchung, der Bankumsatz bleibt in der Quelle nachvollziehbar.
 - **Abnahmekriterien:**
   1. Der Zähler sinkt um genau 1 je erledigtem Eintrag.
   2. Ein Vorschlag wird nur nach Klick übernommen, nie von selbst.
   3. „Rückgängig“ stellt den offenen Eintrag wieder her; der Zähler steigt wieder.
   4. Ohne offene Einträge steht „Alles geprüft“ mit dem Hinweis, dass neue Buchungen aus dem Bank-Sync hier erscheinen.
-  5. Am Handy sind „Bestätigen“ und „Nicht übernehmen“ mit dem Finger treffbar (mind. 44 px) und brechen nicht um.
-  6. Rücklink, Ansichtsmenü, Umsätze/Aufgaben und Filter stehen am Desktop (1440 px) in einer Zeile. Rücklink und Abruf-Rückblick beginnen an derselben linken Rasterkante; bei 390 px bricht die Werkzeugleiste ohne horizontalen Überlauf um, hell und dunkel.
+  5. Hakerl und X sind am Desktop und am Handy direkt sichtbar und mindestens 44 px hoch. Ein Menü mit nur „Nicht übernehmen“ entfällt.
+  6. Das Hakerl bleibt ohne Konto, Empfänger und gültige Kategorie bzw. nachgewiesenes Regel-/Umbuchungsziel gesperrt. Tooltip und markierte Zelle benennen den fehlenden Wert. Laufende, fehlgeschlagene oder mehrdeutige Prüfungen blockieren; der Server prüft weiterhin vor jedem Schreiben.
+  7. Eindeutige Gegenbuchungen sind ausdrücklich als Vorschlag wählbar. Mehrdeutige Treffer und bereits vorbereitete Gegenumsätze bleiben im vollständigen Formular; kein Vorschlag wird automatisch gebucht. Archivierte Kategorien werden nicht neu angeboten.
+  8. Bestätigung und Ablehnung behalten ihr Rückgängig. Zellenauswahl allein verändert keine Buchung und keinen Kontostand.
+  9. R?cklink, Ansichtsmen?, Ums?tze/Aufgaben und Filter stehen am Desktop in einer Zeile und brechen bei 390 px ohne horizontalen ?berlauf um.
 - **Status:** teilweise — **Verweis:** Y16, #1187
-  Der bisherige Dialogablauf ist live. Die Kopfzeilen-Korrektur aus #1187 ist implementiert und unabhängig geprüft; Live-Abnahme offen. Die übrigen Anforderungen aus #1187 bleiben offen: direkte Empfänger-/Vorschlags-/Kategorie-Auswahl in der Zeile, Kategorie-Spalte, Hakerl/X mit Vollständigkeits- und Sperrgrundanzeige sowie Zell-/Zeilentastatur. Der bestehende Prüfdialog und seine Buchungs-/Rückgängig-Aktionen bleiben bis dahin der Bearbeitungsweg.
+  Zeilenbearbeitung, Kategorie-Spalte, Hakerl/X und Tastaturwege für offene Bankkandidaten sind implementiert; Review und Live-Abnahme offen. Bereits gebuchte ungeprüfte Zeilen behalten ihre bestehenden Zuordnungsdialoge. Die Kopfzeilenkorrektur aus #1188 ist enthalten; R?cklink und Ansichtsmen? teilen sich die Werkzeugleiste.
 
 ### I-01a – Mehrere Bankumsätze auf einmal bearbeiten
 - **Story:** Als Nutzer möchte ich mehrere eindeutige Bankumsätze in einem Zug bestätigen oder nicht übernehmen, damit ein Abruf mit vielen Umsätzen nicht Klick für Klick abgearbeitet werden muss.

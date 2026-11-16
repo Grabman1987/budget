@@ -730,3 +730,87 @@
 .konten-inbox-safe-slot:empty {
   display: none;
 }
+
+.konten-frame-inbox [data-konten-slot='inbox-back']:empty {
+  display: none;
+}
+.bank-v1-table th:nth-child(2) {
+  width: 22%;
+}
+.bank-v1-table th:nth-child(3) {
+  width: 14%;
+}
+.bank-v1-table th:nth-child(4) {
+  width: 18%;
+}
+.bank-v1-table th:nth-child(5) {
+  width: 18%;
+}
+.bank-v1-table th:nth-child(6) {
+  width: 110px;
+}
+.bank-v1-table th:nth-child(7) {
+  width: 100px;
+}
+.bank-editable-row:focus-visible {
+  outline: 2px solid var(--line);
+  outline-offset: -2px;
+}
+.bank-editable-row .bank-suggestion-pill {
+  min-height: 44px;
+  text-align: start;
+  background: transparent;
+  font-family: inherit;
+}
+.bank-editable-row .bank-suggestion-pill.is-missing,
+.bank-editable-row [data-missing] {
+  border-color: var(--red);
+}
+.bank-row-editor {
+  position: relative;
+  min-width: 0;
+}
+.bank-row-editor select {
+  width: 100%;
+  min-height: 44px;
+}
+.bank-row-editor .combo-list {
+  z-index: 30;
+}
+.bank-editable-row .kstatus-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.bank-row-full-form {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  color: var(--ink);
+  background: transparent;
+}
+@media (max-width: 767px) {
+  .bank-v1-table .bank-editable-row {
+    grid-template-areas: 'payee payee payee' 'suggestion action more' 'category category category';
+  }
+  .bank-v1-table .bank-editable-row .bank-v1-category {
+    grid-area: category;
+  }
+  .bank-editable-row .bank-row-full-form {
+    display: inline-flex;
+  }
+  .bank-editable-row .bank-row-editor {
+    max-width: 100%;
+  }
+}
+@media (min-width: 768px) and (max-width: 1100px) {
+  .kinbox-v1 .bank-v1-table .bank-editable-row {
+    grid-template-areas: 'select payee amount more' 'select source source more' '. suggestion action action' '. category category category';
+  }
+  .bank-editable-row .bank-v1-category {
+    grid-area: category;
+  }
+}
