@@ -13,11 +13,11 @@ import { chartPoints } from '../charts/tooltip-data';
 import { eur } from '../ledger/format';
 import { monthShort } from './table-format';
 
-/** The statement sentence of the period: cashflow, average, comparison; says if the running month counts. */
+/** The statement sentence of the period (at most 140 characters, the verdict contract): cashflow, average, comparison; says if the running month counts. */
 export function cashflowStatementLine(data: IncomeExpenseReportData, months: string[]): string {
   const statement = cashflowStatement(data.months, months, data);
   const running = data.currentMonth && months.includes(data.currentMonth);
-  return `Cashflow = Einnahmen − Ausgaben. Im Zeitraum${running ? ' (inkl. laufendem Monat)' : ''} ${statement ? eur(statement.total) : '—'}, durchschnittlich ${statement ? eur(statement.averagePerMonth) : '—'} pro Monat${
+  return `Cashflow im Zeitraum${running ? ' (inkl. laufendem Monat)' : ''} ${statement ? eur(statement.total) : '—'}, durchschnittlich ${statement ? eur(statement.averagePerMonth) : '—'} pro Monat${
     statement?.comparison
       ? `; ${statement.comparison.kind === 'previous-year' ? 'Vorjahreszeitraum' : 'Vorperiode'} ${eur(statement.comparison.total)}, Veränderung ${eur(statement.comparison.delta)}`
       : ''

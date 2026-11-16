@@ -180,6 +180,8 @@ test('a connection drop before commit retains one intent through reload and conf
   recovered = true;
   // Reload is itself a supported retry trigger; do not race its automatic sender with a click.
   await page.reload();
+  // #1200: the brief toast is the confirmation; delivery itself is proven by the stored booking.
+  await expect(page.getByText('Buchung gesendet.').first()).toBeVisible();
   await expect(waiting(page)).toHaveCount(0);
   await expect(page.getByRole('region', { name: 'Buchungsstatus', exact: true })).toHaveCount(0);
   await expect(page.getByText(/Buchungs-ID|Gespeicherte Änderungen/)).toHaveCount(0);

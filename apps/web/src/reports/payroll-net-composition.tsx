@@ -108,7 +108,7 @@ export function PayrollNetComposition({ rows, height = 220 }: { rows: Row[]; hei
         Telearbeit und Fahrgeld zählen als Gehalt, Reisespesen sind ausgenommen.
       </p>
       <div
-        className="rscroll"
+        className="rscroll pp-scroll"
         role="region"
         aria-label="Netto je Monat mit Sonderzahlungen, horizontal verschiebbar"
         // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- Keyboard users can scroll the exact-value table.
