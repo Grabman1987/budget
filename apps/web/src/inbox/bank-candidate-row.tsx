@@ -52,6 +52,8 @@ export const BankCandidateRow = memo(function BankCandidateRow({
   const isPhone = useIsPhone();
   const id = item.refId!;
   const [active, setActive] = useState(false);
+  const preparation = item.bankCandidate?.preparation;
+  const loadLookups = active || Boolean(preparation);
   const review = useQuery({ ...candidateAssignmentQuery(id), enabled: active, subscribed: active });
   const matches = useQuery({
     queryKey: [...LEDGER_KEY, 'bank-matches', id],
@@ -60,9 +62,9 @@ export const BankCandidateRow = memo(function BankCandidateRow({
     enabled: active,
     subscribed: active,
   });
-  const lookups = useQuery({ ...lookupsQuery(), enabled: active, subscribed: active });
-  const payees = useQuery({ ...payeesQuery(), enabled: active, subscribed: active });
-  const accounts = useQuery({ ...accountsQuery(), enabled: active, subscribed: active });
+  const lookups = useQuery({ ...lookupsQuery(), enabled: loadLookups, subscribed: loadLookups });
+  const payees = useQuery({ ...payeesQuery(), enabled: loadLookups, subscribed: loadLookups });
+  const accounts = useQuery({ ...accountsQuery(), enabled: loadLookups, subscribed: loadLookups });
   const [draft, setDraft] = useState<Draft>();
   const [editing, setEditing] = useState<'payee' | 'suggestion' | 'category'>();
   const [saving, setSaving] = useState(false);
@@ -72,11 +74,8 @@ export const BankCandidateRow = memo(function BankCandidateRow({
   } | null>(null);
   const row = useRef<HTMLTableRowElement>(null);
   useEffect(() => {
-    if (active || !row.current) return;
-    if (typeof IntersectionObserver === 'undefined') {
-      setActive(true);
+    if (active || preparation || !row.current || typeof IntersectionObserver === 'undefined')
       return;
-    }
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries.some((entry) => entry.isIntersecting)) {
@@ -88,27 +87,29 @@ export const BankCandidateRow = memo(function BankCandidateRow({
     );
     observer.observe(row.current);
     return () => observer.disconnect();
-  }, [active]);
+  }, [active, preparation]);
   const write = useBudgetWrite();
   const prepareForm = useCallback(
     (suggestion: PreparedBankSuggestion | undefined) => setFormPrepared({ suggestion }),
     [],
   );
-  const data = review.data;
+  // The list is a read snapshot; editing opts into fresh per-row guarded choices.
+  const data = (active ? review.data : undefined) ?? preparation?.assignment;
+  const matchData = (active ? matches.data : undefined) ?? preparation?.matches;
   const suggestions = data?.suggestions ?? [];
   const first = suggestions.find((suggestion) => !suggestion.unavailable);
   const ruleId = draft?.ruleId === undefined ? first?.id : draft.ruleId;
   const rule = suggestions.find((suggestion) => suggestion.id === ruleId);
   const targets = useMemo(
     () => [
-      ...(matches.data?.merge ?? []).map((match) => ({ ...match, action: 'merge' as const })),
-      ...(matches.data?.link ?? []).map((match) => ({ ...match, action: 'merge' as const })),
-      ...(matches.data?.transfers ?? []).map((match) => ({
+      ...(matchData?.merge ?? []).map((match) => ({ ...match, action: 'merge' as const })),
+      ...(matchData?.link ?? []).map((match) => ({ ...match, action: 'merge' as const })),
+      ...(matchData?.transfers ?? []).map((match) => ({
         ...match,
         action: 'transfer' as const,
       })),
     ],
-    [matches.data],
+    [matchData],
   );
   const target = targets.find((match) => `${match.action}:${match.id}` === draft?.target);
   const payeeId = draft?.payeeId ?? rule?.actions.payeeId ?? data?.cleanup.payeeId ?? '';
@@ -141,17 +142,15 @@ export const BankCandidateRow = memo(function BankCandidateRow({
   const transferId = rule?.actions.transferAccountId;
   const counterAccount = accounts.data?.accounts.find((account) => account.id === transferId);
   const ready =
-    review.isSuccess &&
-    matches.isSuccess &&
-    !review.isFetching &&
-    !matches.isFetching &&
+    (active
+      ? review.isSuccess && matches.isSuccess && !review.isFetching && !matches.isFetching
+      : Boolean(preparation)) &&
     lookups.isSuccess &&
     payees.isSuccess &&
     accounts.isSuccess &&
     (!needsHistory || history.isSuccess);
   const hasMatches = Boolean(
-    matches.data &&
-    (matches.data.merge.length || matches.data.link?.length || matches.data.transfers.length),
+    matchData && (matchData.merge.length || matchData.link?.length || matchData.transfers.length),
   );
   const blocked =
     review.isError ||
@@ -246,7 +245,10 @@ export const BankCandidateRow = memo(function BankCandidateRow({
     row.current?.focus();
   };
   const openFullForm = () => {
-    if (!locked) setFullRequest((request) => request + 1);
+    if (!locked) {
+      setActive(true);
+      setFullRequest((request) => request + 1);
+    }
   };
   const navigate = (event: KeyboardEvent<HTMLTableRowElement>) => {
     if (
@@ -289,9 +291,10 @@ export const BankCandidateRow = memo(function BankCandidateRow({
       aria-label={`${cell === 'payee' ? 'Empfänger' : cell === 'category' ? (transferId || target ? 'Gegenkonto' : 'Kategorie') : 'Vorschlag'} bearbeiten: ${text}`}
       title={missing?.cell === cell ? missing.reason : text}
       disabled={locked}
-      onClick={() =>
-        (transferId || target) && cell === 'category' ? setEditing('suggestion') : setEditing(cell)
-      }
+      onClick={() => {
+        setActive(true);
+        setEditing((transferId || target) && cell === 'category' ? 'suggestion' : cell);
+      }}
     >
       {fixed ? <Check size={14} aria-hidden="true" /> : <CircleHelp size={14} aria-hidden="true" />}
       {text}
@@ -303,8 +306,9 @@ export const BankCandidateRow = memo(function BankCandidateRow({
       tabIndex={0}
       className="rev-row bank-inbox-row bank-v1-row bank-editable-row"
       data-testid="inbox-row"
-      onFocus={() => setActive(true)}
-      onPointerEnter={() => setActive(true)}
+      onFocus={() => {
+        if (!preparation) setActive(true);
+      }}
       onKeyDown={navigate}
       onKeyDownCapture={(event) => {
         if (
@@ -580,7 +584,10 @@ export const BankCandidateRow = memo(function BankCandidateRow({
               aria-label="Prüfen"
               title="Alle Felder prüfen"
               disabled={locked}
-              onClick={open}
+              onClick={() => {
+                setActive(true);
+                open();
+              }}
             >
               <Pencil size={16} aria-hidden="true" />
             </button>

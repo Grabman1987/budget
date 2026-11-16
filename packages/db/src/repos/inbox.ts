@@ -49,6 +49,10 @@ import { bookedBalance } from './reconciliation';
 import { AUTO_RESOLVED_HISTORY_DAYS, autoResolvedWarnings } from './market';
 
 export type BankSuggestion = { label: string; needsReview: boolean };
+export type BankCandidatePreparation = {
+  assignment: ReturnType<typeof readAssignmentCandidate>;
+  matches: ReturnType<typeof candidateMatches>;
+};
 
 export interface InboxBooking {
   type: 'booking';
@@ -88,6 +92,7 @@ export interface InboxStored {
         accountId?: string;
         accountName: string;
         suggestion?: BankSuggestion;
+        preparation?: BankCandidatePreparation;
       }
     | undefined;
 }
@@ -173,8 +178,11 @@ export function prepareInboxBankSuggestions(db: Executor, entries: InboxEntry[])
         label: 'Kategorie prüfen · Zu verteilen',
         needsReview: true,
       };
+      let preparation: BankCandidatePreparation | undefined;
       try {
         const matches = candidateMatches(tx, entry.refId);
+        const assignment = readAssignmentCandidate(tx, entry.refId);
+        preparation = { matches, assignment };
         const targets = [...matches.merge, ...matches.link];
         if (
           targets.length > 1 ||
@@ -196,7 +204,7 @@ export function prepareInboxBankSuggestions(db: Executor, entries: InboxEntry[])
             needsReview: false,
           };
         else {
-          const rules = readAssignmentCandidate(tx, entry.refId).suggestions;
+          const rules = assignment.suggestions;
           const available = rules.filter((rule) => !rule.unavailable);
           if (available.length > 1)
             suggestion = { label: 'Vorschlag prüfen · mehrere Regeln', needsReview: true };
@@ -213,7 +221,14 @@ export function prepareInboxBankSuggestions(db: Executor, entries: InboxEntry[])
       } catch {
         suggestion = { label: 'Vorschlag prüfen', needsReview: true };
       }
-      return { ...entry, bankCandidate: { ...entry.bankCandidate, suggestion } };
+      return {
+        ...entry,
+        bankCandidate: {
+          ...entry.bankCandidate,
+          suggestion,
+          ...(preparation ? { preparation } : {}),
+        },
+      };
     }),
   );
 }

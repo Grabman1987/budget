@@ -257,14 +257,14 @@ afterEach(() => {
   client.clear();
   vi.unstubAllGlobals();
 });
-const show = (onPrepared = vi.fn(), onConfirmed = vi.fn()) =>
+const show = (onPrepared = vi.fn(), onConfirmed = vi.fn(), entry = item) =>
   render(
     <QueryClientProvider client={client}>
       <ToastProvider>
         <table>
           <tbody>
             <BankCandidateRow
-              item={item}
+              item={entry}
               selected={false}
               onSelect={undefined}
               onPrepared={onPrepared}
@@ -306,6 +306,100 @@ it('loads on visibility without hover, keeps suggestions local, and confirms the
       },
     ]),
   );
+});
+
+it.each(['cell', 'form'])(
+  'uses list preparation without per-row reads until the user opens the %s',
+  async (editor) => {
+    suggestions = [
+      {
+        id: 'rule',
+        name: 'Synthetic rule',
+        revision: 'rule-revision',
+        automatic: true,
+        unavailable: false,
+        actions: { categoryId: 'category' },
+      },
+    ];
+    const assignment = await (
+      await fetch('/assignment-rules/candidates/synthetic-candidate')
+    ).json();
+    paths = [];
+    const prepared = vi.fn();
+    show(prepared, vi.fn(), {
+      ...item,
+      bankCandidate: {
+        ...item.bankCandidate!,
+        preparation: { assignment, matches: { merge: [], link: [], transfers: [] } },
+      },
+    });
+    await waitFor(() =>
+      expect(
+        (screen.getByRole('button', { name: 'Übernehmen' }) as HTMLButtonElement).disabled,
+      ).toBe(false),
+    );
+    fireEvent.pointerEnter(screen.getByTestId('inbox-row'));
+    fireEvent.focus(screen.getByTestId('inbox-row'));
+    await act(async () => undefined);
+    expect(paths.some((path) => /\/matches|\/assignment-rules\/candidates\//.test(path))).toBe(
+      false,
+    );
+    expect(prepared.mock.lastCall).toEqual([
+      item.id,
+      expect.objectContaining({ action: 'rule', ruleId: 'rule', bulkSafe: true }),
+    ]);
+    expect(writes).toEqual([]);
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: editor === 'cell' ? /^Vorschlag bearbeiten/ : 'Prüfen',
+      }),
+    );
+    await waitFor(() => {
+      expect(paths.some((path) => path.endsWith('/matches'))).toBe(true);
+      expect(paths.some((path) => path.includes('/assignment-rules/candidates/'))).toBe(true);
+    });
+    expect(writes).toEqual([]);
+  },
+);
+
+it('does not fetch payee history for mounted prepared rows with no rule or default category', async () => {
+  defaultCategoryId = null;
+  const assignment = await (await fetch('/assignment-rules/candidates/synthetic-candidate')).json();
+  paths = [];
+  show(vi.fn(), vi.fn(), {
+    ...item,
+    bankCandidate: {
+      ...item.bankCandidate!,
+      preparation: { assignment, matches: { merge: [], link: [], transfers: [] } },
+    },
+  });
+  await screen.findByText('Kategorie fehlt.');
+  expect(
+    paths.some((path) => /\/matches|\/assignment-rules\/candidates\/|\/bookings\?/.test(path)),
+  ).toBe(false);
+  expect(writes).toEqual([]);
+});
+
+it('retains a recipient chosen while fresh editor queries are still loading', async () => {
+  const assignment = await (await fetch('/assignment-rules/candidates/synthetic-candidate')).json();
+  show(vi.fn(), vi.fn(), {
+    ...item,
+    bankCandidate: {
+      ...item.bankCandidate!,
+      preparation: { assignment, matches: { merge: [], link: [], transfers: [] } },
+    },
+  });
+  await screen.findByRole('button', { name: 'Empfänger bearbeiten: Synthetic recipient' });
+  fireEvent.click(screen.getByRole('button', { name: /^Empfänger bearbeiten/ }));
+  fireEvent.change(screen.getByRole('combobox', { name: 'Empfänger' }), {
+    target: { value: 'other-payee' },
+  });
+  await waitFor(() => {
+    expect(screen.getByRole('button', { name: /^Empfänger bearbeiten/ }).textContent).toContain(
+      'Other recipient',
+    );
+  });
+  expect(writes).toEqual([]);
 });
 
 it('keeps a complete row blocked when multiple possible counterparts exist', async () => {

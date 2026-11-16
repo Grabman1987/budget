@@ -5,6 +5,7 @@ import { randomUUID } from 'node:crypto';
 import { createBooking, openDatabase, schema } from '@budget/db';
 import AxeBuilder from '@axe-core/playwright';
 import { expect } from '@playwright/test';
+import type { InboxPage } from '../apps/web/src/inbox/api';
 import { test } from './isolated-ledger';
 
 test.use({ bankingConfigured: true });
@@ -88,10 +89,15 @@ test('visible safe candidate prepares its tick and bulk action without hover or 
   } finally {
     staged.close();
   }
+  const rowReads: string[] = [];
+  page.on('request', (req) => {
+    if (/\/matches|\/assignment-rules\/candidates\//.test(req.url())) rowReads.push(req.url());
+  });
   await page.goto('/konten/posteingang?bankSource=' + sourceId);
   test.skip(!(await redesignLoaded(page)), 'Inline rows require the redesign.');
   const row = page.locator('.bank-editable-row');
   await expect(row.getByRole('button', { name: 'Übernehmen', exact: true })).toBeEnabled();
+  expect(rowReads).toEqual([]);
   await page.getByRole('button', { name: 'Alle sicheren bestätigen (1)', exact: true }).click();
   const preview = page.getByRole('dialog', { name: 'Bankauswahl prüfen' });
   await expect(preview).toContainText('1 ausgewählt · 1 bestätigen · 0 übersprungen');
@@ -223,6 +229,15 @@ test('65 compact bank rows, prepared bulk confirmation, one undo, date controls 
     if (new URL(req.url()).pathname.startsWith('/api/')) apiCalls.push(req.url());
     if (new URL(req.url()).pathname === '/api/bank-sync/inbox/bulk')
       bulkCalls.push(req.postDataJSON());
+  });
+  // Exercise a long list without server preparation; the other case covers the prepared path.
+  await page.route('**/api/inbox?*', async (route) => {
+    const response = await route.fetch();
+    const body = (await response.json()) as InboxPage;
+    for (const entry of body.entries) {
+      if (entry.type === 'stored' && entry.bankCandidate) delete entry.bankCandidate.preparation;
+    }
+    await route.fulfill({ response, json: body });
   });
   await page.goto('/konten/posteingang?bankSource=' + sourceId);
   await expect(page.locator('.bank-inbox-row')).toHaveCount(65);
