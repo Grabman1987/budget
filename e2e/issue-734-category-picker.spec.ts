@@ -342,13 +342,14 @@ for (const profile of ['configured', 'desktop1440'] as const) {
               .fill('Synthetischer Scrolltest.\n'.repeat(18));
           await field.click();
           const list = dialog.locator('.is-capture-category .combo-list');
-          await expect(list.getByRole('option')).toHaveCount(63);
+          await expect(list.getByRole('option')).toHaveCount(64);
           const names = await list
             .getByRole('option')
             .locator(':scope > span:first-child')
             .allTextContents();
-          expect(names.at(-2)).toBe('Für Kontakt auslegen → Kontakt Alpha 734');
-          expect(names.at(-1)).toBe('Kontakt neu anlegen');
+          expect(names.at(-3)).toBe('Für Kontakt auslegen → Kontakt Alpha 734');
+          expect(names.at(-2)).toBe('Kontakt neu anlegen');
+          expect(names.at(-1)).toBe('Neue Kategorie …');
           const initialBounds = await bounded(list);
           if (!actual.coarse)
             expect(initialBounds.height).toBeGreaterThan(
@@ -542,16 +543,24 @@ for (const profile of ['configured', 'desktop1440'] as const) {
             ),
           );
           await field.fill('für');
-          await expect(list.getByRole('option')).toHaveCount(2);
+          await expect(list.getByRole('option')).toHaveCount(3);
           expect(
             await list.getByRole('option').locator(':scope > span:first-child').allTextContents(),
-          ).toEqual(['Muster für Wege', 'Für Kontakt auslegen → Kontakt Alpha 734']);
+          ).toEqual([
+            'Muster für Wege',
+            'Für Kontakt auslegen → Kontakt Alpha 734',
+            'Neue Kategorie …',
+          ]);
           await field.press('Enter');
           await expect(field).toHaveValue('Muster für Wege');
           if (redesign) await dialog.getByLabel('Notiz', { exact: true }).fill('');
           await dialog.getByLabel('Betrag', { exact: true }).fill('10,00');
           await (await contactShareControl(dialog)).click();
           await dialog.getByLabel('Kontakt 1.1', { exact: true }).selectOption(contact.id);
+          await dialog
+            .getByRole('group', { name: 'Anteilart 1.1', exact: true })
+            .getByRole('button', { name: '%', exact: true })
+            .click();
           await expect(dialog.getByLabel('Anteil 1.1 (%)')).toHaveValue('50');
           const saved = page.waitForResponse(
             (r) => r.request().method() === 'POST' && new URL(r.url()).pathname === '/api/bookings',
