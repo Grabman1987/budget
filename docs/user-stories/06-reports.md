@@ -63,14 +63,16 @@ Alle Reports mit Nummer laut `docs/FEATURES.md` (34 Reports, 1.1 bis 5.6). Jede 
   2. Leitwert „Grundgehalt brutto pro Monat“ als Stufenlinie mit jeder Erhöhung (Datum, Betrag, Prozent).
   3. Jahresvergleich und Monatsvergleich je Komponente; Monate mit Sonderzahlung oder Bonus sind markiert; Bonus je Jahr mit Anteil am Grundgehalt.
   4. „Real gegen nominal“: Index gegen VPI und persönliche Inflation, kumuliert in Prozent und Euro.
+  5. Technischer Zwischenstand für die spätere Ansicht: Die angemeldete Sitzung kann die nominale Entwicklung bis zu einem gewählten Monat über `GET /api/payslips/development?throughMonth=YYYY-MM` lesen; ohne Auswahl gilt der aktuelle Monat. Der Ablauf in der Oberfläche bleibt bis zum geprüften Entwurf geplant.
 - **Ergebnis:** Ich sehe den echten Zuwachs und Kaufkraftverlust.
 - **Abnahmekriterien:**
   - Sachbezüge und Spesen verzerren die Entwicklung nicht; sie stehen getrennt.
   - Fehlende Monate sind Lücken, keine Fortschreibung.
   - Der Inflationsvergleich nutzt VPI und den vorhandenen Warenkorb (Persönliche Inflation).
   - Randfall: Eine Lohnart ohne Zuordnung blockiert nur ihren Monat und wird genannt.
-- **Status:** offen · **Verweis:** #1066
-  Fehlt noch: Komponentenmodell, Zuordnung der Lohnarten, Ansichten, VPI-Datenquelle.
+  - Der nominale Datenpfad verwendet gespeicherte Lohnzeilen und Komponenten-Zuordnungen sowie die gemeinsame Rechenlogik. Spätere und gelöschte Gehaltszettel sind ausgeschlossen; Lesen verändert weder Daten noch Buchungen.
+- **Status:** teilweise implementiert für Review (Lohnzeilen/Komponentenmodell aus #1082; nominaler Lese-Endpunkt in dieser Fortsetzung), Oberfläche und Live-Abnahme offen · **Verweis:** #1066
+  Fehlt noch: geprüfter UI-Entwurf, Zuordnungsoberfläche und Schreib-Endpunkte, Ansichten, Vorschau/Bestätigung des expliziten PDF-Neulesens, Anbindung des vorhandenen VPI und der persönlichen Inflation, Ereignismarker und gedruckte Arbeitgeberbeiträge.
 
 ### RP-04 – Monat mit Sonderzahlung korrekt darstellen (geplant)
 - **Story:** Als Nutzer möchte ich einen Monat mit Sonderzahlung ohne erfundene Netto- oder Steueraufteilung sehen, damit der Report die Auszahlung korrekt abbildet und keine falsche Warnung zu einem fehlenden Sondergehalt erscheint.
