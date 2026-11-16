@@ -102,7 +102,7 @@ Bereich: Plan (`/plan/monat`, `/plan/jahr`, `/plan/erwartet`, `/plan/sparziele`,
   1. Ich tippe in Heute auf „Decken“ oder öffne Plan › Monat mit dem Filter „Überzogen“ (Triage).
   2. Ich tippe bei einer Zeile „Decken“. Der Vorschlag nennt die Quelle („Mit … decken“, „Zu verteilen“ oder die Kategorie mit dem größten ausreichenden Guthaben).
   3. Alternativ wähle ich im Panel „Decken oder verschieben“ und gebe Betrag, Richtung „Hierher“ oder „Von hier weg“ an.
-  4. Für mehrere: „Überzogene decken“ (Menü „Verteilen ▾“) bzw. „Alle aus <Quelle> decken“.
+  4. Für mehrere: „Überzogene decken“ (Menü „Verteilen ▾“) öffnet dieselbe Vorschau wie Monatsabschluss Schritt 3: Quelle wählen, Quellen/Ziele/Beträge und Rest prüfen, „Deckung anwenden“. Die bisherigen direkten Quellaktionen „Alle aus <Quelle> decken“ bleiben verfügbar.
   5. Die App meldet „… von <Quelle> zu <Kategorie> verschoben“, bei Rest „… bleiben offen“.
 - **Ergebnis:** Geld ist zwischen Kategorien verschoben; die Kontosumme bleibt gleich. Als eine Gruppe rückgängig machbar.
 - **Abnahmekriterien:**
@@ -111,7 +111,8 @@ Bereich: Plan (`/plan/monat`, `/plan/jahr`, `/plan/erwartet`, `/plan/sparziele`,
   3. Ist kein freies Geld da, ist die Aktion mit „Kein freies Geld zum Decken“ gesperrt.
   4. Eine Teildeckung nennt den Rest, der offen bleibt.
   5. Verweigert der Server (Regelverstoß), erscheint die deutsche Meldung als Hinweis.
-- **Status:** live — **Verweis:** Y10
+  6. Die gemeinsame Vorschau schreibt nichts dauerhaft. Abbrechen verändert nichts; bei zwischenzeitlicher Änderung verweigert der Server das Anwenden bis zur erneuten Vorschau.
+- **Status:** live; Vorschau-Erweiterung implementiert, unabhängig geprüft; Live-Abnahme offen — **Verweis:** Y10, #1096
 
 ### P-07 – Zahlungskategorien für Kreditkarten
 - **Story:** Als Nutzer möchte ich Kreditkarten und Barvorschüssen eine Zahlungskategorie zuordnen, damit Kartenkäufe Geld in die Zahlungskategorie schieben und die Kartenschuld gedeckt ist.

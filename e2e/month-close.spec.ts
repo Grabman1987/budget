@@ -14,7 +14,8 @@ test('guided month close walks all five steps, undoes the whole plan and keeps a
   test.slow(info.project.name === 'webkit-iphone', 'WebKit iPhone emulation needs about 3x');
   const screenshot = async (name: string) => {
     const toastAction = page.locator('.toast.is-open button');
-    if (await toastAction.isVisible()) await toastAction.press('Escape');
+    if ((await toastAction.isVisible()) && !(await page.getByRole('dialog').isVisible()))
+      await toastAction.press('Escape');
     await page.evaluate(() => window.scrollTo(0, 0));
     await page.screenshot({ path: info.outputPath(name), fullPage: true, animations: 'disabled' });
   };
@@ -131,9 +132,20 @@ test('guided month close walks all five steps, undoes the whole plan and keeps a
   }
   await page.getByRole('button', { name: 'Weiter', exact: true }).click();
   await expect(page.getByRole('heading', { name: '3. Überzogenes ausgleichen' })).toBeVisible();
-  await page.getByRole('button', { name: 'Geld verschieben', exact: true }).click();
+  await page.getByRole('button', { name: 'Überzogene decken', exact: true }).click();
+  const coverPreview = page.getByRole('dialog', { name: 'Überzogene decken · Vorschau' });
+  await expect(coverPreview.getByRole('list')).toContainText('Zu verteilen → Musterbedarf: 4,00 €');
   await screenshot('month-close-cover.png');
-  await page.getByRole('button', { name: /Decken.*4,00/ }).click();
+  await coverPreview.getByRole('button', { name: 'Schließen', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Überzogene decken', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Überzogene decken', exact: true }).click();
+  await coverPreview.getByRole('button', { name: 'Deckung anwenden', exact: true }).click();
+  await expect(page.getByText('Keine Kategorie ist überzogen.')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Überzogene decken', exact: true })).toHaveCount(0);
+  await page.locator('.toast.is-open').getByRole('button', { name: 'Rückgängig' }).click();
+  await page.getByRole('button', { name: 'Überzogene decken', exact: true }).click();
+  await expect(coverPreview.getByRole('list')).toContainText('4,00 €');
+  await coverPreview.getByRole('button', { name: 'Deckung anwenden', exact: true }).click();
   await expect(page.getByText('Keine Kategorie ist überzogen.')).toBeVisible();
   if (info.project.name === 'mobile') {
     await page.getByRole('button', { name: 'Weiter', exact: true }).scrollIntoViewIfNeeded();

@@ -11,6 +11,7 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-li
 import type { ReactNode } from 'react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { PlanMonthPage } from './plan-page';
+import { REDESIGN_ENABLED } from '../shell/redesign-flag';
 
 /**
  * #588: the toolbar menus "Verteilen ▾" and "Optionen ▾". The booking calls are the existing ones
@@ -128,7 +129,24 @@ function renderPlan(toBeAssignedCents: number, overspent = false) {
           byIncomeType: [],
         });
       if (method !== 'GET') {
-        writes.push({ method, path: route, body: JSON.parse(String(init?.body ?? 'null')) });
+        const body = JSON.parse(String(init?.body ?? 'null'));
+        writes.push({ method, path: route, body });
+        if (body?.preview)
+          return Response.json({
+            expectedBasis: 'a'.repeat(64),
+            coveredCount: 1,
+            openCount: 0,
+            missingCents: 0,
+            moves: [
+              {
+                fromId: null,
+                toId: 'essen',
+                fromName: 'Zu verteilen',
+                toName: 'Essen',
+                amountCents: 1500,
+              },
+            ],
+          });
         return new Response(
           JSON.stringify({ groupId: 'g-1', changedCount: 1, openCount: 0, missingCents: 0 }),
           { status: 200 },
@@ -175,7 +193,10 @@ afterEach(() => {
 });
 
 const summaryOf = (name: string) =>
-  screen.getAllByText(name, { selector: 'summary' })[0] as HTMLElement;
+  [...document.querySelectorAll<HTMLElement>('.plan-menu > summary')].find(
+    (summary) =>
+      summary.textContent === (REDESIGN_ENABLED && name === 'Verteilen' ? 'Geld verteilen' : name),
+  )!;
 const menu = (name: string) =>
   within(summaryOf(name).closest('details')!.querySelector<HTMLElement>('.plan-menu-panel')!);
 
@@ -193,7 +214,9 @@ it('includes visible waterfall rail numbers and status without financial writes'
 it('replaces "Schnell zuweisen", the "Ansicht" select and the ⋯ menu by two named menus', async () => {
   const { container } = renderPlan(10_000);
   await screen.findByTestId('to-be-assigned');
-  expect(summaryOf('Verteilen').textContent).toBe('Verteilen');
+  expect(summaryOf('Verteilen').textContent).toBe(
+    REDESIGN_ENABLED ? 'Geld verteilen' : 'Verteilen',
+  );
   expect(summaryOf('Optionen').textContent).toBe('Optionen');
   expect(screen.queryByText(/Schnell zuweisen/)).toBeNull();
   expect(screen.queryByLabelText('Weitere Monatsaktionen')).toBeNull();
@@ -209,6 +232,7 @@ it('replaces "Schnell zuweisen", the "Ansicht" select and the ⋯ menu by two na
     'Ziel',
     'Alle Ziele füllen',
     'Wasserfall-Assistent',
+    ...(REDESIGN_ENABLED ? ['Schritt für Schritt verteilen'] : []),
   ]);
 });
 
@@ -268,13 +292,34 @@ it('"Überzogene decken" appears only when something is overspent and sends the 
   expect(document.getElementById(item.getAttribute('aria-describedby')!)?.textContent).toContain(
     '1 überzogen',
   );
+  Object.defineProperty(HTMLDialogElement.prototype, 'showModal', {
+    configurable: true,
+    value(this: HTMLDialogElement) {
+      this.open = true;
+    },
+  });
+  Object.defineProperty(HTMLDialogElement.prototype, 'close', {
+    configurable: true,
+    value(this: HTMLDialogElement) {
+      this.open = false;
+    },
+  });
   fireEvent.click(item);
   await waitFor(() => expect(writes).toHaveLength(1));
+  if (REDESIGN_ENABLED) {
+    expect(writes[0]?.body).toEqual({ coverAll: true, preview: true });
+    await screen.findByText('Zu verteilen → Essen:');
+    fireEvent.click(screen.getByRole('button', { name: 'Deckung anwenden' }));
+    await waitFor(() => expect(writes).toHaveLength(2));
+    expect(writes[1]?.body).toEqual({ coverAll: true, expectedBasis: 'a'.repeat(64) });
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    writes.shift();
+  }
   const fromMenu = writes[0];
   expect(fromMenu).toEqual({
     method: 'POST',
     path: '/api/budget/2026-09/move',
-    body: { coverAll: true },
+    body: { coverAll: true, ...(REDESIGN_ENABLED && { expectedBasis: 'a'.repeat(64) }) },
   });
 
   // The disclosure button (unchanged) sends exactly the same request.
@@ -285,7 +330,7 @@ it('"Überzogene decken" appears only when something is overspent and sends the 
   await waitFor(() => expect(panel.hidden).toBe(false));
   fireEvent.click(within(panel).getByRole('button', { name: /^Alle aus .* decken$/ }));
   await waitFor(() => expect(writes).toHaveLength(2));
-  expect(writes[1]).toEqual(fromMenu);
+  expect(writes[1]).toEqual({ ...fromMenu, body: { coverAll: true } });
 });
 
 it('says why "Wasserfall-Assistent" is off at 0 € and when too much is assigned', async () => {
@@ -368,13 +413,15 @@ it('"Optionen ▾" holds Ansicht (default Gruppen, no "Nur Überzogene"), Monate
   fireEvent.click(within(ansicht).getByRole('button', { name: 'Zeit' }));
   expect(pressed(within(ansicht), 'Zeit')).toBe('true');
 
-  const months = optionen.getByRole('group', { name: 'Anzahl Monate' });
+  const months = REDESIGN_ENABLED
+    ? screen.getByRole('group', { name: 'Sichtbare Monate' })
+    : optionen.getByRole('group', { name: 'Anzahl Monate' });
   expect(
     within(months)
       .getAllByRole('button')
       .map((b) => b.textContent),
-  ).toEqual(['1 Monat', '2 Monate', '3 Monate']);
-  expect(pressed(within(months), '1 Monat')).toBe('true');
+  ).toEqual(REDESIGN_ENABLED ? ['1', '2', '3'] : ['1 Monat', '2 Monate', '3 Monate']);
+  expect(pressed(within(months), REDESIGN_ENABLED ? '1' : '1 Monat')).toBe('true');
 
   expect(container.querySelectorAll('tr.pgroup:not(.is-collapsed)').length).toBeGreaterThan(0);
   fireEvent.click(optionen.getByRole('button', { name: 'Alle einklappen' }));

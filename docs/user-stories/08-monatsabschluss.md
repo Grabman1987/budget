@@ -10,7 +10,7 @@ Bildschirm: `/monatsabschluss/<Monat>` (z. B. 2026-10). Einstieg: Plan › Kopfz
   1. Nutzer öffnet Plan und klickt „Monat abschließen“. Die App zeigt oben die Fortschrittsleiste „n von 5 Schritten mit Aufgaben bearbeitet“ und den Stichtag.
   2. Schritt 1: Er ordnet offene Buchungen zu und prüft Vorschläge im eingebetteten Prüfen-Block („n offene Aufgaben im Monat“).
   3. Schritt 2: Er vergleicht die Kontostände zum Stichtag. Je Konto klickt er „Kontostand prüfen“ (bei manuellen Anlagen „Wert aktualisieren“) oder bestätigt unveränderte Konten gemeinsam mit „Gemeinsam bestätigen“.
-  4. Schritt 3: Für jede überzogene Kategorie klickt er „Geld verschieben“ oder wählt „Übertrag akzeptieren · Grund angeben“.
+  4. Schritt 3: Er öffnet „Überzogene decken“, prüft die gemeinsame Plan-Vorschau mit Quellen, Zielkategorien, Beträgen und offenem Rest und bestätigt „Deckung anwenden“. Alternativ klickt er je Kategorie „Geld verschieben“ oder wählt „Übertrag akzeptieren · Grund angeben“.
   5. Mit „Weiter“ geht er zum nächsten Schritt; „Verlassen“ geht zurück zum Plan. „Weiter“ bleibt gesperrt, solange der Schritt offen ist.
   6. Jeder Schritt zeigt „Warum“ und „Danach“; „nichts offen“ erscheint bei Schritten ohne Aufgaben.
 - **Ergebnis:** Schritte 1–3 sind erledigt oder mit Grund übersprungen, der Fortschritt ist gespeichert. Buchungen, Kontoprüfungen und Verschiebungen sind echte, einzeln rückgängig machbare Änderungen.
@@ -20,7 +20,8 @@ Bildschirm: `/monatsabschluss/<Monat>` (z. B. 2026-10). Einstieg: Plan › Kopfz
   3. Kommt nach dem Erledigen eine neue oder geänderte Aufgabe dazu, öffnet sich der Schritt wieder.
   4. Liegt der Stichtag noch in der Zukunft, steht „Der Monatsletzte steht noch bevor. Du kannst vorbereiten und später fortsetzen.“
   5. Lädt der Schritt nicht, zeigt die App eine Fehlermeldung mit Wiederholen statt eines leeren Schritts.
-- **Status:** teilweise — **Verweis:** Y24
+  6. Schritt 3 verwendet dieselbe Sammeldeckung und Vorschau wie das Plan-Menü; erst die Bestätigung schreibt eine gemeinsam rückgängig machbare Audit-Gruppe. Eine geänderte Grundlage erfordert eine neue Vorschau. Ohne Überziehung erscheint „Keine Kategorie ist überzogen.“ ohne Sammelaktion.
+- **Status:** teilweise — **Verweis:** Y24, #1096 (Sammeldeckung implementiert; unabhängig geprüft; Live-Abnahme offen)
   Fehlt noch: Einbindung der Hintergrundaufgabe „Job E“ und die Abnahme im Parallelbetrieb durch den Nutzer (Gate 4); die anderen Routinen siehe M-03.
 
 ### M-01a – Offene Arbeit mit Grund aufschieben

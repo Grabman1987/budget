@@ -9,6 +9,7 @@ import {
   categoryTree,
   coverOverspending,
   coverAllOverspending,
+  previewCoverAllOverspending,
   createCategory,
   createCategoryGroup,
   deleteCategoryGroup,
@@ -436,7 +437,25 @@ export function budgetRoutes(db: Db, today: () => string): Hono {
     const m = monthParam(c.req.param('month'));
     const body = await readBody(c, moveBody);
     if ('coverAll' in body)
-      return c.json(coverAllOverspending(db, m, body.fromId, audit(), today()));
+      return c.json(
+        db.transaction(
+          (tx) => {
+            const day = today();
+            if (body.preview) {
+              const result = previewCoverAllOverspending(tx, m, body.fromId, audit(), day);
+              return { ...result, expectedBasis: previewBasis(tx, m, day) };
+            }
+            if (body.expectedBasis && body.expectedBasis !== previewBasis(tx, m, day))
+              throw new ApiError(
+                409,
+                'plan_preview_changed',
+                'Der Plan hat sich geändert. Vorschau aktualisieren und erneut bestätigen.',
+              );
+            return coverAllOverspending(tx, m, body.fromId, audit(), day);
+          },
+          { behavior: 'immediate' },
+        ),
+      );
     return c.json(moveMoney(db, m, body.fromId, body.toId, body.amountCents, audit()));
   });
 
