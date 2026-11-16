@@ -6,20 +6,28 @@ import { PayeeAnalysisReport } from '../pages/payee-analysis-report';
 import { SpendingAnalysisReport } from './spending-analysis-report';
 import './report-views.css';
 import { ReportViewControl } from './report-view-control';
+import { REDESIGN_ENABLED } from '../shell/redesign-flag';
+import { CategoryReport } from './category-report';
 
 const SPENDING_VIEWS = [
   { value: 'gruppen', label: 'Gruppen und Kategorien' },
+  { value: 'kategorien', label: 'Kategorien und Verlauf' },
   { value: 'empfaenger', label: 'Empfänger' },
 ] as const;
 
 /** One active report body, using the existing readers and their unchanged financial figures. */
 export function SpendingReportViews({ report, meta }: { report: ReportEntry; meta: PageMeta }) {
   const search = useSearch({ strict: false }) as {
-    darstellung?: 'gruppen' | 'empfaenger';
+    darstellung?: 'gruppen' | 'kategorien' | 'empfaenger';
     empfaenger?: string;
   };
   const navigate = useNavigate();
-  const view = search.darstellung === 'empfaenger' ? 'empfaenger' : 'gruppen';
+  const view =
+    search.darstellung === 'empfaenger'
+      ? 'empfaenger'
+      : REDESIGN_ENABLED && search.darstellung === 'kategorien'
+        ? 'kategorien'
+        : 'gruppen';
   const update = (patch: Record<string, unknown>, replace = false) =>
     void navigate({
       to: '.',
@@ -32,7 +40,11 @@ export function SpendingReportViews({ report, meta }: { report: ReportEntry; met
     <ReportViewControl
       className="report-view-switch"
       label="Ansicht der Ausgabenanalyse"
-      options={SPENDING_VIEWS}
+      options={
+        REDESIGN_ENABLED
+          ? SPENDING_VIEWS
+          : SPENDING_VIEWS.filter((option) => option.value !== 'kategorien')
+      }
       value={view}
       onChange={(value) => update({ darstellung: value })}
     />
@@ -47,6 +59,14 @@ export function SpendingReportViews({ report, meta }: { report: ReportEntry; met
         onChange: (id) => update({ empfaenger: id ?? undefined }),
         onPeriodChange: changePeriod,
       }}
+    />
+  ) : view === 'kategorien' ? (
+    <CategoryReport
+      report={report}
+      meta={meta}
+      viewControl={control}
+      defaultPeriod="1J"
+      sortByChange
     />
   ) : (
     <SpendingAnalysisReport

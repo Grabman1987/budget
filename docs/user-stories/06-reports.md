@@ -158,7 +158,7 @@ Historical references follow `docs/FEATURES.md` (positions 1.1–5.6). The hub r
 - **Story:** Als Nutzer möchte ich jede Kategorie mit Verlauf, Summe und Änderung sehen, damit ich weiß, welche Kategorie wächst und wo ich nachsteuere.
 - **Ausgangslage:** Buchungen mit Kategorien im Zeitraum.
 - **Ablauf:**
-  1. Reports › Kategorieübersicht, „Zeitraum“ wählen.
+  1. Reports › Ausgabenanalyse öffnen, „Kategorien und Verlauf“ wählen und „Zeitraum“ einstellen.
   2. In der Liste Verlaufslinie, Summe, Durchschnitt, Änderung zur Vorperiode und Anteil am Konsum lesen.
   3. Eine Zeile öffnen: Ist/Plan-Verlauf, „Höchster Monat“ und „Empfänger“.
   4. Über „Kategorien vergleichen“ den Kategorietrend wählen (mindestens eine Kategorie).
@@ -167,7 +167,8 @@ Historical references follow `docs/FEATURES.md` (positions 1.1–5.6). The hub r
   - Die Summe je Kategorie stimmt mit Ausgabenanalyse und Explorer für denselben Zeitraum überein.
   - Plan entspricht dem zugewiesenen Betrag.
   - Randfall: Ohne ausgewählte Kategorie steht „Wähle mindestens eine Kategorie für den Verlauf.“; Zukunft-Kategorien sind gekennzeichnet.
-- **Status:** live · **Verweis:** 1.6
+- **Continuation (#1158, first slice):** The redesign exposes the existing monthly category reader at `/reports/ausgaben?darstellung=kategorien`. Largest absolute changes come first, with category ID as the stable tie-breaker; unavailable comparisons follow available ones. The period and category selection remain in the URL across view changes and reload. The default period matches the spending report (1J); explicit and remembered periods still take precedence. Monthly scope, Zukunft separation and amount privacy remain visible. The existing Explorer and legacy category bookmark remain unchanged.
+- **Status:** existing reader live; consolidated category view implemented for review (#1158), CI and owner acceptance pending. **Verweis:** 1.6
 
 ### RP-08 – Sparquote und Geldalter
 - **Story:** Als Nutzer möchte ich Sparquote und Geldalter im Verlauf sehen, damit ich weiß, ob ich das Sparziel halte und ob das Geld, das ich ausgebe, schon lange vor mir liegt.
@@ -235,12 +236,14 @@ Historical references follow `docs/FEATURES.md` (positions 1.1–5.6). The hub r
   2. „Konsum nach Gruppe“ mit Vergleich zum Vorzeitraum lesen.
   3. „Größte Veränderungen“ ansehen; eine Kategorie öffnet ihre Buchungen.
   4. „Klassen und Zukunft“ und die 12-Monats-Heatmap prüfen.
+  5. „Kategorien und Verlauf“ wählen: Monatsübersicht nach größter Änderung lesen, Kategorien für den Trend auswählen; mit derselben Zeitraumwahl zu Gruppen oder Empfängern zurückkehren.
 - **Ergebnis:** Ich kenne die größten Treiber der Ausgaben.
 - **Abnahmekriterien:**
   - Die Summe der Gruppen entspricht der „Maßkette Konsum“ und der Kategorieübersicht im selben Zeitraum.
   - Erstattungen sind gegen ihre Kategorie gerechnet; Zukunft steht getrennt und ist kein Konsum.
   - Randfall: Für „Alles“ gibt es keinen gleich langen Vorzeitraum („Kein gleich langer Vorzeitraum verfügbar.“); ohne Monatsdaten „Noch keine Monatsdaten“.
-- **Status:** live · **Verweis:** 2.1
+- **Continuation criteria (#1158):** In ON, `darstellung=kategorien` reopens the category reader after reload; selected categories and period survive switching among all three views. Existing group/payee figures and the OFF view set remain unchanged.
+- **Status:** existing body live; first consolidation slice implemented for review (#1158). Remaining: unified title/menu hierarchy, group-level trend/change ordering, comparison modes (previous period/year/custom) with URL state and calculation chain, and final legacy-address consolidation. **Verweis:** 2.1
 
 ### RP-12b – Empfänger-Analyse
 - **Story:** Als Nutzer möchte ich sehen, bei wem ich das meiste Geld lasse und wie oft ich dort zahle, damit ich Gewohnheiten und Verträge mit Händlern prüfe.
@@ -562,7 +565,7 @@ Historical references follow `docs/FEATURES.md` (positions 1.1–5.6). The hub r
   - „Summe Konsum · alle Kategorien“ stimmt mit der Ausgabenanalyse beider Zeiträume überein.
   - Kapitalerträge stehen getrennt von Einkommen und Sparquote.
   - Randfall: Die Vergleichsart steht nicht in der Adresse; Monate werden paarweise verglichen und fehlende Monate nicht erfunden.
-- **Status:** live · **Verweis:** 5.5
+- **Status:** existing comparison live; integration as an Ausgaben mode with URL-selected comparison and custom periods remains open under #1158. **Verweis:** 5.5
 
 ### RP-23b – Gesamtübersicht
 - **Story:** Als Nutzer möchte ich sehen, was Sparen und Markt zum Vermögen beigetragen haben, damit ich weiß, ob mein Fortschritt von mir oder vom Markt kommt.
