@@ -9,7 +9,12 @@ export function bankTransferTransit(db: Executor) {
   return memoizedShared(db, 'bankTransferTransit', () => {
     const banks = new Map(
       db
-        .select()
+        .select({
+          id: account.id,
+          type: account.type,
+          currency: account.currency,
+          openingDate: account.openingDate,
+        })
         .from(account)
         .where(isNull(account.deletedAt))
         .all()
