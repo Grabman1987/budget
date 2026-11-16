@@ -68,17 +68,17 @@ Bereich: Plan (`/plan/monat`, `/plan/jahr`, `/plan/erwartet`, `/plan/sparziele`,
 - **Ablauf:**
   1. Ich öffne „Plan › Monat“ für einen einzelnen Monat; leere Kategorien zeigen blasse Vorschläge.
   2. Ich öffne „Automatisch zuweisen“ (bzw. „Verteilen ▾“) und wähle „Wie letzter Monat“, „Ø 3 Monate“ oder „Ziel“.
-  3. Die App zeigt die Vorschau der Beträge.
-  4. Ich tippe „Leere füllen“. Die App weist nur leere Kategorien zu, in angezeigter Reihenfolge, solange Geld da ist.
+  3. Im geführten „Geld verteilen“ wähle ich für Kategorien ohne Ziel „Wie letzter Monat“ (Zuweisungen) oder „Ø 3 Monate“ (Ausgaben). Ich prüfe und bearbeite die Vorschau vor „Vorlage zuweisen“.
+  4. Alternativ tippe ich im Plan „Leere füllen“. Die App weist nur leere Kategorien zu, in angezeigter Reihenfolge, solange Geld da ist.
   5. Ich kann alles mit „Rückgängig“ in einem Schritt zurücknehmen.
 - **Ergebnis:** Die Zuweisungen sind gespeichert; es gibt eine Rückgängig-Gruppe.
 - **Abnahmekriterien:**
-  1. Ohne Klick auf „Leere füllen“ wird nichts gespeichert.
+  1. Ohne Bestätigung („Leere füllen“ bzw. „Vorlage zuweisen“) wird nichts gespeichert. Vorlagen ohne historische Werte sind mit Begründung gesperrt; manuelle Überschreitungen zeigen den bestehenden Dispo-Hinweis.
   2. Ist nicht genug Geld da, wird in Reihenfolge teilweise gefüllt; die Lücke bleibt sichtbar.
   3. Bei mehreren Monaten ist die Funktion mit „Nur bei einem Monat“ gesperrt.
   4. Gibt es nichts zu füllen, steht „Keine leere Kategorie mit Vorschlag“.
   5. „Rückgängig“ und „Wiederholen“ stellen den Stand her.
-- **Status:** live — **Verweis:** Y09a
+- **Status:** live; Assistenten-Vorlagen implementiert, Abnahme offen — **Verweis:** Y09a, #1097
 
 ### P-05 – Geld verteilen, geführt
 - **Story:** Als Nutzer möchte ich am Gehaltstag Schritt für Schritt Geld verteilen, damit ich keine Kategorie vergesse und am Ende weiß, dass jeder Euro eine Aufgabe hat.
@@ -87,7 +87,7 @@ Bereich: Plan (`/plan/monat`, `/plan/jahr`, `/plan/erwartet`, `/plan/sparziele`,
   1. Ich tippe in Heute bei „Als Nächstes“ auf „Verteilen“ oder in Plan › Monat auf „Geld verteilen“ (Menü „Verteilen“ › „Schritt für Schritt verteilen“).
   2. Schritt „Eingang prüfen“: gebuchte Einnahmen im Budgetmonat und erwartete Zahlungen werden gezeigt; nur Gebuchtes ist verteilbar.
   3. Schritt „Lücken“: unterfinanzierte und überzogene Kategorien werden aufgelistet.
-  4. Schritt „Zuweisen“: Ich weise je Kategorie zu; „Zu verteilen jetzt“ sinkt mit.
+  4. Schritt „Zuweisen“: Ich wähle eine historische Vorlage für Kategorien ohne Ziel, passe die Vorschau an und bestätige „Vorlage zuweisen“. Alternativ weise ich je Zielkategorie zu; „Zu verteilen jetzt“ sinkt mit.
   5. Schritt „Rest und Zusammenfassung“: ich sehe „Änderungen in diesem Durchgang“ und kann mit „Rückgängig“ zurücknehmen oder „Zurück zum Plan“ gehen.
 - **Ergebnis:** Zuweisungen sind gespeichert; bei null steht „Jeder Euro hat einen Job.“
 - **Abnahmekriterien:**
@@ -96,7 +96,8 @@ Bereich: Plan (`/plan/monat`, `/plan/jahr`, `/plan/erwartet`, `/plan/sparziele`,
   3. Ist nichts zu verteilen, steht „Nichts zu verteilen.“
   4. Schlägt ein Schreibvorgang fehl, steht „Das hat nicht geklappt. Versuch es noch einmal.“ und es wird nichts doppelt gebucht.
   5. Auf dem Handy (390 px) ist jeder Schritt bedienbar.
-- **Status:** live — **Verweis:** #1055, #1071
+  6. Beide Vorlagen schreiben erst nach Bestätigung in einer rückgängig machbaren Gruppe. Ohne historische Werte sind sie mit Begründung gesperrt. Die Vorschau bleibt auf „Zu verteilen“ begrenzt; manuelle Überschreitungen zeigen den bestehenden Dispo-Hinweis. Alle Beträge bleiben centgenau.
+- **Status:** live; Vorlagen-Erweiterung implementiert, Abnahme offen — **Verweis:** #1055, #1071, #1097
 - Hinweis: #1055 ist im GitHub-Stand noch offen; #1071 (drei Kleinpunkte) ist geschlossen. Status vor Abnahme prüfen.
 
 ### P-06 – Überziehungen decken

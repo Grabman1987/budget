@@ -363,6 +363,10 @@ for (const scenario of ['category', 'outlay', 'percent', 'amount', 'several'] as
       await (await contactShareControl(dialog)).click();
       await expect(save).toBeDisabled();
       await dialog.getByLabel('Kontakt 1.1', { exact: true }).selectOption(contact.id);
+      await dialog
+        .getByRole('group', { name: 'Anteilart 1.1', exact: true })
+        .getByRole('button', { name: '%', exact: true })
+        .click();
       await expect(dialog.getByLabel('Anteil 1.1 (%)')).toHaveValue('50');
       if (scenario === 'percent') await dialog.getByLabel('Anteil 1.1 (%)').fill('33,33');
       else {
@@ -388,6 +392,10 @@ for (const scenario of ['category', 'outlay', 'percent', 'amount', 'several'] as
       await dialog.getByLabel('Betrag 2', { exact: true }).fill('20');
       await dialog.getByRole('button', { name: '+ Weiterer Kontakt', exact: true }).click();
       await dialog.getByLabel('Kontakt 1.2').selectOption(secondContact.id);
+      await dialog
+        .getByRole('group', { name: 'Anteilart 1.2', exact: true })
+        .getByRole('button', { name: '%', exact: true })
+        .click();
       await dialog.getByLabel('Anteil 1.2 (%)').fill('10');
       await expect(dialog.getByText('Kategorie trägt 100,00 € bis zur Rückzahlung')).toBeVisible();
     }

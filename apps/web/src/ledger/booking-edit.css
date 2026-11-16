@@ -1,4 +1,11 @@
 /* Edit-only overrides: capture retains its independently maintained phone layout. */
+.bk-release-opening {
+  flex-wrap: wrap;
+}
+:root:has([data-budget-redesign='1']) .bk-focus-scope .bk-release-opening .btn {
+  min-height: var(--touch);
+}
+
 @media (min-width: 768px) {
   .bk-edit-scope .bkform-redesign .bk-body {
     grid-template-areas: 'kind amount' 'payee context' 'lines lines' 'memo memo';

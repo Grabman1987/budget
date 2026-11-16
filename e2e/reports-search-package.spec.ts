@@ -29,7 +29,6 @@ test('everyday terms keep function routes, data kinds and global actions distinc
     ['Einkommenspause', 'Plan · Prognose', '/plan/prognose', ''],
     ['Dispo', 'Vermögen · Schulden', '/vermoegen/schulden', ''],
     ['Gebühren', '2.6 Bank- und Zinskosten', '/reports/abos', 'bankkosten'],
-    ['Prognosegenauigkeit', '1.11 Prognosegenauigkeit', '/reports/budgettreue', 'planungstreue'],
     ['Budgettreue', redesign ? '14 Budgettreue' : '2.2 Budgettreue', '/reports/budgettreue', ''],
   ]) {
     const input = await open();
@@ -42,7 +41,7 @@ test('everyday terms keep function routes, data kinds and global actions distinc
     await option.click();
     await expect.poll(() => new URL(page.url()).pathname).toBe(path);
     if (view) expect(new URL(page.url()).searchParams.get('darstellung')).toBe(view);
-    if (term === 'Prognosegenauigkeit' || term === 'Budgettreue') {
+    if (term === 'Budgettreue') {
       await expect(page.getByRole('heading', { name: 'Budgettreue', exact: true })).toBeVisible();
     }
   }

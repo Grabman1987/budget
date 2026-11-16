@@ -26,6 +26,17 @@ import { ContactSelect } from './contact-select';
 import { eur } from './format';
 import type { AccountRow } from './types';
 
+const SHARE_MODE_KEY = 'budget-contact-share-mode';
+type ShareMode = BookingLineDraft['shares'][number]['mode'];
+
+function readShareMode(): ShareMode {
+  try {
+    return localStorage.getItem(SHARE_MODE_KEY) === 'percent' ? 'percent' : 'amount';
+  } catch {
+    return 'amount';
+  }
+}
+
 export interface SplitEditorProps {
   draft: BookingDraft;
   setDraft: Dispatch<SetStateAction<BookingDraft>>;
@@ -100,6 +111,11 @@ export function SplitEditor({
   useAmountPrivacy();
   const editorRef = useRef<HTMLFieldSetElement>(null);
   const [creatingLine, setCreatingLine] = useState<string>();
+  const [shareMode, setShareMode] = useState(readShareMode);
+  const newShare = () => ({
+    ...newSplit({ type: 'contact', amount: shareMode === 'percent' ? '50' : '' }),
+    mode: shareMode,
+  });
   const lines = captureLines(draft, singleMetadata);
   const multiple = draft.splitOn && lines.length > 1;
   const rest = splitRemainder(draft.amount, lines);
@@ -268,6 +284,12 @@ export function SplitEditor({
                       ]}
                       value={share.mode}
                       onChange={(mode) => {
+                        setShareMode(mode);
+                        try {
+                          localStorage.setItem(SHARE_MODE_KEY, mode);
+                        } catch {
+                          // Blocked device storage must not prevent editing the share.
+                        }
                         const split = expanded.splits.find((s) => s.key === share.key);
                         // Switching units keeps the current euro share; switching back starts at 50%.
                         shareChange(share.key, {
@@ -311,10 +333,7 @@ export function SplitEditor({
                   variant="ghost"
                   onClick={() =>
                     change(line.key, {
-                      shares: [
-                        ...line.shares,
-                        { ...newSplit({ type: 'contact', amount: '50' }), mode: 'percent' },
-                      ],
+                      shares: [...line.shares, newShare()],
                     })
                   }
                 >
@@ -394,9 +413,7 @@ export function SplitEditor({
                   aria-expanded={line.shares.length > 0}
                   onClick={() =>
                     change(line.key, {
-                      shares: line.shares.length
-                        ? line.shares
-                        : [{ ...newSplit({ type: 'contact', amount: '50' }), mode: 'percent' }],
+                      shares: line.shares.length ? line.shares : [newShare()],
                     })
                   }
                 >
@@ -490,9 +507,7 @@ export function SplitEditor({
                         className="bk-contact-add"
                         onClick={() =>
                           change(line.key, {
-                            shares: [
-                              { ...newSplit({ type: 'contact', amount: '50' }), mode: 'percent' },
-                            ],
+                            shares: [newShare()],
                           })
                         }
                       >

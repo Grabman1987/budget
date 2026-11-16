@@ -179,6 +179,10 @@ for (const scenario of ['category', 'outlay', 'percent', 'amount', 'several'] as
     if (scenario === 'percent' || scenario === 'amount') {
       await (await contactShareControl(dialog)).click();
       await dialog.getByLabel('Kontakt 1.1', { exact: true }).selectOption(contact.id);
+      await dialog
+        .getByRole('group', { name: 'Anteilart 1.1', exact: true })
+        .getByRole('button', { name: '%', exact: true })
+        .click();
       if (scenario !== 'percent')
         await dialog
           .getByRole('group', { name: 'Anteilart 1.1', exact: true })

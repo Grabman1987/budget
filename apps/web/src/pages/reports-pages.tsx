@@ -35,7 +35,6 @@ import { ReportHub } from '../reports/report-hub';
 import { rememberReport, type HubGroup } from '../reports/report-hub-model';
 import { SpendingReportViews } from '../reports/spending-report-views';
 import { BudgetReportViews, ContractsReportViews } from '../reports/budget-contract-report-views';
-import { PlanningAccuracyReportPage } from '../reports/planning-accuracy-report';
 import { BankCostsReportPage } from '../reports/bank-costs-report';
 import { PersonalInflationReport } from '../reports/personal-inflation-report';
 import { YearReport } from '../reports/year-report';
@@ -138,8 +137,6 @@ export function ReportPage({
   if (report.id === 'vermoegen-schulden') return <WealthReportViews report={report} meta={meta} />;
   if (report.id === 'ausgaben') return <SpendingReportViews report={report} meta={meta} />;
   if (report.id === 'budgettreue') return <BudgetReportViews report={report} meta={meta} />;
-  if (report.id === 'planungstreue')
-    return <PlanningAccuracyReportPage report={report} meta={meta} />;
   if (report.id === 'abos') return <ContractsReportViews report={report} meta={meta} />;
   if (report.id === 'kosten') return <BankCostsReportPage report={report} meta={meta} />;
   if (report.id === 'inflation') return <PersonalInflationReport report={report} meta={meta} />;

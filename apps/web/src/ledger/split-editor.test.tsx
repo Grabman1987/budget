@@ -1,12 +1,78 @@
 ﻿// @vitest-environment jsdom
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { useState } from 'react';
 import { expect, it, vi } from 'vitest';
 import { ToastProvider } from '@budget/ui';
 import * as ledgerApi from './api';
 import { SplitEditor } from './split-editor';
 import { buildCreate, emptyDraft, newSplit, type BookingDraft } from './booking-model';
+
+it.each([false, true])('remembers the contact-share mode across forms (portal: %s)', (portal) => {
+  localStorage.removeItem('budget-contact-share-mode');
+  function Form() {
+    const [draft, setDraft] = useState<BookingDraft>({
+      ...emptyDraft('account-example', '2026-10-01'),
+      amount: '100,01',
+    });
+    const [host, setHost] = useState<HTMLDivElement | null>(null);
+    return (
+      <>
+        {portal && <div ref={setHost} />}
+        <SplitEditor
+          draft={draft}
+          setDraft={setDraft}
+          categories={[]}
+          accounts={[]}
+          accountId="account-example"
+          contacts={[]}
+          hasAdvanceCategory
+          locked={false}
+          error={undefined}
+          contactHost={portal ? host : undefined}
+        />
+      </>
+    );
+  }
+  const mount = () =>
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <ToastProvider>
+          <Form />
+        </ToastProvider>
+      </QueryClientProvider>,
+    );
+  const add = () =>
+    fireEvent.click(screen.getByRole('button', { name: portal ? 'Kontakt hinzufügen' : 'Teilen' }));
+  const chooseMode = (mode: string) =>
+    fireEvent.click(
+      within(screen.getByRole('group', { name: 'Anteilart 1.1' })).getByRole('button', {
+        name: mode,
+      }),
+    );
+  try {
+    let view = mount();
+    add();
+    expect((screen.getByLabelText('Anteil 1.1 (€)') as HTMLInputElement).value).toBe('');
+    chooseMode('%');
+    fireEvent.change(screen.getByLabelText('Anteil 1.1 (%)'), { target: { value: '33,33' } });
+    fireEvent.click(screen.getByRole('button', { name: '+ Weiterer Kontakt' }));
+    expect((screen.getByLabelText('Anteil 1.2 (%)') as HTMLInputElement).value).toBe('50');
+    expect((screen.getByLabelText('Anteil 1.1 (%)') as HTMLInputElement).value).toBe('33,33');
+    view.unmount();
+    view = mount();
+    add();
+    expect((screen.getByLabelText('Anteil 1.1 (%)') as HTMLInputElement).value).toBe('50');
+    chooseMode('Betrag');
+    view.unmount();
+    view = mount();
+    add();
+    expect(screen.queryByLabelText('Anteil 1.1 (%)')).toBeNull();
+    view.unmount();
+  } finally {
+    localStorage.removeItem('budget-contact-share-mode');
+  }
+});
 
 it.each([false, true])('adding a line respects intervening category focus (%s)', (moveFocus) => {
   const frames: FrameRequestCallback[] = [];
@@ -102,6 +168,9 @@ it('shares a category by percent, keeps cents exact, and guards an unfinished se
   );
   fireEvent.click(screen.getByRole('button', { name: 'Teilen' }));
   fireEvent.change(screen.getByLabelText('Kontakt 1.1'), { target: { value: 'contact-example' } });
+  fireEvent.click(
+    within(screen.getByRole('group', { name: 'Anteilart 1.1' })).getByRole('button', { name: '%' }),
+  );
   fireEvent.change(screen.getByLabelText('Anteil 1.1 (%)'), { target: { value: '33,33' } });
   expect(screen.getByText(/danach 99,99/)).toBeTruthy();
   expect(screen.getByText('Kategorie trägt 100,01 € bis zur Rückzahlung')).toBeTruthy();
