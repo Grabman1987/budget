@@ -88,9 +88,8 @@ export function CategoryCombobox({
       ? undefined
       : options.filter(
           (option) =>
-            !option.alwaysVisible &&
             option.label.trim().toLocaleLowerCase('de-AT') ===
-              typing.trim().toLocaleLowerCase('de-AT'),
+            typing.trim().toLocaleLowerCase('de-AT'),
         );
   const unresolved = capturePicker && typing !== null;
   const invalidMessage = 'Bitte eine Kategorie aus der Liste wählen.';
@@ -116,7 +115,7 @@ export function CategoryCombobox({
         {...(showsAvailable ? { hintHeading: 'Verfügbar' } : {})}
         onChange={(text) => {
           setTyping(text);
-          if (capturePicker) onSelect('');
+          if (capturePicker && text.trim() === '') onSelect('');
         }}
         onFocusChange={(focused) => {
           if (focused) return;
@@ -125,7 +124,10 @@ export function CategoryCombobox({
               onSelect(typedOption[0]!.id);
               setTyping(null);
               setInvalid(false);
-            } else setInvalid(true);
+            } else if (selectedName) {
+              setTyping(null);
+              setInvalid(false);
+            } else setInvalid(typing.trim() !== '');
           } else setTyping(null);
         }}
         onSelect={(o) => {

@@ -56,7 +56,7 @@ test('capture keeps visible categories and payee defaults consistent across cons
     await payee.fill(payees[index].name);
     await dialog.getByRole('option', { name: payees[index].name, exact: true }).click();
     await expect(category).toHaveValue(categories[index].name);
-    await expect(account).toHaveValue(accounts[index].id);
+    await expect(account).toHaveValue(accounts[0].id);
     await amount.fill('10,00');
     const saved = page.waitForResponse(
       (response) =>
@@ -67,7 +67,7 @@ test('capture keeps visible categories and payee defaults consistent across cons
     const response = await saved;
     expect(response.status()).toBe(201);
     const sent = response.request().postDataJSON();
-    expect(sent.accountId).toBe(accounts[index].id);
+    expect(sent.accountId).toBe(accounts[0].id);
     expect(sent.splits[0].categoryId).toBe(categories[index].id);
     const result = await response.json();
     expect(result.bookings[0].splits[0].categoryId).toBe(categories[index].id);
@@ -76,8 +76,7 @@ test('capture keeps visible categories and payee defaults consistent across cons
   await payee.fill('Neuer Musterladen');
   await amount.focus();
   await expect(category).toHaveValue('');
-  await expect(account).toHaveValue('');
-  await account.selectOption(accounts[0].id);
+  await expect(account).toHaveValue(accounts[0].id);
   for (const method of ['typed', 'clicked', 'keyboard']) {
     await amount.fill('10,00');
     await category.fill('');
@@ -87,6 +86,11 @@ test('capture keeps visible categories and payee defaults consistent across cons
     else if (method === 'keyboard') await category.press('Enter');
     else await amount.focus();
     await expect(category).toHaveValue(categories[0].name);
+    if (method === 'typed') {
+      await category.fill('Suchtext ohne Treffer');
+      await amount.focus();
+      await expect(category).toHaveValue(categories[0].name);
+    }
     const saved = page.waitForResponse(
       (response) =>
         response.request().method() === 'POST' &&
@@ -100,17 +104,21 @@ test('capture keeps visible categories and payee defaults consistent across cons
     expect(result.bookings[0].splits[0].categoryId).toBe(categories[0].id);
     await expect(amount).toHaveValue('');
   }
-  await category.fill('Keine gültige Kategorie');
+  await category.fill('Suchtext ohne Treffer');
   await amount.focus();
-  await expect(category).toHaveValue('Keine gültige Kategorie');
-  await expect(category).toHaveAttribute('aria-invalid', 'true');
-  await expect(dialog.getByText('Bitte eine Kategorie aus der Liste wählen.')).toBeVisible();
+  await expect(category).toHaveValue(categories[0].name);
+  await expect(category).toHaveAttribute('aria-invalid', 'false');
   await amount.fill('10,00');
-  let writes = 0;
-  page.on('request', (req) => {
-    if (req.method() === 'POST' && new URL(req.url()).pathname === '/api/bookings') writes++;
-  });
+  await category.fill(categories[1].name.toLocaleLowerCase('de-AT'));
+  const saved = page.waitForResponse(
+    (response) =>
+      response.request().method() === 'POST' &&
+      new URL(response.url()).pathname === '/api/bookings',
+  );
   await category.press('Control+Enter');
-  await expect(dialog.getByText('Bitte eine Kategorie aus der Liste wählen.')).toBeVisible();
-  expect(writes).toBe(0);
+  const response = await saved;
+  expect(response.status()).toBe(201);
+  expect(response.request().postDataJSON().accountId).toBe(accounts[0].id);
+  expect(response.request().postDataJSON().splits[0].categoryId).toBe(categories[1].id);
+  expect((await response.json()).bookings[0].splits[0].categoryId).toBe(categories[1].id);
 });

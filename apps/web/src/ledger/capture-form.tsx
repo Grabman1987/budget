@@ -36,6 +36,7 @@ import {
   type KeyboardEvent,
   type MutableRefObject,
 } from 'react';
+import { flushSync } from 'react-dom';
 import { ApiError, request } from '../api/http';
 import { discardRejectedChange } from '../pwa/queue';
 import { REDESIGN_ENABLED } from '../shell/redesign-flag';
@@ -590,12 +591,16 @@ export function CaptureForm({
     const accountVersion = suggestAccount ? ++accountRequest.current : accountRequest.current;
     if (suggestAccount) accountPayee.current = key;
     const applyAccount = (last: string | undefined) => {
-      if (!suggestAccount || accountVersion !== accountRequest.current || accountChosen.current)
+      if (
+        !suggestAccount ||
+        accountVersion !== accountRequest.current ||
+        accountChosen.current ||
+        !open.some((account) => account.id === last)
+      )
         return;
       setAllowDefaultAccount(false);
-      set('accountId', open.some((account) => account.id === last) ? last! : '');
+      set('accountId', last!);
     };
-    applyAccount(undefined);
     if (!payee) return;
     const readHistory = async () => {
       const page = await fetchBookings({ payeeId: payee.id, to: today }, undefined, 1);
@@ -672,8 +677,19 @@ export function CaptureForm({
       .catch(() => undefined);
   };
 
-  const save = async (andNew: boolean) => {
+  const currentSave = useRef<((andNew: boolean) => Promise<void>) | null>(null);
+  const save = async (andNew: boolean): Promise<void> => {
     if (releaseAsking || saving.current || uploadingRef.current) return;
+    const active = document.activeElement;
+    if (
+      active instanceof HTMLInputElement &&
+      active.closest('.is-capture-category') &&
+      formRef.current?.contains(active)
+    ) {
+      // Keyboard saves resolve category search just like leaving the field. Use the updated draft.
+      flushSync(() => active.blur());
+      return currentSave.current?.(andNew);
+    }
     setSaveAttempted(true);
     if (!formRef.current?.checkValidity()) return;
     if (!editing && !from) return setErrors({ account: 'Bitte ein verfügbares Konto wählen.' });
@@ -752,7 +768,7 @@ export function CaptureForm({
       setStatusChosen(false);
       setBankIntent(null);
       accountRequest.current++;
-      accountChosen.current = false;
+      accountChosen.current = true;
       appliedPayee.current = draft.payee.trim().toLowerCase();
       setSaveAttempted(false);
       categoryRequest.current++;
@@ -915,6 +931,9 @@ export function CaptureForm({
     : !editing && !queued && !statusChosen && !(state.mode === 'create' && state.prefill?.status)
       ? 'pending'
       : draft.status;
+  useLayoutEffect(() => {
+    currentSave.current = save;
+  });
   const shownStatus = manualPair ? bankStatus : effectiveStatus;
   const bankAccount = manualPair?.cashSide === 'from' ? to : from;
   const cashAccount = manualPair?.cashSide === 'from' ? from : to;

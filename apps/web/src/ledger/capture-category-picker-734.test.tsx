@@ -201,3 +201,25 @@ it('keeps a focused category picker visible when the root document is scrolled b
     document.documentElement.style.overflowY = oldOverflowY;
   }
 });
+
+it('keeps the valid category while searching and restores its label on blur', async () => {
+  const user = mount([category('cat-a', 'Kategorie A', 'Gruppe A')]);
+  const field = screen.getByRole<HTMLInputElement>('combobox', { name: 'Kategorie' });
+  await user.click(field);
+  await user.click(screen.getByRole('option', { name: 'Kategorie A' }));
+  await user.click(field);
+  await user.paste('Suchtext ohne Treffer');
+  expect(JSON.parse(screen.getByTestId('payload').textContent ?? '')).toMatchObject({
+    ok: true,
+    value: { splits: [{ categoryId: 'cat-a' }] },
+  });
+  await user.tab();
+  await user.tab();
+  expect(field.value).toBe('Kategorie A');
+  expect(field.getAttribute('aria-invalid')).toBe('false');
+  await user.click(field);
+  await user.clear(field);
+  await user.tab();
+  expect(field.value).toBe('');
+  expect(JSON.parse(screen.getByTestId('payload').textContent ?? '')).toMatchObject({ ok: false });
+});
