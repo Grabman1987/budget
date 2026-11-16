@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import {
   addDays,
   allocateContactReceipt,
+  ContactAllocationError,
   contactStatement,
   type ContactAllocation,
 } from '@budget/domain';
@@ -540,7 +541,7 @@ export function writeOffContact(
         grouped,
       );
     } catch (error) {
-      if (error instanceof Error && /Allocation exceeds/.test(error.message))
+      if (error instanceof ContactAllocationError && /Allocation exceeds/.test(error.reason))
         throw new BookingInvariantError(
           'Ausgleich zu diesem Datum nicht möglich: spätere Zahlungen sind bereits zugeordnet.',
         );
