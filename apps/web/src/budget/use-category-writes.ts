@@ -93,10 +93,11 @@ export function useBudgetWrite() {
     const current = () => history.revision() === revision && toast.revision() === toastRevision;
     try {
       const result = await run();
-      // #1201: reads refresh in the background; the dialog must not wait for them.
       const refreshing = refresh().catch(() => undefined);
-      // Callers that show an optimistic override until the server state arrives wait for it.
-      if (options?.awaitRefresh) await refreshing;
+      // Inline controls (toggles, order, quick fill) read their state from the refreshed data, so
+      // the write waits for it by default. #1201: a dialog that only closes passes
+      // `awaitRefresh: false` and lets the reads finish in the background.
+      if (options?.awaitRefresh !== false) await refreshing;
       if (!current()) return result;
       const hint =
         'toBeAssignedCents' in result && typeof result.toBeAssignedCents === 'number'
