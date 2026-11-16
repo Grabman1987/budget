@@ -1,4 +1,5 @@
 /** Text helpers shared by the payslip layouts. Pure; no layout or employer is named here. */
+import { isReimbursementLabel } from './wage-label-rules';
 import { payrollTotals, type PayslipInput } from './payroll-projects';
 import type { ParsedPayrollDocument } from './payslip-intake';
 
@@ -79,16 +80,11 @@ export function detectPeriod(text: string, filename: string) {
 
 export type WageKind = 'reimbursement' | 'earning' | 'info';
 /**
- * Generic wage-type labels. Tax-free reimbursements are never salary; everything that is part of the
+ * Generic wage-type labels. Tax-free reimbursements keep their own section (see wage-label-rules.ts for which count as pay); everything that is part of the
  * printed gross total is an earning; employer-side and memo lines are information only.
  */
 export function classifyWageLabel(plain: string): WageKind | undefined {
-  if (
-    /telearbeit|home\s?office|fahrgeld|reisespesen|reisekosten|kilometergeld|taggeld|diaten|dienstreise.*auslagen/.test(
-      plain,
-    )
-  )
-    return 'reimbursement';
+  if (isReimbursementLabel(plain)) return 'reimbursement';
   if (/pendlereuro|vorsorge\s*(?:bem|beitrag)|tages.{0,3}nachtig|nachtigungsgeld/.test(plain))
     return 'info';
   if (

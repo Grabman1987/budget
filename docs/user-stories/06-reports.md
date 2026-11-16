@@ -110,6 +110,19 @@ Historical references follow `docs/FEATURES.md` (positions 1.1–5.6). The hub r
 - **Status:** teilweise implementiert für Review (Lohnzeilen/Komponentenmodell aus #1082; nominaler Lese-Endpunkt in dieser Fortsetzung), Oberfläche und Live-Abnahme offen · **Verweis:** #1066
   Fehlt noch: geprüfter UI-Entwurf, Zuordnungsoberfläche und Schreib-Endpunkte, Ansichten, Vorschau/Bestätigung des expliziten PDF-Neulesens, Anbindung des vorhandenen VPI und der persönlichen Inflation, Ereignismarker und gedruckte Arbeitgeberbeiträge.
 
+### RP-02a – Netto der letzten 24 Monate mit Sonderzahlungen
+- **Story:** Als Nutzer möchte ich je Monat das laufende Netto und die Sonderzahlungen getrennt, aber mit korrekter Monatssumme sehen, damit ein Bonusmonat das laufende Gehalt nicht scheinbar einbrechen lässt.
+- **Ausgangslage:** Mehrere Gehaltszettel, darunter laufende und Sonderzahlungs-Zettel.
+- **Ablauf:**
+  1. Reports › Gehaltsreport, Karte „Netto der letzten Monate“ lesen: volle Säule = laufend, schraffiert = Sonderzahlung, gestrichelt = „Aufteilung unklar“.
+  2. Tabelle „Laufend · Sonderzahlung · Bonus · Summe“ je Monat lesen.
+- **Ergebnis:** Die Monatssumme enthält laufendes Netto und Sonderzahlungen; Steuer wird nicht zwischen den Teilen umverteilt.
+- **Abnahmekriterien:**
+  - Ein laufender Zettel mit erkennbarer Sonderzahlung (Netto über Brutto, zusätzliche Bezugszeile oder Sonderkomponente aus der Quelle) zeigt im Laufend-Teil „Aufteilung unklar“ und zählt trotzdem voll in der Summe.
+  - Telearbeit und Fahrgeld zählen als Gehalt; nur Reisespesen bleiben ausgenommen („ohne Reisespesen“). Die Regel steht an einer Stelle (`wage-label-rules.ts`); gespeicherte Zettel, Jahressummen und Sparquote bleiben unverändert.
+  - Beträge folgen dem Datenschutzschalter; kein „+“ vor Beträgen.
+- **Status:** in Prüfung · **Offen:** Zettel-Aufnahme (zwei Zettel aus einem PDF vorschlagen) und die Prüfen-Aufgabe zu #1207.
+
 ### RP-04 – Monat mit Sonderzahlung korrekt darstellen (geplant)
 - **Story:** Als Nutzer möchte ich einen Monat mit Sonderzahlung ohne erfundene Netto- oder Steueraufteilung sehen, damit der Report die Auszahlung korrekt abbildet und keine falsche Warnung zu einem fehlenden Sondergehalt erscheint.
 - **Ausgangslage:** Der Zettel enthält laufendes Brutto plus Sonderzahlung; die Auszahlung deckt sich mit der Bankbuchung.

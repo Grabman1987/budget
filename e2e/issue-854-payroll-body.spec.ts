@@ -68,8 +68,14 @@ test('854 payroll: recorded cents, recent curve, complete history, selected slip
     return;
   }
   await expect(page.getByTestId('report-frame-result')).toHaveText('2.950,03 €');
-  await expect(page.locator('.r9-salary-trend .pp-net')).toBeVisible();
-  await expect(page.locator('.r9-salary-trend .pp-dot')).toHaveCount(23);
+  await expect(page.getByTestId('payroll-net-composition')).toBeVisible();
+  await expect(page.locator('.r9-salary-trend .pp-running')).toHaveCount(23);
+  await expect(page.getByTestId('payroll-net-table').getByRole('columnheader')).toHaveText([
+    'Monat',
+    'Laufend',
+    'Sonderzahlung · Bonus',
+    'Summe',
+  ]);
   await expect(page.locator('[data-r8-detail][open]')).toHaveCount(0);
   const folder = 'docs/evidence/redesign-reports-20261103-a';
   for (const view of ['main', 'history'] as const) {
