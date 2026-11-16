@@ -6,7 +6,8 @@ calculation chain remains available in “Berechnung und Einordnung”. Views wi
 verdict facts explicitly explain that evaluation data is missing. Amount privacy,
 existing report addresses and period selection are retained. Ready for review;
 required CI and owner visual acceptance remain open.
-#1157 slice (2026-11-16): redesign ON removes the duplicate debt-history and financial-freedom choices from the wealth report. Old report bookmarks redirect to the existing Verm?gen pages with URL context retained; the complete freedom reader/editor stays available there. Calculations and persistence are unchanged; OFF still compiles. Review/CI/owner acceptance pending. Remaining: Bilanz/Verlauf/Gespart gegen Markt consolidation, portfolio menu reports and combined Wertentwicklung.
+
+#1157 slice (2026-11-16): redesign ON removes the duplicate debt-history and financial-freedom choices from the wealth report. Old report bookmarks redirect to the existing Vermögen pages with URL context retained; the complete freedom reader/editor stays available there. Calculations and persistence are unchanged; OFF still compiles. Review/CI/owner acceptance pending. Remaining: Bilanz/Verlauf/Gespart gegen Markt consolidation, portfolio menu reports and combined Wertentwicklung.
 
 2026-10-15 reading guide: [Traceability](product/traceability.md) maps all 50 Y/I
 feature IDs to current contracts, source/test starting points and acceptance

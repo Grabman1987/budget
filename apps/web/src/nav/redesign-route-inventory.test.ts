@@ -164,7 +164,7 @@ describe.each([false, true])('actual A2 router, redesign=%s', (enabled) => {
   });
 
   it.each([
-    ['/vermoegen/freiheit', '/reports/vermoegen-schulden', 'freiheit'],
+    ['/vermoegen/freiheit', '/vermoegen/freiheit', undefined],
     ['/vermoegen/portfolio/kennzahlen', '/reports/vermoegen-schulden', 'rendite'],
     ['/vermoegen/nettovermoegen', '/vermoegen', undefined],
   ])(
