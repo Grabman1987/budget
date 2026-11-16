@@ -283,6 +283,10 @@ describe('PUT /api/securities/:id/prices/:date', () => {
         priceMicro: 81_250_000,
         currency: 'EUR',
         source: 'manual',
+        // #1203: new nullable conversion columns, null for every non-converted price.
+        sourceCurrency: null,
+        sourcePriceMicro: null,
+        fxRateMicro: null,
       },
     ]);
     expect(

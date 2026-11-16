@@ -64,6 +64,8 @@ export function readCollapsedAccounts(): Set<string> {
 export type InboxDisplayGroup = {
   kind: Exclude<InboxKind, 'overspent'> | null;
   account: BankAccountGroup | undefined;
+  /** Own group of `stale_value` warnings of instruments without a holding. */
+  historical?: boolean;
   all: Exclude<InboxEntry, InboxEnvelope>[];
 };
 export function visibleInboxGroups(

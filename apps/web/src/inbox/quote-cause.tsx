@@ -10,7 +10,14 @@ import { INBOX_KEY } from './api';
 import { quoteText } from '../wealth/portfolio-format';
 
 export type MarketRunSummary = { finishedAt: string; status: string; errorClasses: string | null };
-type Quote = { date: string; priceMicro: number };
+type Quote = { date: string; priceMicro: number; sourceCurrency?: string };
+export interface QuoteAttempt {
+  source: string;
+  attemptedAt: string;
+  outcome: string;
+  httpStatus: number | null;
+  detail: string | null;
+}
 export interface QuoteDiagnostics {
   securityId: string;
   name: string;
@@ -23,6 +30,10 @@ export interface QuoteDiagnostics {
   pricesEnabled?: boolean;
   /** `false`: no current holding, a "historischer Bestand". */
   held?: boolean;
+  /** Owner choice "mit EZB-Kurs umrechnen": the currency the source quotes in. */
+  quoteFxCurrency?: string | null;
+  /** Newest attempts first (#1203). */
+  attempts?: QuoteAttempt[];
   lastRun?: MarketRunSummary | null;
   lastSuccessRun?: MarketRunSummary | null;
   asOf: string;
@@ -53,6 +64,17 @@ const ERRORS: Record<string, string> = {
   timeout: 'Die Quelle hat nicht rechtzeitig geantwortet.',
   parse: 'Die Antwort konnte nicht gelesen werden.',
 };
+
+const attemptText = (a: QuoteAttempt): string =>
+  a.outcome === 'ok'
+    ? `erfolgreich${a.detail ? ` (${a.detail})` : ''}`
+    : a.outcome === 'empty'
+      ? 'keine Zeilen'
+      : a.httpStatus !== null
+        ? `HTTP ${a.httpStatus}`
+        : (ERRORS[a.outcome] ?? `Fehlerklasse: ${a.outcome}`);
+const attemptTime = (a: QuoteAttempt): string =>
+  `${new Date(a.attemptedAt).toLocaleString('de-AT')} · ${a.source}`;
 
 export function QuoteCause({
   securityId,
@@ -92,6 +114,23 @@ export function QuoteCause({
       await Promise.all([
         qc.invalidateQueries({ queryKey: INBOX_KEY }),
         qc.invalidateQueries({ queryKey: LEDGER_KEY }),
+      ]);
+    },
+  });
+  const convert = useMutation({
+    mutationFn: (currency: string | null) =>
+      request<{ quoteFxCurrency: string | null }>('POST', `${path}/quote-fx-currency`, {
+        currency,
+      }),
+    onSuccess: async (result) => {
+      toast.show({
+        message: result.quoteFxCurrency
+          ? `Umrechnung mit EZB-Kurs gespeichert (${result.quoteFxCurrency}). Sie gilt ab dem nächsten Kursabruf; die Warnung schließt danach von selbst.`
+          : 'Umrechnung aufgehoben.',
+      });
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: [...LEDGER_KEY, 'quote-diagnostics', securityId] }),
+        qc.invalidateQueries({ queryKey: INBOX_KEY }),
       ]);
     },
   });
@@ -149,6 +188,31 @@ export function QuoteCause({
             </dd>
           </>
         )}
+        {data.attempts !== undefined && (
+          <>
+            <dt>Letzter Abrufversuch</dt>
+            <dd>
+              {data.attempts[0]
+                ? `${attemptTime(data.attempts[0])} · ${attemptText(data.attempts[0])}`
+                : 'Noch keiner aufgezeichnet'}
+            </dd>
+            <dt>Letzter Erfolg</dt>
+            <dd>
+              {data.attempts.find((a) => a.outcome === 'ok')
+                ? attemptTime(data.attempts.find((a) => a.outcome === 'ok') as QuoteAttempt)
+                : 'Keiner in den aufgezeichneten Versuchen'}
+            </dd>
+          </>
+        )}
+        {data.quoteFxCurrency && (
+          <>
+            <dt>Umrechnung</dt>
+            <dd>
+              Kurse in {data.quoteFxCurrency} werden mit dem EZB-Kurs des Tages in {data.currency}{' '}
+              umgerechnet
+            </dd>
+          </>
+        )}
         {data.held === false && (
           <>
             <dt>Bestand</dt>
@@ -156,6 +220,18 @@ export function QuoteCause({
           </>
         )}
       </dl>
+      {data.attempts && data.attempts.length > 1 && (
+        <details>
+          <summary>Abrufversuche ({data.attempts.length})</summary>
+          <ul>
+            {data.attempts.map((a, index) => (
+              <li key={`${a.attemptedAt}-${index}`}>
+                {attemptTime(a)} · {attemptText(a)}
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
       <p>
         Ein manueller Kurs repariert die automatische Quelle nicht. Die Warnung schließt erst nach
         einem erfolgreichen automatischen Kursabruf.
@@ -188,7 +264,7 @@ export function QuoteCause({
               <li key={`${attempt.source}-${index}`}>
                 {attempt.source}:{' '}
                 {attempt.latest
-                  ? `${quoteText({ ...attempt.latest, currency: preview.data.currency, source: attempt.source })} · ${longDay(attempt.latest.date)}`
+                  ? `${quoteText({ ...attempt.latest, currency: attempt.latest.sourceCurrency ?? preview.data.currency, source: attempt.source })} · ${longDay(attempt.latest.date)}`
                   : attempt.error === 'currency_mismatch' &&
                       attempt.currencyEvidence?.origin === 'mapping'
                     ? 'Die Quellzuordnung verwendet eine andere Kurswährung.'
@@ -207,6 +283,36 @@ export function QuoteCause({
             ))}
           </ul>
         </div>
+      )}
+      {(() => {
+        const foreign = preview.data?.attempts.find(
+          (a) => a.error === 'currency_mismatch' && a.currencyEvidence?.origin === 'response',
+        )?.currencyEvidence?.currency;
+        return foreign && !data.quoteFxCurrency ? (
+          <div>
+            <p>
+              Die Quelle liefert in {foreign}. Mit EZB-Kurs umrechnen: jeder Kurs wird mit dem
+              EZB-Kurs seines Tages in {data.currency} umgerechnet (fehlt der Tag, gilt der letzte
+              frühere, höchstens 5 Tage zurück; sonst wird der Tag ausgelassen und gemeldet). Der
+              Originalkurs bleibt gespeichert.
+            </p>
+            <Button
+              variant="ghost"
+              disabled={convert.isPending}
+              onClick={() => convert.mutate(foreign.toUpperCase())}
+            >
+              Mit EZB-Kurs umrechnen ({foreign.toUpperCase()} → {data.currency})
+            </Button>
+          </div>
+        ) : null;
+      })()}
+      {data.quoteFxCurrency && (
+        <Button variant="ghost" disabled={convert.isPending} onClick={() => convert.mutate(null)}>
+          Umrechnung aufheben
+        </Button>
+      )}
+      {convert.isError && (
+        <ErrorNote what="Umrechnung" error={convert.error} onRetry={() => convert.reset()} />
       )}
       {data.pricesEnabled === false ? (
         <p>Der automatische Abruf ist für dieses Instrument ausgeschaltet.</p>

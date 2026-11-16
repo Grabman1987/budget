@@ -39,7 +39,14 @@ export function upsertPrice(db: Executor, input: PriceInput): boolean {
       .values(input)
       .onConflictDoUpdate({
         target: [price.securityId, price.date],
-        set: { priceMicro: input.priceMicro, currency: input.currency, source: input.source },
+        set: {
+          priceMicro: input.priceMicro,
+          currency: input.currency,
+          source: input.source,
+          sourceCurrency: input.sourceCurrency ?? null,
+          sourcePriceMicro: input.sourcePriceMicro ?? null,
+          fxRateMicro: input.fxRateMicro ?? null,
+        },
       })
       .run();
     if (
@@ -84,7 +91,14 @@ export function setManualPrice(
         tx,
         price,
         [input.securityId, input.date],
-        { priceMicro: values.priceMicro, currency: values.currency, source: values.source },
+        {
+          priceMicro: values.priceMicro,
+          currency: values.currency,
+          source: values.source,
+          sourceCurrency: null,
+          sourcePriceMicro: null,
+          fxRateMicro: null,
+        },
         grouped,
       );
       row = tx

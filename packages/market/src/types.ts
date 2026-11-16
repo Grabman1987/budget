@@ -20,12 +20,20 @@ export interface SecurityRef {
   currency: string;
   /** Adjusted close instead of the plain close (Yahoo only). Default: unadjusted. */
   adjusted: boolean;
+  /**
+   * Owner choice: the source may quote in this other currency (three letters); such quotes come
+   * back tagged with `sourceCurrency` for the refresh to convert. Absent: refused.
+   */
+  convertFrom?: string | null;
 }
 
 /** Close of one day, micro-units of the security currency. */
 export interface DailyQuote {
   date: string;
+  /** Micro-units of the security currency, or of `sourceCurrency` when that is set. */
   priceMicro: number;
+  /** Set only when the source quoted in another currency the owner chose to convert. */
+  sourceCurrency?: string;
 }
 
 /** ECB reference rate of one day: EUR per one unit of the currency, micro-units. */

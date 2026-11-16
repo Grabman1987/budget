@@ -100,6 +100,25 @@ describe('Yahoo chart parser', () => {
     expect(quotes.map((q) => q.date)).toEqual(['2024-01-03']);
   });
 
+  it('tags quotes of the owner-chosen foreign currency and refuses any other (#1203)', async () => {
+    const quotes = parseYahooChart(
+      data('yahoo-chart-usd.json'),
+      { ...REF, convertFrom: 'USD' },
+      '2024-01-01',
+      '2024-01-31',
+    );
+    expect(quotes.length).toBeGreaterThan(0);
+    expect(quotes.every((q) => q.sourceCurrency === 'USD')).toBe(true);
+    const other = () =>
+      parseYahooChart(
+        data('yahoo-chart-usd.json'),
+        { ...REF, convertFrom: 'CHF' },
+        '2024-01-01',
+        '2024-01-31',
+      );
+    expect(await kindOf(other)).toBe('currency_mismatch');
+  });
+
   it('drops the bar of a session that is still open', () => {
     const quotes = parseYahooChart(
       data('yahoo-chart-open-session.json'),

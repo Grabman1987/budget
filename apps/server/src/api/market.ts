@@ -1,5 +1,7 @@
 import {
   decideQuoteSource,
+  marketAttempts,
+  setQuoteFxCurrency,
   EntityNotFoundError,
   securityIsHeld,
   fxSeries,
@@ -104,6 +106,14 @@ export function marketRoutes(db: Db, today: () => string, sources: MarketSources
       quoteExchange: sec.quoteExchange,
       pricesEnabled: sec.pricesEnabled,
       held: securityIsHeld(db, sec.id, today()),
+      quoteFxCurrency: sec.quoteFxCurrency,
+      attempts: marketAttempts(db, sec.id, 10).map((a) => ({
+        source: a.source,
+        attemptedAt: a.attemptedAt,
+        outcome: a.outcome,
+        httpStatus: a.httpStatus,
+        detail: a.detail,
+      })),
       lastRun: lastMarketRun(db) ?? null,
       lastSuccessRun: lastSuccessfulMarketRun(db) ?? null,
       asOf: today(),
@@ -117,7 +127,7 @@ export function marketRoutes(db: Db, today: () => string, sources: MarketSources
     const sec = requireSecurity(c.req.param('id'));
     const to = today();
     const from = addDays(to, -30);
-    const ref = { ...sec, adjusted: sec.quoteAdjusted };
+    const ref = { ...sec, adjusted: sec.quoteAdjusted, convertFrom: sec.quoteFxCurrency };
     const chain = [
       sources.quotes,
       ...(sources.moreQuotes ?? []),
@@ -164,6 +174,21 @@ export function marketRoutes(db: Db, today: () => string, sources: MarketSources
       }),
     );
     return c.json(decideQuoteSource(db, sec.id, body, today(), { actor: ACTOR }));
+  });
+
+  /** Owner choice "mit EZB-Kurs umrechnen" (currency) or clear it (null); stores no price. */
+  app.post('/securities/:id/quote-fx-currency', async (c) => {
+    const sec = requireSecurity(c.req.param('id'));
+    const body = await readBody(
+      c,
+      z.strictObject({
+        currency: z
+          .string()
+          .regex(/^[A-Z]{3}$/)
+          .nullable(),
+      }),
+    );
+    return c.json(setQuoteFxCurrency(db, sec.id, body.currency, { actor: ACTOR }));
   });
 
   app.put('/securities/:id/prices/:date', async (c) => {

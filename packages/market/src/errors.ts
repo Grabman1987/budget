@@ -23,6 +23,8 @@ export class MarketError extends Error {
     readonly kind: MarketErrorKind,
     detail?: string,
     currencyEvidence?: { currency: unknown; origin: 'response' | 'mapping' },
+    /** HTTP status of the answer, when there was one (attempt history only). */
+    readonly httpStatus?: number,
   ) {
     super(detail ? `${kind}: ${detail}` : kind);
     this.name = 'MarketError';
