@@ -130,11 +130,11 @@ export function PayrollReport({
                 ))}
               <tr>
                 <th>{p.svCents < 0 ? 'SV-Erstattung (Aufrollung)' : 'SV-DN'}</th>
-                <td className="n">{eur(-p.svCents, { sign: true })}</td>
+                <td className="n">{eur(-p.svCents)}</td>
               </tr>
               <tr>
                 <th>{p.taxCents < 0 ? 'Lohnsteuer-Erstattung (Aufrollung)' : 'Lohnsteuer'}</th>
-                <td className="n">{eur(-p.taxCents, { sign: true })}</td>
+                <td className="n">{eur(-p.taxCents)}</td>
               </tr>
               {p.lines
                 .filter((l) => ['deduction', 'tax_adjustment', 'sv_adjustment'].includes(l.section))
@@ -149,7 +149,7 @@ export function PayrollReport({
                 .map((l, i) => (
                   <tr key={`reimbursement-${i}`}>
                     <th>Steuerfreie Erstattung · {l.label}</th>
-                    <td className="n">{eur(l.amountCents, { sign: true })}</td>
+                    <td className="n">{eur(l.amountCents)}</td>
                   </tr>
                 ))}
               <tr className="is-total">

@@ -112,7 +112,7 @@ export function ForecastRedesign({
                       </span>
                     )}
                   </td>
-                  <td>{eur(row.cents, { sign: true })}</td>
+                  <td>{eur(row.cents)}</td>
                   <td>{point ? eur(point.balanceCents) : '–'}</td>
                 </tr>
               );

@@ -419,7 +419,7 @@ function Rows({
                   <th scope="row">{maskMoneyText(row.name)}</th>
                   <td>{eur(row.currentCents)}</td>
                   <td>{eur(row.previousCents)}</td>
-                  <td>{eur(row.deltaCents, { sign: true })}</td>
+                  <td>{eur(row.deltaCents)}</td>
                 </tr>
               ))}
             </tbody>
@@ -428,11 +428,7 @@ function Rows({
                 <th>Summe Konsum · alle Kategorien</th>
                 <td>{eur(comparison.chain.currentCents)}</td>
                 <td>{eur(comparison.chain.previousCents)}</td>
-                <td>
-                  {eur(comparison.chain.currentCents - comparison.chain.previousCents, {
-                    sign: true,
-                  })}
-                </td>
+                <td>{eur(comparison.chain.currentCents - comparison.chain.previousCents)}</td>
               </tr>
             </tfoot>
           </table>

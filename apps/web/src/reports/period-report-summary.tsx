@@ -18,6 +18,7 @@ import type { OnePagerData } from './month-api';
 import type { YearReportRead } from './overview-api';
 import { bpText, monthShort } from './overview-format';
 import { PeriodPresentation } from './period-presentation';
+import { ReportTable } from './report-table';
 import { YearWealthChangeValue } from './year-wealth-change';
 import './period-report-summary.css';
 
@@ -312,8 +313,11 @@ export function MonthSummary({ data }: { data: OnePagerData }) {
           <h3 className="period-summary-label">
             Größte Ausgaben · gegenüber {monthLabel(data.previousMonth)}
           </h3>
-          <table className="period-summary-table">
-            <caption className="sr-only">Größte Konsumausgaben und Vormonat</caption>
+          <ReportTable
+            caption="Größte Konsumausgaben und Vormonat"
+            regionLabel="Größte Konsumausgaben und Vormonat, seitlich scrollbar"
+            className="period-summary-table"
+          >
             <thead>
               <tr>
                 <th>Kategorie</th>
@@ -328,11 +332,11 @@ export function MonthSummary({ data }: { data: OnePagerData }) {
                   <th scope="row">{maskMoneyText(row.name)}</th>
                   <td>{eur(row.cents)}</td>
                   <td>{eur(row.previousCents)}</td>
-                  <td>{eur(row.deltaCents, { sign: true })}</td>
+                  <td>{eur(row.deltaCents)}</td>
                 </tr>
               ))}
             </tbody>
-          </table>
+          </ReportTable>
           {data.top.length === 0 && <p>Keine Konsumausgaben in diesem Monat.</p>}
         </div>
         <div className="period-wealth-line">
@@ -394,8 +398,11 @@ export function YearSummary({ data }: { data: YearReportRead }) {
         </div>
         <div className="period-desktop-months">
           <h3 className="period-summary-label">Monate</h3>
-          <table className="period-summary-table">
-            <caption className="sr-only">Monatliche Einnahmen, Konsum und Sparbetrag</caption>
+          <ReportTable
+            caption="Monatliche Einnahmen, Konsum und Sparbetrag"
+            regionLabel="Monatliche Einnahmen, Konsum und Sparbetrag, seitlich scrollbar"
+            className="period-summary-table"
+          >
             <thead>
               <tr>
                 <th>Monat</th>
@@ -430,7 +437,7 @@ export function YearSummary({ data }: { data: YearReportRead }) {
                 <td>{eur(result.savedCents)}</td>
               </tr>
             </tfoot>
-          </table>
+          </ReportTable>
         </div>
       </Paper>
       <Paper
