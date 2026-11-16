@@ -1191,6 +1191,8 @@ function InboxBodyContent({
                           account={account}
                           collapsed={collapsed.has(account.id)}
                           onToggle={() => toggleAccount(account.id)}
+                          scoped={Boolean(search.bankSource)}
+                          hasMore={Boolean(hasMore)}
                         />
                       ) : (
                         <>
