@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import {
   addDays,
   allocateContactReceipt,
+  ContactAllocationError,
   contactStatement,
   type ContactAllocation,
 } from '@budget/domain';
@@ -85,19 +86,11 @@ export function contactStatementOf(
   const movements = actualContactMovements(db, ids, asOf, records);
   if (movements.some((m) => m.currency !== 'EUR'))
     throw new BookingInvariantError('Contact statements require EUR movements');
-  const statement = (() => {
-    try {
-      return contactStatement(
-        movements,
-        savedContactSettlements(db, ids, asOf, records),
-        actualContactMovements(db, ids, undefined, records),
-      );
-    } catch (error) {
-      throw new BookingInvariantError(
-        error instanceof Error ? error.message : 'Invalid contact allocation',
-      );
-    }
-  })();
+  const statement = contactStatement(
+    movements,
+    savedContactSettlements(db, ids, asOf, records),
+    actualContactMovements(db, ids, undefined, records),
+  );
   const creditChoices = statement.receipts.flatMap((receipt) => {
     const remaining = statement.credits.find(
       (c) => c.receiptSplitId === receipt.receiptSplitId && !c.targetOutlaySplitId,
@@ -548,7 +541,7 @@ export function writeOffContact(
         grouped,
       );
     } catch (error) {
-      if (error instanceof Error && /Allocation exceeds/.test(error.message))
+      if (error instanceof ContactAllocationError && /Allocation exceeds/.test(error.reason))
         throw new BookingInvariantError(
           'Ausgleich zu diesem Datum nicht möglich: spätere Zahlungen sind bereits zugeordnet.',
         );

@@ -14,9 +14,15 @@ import {
   MissingFxRateError,
   ReconciledLockedError,
 } from '@budget/db';
-import { ExchangeRateUnavailableError, PriceUnavailableError } from '@budget/domain';
+import {
+  ContactAllocationError,
+  ExchangeRateUnavailableError,
+  PriceUnavailableError,
+} from '@budget/domain';
 import type { Context } from 'hono';
+import { routePath } from 'hono/route';
 import { ZodError, type ZodType } from 'zod';
+import { logUnhandledError } from './error-diagnostic';
 
 /** Who acts in the audit log: there is exactly one user. */
 export const ACTOR = 'owner';
@@ -80,7 +86,10 @@ const answer = (body: ErrorAnswer['body'], status: ErrorAnswer['status']): Error
  * One place that turns errors of the ledger API into HTTP answers (status and JSON body); also
  * used for errors of import tasks that ran in a worker thread.
  */
-export function errorAnswer(error: unknown): ErrorAnswer {
+export function errorAnswer(
+  error: unknown,
+  request?: { method: string; route: string },
+): ErrorAnswer {
   if (error instanceof ApiError) {
     return answer({ error: error.code, message: error.message, ...error.extra }, error.status);
   }
@@ -136,6 +145,9 @@ export function errorAnswer(error: unknown): ErrorAnswer {
   if (error instanceof BookingInvariantError) {
     return answer({ error: 'invariant', message: error.message }, 422);
   }
+  if (error instanceof ContactAllocationError) {
+    return answer({ error: 'contact_allocation', message: error.message }, 422);
+  }
   if (error instanceof AccountInvariantError) {
     return answer({ error: 'invariant', message: error.message }, 422);
   }
@@ -180,12 +192,15 @@ export function errorAnswer(error: unknown): ErrorAnswer {
   if (isSqliteConstraint(error)) {
     return answer({ error: 'constraint', message: 'The data violates a rule of the ledger' }, 422);
   }
-  console.error('Unhandled API error', error instanceof Error ? error.name : typeof error);
-  return answer({ error: 'server_error', message: 'Something went wrong' }, 500);
+  const errorId = logUnhandledError(error, request);
+  return answer(
+    { error: 'server_error', message: 'Die Anfrage konnte nicht verarbeitet werden.', errorId },
+    500,
+  );
 }
 
 /** `errorAnswer` as a Hono error handler. */
 export function errorResponse(error: unknown, c: Context) {
-  const { status, body } = errorAnswer(error);
+  const { status, body } = errorAnswer(error, { method: c.req.method, route: routePath(c) });
   return c.json(body, status);
 }

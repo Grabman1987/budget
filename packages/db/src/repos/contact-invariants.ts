@@ -124,7 +124,7 @@ export function actualContactMovements(
         ...m,
         categoryName: target ? `Vorgemerkt: ${target.name}` : m.categoryName,
         categoryId: m.categoryKind === 'advance' ? null : m.categoryId,
-        ...(explicitUses && m.amountCents < 0 && !decision
+        ...((explicitUses || uses !== undefined) && m.amountCents < 0 && !decision
           ? {
               creditAllocations: (uses ?? [])
                 .filter((u) => u.outlaySplitId === m.splitId)
@@ -329,18 +329,13 @@ export function assertContactSettlementInvariants(tx: Executor): void {
   const contacts = new Set(referenced.map((r) => r.contactId!));
   const uses: NonNullable<ReturnType<typeof contactStatement>['creditUses']> = [];
   for (const contactId of contacts) {
-    try {
-      const statement = contactStatement(
-        actualContactMovements(tx, contactId, undefined, creditRecords),
-        savedContactSettlements(tx, contactId, undefined, creditRecords),
-      );
-      uses.push(...statement.creditUses);
-    } catch (error) {
-      throw new BookingInvariantError(
-        error instanceof Error ? error.message : 'Invalid contact allocation',
-      );
-    }
+    const statement = contactStatement(
+      actualContactMovements(tx, contactId, undefined, creditRecords),
+      savedContactSettlements(tx, contactId, undefined, creditRecords),
+    );
+    uses.push(...statement.creditUses);
   }
+
   assertContactCreditRecords(tx, uses, creditRecords);
 }
 

@@ -52,6 +52,71 @@ const receipt = () =>
     amountCents: 701,
   });
 
+it.each(['2026-09-01', '2026-09-04'])(
+  'saves a backdated shared expense on %s without redistributing saved credit',
+  async (date) => {
+    await purchase('essen', '2026-09-01');
+    await call('POST', '/contacts/k1/settlements', {
+      accountId: 'giro',
+      date: '2026-09-02',
+      amountCents: 1001,
+    });
+    await call('POST', '/contacts/k1/settlements', {
+      accountId: 'giro',
+      date: '2026-09-03',
+      amountCents: 601,
+    });
+    await purchase('reise', '2026-09-05');
+    const before = await statement();
+    const saved = await call('POST', '/bookings', {
+      type: 'booking',
+      accountId: 'giro',
+      payeeId: 'p1',
+      date,
+      amountCents: -4420,
+      status: 'pending',
+      splits: [
+        { categoryId: 'essen', amountCents: -1380 },
+        { categoryId: 'essen', amountCents: -3040, contactId: 'k1' },
+      ],
+    });
+    expect(saved.status).toBe(201);
+    const after = await statement();
+    expect(after.receipts).toEqual(before.receipts);
+    expect(after.creditUses).toEqual(before.creditUses);
+    expect(after.balanceCents).toBe(3440);
+    expect(after.creditCents).toBe(0);
+    const refused = await call('DELETE', `/bookings/${before.outlays[0].bookingId}`);
+    expect(refused.status).toBe(422);
+  },
+);
+
+it('saves before an explicitly adjusted later credit use instead of throwing an unhandled error', async () => {
+  await call('POST', '/contacts/k1/settlements', {
+    accountId: 'giro',
+    date: '2026-09-02',
+    amountCents: 1001,
+  });
+  await purchase('reise', '2026-09-05');
+  const initial = await statement();
+  expect(
+    (
+      await call('POST', `/contacts/k1/credits/${initial.receipts[0].receiptSplitId}`, {
+        date: '2026-09-17',
+        amountCents: 101,
+        choice: 'free',
+      })
+    ).status,
+  ).toBe(201);
+  const before = await statement();
+  expect((await purchase('essen', '2026-09-03')).status).toBe(201);
+  const after = await statement();
+  expect(after.creditUses).toEqual(before.creditUses);
+  expect(after.receipts).toEqual(before.receipts);
+  expect(after.outlays.map((o: any) => o.remainingCents)).toEqual([1001, 101, 0]);
+  expect(after.balanceCents).toBe(1001);
+});
+
 it('previews and reallocates a saved repayment to a later outlay with one Undo group', async () => {
   await purchase('essen', '2026-09-01');
   await receipt();
