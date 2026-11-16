@@ -18,6 +18,7 @@ vi.mock('../shell/app-link', () => ({
 }));
 let preview: ReconciliationPreview;
 const sends: unknown[] = [];
+const patches: { url: string; body: unknown }[] = [];
 let categories: Category[] = [];
 beforeEach(() => {
   vi.setSystemTime(new Date('2026-09-30T10:00:00Z'));
@@ -26,6 +27,7 @@ beforeEach(() => {
   writes.remove.mutate.mockReset();
   writes.bulk.mutate.mockReset();
   sends.length = 0;
+  patches.length = 0;
   vi.stubGlobal('matchMedia', () => ({
     matches: false,
     addEventListener: () => undefined,
@@ -56,6 +58,12 @@ beforeEach(() => {
     'fetch',
     vi.fn(async (url: string, options?: RequestInit) => {
       let body: unknown = {};
+      if (options?.method === 'PATCH') {
+        patches.push({ url, body: JSON.parse(options.body as string) });
+        return new Response(JSON.stringify({ bookings: [], groupId: 'synthetic-status' }), {
+          headers: { 'content-type': 'application/json' },
+        });
+      }
       if (url.includes('/lookups')) body = { categories, groups: [], projects: [] };
       else if (url.endsWith('/reconciliation/preview')) body = { preview };
       else if (url.endsWith('/reconciliation')) {
@@ -185,10 +193,10 @@ it('shows a partial pending minus3000 against minus4000 and uses canonical statu
   expect(screen.queryByRole('button', { name: /Ausgleich buchen und abschließen/ })).toBeNull();
   expect(sends).toEqual([]);
   fireEvent.click(within(row).getByRole('button', { name: 'Bestätigen' }));
-  expect(writes.bulk.mutate.mock.calls[0]?.[0]).toEqual({
-    ids: ['partial'],
-    set: { status: 'confirmed' },
-  });
+  await waitFor(() =>
+    expect(patches).toEqual([{ url: '/api/bookings/partial', body: { status: 'confirmed' } }]),
+  );
+  expect(writes.bulk.mutate).not.toHaveBeenCalled();
   expect(sends).toEqual([]);
   preview = {
     ...preview,
@@ -237,10 +245,8 @@ it('keeps an existing month-close token stale after a separate candidate confirm
     pendingBookings: [],
     missing: { kind: 'expense', amountCents: 1000 },
   };
+  await waitFor(() => expect(close.onBusy).toHaveBeenLastCalledWith(false));
   await act(async () => {
-    const options = writes.bulk.mutate.mock.calls[0]![1];
-    options.onSuccess({ changed: ['partial'], skipped: [], groupId: 'synthetic-status' });
-    options.onSettled();
     await client.invalidateQueries({ queryKey: ['ledger'] });
   });
   expect(

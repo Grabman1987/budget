@@ -157,6 +157,7 @@ Bereich: Konten (`/konten`, `/konten/$id`), Alle Buchungen (`/konten/buchungen`)
   4. Ein ungültiger Betrag meldet „Bitte einen gültigen Betrag eingeben.“
   5. Der Ausgleichsgrund ist optional; leer bleibt er ohne Platzhalter gespeichert. „Mehr“ ist anfangs zugeklappt. Ein Ausgleich in einem bereits geprüften Zeitraum erfordert weiterhin die ausdrückliche Freigabe.
   6. Die Differenz wird vor der Bestätigung angezeigt; Vorbelegen allein bucht und sperrt nichts. Rückgängig stellt Prüfstand und Buchungsstatus gemeinsam wieder her.
+  7. „Bestätigen“ bei einer vorgemerkten Bankbuchung wendet dieselbe Regel an wie die Statusänderung in der Buchungsliste (Zeile für Zeile). Die Meldung nennt die Anzahl bestätigter Buchungen; scheitert eine, bleiben die übrigen bestätigt und die fehlgeschlagene wird mit Grund aufgeführt (#1204).
 - **Status:** live (bisherige Prüfung); Bankstand-Vorbelegung (#1095) und Ein-Klick-Ausgleich mit optionalem Grund (#1163) lokal implementiert, Veröffentlichung und Nutzerabnahme ausständig. — **Verweis:** Y05, #1095, #1163
 
 ### K-07 – Zuordnungsregeln („Immer so zuordnen“)
