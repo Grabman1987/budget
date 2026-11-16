@@ -78,7 +78,6 @@ it('keeps category groups before contacts even for a category-substring/contact-
     'Muster für Wege',
     'Für Kontakt auslegen → Kontakt Alpha',
     'Kontakt neu anlegen',
-    'Neue Kategorie …',
   ]);
   expect(screen.getByText('Gruppe A')).toBeTruthy();
   expect(screen.getByText('Gruppe B')).toBeTruthy();
@@ -86,7 +85,6 @@ it('keeps category groups before contacts even for a category-substring/contact-
   expect(screen.getAllByRole('option').map((o) => o.textContent)).toEqual([
     'Muster für Wege',
     'Für Kontakt auslegen → Kontakt Alpha',
-    'Neue Kategorie …',
   ]);
   expect(field.getAttribute('aria-activedescendant')).toBe(screen.getAllByRole('option')[0]?.id);
   await user.keyboard('{Enter}');
@@ -101,12 +99,12 @@ it('keeps the contact and contact creation reachable after sixty-one categories'
     Array.from({ length: 61 }, (_, i) => category(`cat-${i}`, `Kategorie ${i}`, 'Gruppe A')),
   );
   await user.click(screen.getByRole('combobox', { name: 'Kategorie' }));
-  expect(screen.getAllByRole('option')).toHaveLength(64);
-  expect(screen.getAllByRole('option').at(-3)?.textContent).toBe(
+  expect(screen.getAllByRole('option')).toHaveLength(63);
+  expect(screen.getAllByRole('option').at(-2)?.textContent).toBe(
     'Für Kontakt auslegen → Kontakt Alpha',
   );
-  expect(screen.getAllByRole('option').at(-2)?.textContent).toBe('Kontakt neu anlegen');
-  expect(screen.getAllByRole('option').at(-1)?.textContent).toBe('Neue Kategorie …');
+  expect(screen.getAllByRole('option').at(-1)?.textContent).toBe('Kontakt neu anlegen');
+  expect(screen.getByRole('button', { name: 'Neue Kategorie …' })).toBeTruthy();
   await user.keyboard('{ArrowDown>62/}{Enter}');
   expect(JSON.parse(screen.getByTestId('payload').textContent ?? '')).toMatchObject({
     ok: true,
