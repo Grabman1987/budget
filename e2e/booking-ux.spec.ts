@@ -284,7 +284,8 @@ test('single payee suggestion selects its recent account and keeps capture contr
   }
   await panel.getByLabel('Empfänger', { exact: true }).fill('Laden');
   await expect(list).toBeVisible();
-  const listBox = (await list.boundingBox())!;
+  const popup = list.locator('..');
+  const listBox = (await popup.boundingBox())!;
   const accountBox = (await panel.getByLabel('Bezahlt von', { exact: true }).boundingBox())!;
   const payeeField = panel.getByLabel('Empfänger', { exact: true });
   const mobileOverlay = await payeeField
@@ -292,7 +293,7 @@ test('single payee suggestion selects its recent account and keeps capture contr
     .evaluate((el) => el.classList.contains('is-capture-overlay'));
   if (mobileOverlay) {
     const anchor = (await payeeField.boundingBox())!;
-    await expect(list).toHaveCSS('position', 'fixed');
+    await expect(popup).toHaveCSS('position', 'fixed');
     expect(listBox.y).toBeGreaterThanOrEqual(anchor.y + anchor.height);
     const card = (await panel.locator('.bk-cols').boundingBox())!;
     expect(listBox.x).toBe(card.x);

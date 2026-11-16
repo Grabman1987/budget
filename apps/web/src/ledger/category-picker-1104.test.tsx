@@ -30,7 +30,7 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
-function mount(allowCreate = true) {
+function mount(allowCreate = true, withCategory = false) {
   window.matchMedia = vi
     .fn()
     .mockReturnValue({ matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() });
@@ -52,18 +52,81 @@ function mount(allowCreate = true) {
         <form onSubmit={onSubmit} onClick={onParentClick}>
           <CategoryCombobox
             label="Kategorie"
-            categories={[]}
+            categories={
+              withCategory
+                ? [
+                    {
+                      id: 'existing',
+                      name: 'Musterposten',
+                      group: 'Mustergruppe',
+                      kind: 'expense',
+                      cls: 'need',
+                      hidden: false,
+                      availableCents: null,
+                    },
+                  ]
+                : []
+            }
             selectedName=""
             onSelect={onSelect}
             allowCreate={allowCreate}
             excludeIncome
           />
+          <button type="button">Weiter</button>
         </form>
       </ToastProvider>
     </QueryClientProvider>,
   );
   return { user: userEvent.setup(), onSelect, onSubmit, onParentClick };
 }
+
+it.each(['{Enter}', '{ArrowDown}{Enter}', '{ArrowUp}{Enter}'])(
+  'selects the sole real match with %s without opening creation',
+  async (keys) => {
+    const { user, onSelect } = mount(true, true);
+    await user.type(screen.getByRole('combobox'), 'Musterposten');
+    await user.keyboard(keys);
+    expect(onSelect).toHaveBeenCalledWith('existing');
+    expect(screen.queryByRole('dialog')).toBeNull();
+  },
+);
+
+it('keeps creation outside category options and reachable by Tab after an unmatched search', async () => {
+  const { user, onSelect } = mount(true, true);
+  await user.type(screen.getByRole('combobox'), 'Unbekannt');
+  expect(screen.queryAllByRole('option')).toHaveLength(0);
+  await user.tab();
+  expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Neue Kategorie …' }));
+  await user.keyboard('{Enter}');
+  expect(await screen.findByRole('dialog', { name: 'Kategorie anlegen' })).toBeTruthy();
+  expect(onSelect).not.toHaveBeenCalled();
+});
+
+it.each(['', 'Muster'])('keeps the form Tab order when real categories match %j', async (query) => {
+  const { user, onSelect } = mount(true, true);
+  const field = screen.getByRole('combobox');
+  await user.click(field);
+  if (query) await user.type(field, query);
+  expect(screen.getAllByRole('option')).toHaveLength(1);
+  await user.tab();
+  expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Weiter' }));
+  expect(onSelect).not.toHaveBeenCalled();
+  expect(screen.queryByRole('dialog')).toBeNull();
+  await user.tab({ shift: true });
+  expect(document.activeElement).toBe(field);
+});
+
+it('closes the action popup with Escape and restores the category input', async () => {
+  const { user, onSubmit } = mount(true, true);
+  const field = screen.getByRole('combobox');
+  await user.type(field, 'Unbekannt');
+  await user.tab();
+  await user.keyboard('{Escape}');
+  expect(document.activeElement).toBe(field);
+  expect(screen.queryByRole('listbox')).toBeNull();
+  expect(screen.queryByRole('dialog')).toBeNull();
+  expect(onSubmit).not.toHaveBeenCalled();
+});
 
 it('creates from an unmatched search, selects the saved category and never submits the booking', async () => {
   vi.mocked(api.createCategory).mockResolvedValue({
@@ -72,7 +135,7 @@ it('creates from an unmatched search, selects the saved category and never submi
   });
   const { user, onSelect, onSubmit, onParentClick } = mount();
   await user.type(screen.getByRole('combobox'), 'Unbekannt');
-  await user.click(screen.getByRole('option', { name: 'Neue Kategorie …' }));
+  await user.click(screen.getByRole('button', { name: 'Neue Kategorie …' }));
   const dialog = await screen.findByRole('dialog', { name: 'Kategorie anlegen' });
   onParentClick.mockClear();
   await user.click(within(dialog).getByText('Name', { exact: true }));
@@ -94,7 +157,7 @@ it('creates from an unmatched search, selects the saved category and never submi
 it('does not offer creation in a read-only filter', async () => {
   const { user } = mount(false);
   await user.click(screen.getByRole('combobox'));
-  expect(screen.queryByRole('option', { name: 'Neue Kategorie …' })).toBeNull();
+  expect(screen.queryByRole('button', { name: 'Neue Kategorie …' })).toBeNull();
   expect(api.fetchCategories).not.toHaveBeenCalled();
 });
 
@@ -108,7 +171,7 @@ it('creates only once when Save is pressed twice before the response', async () 
   );
   const { user, onSelect } = mount();
   await user.click(screen.getByRole('combobox'));
-  await user.click(screen.getByRole('option', { name: 'Neue Kategorie …' }));
+  await user.click(screen.getByRole('button', { name: 'Neue Kategorie …' }));
   const dialog = await screen.findByRole('dialog', { name: 'Kategorie anlegen' });
   await user.type(within(dialog).getByLabelText('Name', { exact: true }), 'Einzelner Posten');
   await user.dblClick(within(dialog).getByRole('button', { name: 'Speichern' }));
@@ -128,7 +191,7 @@ it('rejects duplicate names with the existing message and keeps the form open', 
   });
   const { user, onSelect } = mount();
   await user.click(screen.getByRole('combobox'));
-  await user.click(screen.getByRole('option', { name: 'Neue Kategorie …' }));
+  await user.click(screen.getByRole('button', { name: 'Neue Kategorie …' }));
   const dialog = await screen.findByRole('dialog', { name: 'Kategorie anlegen' });
   await user.type(within(dialog).getByLabelText('Name', { exact: true }), ' musterPOSTEN ');
   await user.click(within(dialog).getByRole('button', { name: 'Speichern' }));
