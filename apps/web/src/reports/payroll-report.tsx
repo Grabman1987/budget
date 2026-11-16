@@ -2,7 +2,7 @@ import { REDESIGN_ENABLED } from '../shell/redesign-flag';
 import { ReportBodyDisclosure } from './report-body-disclosure';
 import { payrollCalculation } from './payroll-presentation';
 import './payroll-redesign.css';
-import { ScrollRegion } from './spending-shared';
+import { ReportTable } from './report-table';
 import { cents, payrollTotals } from '@budget/domain';
 import { Button, DimensionChain, useIsPhone, useAmountPrivacy } from '@budget/ui';
 import { useQuery } from '@tanstack/react-query';
@@ -452,40 +452,42 @@ export function PayrollReport({
               <ReportBodyDisclosure id="payroll-months" label="Auszahlung je Monat und Jahr">
                 <section className="mr-card mr-wide">
                   <h2>Auszahlung je Monat und Jahr</h2>
-                  <ScrollRegion className="pp-scroll" label="Auszahlungen nach Kalenderjahr">
-                    <table className="rtable">
-                      <thead>
-                        <tr>
-                          <th>Monat</th>
-                          {data.years.map((y) => (
-                            <th key={y.year} className="n">
-                              {y.year}
-                            </th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {data.monthlyPayouts.map((r) => (
-                          <tr key={r.month}>
-                            <th>{shortMonth(`2000-${r.month}`).split(' ')[0]}</th>
-                            {r.years.map((y) => (
-                              <td key={y.year} className="n">
-                                {y.netCents === null ? '–' : eur(y.netCents)}
-                              </td>
-                            ))}
-                          </tr>
+                  <ReportTable
+                    caption="Auszahlungen nach Kalenderjahr"
+                    regionLabel="Auszahlungen nach Kalenderjahr"
+                    className="rtable"
+                  >
+                    <thead>
+                      <tr>
+                        <th>Monat</th>
+                        {data.years.map((y) => (
+                          <th key={y.year} className="n">
+                            {y.year}
+                          </th>
                         ))}
-                        <tr className="is-total">
-                          <th>Summe erfasst</th>
-                          {data.years.map((y) => (
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {data.monthlyPayouts.map((r) => (
+                        <tr key={r.month}>
+                          <th>{shortMonth(`2000-${r.month}`).split(' ')[0]}</th>
+                          {r.years.map((y) => (
                             <td key={y.year} className="n">
-                              {eur(y.netCents)}
+                              {y.netCents === null ? '–' : eur(y.netCents)}
                             </td>
                           ))}
                         </tr>
-                      </tbody>
-                    </table>
-                  </ScrollRegion>
+                      ))}
+                      <tr className="is-total">
+                        <th>Summe erfasst</th>
+                        {data.years.map((y) => (
+                          <td key={y.year} className="n">
+                            {eur(y.netCents)}
+                          </td>
+                        ))}
+                      </tr>
+                    </tbody>
+                  </ReportTable>
                 </section>
               </ReportBodyDisclosure>
               <ReportBodyDisclosure
@@ -494,52 +496,54 @@ export function PayrollReport({
               >
                 <section className="mr-card mr-wide">
                   <h2>Jahresgehälter</h2>
-                  <ScrollRegion className="pp-scroll" label="Jahresgehälter und Vorjahresvergleich">
-                    <table className="rtable">
-                      <thead>
-                        <tr>
-                          <th>Jahr / erfasste Monate</th>
-                          <th className="n">Brutto</th>
-                          <th className="n">Sonderzahlungen</th>
-                          <th className="n">SV-DN</th>
-                          <th className="n">Lohnsteuer</th>
-                          <th className="n">Sonstige Abzüge</th>
-                          <th className="n">Steuerfreie Erstattungen</th>
-                          <th className="n">Auszahlung</th>
-                          <th className="n">Abzugsquote</th>
-                          <th className="n">Zuwachs / gleiche Monate</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {data.years.map((y) => (
-                          <tr key={y.year}>
-                            <th>
-                              {y.year} · {y.months}/12
-                            </th>
-                            {[
-                              y.grossCents,
-                              y.specialGrossCents,
-                              y.svCents,
-                              y.taxCents,
-                              y.otherCents,
-                              y.reimbursementsCents,
-                              y.netCents,
-                            ].map((v, i) => (
-                              <td className="n" key={i}>
-                                {v === null ? 'nicht bestimmbar' : eur(v)}
-                              </td>
-                            ))}
-                            <td className="n">{pct(y.deductionRatio)}</td>
-                            <td className="n">
-                              {y.changeCents === null
-                                ? 'nicht vergleichbar'
-                                : `${eur(y.changeCents, { sign: true })} · ${pct(y.changeRatio)}`}
+                  <ReportTable
+                    caption="Jahresgehälter und Vorjahresvergleich"
+                    regionLabel="Jahresgehälter und Vorjahresvergleich"
+                    className="rtable"
+                  >
+                    <thead>
+                      <tr>
+                        <th>Jahr / erfasste Monate</th>
+                        <th className="n">Brutto</th>
+                        <th className="n">Sonderzahlungen</th>
+                        <th className="n">SV-DN</th>
+                        <th className="n">Lohnsteuer</th>
+                        <th className="n">Sonstige Abzüge</th>
+                        <th className="n">Steuerfreie Erstattungen</th>
+                        <th className="n">Auszahlung</th>
+                        <th className="n">Abzugsquote</th>
+                        <th className="n">Zuwachs / gleiche Monate</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {data.years.map((y) => (
+                        <tr key={y.year}>
+                          <th>
+                            {y.year} · {y.months}/12
+                          </th>
+                          {[
+                            y.grossCents,
+                            y.specialGrossCents,
+                            y.svCents,
+                            y.taxCents,
+                            y.otherCents,
+                            y.reimbursementsCents,
+                            y.netCents,
+                          ].map((v, i) => (
+                            <td className="n" key={i}>
+                              {v === null ? 'nicht bestimmbar' : eur(v)}
                             </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </ScrollRegion>
+                          ))}
+                          <td className="n">{pct(y.deductionRatio)}</td>
+                          <td className="n">
+                            {y.changeCents === null
+                              ? 'nicht vergleichbar'
+                              : `${eur(y.changeCents)} · ${pct(y.changeRatio)}`}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </ReportTable>
                   <p className="vnote">
                     Keine Hochrechnung. Bruttovergleich ohne steuerfreie Erstattungen und nur bei
                     erfassten gleichen Monaten und Zahlungsarten im Vorjahr.
@@ -549,57 +553,59 @@ export function PayrollReport({
               <ReportBodyDisclosure id="payroll-special" label="Sonderzahlungen und 14 Gehälter">
                 <section className="mr-card mr-wide">
                   <h2>14 Gehälter · {month.slice(0, 4)}</h2>
-                  <ScrollRegion className="pp-scroll" label="Vierzehn Gehälter">
-                    <table className="rtable">
-                      <thead>
-                        <tr>
-                          <th>Position</th>
-                          <th className="n">Nettogehalt</th>
-                          <th className="n">Steuerfreie Erstattungen</th>
-                          <th className="n">Auszahlung</th>
-                          <th>Zettel</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {data.salaries
-                          .filter((salary) => salary.ids.length > 0)
-                          .map((s) => (
-                            <tr key={s.position}>
-                              <th>{salaryPosition(s.position)}</th>
-                              {[s.salaryNetCents, s.reimbursementsCents, s.netCents].map(
-                                (value, i) => (
-                                  <td className="n" key={i}>
-                                    {value === null
-                                      ? s.netSplitUnknown
-                                        ? 'nicht bestimmbar'
-                                        : 'nicht erfasst'
-                                      : eur(value)}
-                                  </td>
-                                ),
-                              )}
-                              <td>
-                                {s.ids.map((id) => (
-                                  <AppLink
-                                    className="pp-history-link"
-                                    key={id}
-                                    to="/reports/gehalt/historie"
-                                    search={{ monat: month, zettel: id }}
-                                    state={{ reportDetailOpenedInApp: true }}
-                                  >
-                                    Zettel öffnen
-                                  </AppLink>
-                                ))}
-                              </td>
-                            </tr>
-                          ))}
-                        {!data.salaries.some((salary) => salary.ids.length > 0) && (
-                          <tr>
-                            <td colSpan={5}>Für dieses Jahr sind keine Gehälter erfasst.</td>
+                  <ReportTable
+                    caption="Vierzehn Gehälter"
+                    regionLabel="Vierzehn Gehälter"
+                    className="rtable"
+                  >
+                    <thead>
+                      <tr>
+                        <th>Position</th>
+                        <th className="n">Nettogehalt</th>
+                        <th className="n">Steuerfreie Erstattungen</th>
+                        <th className="n">Auszahlung</th>
+                        <th>Zettel</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {data.salaries
+                        .filter((salary) => salary.ids.length > 0)
+                        .map((s) => (
+                          <tr key={s.position}>
+                            <th>{salaryPosition(s.position)}</th>
+                            {[s.salaryNetCents, s.reimbursementsCents, s.netCents].map(
+                              (value, i) => (
+                                <td className="n" key={i}>
+                                  {value === null
+                                    ? s.netSplitUnknown
+                                      ? 'nicht bestimmbar'
+                                      : 'nicht erfasst'
+                                    : eur(value)}
+                                </td>
+                              ),
+                            )}
+                            <td>
+                              {s.ids.map((id) => (
+                                <AppLink
+                                  className="pp-history-link"
+                                  key={id}
+                                  to="/reports/gehalt/historie"
+                                  search={{ monat: month, zettel: id }}
+                                  state={{ reportDetailOpenedInApp: true }}
+                                >
+                                  Zettel öffnen
+                                </AppLink>
+                              ))}
+                            </td>
                           </tr>
-                        )}
-                      </tbody>
-                    </table>
-                  </ScrollRegion>
+                        ))}
+                      {!data.salaries.some((salary) => salary.ids.length > 0) && (
+                        <tr>
+                          <td colSpan={5}>Für dieses Jahr sind keine Gehälter erfasst.</td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </ReportTable>
                   <p className="vnote">
                     Sonstige Sonderzahlungen separat: {eur(data.otherSpecialCents)}. Steuerwerte
                     laut Zettel; keine Steuerberechnung.

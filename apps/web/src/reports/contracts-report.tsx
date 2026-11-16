@@ -30,6 +30,7 @@ import { ReportFrame as PageFrame } from './report-frame';
 import { rhythmText } from '../expected/expected-model';
 import { AppLink } from '../shell/app-link';
 import { bpText, monthShort, ReportQuery, ScrollRegion } from './spending-shared';
+import { ReportTable } from './report-table';
 
 const contractsQuery = queryOptions({
   queryKey: [...LEDGER_KEY, 'contracts-report'],
@@ -229,105 +230,104 @@ function Body({ data }: { data: ContractsReport }) {
               {data.items.length} Positionen · {eur(data.yearlyCents, { cents: false })} im Jahr
             </span>
           </div>
-          <ScrollRegion label="Alle Verträge, bei Bedarf horizontal verschiebbar">
-            <table className="sr-table sr-parts" data-testid="contracts-table">
-              <caption className="sr-only">
-                Verträge nach Gruppe mit Preis je Monat und Jahr, Beginn, Ende und letzter
-                Preisänderung
-              </caption>
-              <thead>
-                <tr>
-                  <th scope="col">Pos</th>
-                  <th scope="col">Vertrag</th>
-                  <th scope="col" className="n">
-                    je Monat
-                  </th>
-                  <th scope="col" className="n">
-                    je Jahr
-                  </th>
-                  <th scope="col">seit</th>
-                  <th scope="col">Letzte Preisänderung</th>
-                </tr>
-              </thead>
-              {data.groups.map((group, gi) => {
-                const rows = data.items.filter((i) => i.groupName === group);
-                const monthly = rows.reduce((a, i) => a + (i.monthlyCents ?? 0), 0);
-                const yearly = rows.reduce((a, i) => a + (i.yearlyCents ?? 0), 0);
-                return (
-                  <tbody key={group}>
-                    <tr className="sr-grp">
-                      <td>{gi + 1}</td>
-                      <th scope="rowgroup">{group}</th>
-                      <td className="n">
-                        <strong>{eur(monthly)}</strong>
-                      </td>
-                      <td className="n">{eur(yearly, { cents: false })}</td>
-                      <td colSpan={2} />
-                    </tr>
-                    {rows.map((i, n) => {
-                      const change = [...i.changes].reverse().find((c) => c.previousCents !== null);
-                      return (
-                        <tr key={i.id}>
-                          <td>
-                            {gi + 1}.{n + 1}
-                          </td>
-                          <th scope="row">
-                            <span className="sr-name">
-                              {i.class ? <ClassSwatch kind={i.class} /> : null}
-                              <span>{i.name}</span>
-                            </span>
-                            <small>
-                              {i.rhythm === 'weekly'
-                                ? rhythmText('weekly', i.intervalWeeks)
-                                : RHYTHM[i.rhythm]}
-                              {data.derivedContracts.includes(i.id)
-                                ? ' ? aus Buchungen abgeleitet'
-                                : ''}
-                              {i.binding === 'periodic' ? ' · periodisch, als Zwölftel' : ''}
-                            </small>
-                          </th>
-                          <td className="n">
-                            {i.currency !== 'EUR' ? (
-                              <>
-                                {nativeCurrency(i.nativeCents, i.currency)}
-                                <small>
-                                  {i.monthlyCents === null ? 'Kurs fehlt' : eur(i.monthlyCents)}
-                                </small>
-                              </>
-                            ) : i.monthlyCents === null ? (
-                              '–'
-                            ) : (
-                              eur(i.monthlyCents)
-                            )}
-                          </td>
-                          <td className="n">
-                            {i.yearlyCents === null ? '–' : eur(i.yearlyCents, { cents: false })}
-                          </td>
-                          <td>{i.since ? monthShort(i.since.slice(0, 7)) : '–'}</td>
-                          <td>
-                            {change ? (
-                              <>
-                                {monthShort(change.from.slice(0, 7))}
-                                <small>
-                                  {nativeCurrency(change.previousCents ?? 0, change.currency)} →{' '}
-                                  {nativeCurrency(change.amountCents, change.currency)}
-                                  {change.changeBp !== null
-                                    ? ` (${bpText(change.changeBp, { sign: true })})`
-                                    : ''}
-                                </small>
-                              </>
-                            ) : (
-                              <span className="muted">–</span>
-                            )}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                );
-              })}
-            </table>
-          </ScrollRegion>
+          <ReportTable
+            caption="Verträge nach Gruppe mit Preis je Monat und Jahr, Beginn, Ende und letzter Preisänderung"
+            regionLabel="Alle Verträge, bei Bedarf horizontal verschiebbar"
+            className="sr-table sr-parts"
+            data-testid="contracts-table"
+          >
+            <thead>
+              <tr>
+                <th scope="col">Pos</th>
+                <th scope="col">Vertrag</th>
+                <th scope="col" className="n">
+                  je Monat
+                </th>
+                <th scope="col" className="n">
+                  je Jahr
+                </th>
+                <th scope="col">seit</th>
+                <th scope="col">Letzte Preisänderung</th>
+              </tr>
+            </thead>
+            {data.groups.map((group, gi) => {
+              const rows = data.items.filter((i) => i.groupName === group);
+              const monthly = rows.reduce((a, i) => a + (i.monthlyCents ?? 0), 0);
+              const yearly = rows.reduce((a, i) => a + (i.yearlyCents ?? 0), 0);
+              return (
+                <tbody key={group}>
+                  <tr className="sr-grp">
+                    <td>{gi + 1}</td>
+                    <th scope="rowgroup">{group}</th>
+                    <td className="n">
+                      <strong>{eur(monthly)}</strong>
+                    </td>
+                    <td className="n">{eur(yearly, { cents: false })}</td>
+                    <td colSpan={2} />
+                  </tr>
+                  {rows.map((i, n) => {
+                    const change = [...i.changes].reverse().find((c) => c.previousCents !== null);
+                    return (
+                      <tr key={i.id}>
+                        <td>
+                          {gi + 1}.{n + 1}
+                        </td>
+                        <th scope="row">
+                          <span className="sr-name">
+                            {i.class ? <ClassSwatch kind={i.class} /> : null}
+                            <span>{i.name}</span>
+                          </span>
+                          <small>
+                            {i.rhythm === 'weekly'
+                              ? rhythmText('weekly', i.intervalWeeks)
+                              : RHYTHM[i.rhythm]}
+                            {data.derivedContracts.includes(i.id)
+                              ? ' ? aus Buchungen abgeleitet'
+                              : ''}
+                            {i.binding === 'periodic' ? ' · periodisch, als Zwölftel' : ''}
+                          </small>
+                        </th>
+                        <td className="n">
+                          {i.currency !== 'EUR' ? (
+                            <>
+                              {nativeCurrency(i.nativeCents, i.currency)}
+                              <small>
+                                {i.monthlyCents === null ? 'Kurs fehlt' : eur(i.monthlyCents)}
+                              </small>
+                            </>
+                          ) : i.monthlyCents === null ? (
+                            '–'
+                          ) : (
+                            eur(i.monthlyCents)
+                          )}
+                        </td>
+                        <td className="n">
+                          {i.yearlyCents === null ? '–' : eur(i.yearlyCents, { cents: false })}
+                        </td>
+                        <td>{i.since ? monthShort(i.since.slice(0, 7)) : '–'}</td>
+                        <td>
+                          {change ? (
+                            <>
+                              {monthShort(change.from.slice(0, 7))}
+                              <small>
+                                {nativeCurrency(change.previousCents ?? 0, change.currency)} →{' '}
+                                {nativeCurrency(change.amountCents, change.currency)}
+                                {change.changeBp !== null
+                                  ? ` (${bpText(change.changeBp, { sign: true })})`
+                                  : ''}
+                              </small>
+                            </>
+                          ) : (
+                            <span className="muted">–</span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              );
+            })}
+          </ReportTable>
           <p className="sr-note">
             Fixe Verträge zählen je Monat, periodische Zahlungen als Zwölftel; dieselbe Auswahl wie
             die Fixkostenquote (R10), ohne befristete Einmalzahlungen. Beträge in Fremdwährung
@@ -348,56 +348,56 @@ function Body({ data }: { data: ContractsReport }) {
                 </span>
               )}
             </div>
-            <ScrollRegion label="Verträge in Fremdwährung, bei Bedarf horizontal verschiebbar">
-              <table className="sr-table" data-testid="foreign-table">
-                <caption className="sr-only">
-                  Preis in Originalwährung, Wert in Euro, bezahlte Euro und Durchschnittskurs
-                </caption>
-                <thead>
-                  <tr>
-                    <th scope="col">Abo</th>
-                    <th scope="col" className="n">
-                      Preis
-                    </th>
-                    <th scope="col" className="n">
-                      in EUR heute
-                    </th>
-                    <th scope="col" className="n">
-                      12 Monate bezahlt
-                    </th>
-                    <th scope="col" className="n">
-                      Ø Kurs
-                    </th>
-                    <th scope="col" className="n">
-                      Bankgebühr
-                    </th>
+            <ReportTable
+              caption="Preis in Originalwährung, Wert in Euro, bezahlte Euro und Durchschnittskurs"
+              regionLabel="Verträge in Fremdwährung, bei Bedarf horizontal verschiebbar"
+              className="sr-table"
+              data-testid="foreign-table"
+            >
+              <thead>
+                <tr>
+                  <th scope="col">Abo</th>
+                  <th scope="col" className="n">
+                    Preis
+                  </th>
+                  <th scope="col" className="n">
+                    in EUR heute
+                  </th>
+                  <th scope="col" className="n">
+                    12 Monate bezahlt
+                  </th>
+                  <th scope="col" className="n">
+                    Ø Kurs
+                  </th>
+                  <th scope="col" className="n">
+                    Bankgebühr
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.foreign.map((f) => (
+                  <tr key={f.id}>
+                    <th scope="row">{f.name}</th>
+                    <td className="n">{nativeCurrency(f.nativeCents, f.currency)}</td>
+                    <td className="n">
+                      {f.eurCents === null ? 'Kurs fehlt' : eur(f.eurCents)}
+                      <small>{rateText(f.rateMicro, f.currency)}</small>
+                    </td>
+                    <td className="n">
+                      {f.paymentCount ? eur(f.paidEurCents) : '–'}
+                      {f.paymentCount ? (
+                        <small>
+                          {nativeCurrency(f.paidNativeCents, f.currency)} · {f.paymentCount}{' '}
+                          Zahlungen
+                        </small>
+                      ) : null}
+                    </td>
+                    <td className="n">{rateText(f.averageRateMicro, f.currency)}</td>
+                    <td className="n">{f.paymentCount ? eur(f.feeCents) : '–'}</td>
                   </tr>
-                </thead>
-                <tbody>
-                  {data.foreign.map((f) => (
-                    <tr key={f.id}>
-                      <th scope="row">{f.name}</th>
-                      <td className="n">{nativeCurrency(f.nativeCents, f.currency)}</td>
-                      <td className="n">
-                        {f.eurCents === null ? 'Kurs fehlt' : eur(f.eurCents)}
-                        <small>{rateText(f.rateMicro, f.currency)}</small>
-                      </td>
-                      <td className="n">
-                        {f.paymentCount ? eur(f.paidEurCents) : '–'}
-                        {f.paymentCount ? (
-                          <small>
-                            {nativeCurrency(f.paidNativeCents, f.currency)} · {f.paymentCount}{' '}
-                            Zahlungen
-                          </small>
-                        ) : null}
-                      </td>
-                      <td className="n">{rateText(f.averageRateMicro, f.currency)}</td>
-                      <td className="n">{f.paymentCount ? eur(f.feeCents) : '–'}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </ScrollRegion>
+                ))}
+              </tbody>
+            </ReportTable>
             <p className="sr-note">
               So rechnet die App: Jede Buchung behält Originalbetrag und Währung. In Euro
               umgerechnet wird mit dem EZB-Referenzkurs des Buchungstags; weicht die Bank ab, gilt

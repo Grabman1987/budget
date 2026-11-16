@@ -1,4 +1,5 @@
 import { REDESIGN_ENABLED } from '../shell/redesign-flag';
+import { ReportTable } from './report-table';
 import { ContactReportRedesign } from './contact-report-redesign';
 import { useAmountPrivacy, DimensionChain } from '@budget/ui';
 import { cents } from '@budget/domain';
@@ -285,11 +286,12 @@ export function ContactReportError({
 function Ledger({ statement }: { statement: ContactReportStatement }) {
   useAmountPrivacy();
   return (
-    <div className="rscroll">
-      <table className="rtable">
-        <caption className="sr-only">
-          Kontaktbewegungen und fortlaufender Saldo mit {statement.contact.name}
-        </caption>
+    <div>
+      <ReportTable
+        caption={`Kontaktbewegungen und fortlaufender Saldo mit ${statement.contact.name}`}
+        regionLabel="Kontaktbewegungen, seitlich scrollbar"
+        className="rtable"
+      >
         <thead>
           <tr>
             <th scope="col" className="tech">
@@ -345,7 +347,7 @@ function Ledger({ statement }: { statement: ContactReportStatement }) {
                     </small>
                   )}
                 </td>
-                <td className="n">{eur(movement.contactDeltaCents, { sign: true })}</td>
+                <td className="n">{eur(movement.contactDeltaCents)}</td>
                 <td className="n">
                   <strong>{eur(movement.balanceCents)}</strong>
                 </td>
@@ -353,7 +355,7 @@ function Ledger({ statement }: { statement: ContactReportStatement }) {
             );
           })}
         </tbody>
-      </table>
+      </ReportTable>
       <p className="vnote">
         Kontaktbetrag zeigt die Änderung der Schuld. Die Kontobuchung hat das umgekehrte Vorzeichen.
       </p>

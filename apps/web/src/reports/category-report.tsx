@@ -365,10 +365,10 @@ function CategoryRows({
             <span className="muted">–</span>
           ) : (
             <>
-              {eur(delta, { cents: false, sign: true })}
+              {eur(delta, { cents: false })}
               <small className="muted">
                 {' '}
-                {percentWhole(Math.round((delta * 10_000) / (row.previousCents as number)), true)}
+                {percentWhole(Math.round((delta * 10_000) / (row.previousCents as number)))}
               </small>
             </>
           )}

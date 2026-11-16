@@ -7,6 +7,7 @@ import { AppLink } from '../shell/app-link';
 import type { LiquidityReportView } from './liquidity-api';
 import { LiquidityChart } from './liquidity-chart';
 import { upcomingEvents } from './liquidity-selection';
+import { ReportTable } from './report-table';
 
 /** The same T2 points and movements, arranged as the Plan design's lead/chart/table. */
 export function ForecastRedesign({
@@ -56,21 +57,15 @@ export function ForecastRedesign({
         </div>
         <LiquidityChart report={report} salaryDay={salaryDate} compact />
       </section>
-      <div
-        className="forecast-reference-table-wrap"
-        data-testid="liq-next-events"
-        role="region"
-        aria-label="Zahlungen und Kontostände, seitlich scrollbar"
-        // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- Keyboard users can scroll the complete financial columns.
-        tabIndex={0}
-      >
+      <div className="forecast-reference-table-wrap" data-testid="liq-next-events">
         <h3 id="liq-next" className="sr-only">
           Nächste Buchungsereignisse
         </h3>
-        <table className="forecast-reference-table">
-          <caption className="sr-only">
-            Nächste Buchungsereignisse mit dem kanonischen Tagesendstand
-          </caption>
+        <ReportTable
+          caption="Nächste Buchungsereignisse mit dem kanonischen Tagesendstand"
+          regionLabel="Zahlungen und Kontostände, seitlich scrollbar"
+          className="forecast-reference-table"
+        >
           <thead>
             <tr>
               <th scope="col">Datum</th>
@@ -118,7 +113,7 @@ export function ForecastRedesign({
               );
             })}
           </tbody>
-        </table>
+        </ReportTable>
         {rows.length === 0 && (
           <p className="forecast-reference-empty">
             Im Prognosezeitraum stehen keine größeren Buchungen an.

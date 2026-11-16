@@ -88,7 +88,6 @@
 }
 .forecast-reference-table-wrap {
   position: relative;
-  overflow-x: auto;
   border: var(--stroke-hairline) solid var(--rule);
   border-radius: var(--radius-md);
   background: var(--surface);
