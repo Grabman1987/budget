@@ -26,14 +26,6 @@ export const statementFactsSchema = z
   .strict()
   .refine((f) => !f.periodFrom || !f.periodTo || f.periodFrom <= f.periodTo);
 export type StatementFacts = z.infer<typeof statementFactsSchema>;
-export const statementReviewNotesSchema = z
-  .object({
-    numberNotPrinted: z.boolean(),
-    periodNotPrinted: z.boolean(),
-    cardReference: z.string().trim().max(128),
-  })
-  .strict();
-export type StatementReviewNotes = z.infer<typeof statementReviewNotesSchema>;
 export type StatementField<T> = {
   value: T | null;
   candidates: T[];
@@ -52,7 +44,6 @@ export type StatementProposal = {
   warnings: string[];
   relatedIntakeIds: string[];
   draft?: StatementFacts;
-  reviewNotes?: StatementReviewNotes;
 };
 export type StatementIntakeView = {
   id: string;
@@ -62,7 +53,7 @@ export type StatementIntakeView = {
   status: 'pending' | 'reviewed' | 'rejected';
   revision: string;
   proposal: StatementProposal;
-  reviewed: { fields: StatementFields; reviewNotes?: StatementReviewNotes } | null;
+  reviewed: { fields: StatementFields } | null;
   createdAt: string;
   updatedAt: string;
   deletedAt: string | null;
@@ -147,7 +138,6 @@ export const statementProposalSchema = z
       .max(16),
     relatedIntakeIds: z.array(z.string().uuid()).max(8),
     draft: statementFactsSchema.optional(),
-    reviewNotes: statementReviewNotesSchema.optional(),
   })
   .strict();
 export const emptyStatementFacts = (): StatementFacts => ({
@@ -428,21 +418,11 @@ export function reviewStatement(
   proposal: StatementProposal,
   raw: unknown,
   complete: boolean,
-  rawNotes?: StatementReviewNotes,
-): { fields: StatementFields; reviewNotes?: StatementReviewNotes } {
+): { fields: StatementFields } {
   const facts = statementFactsSchema.parse(raw);
-  const reviewNotes =
-    rawNotes === undefined ? undefined : statementReviewNotesSchema.parse(rawNotes);
-  if (
-    (reviewNotes?.numberNotPrinted && facts.reference) ||
-    (reviewNotes?.periodNotPrinted && (facts.periodFrom || facts.periodTo))
-  )
-    throw new Error('Fehlende Angaben dürfen nicht zugleich als vorhanden vermerkt sein.');
   if (
     complete &&
-    ((!facts.reference &&
-      !(facts.periodFrom && facts.periodTo) &&
-      !(reviewNotes?.numberNotPrinted && reviewNotes.periodNotPrinted)) ||
+    ((!facts.reference && !(facts.periodFrom && facts.periodTo)) ||
       !facts.issueDate ||
       facts.payableCents === null ||
       !facts.currency ||
@@ -463,5 +443,5 @@ export function reviewStatement(
       ];
     }),
   ) as StatementFields;
-  return { fields, ...(reviewNotes ? { reviewNotes } : {}) };
+  return { fields };
 }

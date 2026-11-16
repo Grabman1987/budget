@@ -178,7 +178,7 @@ Bildschirm Prüfen: `/konten/pruefen` (Konten › Prüfen). Zähler: „Umsätze
 - **Ablauf:** (Verhalten laut Issue #1079; Bildschirm: Abrechnungsprüfung am Konto, „Abrechnung prüfen“)
   1. Nutzer wählt die Abrechnung einzeln oder zusammen mit anderen Dokumenten über „Neues Dokument hochladen“. Im eigenen Dateieintrag prüft oder ändert er den Konto-Vorschlag und bestätigt mit „Weiter“ (I-04, #1103).
   2. In der Prüfung stehen die Felder „Abrechnungsnummer“, „Ausstellungsdatum“, „Zeitraum von“, „Zeitraum bis“, „Einzugsdatum“, „Kartenhinweis (maskiert)“.
-  3. Fehlen Nummer und Zeitraum im Original, setzt der Nutzer für beide „im Original nicht angegeben“. Eine Kartenreferenz wird separat eingetragen; die Dokument-ID erscheint als SHA-256.
+  3. Fehlt eine Angabe im Original, vermerkt der Nutzer „im Original nicht angegeben“ (geplant, heute nicht vorhanden).
   4. Er klickt „Als geprüft speichern“.
   5. Die App speichert den Dokumentstand; es wird keine Zahlung und keine Buchung erzeugt.
 - **Ergebnis:** Abrechnung hat Status „Geprüft“, ohne erfundene Nummer oder geratenen Zeitraum.
@@ -188,8 +188,9 @@ Bildschirm Prüfen: `/konten/pruefen` (Konten › Prüfen). Zähler: „Umsätze
   3. Ein Zeitraum wird nie geraten oder vorbelegt.
   4. Ohne Vermerk und ohne Angabe bleibt Speichern gesperrt und die App sagt, was fehlt.
   5. Im Mehrfach-Upload zeigt jede Abrechnung ihren eigenen änderbaren Konto-Vorschlag und Prüfstatus; ein Dateifehler blockiert keine andere Abrechnung (#1103).
-- **Status:** implementiert, Abnahme ausständig — **Verweis:** #1079
-  Beide Vermerke und die Kartenreferenz werden am Dokument gespeichert. Die bestehende Buchungsverknüpfung und der Abrechnungsausgleich bleiben verfügbar. Die Dokumentprüfung erzeugt keine Buchungen; eine Kartenreferenz allein erlaubt keinen Abschluss. Mehrfach-Upload und änderbarer Konto-Vorschlag im Dateieintrag sind implementiert (#1103); Live-Abnahme offen.
+- **Status:** offen — **Verweis:** #1079
+  Mehrfach-Upload und änderbarer Konto-Vorschlag im Dateieintrag implementiert (#1103); Review und Live-Abnahme offen. Die folgenden Kriterien bleiben bei #1079.
+  Fehlt noch: Vermerk „im Original nicht angegeben“, getrennte Felder für Dokument-ID, Kartenreferenz und Abrechnungsnummer, Verknüpfung mit enthaltenen Buchungen und späterer Zahlung.
 
 ### I-09 – Kartenabrechnung mit versetzten Spalten lesen
 - **Story:** Als Nutzer möchte ich, dass die Positionen einer Kartenabrechnung auch bei versetzten Spalten erkannt werden, damit ich sie nicht von Hand aus dem PDF übertragen muss.

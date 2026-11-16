@@ -209,22 +209,3 @@ it('stops a printed reference at a preserved column gap while retaining single i
     );
   }
 });
-
-it('requires explicit absence of both identifiers and keeps card reference separate (#1079)', () => {
-  const p = parseStatementText('Abrechnungsbetrag: 120,00 EUR', sha);
-  const facts = Object.fromEntries(Object.entries(p.fields).map(([k, f]) => [k, f.value]));
-  const complete = { ...facts, issueDate: '2026-10-01', debitDate: '2026-10-10' };
-  const notes = { numberNotPrinted: true, periodNotPrinted: true, cardReference: 'SYNTHETIC-CARD' };
-  expect(() => reviewStatement(p, complete, true)).toThrow();
-  expect(() => reviewStatement(p, complete, true, { ...notes, numberNotPrinted: false })).toThrow();
-  expect(() => reviewStatement(p, complete, true, { ...notes, periodNotPrinted: false })).toThrow();
-  const reviewed = reviewStatement(p, complete, true, notes);
-  expect(reviewed.reviewNotes).toEqual(notes);
-  expect(reviewed.fields.reference.value).toBeNull();
-  expect(reviewed.fields.periodFrom.value).toBeNull();
-  expect(reviewed.fields.periodTo.value).toBeNull();
-  expect(() =>
-    reviewStatement(p, { ...complete, reference: 'SYNTHETIC-01' }, true, notes),
-  ).toThrow();
-  expect(() => reviewStatement(p, { ...complete, debitDate: null }, true, notes)).toThrow();
-});
