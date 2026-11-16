@@ -17,9 +17,9 @@ import { monthShort } from './table-format';
 export function cashflowStatementLine(data: IncomeExpenseReportData, months: string[]): string {
   const statement = cashflowStatement(data.months, months, data);
   const running = data.currentMonth && months.includes(data.currentMonth);
-  return `Cashflow im Zeitraum${running ? ' (inkl. laufendem Monat)' : ''} ${statement ? eur(statement.total) : '—'}, durchschnittlich ${statement ? eur(statement.averagePerMonth) : '—'} pro Monat${
+  return `Cashflow${running ? ' inkl. laufendem Monat' : ''}: ${statement ? eur(statement.total) : '—'}, durchschnittlich ${statement ? eur(statement.averagePerMonth) : '—'} pro Monat${
     statement?.comparison
-      ? `; ${statement.comparison.kind === 'previous-year' ? 'Vorjahreszeitraum' : 'Vorperiode'} ${eur(statement.comparison.total)}, Veränderung ${eur(statement.comparison.delta)}`
+      ? `; ${statement.comparison.kind === 'previous-year' ? 'Vorjahr' : 'Vorperiode'} ${eur(statement.comparison.total)}, Veränderung ${eur(statement.comparison.delta)}`
       : ''
   }.`;
 }
