@@ -37,7 +37,18 @@ let transfers: object[];
 let defaultCategoryId: string | null;
 let hiddenAt: string | null;
 let recent: object[];
+let visible: (entries: { isIntersecting: boolean }[]) => void;
 beforeEach(() => {
+  vi.stubGlobal(
+    'IntersectionObserver',
+    class {
+      constructor(callback: typeof visible) {
+        visible = callback;
+      }
+      observe() {}
+      disconnect() {}
+    },
+  );
   matches = [];
   paths = [];
   writes = [];
@@ -76,7 +87,10 @@ beforeEach(() => {
             }
           : path.endsWith('/payees')
             ? {
-                payees: [{ id: 'payee', name: 'Synthetic recipient', defaultCategoryId }],
+                payees: [
+                  { id: 'payee', name: 'Synthetic recipient', defaultCategoryId },
+                  { id: 'other-payee', name: 'Other recipient', defaultCategoryId: null },
+                ],
               }
             : path.includes('/bookings?')
               ? { items: recent }
@@ -84,6 +98,14 @@ beforeEach(() => {
                 ? { accounts: [{ id: 'account', name: 'Synthetic account' }] }
                 : {
                     categories: [
+                      {
+                        id: 'other-category',
+                        name: 'Other category',
+                        kind: 'expense',
+                        class: 'need',
+                        groupId: 'group',
+                        sortOrder: 1,
+                      },
                       {
                         id: 'category',
                         name: 'Synthetic category',
@@ -139,12 +161,48 @@ it('explicitly fixes an unchanged suggested recipient and a nonautomatic rule', 
     expect(writes).toEqual([
       {
         categoryId: null,
-        ruleId: 'rule',
-        revision: 'rule-revision',
         candidateRevision: 'synthetic-revision',
+        actions: { categoryId: 'category', payeeId: 'payee' },
       },
     ]),
   );
+});
+
+it('adopts a transfer rule after a recipient choice without sending an incompatible payee', async () => {
+  suggestions = [
+    {
+      id: 'rule',
+      name: 'Synthetic transfer',
+      revision: 'rule-revision',
+      automatic: true,
+      unavailable: false,
+      actions: { transferAccountId: 'account' },
+    },
+  ];
+  const confirmed = vi.fn();
+  show(vi.fn(), confirmed);
+  fireEvent.focus(screen.getByTestId('inbox-row'));
+  await screen.findByRole('button', { name: /^Gegenkonto bearbeiten/ });
+  fireEvent.click(screen.getByRole('button', { name: /^Empfänger bearbeiten/ }));
+  fireEvent.change(screen.getByRole('combobox', { name: 'Empfänger' }), {
+    target: { value: 'payee' },
+  });
+  fireEvent.click(screen.getByRole('button', { name: /^Vorschlag bearbeiten/ }));
+  fireEvent.change(screen.getByRole('combobox', { name: 'Vorschlag' }), {
+    target: { value: 'rule' },
+  });
+  fireEvent.click(screen.getByRole('button', { name: 'Übernehmen' }));
+  await waitFor(() =>
+    expect(writes).toEqual([
+      {
+        categoryId: null,
+        candidateRevision: 'synthetic-revision',
+        ruleId: 'rule',
+        revision: 'rule-revision',
+      },
+    ]),
+  );
+  expect(confirmed).not.toHaveBeenCalled();
 });
 
 it('requires an explicit unique transfer choice and uses the existing transfer writer', async () => {
@@ -199,7 +257,7 @@ afterEach(() => {
   client.clear();
   vi.unstubAllGlobals();
 });
-const show = (onPrepared = vi.fn()) =>
+const show = (onPrepared = vi.fn(), onConfirmed = vi.fn()) =>
   render(
     <QueryClientProvider client={client}>
       <ToastProvider>
@@ -210,7 +268,7 @@ const show = (onPrepared = vi.fn()) =>
               selected={false}
               onSelect={undefined}
               onPrepared={onPrepared}
-              onConfirmed={() => undefined}
+              onConfirmed={onConfirmed}
               onResolve={() => undefined}
               busy={false}
             />
@@ -220,10 +278,10 @@ const show = (onPrepared = vi.fn()) =>
     </QueryClientProvider>,
   );
 
-it('loads only on interaction, keeps suggestions local, and confirms the chosen cents/payee/category', async () => {
+it('loads on visibility without hover, keeps suggestions local, and confirms the chosen cents/payee/category', async () => {
   show();
   expect(paths).toEqual([]);
-  fireEvent.focus(screen.getByTestId('inbox-row'));
+  act(() => visible([{ isIntersecting: true }]));
   await waitFor(() =>
     expect((screen.getByRole('button', { name: 'Übernehmen' }) as HTMLButtonElement).disabled).toBe(
       false,
@@ -290,4 +348,197 @@ it('retains full-form merge preparation for selected bulk actions after refetch 
       }),
     ]),
   );
+});
+
+it('prepares a safe rule for bulk confirmation without hover or focus', async () => {
+  suggestions = [
+    {
+      id: 'rule',
+      name: 'Synthetic rule',
+      revision: 'rule-revision',
+      automatic: true,
+      unavailable: false,
+      actions: { categoryId: 'category' },
+    },
+  ];
+  const prepared = vi.fn();
+  show(prepared);
+  act(() => visible([{ isIntersecting: false }]));
+  expect(paths).toEqual([]);
+  act(() => visible([{ isIntersecting: true }]));
+  await waitFor(() =>
+    expect(prepared.mock.lastCall).toEqual([
+      item.id,
+      expect.objectContaining({ action: 'rule', ruleId: 'rule', bulkSafe: true }),
+    ]),
+  );
+  expect((screen.getByRole('button', { name: 'Übernehmen' }) as HTMLButtonElement).disabled).toBe(
+    false,
+  );
+});
+
+it('keeps a chosen category when choosing a recipient and manual suggestion', async () => {
+  show();
+  fireEvent.focus(screen.getByTestId('inbox-row'));
+  await screen.findByRole('button', { name: 'Kategorie bearbeiten: Synthetic category' });
+  fireEvent.click(screen.getByRole('button', { name: /^Kategorie bearbeiten/ }));
+  fireEvent.click(screen.getByRole('combobox', { name: 'Kategorie' }));
+  fireEvent.click(await screen.findByRole('option', { name: /Synthetic category/ }));
+  fireEvent.click(screen.getByRole('button', { name: /^Empfänger bearbeiten/ }));
+  fireEvent.change(screen.getByRole('combobox', { name: 'Empfänger' }), {
+    target: { value: 'payee' },
+  });
+  fireEvent.click(screen.getByRole('button', { name: /^Vorschlag bearbeiten/ }));
+  fireEvent.change(screen.getByRole('combobox', { name: 'Vorschlag' }), {
+    target: { value: 'manual' },
+  });
+  expect(screen.getByRole('button', { name: /^Kategorie bearbeiten/ }).className).toContain(
+    'is-safe',
+  );
+  expect(screen.getByRole('button', { name: /^Empfänger bearbeiten/ }).className).toContain(
+    'is-safe',
+  );
+  fireEvent.click(screen.getByRole('button', { name: 'Übernehmen' }));
+  await waitFor(() =>
+    expect(writes).toEqual([
+      {
+        categoryId: 'category',
+        candidateRevision: 'synthetic-revision',
+        actions: { categoryId: 'category', payeeId: 'payee' },
+      },
+    ]),
+  );
+});
+
+it('adopts and marks a rule’s values only when that rule is explicitly chosen', async () => {
+  suggestions = [
+    {
+      id: 'rule',
+      name: 'Synthetic rule',
+      revision: 'rule-revision',
+      automatic: true,
+      unavailable: false,
+      actions: { payeeId: 'other-payee', categoryId: 'other-category' },
+    },
+  ];
+  show();
+  fireEvent.focus(screen.getByTestId('inbox-row'));
+  await screen.findByRole('button', { name: 'Kategorie bearbeiten: Other category' });
+  fireEvent.click(screen.getByRole('button', { name: /^Kategorie bearbeiten/ }));
+  fireEvent.click(screen.getByRole('combobox', { name: 'Kategorie' }));
+  fireEvent.click(await screen.findByRole('option', { name: 'Synthetic category' }));
+  fireEvent.click(screen.getByRole('button', { name: /^Empfänger bearbeiten/ }));
+  fireEvent.change(screen.getByRole('combobox', { name: 'Empfänger' }), {
+    target: { value: 'payee' },
+  });
+  fireEvent.click(screen.getByRole('button', { name: /^Vorschlag bearbeiten/ }));
+  fireEvent.change(screen.getByRole('combobox', { name: 'Vorschlag' }), {
+    target: { value: 'rule' },
+  });
+  expect(
+    screen.getByRole('button', { name: 'Kategorie bearbeiten: Other category' }).className,
+  ).toContain('is-safe');
+  expect(
+    screen.getByRole('button', { name: 'Empfänger bearbeiten: Other recipient' }).className,
+  ).toContain('is-safe');
+  fireEvent.click(screen.getByRole('button', { name: 'Übernehmen' }));
+  await waitFor(() =>
+    expect(writes).toEqual([
+      {
+        categoryId: null,
+        ruleId: 'rule',
+        revision: 'rule-revision',
+        candidateRevision: 'synthetic-revision',
+      },
+    ]),
+  );
+});
+
+it('does not mark a payee default as chosen when a rule without category is selected', async () => {
+  suggestions = [
+    {
+      id: 'rule',
+      name: 'Synthetic rule',
+      revision: 'rule-revision',
+      automatic: false,
+      unavailable: false,
+      actions: { payeeId: 'payee' },
+    },
+  ];
+  show();
+  fireEvent.focus(screen.getByTestId('inbox-row'));
+  await screen.findByText('Regelvorschlag bitte im Formular prüfen.');
+  fireEvent.click(screen.getByRole('button', { name: /^Vorschlag bearbeiten/ }));
+  fireEvent.change(screen.getByRole('combobox', { name: 'Vorschlag' }), {
+    target: { value: 'rule' },
+  });
+  expect(screen.getByRole('button', { name: /^Kategorie bearbeiten/ }).className).not.toContain(
+    'is-safe',
+  );
+  fireEvent.click(screen.getByRole('button', { name: 'Übernehmen' }));
+  await waitFor(() =>
+    expect(writes).toEqual([
+      {
+        categoryId: null,
+        candidateRevision: 'synthetic-revision',
+        actions: { payeeId: 'payee', categoryId: 'category' },
+      },
+    ]),
+  );
+});
+
+it.each([
+  [{ transferAccountId: 'account' }, false],
+  [{ categoryId: 'category' }, true],
+  [{ splits: [{ categoryId: 'category', amountCents: -1201 }] }, true],
+])('offers learning only for category or split confirmation (%j)', async (actions, learns) => {
+  defaultCategoryId = null;
+  suggestions = [
+    {
+      id: 'rule',
+      name: 'Synthetic rule',
+      revision: 'rule-revision',
+      automatic: true,
+      unavailable: false,
+      actions,
+    },
+  ];
+  const confirmed = vi.fn();
+  show(vi.fn(), confirmed);
+  fireEvent.focus(screen.getByTestId('inbox-row'));
+  await waitFor(() =>
+    expect((screen.getByRole('button', { name: 'Übernehmen' }) as HTMLButtonElement).disabled).toBe(
+      false,
+    ),
+  );
+  fireEvent.click(screen.getByRole('button', { name: 'Übernehmen' }));
+  await waitFor(() => expect(writes).toHaveLength(1));
+  if (learns) await waitFor(() => expect(confirmed).toHaveBeenCalledWith('synthetic-booking'));
+  else expect(confirmed).not.toHaveBeenCalled();
+});
+
+it.each([
+  [{ splits: [{ categoryId: 'category', amountCents: -1201 }] }, 'Aufteilung laut Regel'],
+  [{ incomeTypeId: 'synthetic-income' }, 'Einkommen laut Regel'],
+])('shows the selected rule target instead of a payee default (%j)', async (actions, label) => {
+  suggestions = [
+    {
+      id: 'rule',
+      name: 'Synthetic rule',
+      revision: 'rule-revision',
+      automatic: false,
+      unavailable: false,
+      actions,
+    },
+  ];
+  show();
+  fireEvent.focus(screen.getByTestId('inbox-row'));
+  await screen.findByText('Regelvorschlag bitte im Formular prüfen.');
+  fireEvent.click(screen.getByRole('button', { name: /^Vorschlag bearbeiten/ }));
+  fireEvent.change(screen.getByRole('combobox', { name: 'Vorschlag' }), {
+    target: { value: 'rule' },
+  });
+  expect(
+    screen.getByRole('button', { name: `Kategorie bearbeiten: ${label}` }).className,
+  ).toContain('is-safe');
 });

@@ -71,6 +71,24 @@ export const BankCandidateRow = memo(function BankCandidateRow({
     suggestion: PreparedBankSuggestion | undefined;
   } | null>(null);
   const row = useRef<HTMLTableRowElement>(null);
+  useEffect(() => {
+    if (active || !row.current) return;
+    if (typeof IntersectionObserver === 'undefined') {
+      setActive(true);
+      return;
+    }
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          setActive(true);
+          observer.disconnect();
+        }
+      },
+      { rootMargin: '200px' },
+    );
+    observer.observe(row.current);
+    return () => observer.disconnect();
+  }, [active]);
   const write = useBudgetWrite();
   const prepareForm = useCallback(
     (suggestion: PreparedBankSuggestion | undefined) => setFormPrepared({ suggestion }),
@@ -103,11 +121,16 @@ export const BankCandidateRow = memo(function BankCandidateRow({
     subscribed: active,
   });
   const latestSplits = history.data?.items[0]?.splits;
+  const ruleTarget = Boolean(
+    rule?.actions.transferAccountId || rule?.actions.splits || rule?.actions.incomeTypeId,
+  );
   const categoryId =
     draft?.categoryId ??
     rule?.actions.categoryId ??
-    payee?.defaultCategoryId ??
-    (latestSplits?.length === 1 ? latestSplits[0]?.categoryId : undefined) ??
+    (!ruleTarget
+      ? (payee?.defaultCategoryId ??
+        (latestSplits?.length === 1 ? latestSplits[0]?.categoryId : undefined))
+      : undefined) ??
     '';
   const categories = pickableCategories(undefined, lookups.data).filter(
     (category) =>
@@ -167,10 +190,16 @@ export const BankCandidateRow = memo(function BankCandidateRow({
   });
   const locked = busy || saving;
   const missingReason = missing?.reason;
+  const ruleOverrides = Boolean(
+    rule &&
+    ((draft?.payeeId !== undefined && draft.payeeId !== rule.actions.payeeId) ||
+      (categoryId && !ruleTarget && categoryId !== rule.actions.categoryId)),
+  );
   const safeRule =
     ready &&
     !missing &&
     !hasMatches &&
+    !ruleOverrides &&
     rule?.automatic &&
     suggestions.filter((suggestion) => suggestion.automatic && !suggestion.unavailable).length === 1
       ? rule
@@ -318,7 +347,6 @@ export const BankCandidateRow = memo(function BankCandidateRow({
                 choose({
                   payeeId: event.target.value,
                   ruleId: null,
-                  categoryId: undefined,
                   target: undefined,
                 })
               }
@@ -354,18 +382,32 @@ export const BankCandidateRow = memo(function BankCandidateRow({
             <Select
               aria-label="Vorschlag"
               value=""
-              onChange={(event) =>
+              onChange={(event) => {
+                const selectedRule = suggestions.find((entry) => entry.id === event.target.value);
                 choose({
                   ruleId: event.target.value === 'manual' ? null : event.target.value,
-                  categoryId: undefined,
-                  payeeId: undefined,
+                  // An explicit rule choice adopts its values; other suggestions retain edits.
+                  ...(selectedRule
+                    ? {
+                        categoryId:
+                          selectedRule.actions.categoryId ??
+                          (selectedRule.actions.transferAccountId ||
+                          selectedRule.actions.splits ||
+                          selectedRule.actions.incomeTypeId
+                            ? undefined
+                            : draft?.categoryId),
+                        payeeId: selectedRule.actions.transferAccountId
+                          ? undefined
+                          : (selectedRule.actions.payeeId ?? draft?.payeeId),
+                      }
+                    : {}),
                   target: targets.some(
                     (match) => `${match.action}:${match.id}` === event.target.value,
                   )
                     ? event.target.value
                     : undefined,
-                })
-              }
+                });
+              }}
             >
               <option value="" disabled hidden>
                 Vorschlag wählen
@@ -431,7 +473,15 @@ export const BankCandidateRow = memo(function BankCandidateRow({
                     : rule?.actions.incomeTypeId
                       ? 'Einkommen laut Regel'
                       : 'Kategorie fehlt')),
-            draft?.categoryId !== undefined || Boolean(draft?.ruleId),
+            draft?.categoryId !== undefined ||
+              Boolean(
+                draft?.ruleId &&
+                (target ||
+                  transferId ||
+                  rule?.actions.categoryId ||
+                  rule?.actions.splits ||
+                  rule?.actions.incomeTypeId),
+              ),
           )
         )}
       </td>
@@ -461,9 +511,16 @@ export const BankCandidateRow = memo(function BankCandidateRow({
                         : rule
                           ? {
                               categoryId: null,
-                              ruleId: rule.id,
-                              revision: rule.revision,
                               candidateRevision: data.candidateRevision,
+                              ...(ruleOverrides
+                                ? {
+                                    actions: {
+                                      ...rule.actions,
+                                      ...(draft?.payeeId !== undefined ? { payeeId } : {}),
+                                      ...(categoryId && !ruleTarget ? { categoryId } : {}),
+                                    },
+                                  }
+                                : { ruleId: rule.id, revision: rule.revision }),
                             }
                           : {
                               categoryId,
@@ -474,7 +531,16 @@ export const BankCandidateRow = memo(function BankCandidateRow({
                   () => 'Bankumsatz als Buchung bestätigt.',
                 )
                   .then((result) => {
-                    if (result?.bookingId) onConfirmed(result.bookingId);
+                    if (
+                      result?.bookingId &&
+                      !target &&
+                      (rule
+                        ? rule.actions.categoryId ||
+                          rule.actions.splits ||
+                          (!ruleTarget && categoryId)
+                        : categoryId)
+                    )
+                      onConfirmed(result.bookingId);
                   })
                   .finally(() => setSaving(false));
               }}

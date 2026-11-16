@@ -7,6 +7,100 @@ import AxeBuilder from '@axe-core/playwright';
 import { expect } from '@playwright/test';
 import { test } from './isolated-ledger';
 
+test.use({ bankingConfigured: true });
+
+test('visible safe candidate prepares its tick and bulk action without hover or focus', async ({
+  page,
+  request,
+  isolatedLedger,
+}) => {
+  const { origin, databasePath } = isolatedLedger;
+  const post = async (path: string, data: unknown) => {
+    const response = await request.post(origin + '/api' + path, { headers: { origin }, data });
+    expect(response.ok(), await response.text()).toBe(true);
+    return response.json();
+  };
+  const account = (
+    await post('/accounts', { name: 'Account A', type: 'checking', openingDate: '2026-09-01' })
+  ).account;
+  const group = (await post('/categories/groups', { name: 'Group A' })).group;
+  const category = (
+    await post('/categories', { name: 'Category A', class: 'need', groupId: group.id })
+  ).category;
+  await post('/assignment-rules', {
+    name: 'Synthetic safe rule',
+    enabled: true,
+    automatic: true,
+    match: { mode: 'all', conditions: [{ type: 'contains', text: 'Synthetic shop' }] },
+    actions: { categoryId: category.id },
+  });
+  const sourceId = randomUUID(),
+    consentId = randomUUID(),
+    candidateId = randomUUID();
+  const staged = openDatabase(databasePath);
+  try {
+    staged.db
+      .insert(schema.bankSyncConsent)
+      .values({
+        id: consentId,
+        initiator: 'synthetic',
+        stateHash: randomUUID(),
+        label: 'Bank A',
+        expiresAt: '2027-01-01T00:00:00Z',
+        nextRunAt: '2027-01-01T00:00:00Z',
+      })
+      .run();
+    staged.db
+      .insert(schema.bankSyncAccount)
+      .values({
+        id: sourceId,
+        consentId,
+        secret: 'synthetic-unused',
+        label: 'Account A',
+        currency: 'EUR',
+        accountId: account.id,
+      })
+      .run();
+    staged.db
+      .insert(schema.bankSyncCandidate)
+      .values({
+        id: candidateId,
+        sourceId,
+        accountId: account.id,
+        dedupeKey: 'synthetic-visible',
+        date: '2026-10-01',
+        amountCents: -1201,
+        currency: 'EUR',
+        memo: 'Synthetic shop',
+      })
+      .run();
+    staged.db
+      .insert(schema.inboxItem)
+      .values({
+        id: candidateId,
+        kind: 'import',
+        title: 'Bankumsatz prüfen',
+        refType: 'bank-sync-candidate',
+        refId: candidateId,
+        createdAt: '2026-10-02T00:00:00Z',
+      })
+      .run();
+  } finally {
+    staged.close();
+  }
+  await page.goto('/konten/posteingang?bankSource=' + sourceId);
+  test.skip(!(await redesignLoaded(page)), 'Inline rows require the redesign.');
+  const row = page.locator('.bank-editable-row');
+  await expect(row.getByRole('button', { name: 'Übernehmen', exact: true })).toBeEnabled();
+  await page.getByRole('button', { name: 'Alle sicheren bestätigen (1)', exact: true }).click();
+  const preview = page.getByRole('dialog', { name: 'Bankauswahl prüfen' });
+  await expect(preview).toContainText('1 ausgewählt · 1 bestätigen · 0 übersprungen');
+  await preview.getByRole('button', { name: 'Auswahl jetzt ausführen' }).click();
+  await expect(row).toHaveCount(0);
+  await page.getByRole('button', { name: 'Rückgängig', exact: true }).click();
+  await expect(row).toHaveCount(1);
+});
+
 test('65 compact bank rows, prepared bulk confirmation, one undo, date controls and account warning', async ({
   page,
   request,
@@ -132,17 +226,26 @@ test('65 compact bank rows, prepared bulk confirmation, one undo, date controls 
   });
   await page.goto('/konten/posteingang?bankSource=' + sourceId);
   await expect(page.locator('.bank-inbox-row')).toHaveCount(65);
-  expect(apiCalls.length).toBeLessThan(10);
-  expect(
-    apiCalls.some((url) => url.includes('/matches') || url.includes('/assignment-rules/')),
-  ).toBe(false);
+  const redesign = await redesignLoaded(page);
+  if (redesign) {
+    // Visible candidates prepare without hover; offscreen rows remain lazy.
+    await page.locator('.bank-editable-row').first().scrollIntoViewIfNeeded();
+    await expect
+      .poll(() => apiCalls.filter((url) => url.includes('/matches')).length)
+      .toBeGreaterThan(0);
+    expect(apiCalls.filter((url) => url.includes('/matches')).length).toBeLessThan(60);
+  } else {
+    expect(apiCalls.length).toBeLessThan(10);
+    expect(
+      apiCalls.some((url) => url.includes('/matches') || url.includes('/assignment-rules/')),
+    ).toBe(false);
+  }
   await expect(page.getByRole('link', { name: 'Kontostand prüfen', exact: true })).toHaveAttribute(
     'href',
     '/konten/' + account.id,
   );
   await bankSelection(page);
   await page.getByLabel('Alle auswählen', { exact: true }).check();
-  const redesign = await redesignLoaded(page);
   if (redesign) await page.keyboard.press('Escape');
   for (const row of await page
     .locator('.bank-inbox-row')
