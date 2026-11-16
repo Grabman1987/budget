@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { eq } from 'drizzle-orm';
-import { statementFactsSchema } from '@budget/domain';
+import { statementFactsSchema, statementReviewNotesSchema } from '@budget/domain';
 import {
   assertStatementCas,
   findStatementIntake,
@@ -286,6 +286,7 @@ export function statementIntakeRoutes(db: Db, dir: string) {
       c,
       cas.extend({
         facts: statementFactsSchema,
+        reviewNotes: statementReviewNotesSchema.optional(),
         savePending: z.boolean().optional(),
         targetAccountId: identity.optional(),
       }),

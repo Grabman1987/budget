@@ -114,20 +114,24 @@ it('requires explicit review of every existing candidate before correction and l
   show();
   const duplicate = await screen.findByTestId('candidate-duplicate-duplicate');
   const pending = screen.getByTestId('candidate-pending-pending');
-  expect(screen.queryByRole('button', { name: 'Differenz ausgleichen' })).toBeNull();
-  expect(screen.queryByRole('button', { name: /Differenz ausgleichen/ })).toBeNull();
+  expect(screen.queryByRole('button', { name: 'Ausgleich buchen und abschließen' })).toBeNull();
+  expect(screen.queryByRole('button', { name: /Ausgleich buchen und abschließen/ })).toBeNull();
   fireEvent.click(within(duplicate).getByRole('button', { name: 'Ignorieren' }));
-  expect(screen.queryByRole('button', { name: 'Differenz ausgleichen' })).toBeNull();
+  expect(screen.queryByRole('button', { name: 'Ausgleich buchen und abschließen' })).toBeNull();
   fireEvent.click(within(pending).getByRole('button', { name: 'Ignorieren' }));
-  expect(await screen.findByRole('button', { name: 'Differenz ausgleichen' })).toBeTruthy();
+  expect(
+    await screen.findByRole('button', { name: 'Ausgleich buchen und abschließen' }),
+  ).toBeTruthy();
   expect(screen.getByText(/Eine echte Buchung/).textContent).toContain('+12,34 €');
   expect(sends).toEqual([]);
   expect(writes.remove.mutate).not.toHaveBeenCalled();
   fireEvent.click(within(duplicate).getByRole('button', { name: 'Ignorieren rückgängig' }));
-  expect(screen.queryByRole('button', { name: 'Differenz ausgleichen' })).toBeNull();
+  expect(screen.queryByRole('button', { name: 'Ausgleich buchen und abschließen' })).toBeNull();
   expect(sends).toEqual([]);
   fireEvent.click(within(duplicate).getByRole('button', { name: 'Ignorieren' }));
-  expect(await screen.findByRole('button', { name: 'Differenz ausgleichen' })).toBeTruthy();
+  expect(
+    await screen.findByRole('button', { name: 'Ausgleich buchen und abschließen' }),
+  ).toBeTruthy();
   preview = { ...preview, statementBalanceCents: -1235, differenceCents: 1233 };
   fireEvent.change(screen.getByLabelText('Saldo laut Bank', { exact: true }), {
     target: { value: '-12,35' },
@@ -136,7 +140,7 @@ it('requires explicit review of every existing candidate before correction and l
     expect(screen.queryByRole('button', { name: 'Ignorieren rückgängig' })).toBeNull(),
   );
   expect(await screen.findByTestId('candidate-duplicate-duplicate')).toBeTruthy();
-  expect(screen.queryByRole('button', { name: 'Differenz ausgleichen' })).toBeNull();
+  expect(screen.queryByRole('button', { name: 'Ausgleich buchen und abschließen' })).toBeNull();
 });
 it('uses the existing duplicate action, refreshes to literal zero, and reconciles without adjust only on explicit click', async () => {
   preview.pendingMatches = [];
@@ -154,7 +158,7 @@ it('uses the existing duplicate action, refreshes to literal zero, and reconcile
   };
   await client.invalidateQueries({ queryKey: ['ledger'] });
   const lock = await screen.findByRole('button', { name: 'Kontostand stimmt' });
-  expect(screen.queryByRole('button', { name: /Differenz ausgleichen/ })).toBeNull();
+  expect(screen.queryByRole('button', { name: /Ausgleich buchen und abschließen/ })).toBeNull();
   fireEvent.click(lock);
   await waitFor(() =>
     expect(sends).toEqual([{ date: '2026-09-30', statementBalanceCents: -1234 }]),
@@ -178,7 +182,7 @@ it('shows a partial pending minus3000 against minus4000 and uses canonical statu
   const client = show(-4000);
   const row = await screen.findByTestId('candidate-pending-partial');
   expect(row.textContent).toContain('−30,00 €');
-  expect(screen.queryByRole('button', { name: /Differenz ausgleichen/ })).toBeNull();
+  expect(screen.queryByRole('button', { name: /Ausgleich buchen und abschließen/ })).toBeNull();
   expect(sends).toEqual([]);
   fireEvent.click(within(row).getByRole('button', { name: 'Bestätigen' }));
   expect(writes.bulk.mutate.mock.calls[0]?.[0]).toEqual({
@@ -196,8 +200,10 @@ it('shows a partial pending minus3000 against minus4000 and uses canonical statu
     missing: { kind: 'expense', amountCents: 1000 },
   };
   await client.invalidateQueries({ queryKey: ['ledger'] });
-  const correction = await screen.findByRole('button', { name: /Differenz ausgleichen/ });
-  expect(correction.textContent).toBe('Differenz ausgleichen');
+  const correction = await screen.findByRole('button', {
+    name: /Ausgleich buchen und abschließen/,
+  });
+  expect(correction.textContent).toBe('Ausgleich buchen und abschließen');
   expect(screen.getByText(/Eine echte Buchung/).textContent).toContain('−10,00 €');
   expect(screen.getByText(/Eine echte Buchung/).textContent).not.toContain('−40,00 €');
   expect(sends).toEqual([]);
@@ -238,8 +244,11 @@ it('keeps an existing month-close token stale after a separate candidate confirm
     await client.invalidateQueries({ queryKey: ['ledger'] });
   });
   expect(
-    ((await screen.findByRole('button', { name: /Differenz ausgleichen/ })) as HTMLButtonElement)
-      .disabled,
+    (
+      (await screen.findByRole('button', {
+        name: /Ausgleich buchen und abschließen/,
+      })) as HTMLButtonElement
+    ).disabled,
   ).toBe(true);
   expect(close.confirm).not.toHaveBeenCalled();
   expect(close.onBusy).toHaveBeenLastCalledWith(false);
@@ -259,7 +268,9 @@ it.each([
     preview = { ...preview, duplicates: [], pendingMatches: [], pendingBookings: [] };
     localStorage.setItem('budget-reconcile-category:a', 'food');
     show(-1234, undefined, overrides);
-    const correction = await screen.findByRole('button', { name: 'Differenz ausgleichen' });
+    const correction = await screen.findByRole('button', {
+      name: 'Ausgleich buchen und abschließen',
+    });
     expect((screen.getByLabelText('Kategorie für den Ausgleich') as HTMLInputElement).value).toBe(
       label,
     );

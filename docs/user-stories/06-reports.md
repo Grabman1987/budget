@@ -1,10 +1,16 @@
 # User-Stories – Reports
 
-Alle Reports mit Nummer laut `docs/FEATURES.md` (34 Reports, 1.1 bis 5.6). Jede Nummer steht genau einmal im Feld „Verweis“. Berichte werden sonst nur mit Namen genannt.
+Historical references follow `docs/FEATURES.md` (positions 1.1–5.6). The hub retains 16 main reports and the source catalog retains 29 entries after #1156. Plan destinations and the total Explorer template retain their old URLs; Prognosegenauigkeit is retired.
 
-**Gemeinsamer Einstieg (für alle Stories):** Reports im Hauptmenü öffnen (`/reports`). Dort „Alle Berichte“ nach Gruppe („Berichtsgruppen“) filtern oder mit „Name oder Frage suchen“ suchen; „Zuletzt geöffnet“ führt zurück. Im Bericht wechselt „Bericht wechseln“ (oder Alt+Shift+Pfeil links/rechts) zum Nachbarn. Zeitraumberichte haben die „Zeitraum-Schnellauswahl“ (Dieser Monat, Letzter Monat, 3 Monate, 6 Monate, 12 Monate, Dieses Jahr, Letztes Jahr, Alles, Benutzerdefiniert), „Voriger Zeitraum“/„Nächster Zeitraum“ und „Zeitraum wählen“; die Wahl steht in der Adresse (`?zeitraum=`). Monatsberichte haben „Monat“ mit „Vormonat“/„Nächster Monat“, Jahresberichte „Jahr“. Fachbegriffe mit gepunkteter Unterstreichung öffnen eine Erklärung (RP-24). „Berechnung und Einordnung“ zeigt die Rechenbasis. Die Liquiditätsprognose liegt unter Plan › Prognose, ist aber hier aufgeführt.
+**Shared entry:** Open Reports (`/reports`) and search by report name or question. The redesign groups its 16 main reports into columns; recent active reports remain available. In a report, “Bericht wechseln” opens the shared menu; Alt+Shift+Left/Right still navigates to adjacent reports. Monthly and annual reports offer indented paper presentations, and the monthly report also offers “Finanz-Check-Verlauf”. Period reports retain “Zeitraum-Schnellauswahl” (Dieser Monat, Letzter Monat, 3 Monate, 6 Monate, 12 Monate, Dieses Jahr, Letztes Jahr, Alles, Benutzerdefiniert), “Voriger Zeitraum”/“Nächster Zeitraum” and “Zeitraum wählen”, with the selection in `?zeitraum=`. The remembered period remains available; explicit URL periods take precedence. Monthly reports retain “Monat”, “Vormonat” and “Nächster Monat”; annual reports retain “Jahr”. Dotted terminology opens RP-24 explanations, and “Berechnung und Einordnung” explains the calculation basis. Plan destinations and the total Explorer template are documented below for bookmark compatibility; they have no standalone report entries. The liquidity forecast remains under Plan › Prognose.
 
-**Aufteilungen:** RP-05, RP-07, RP-11, RP-12, RP-13, RP-15, RP-16, RP-17, RP-18, RP-21 und RP-23 sind in a/b(/c) geteilt, weil sie unabhängige Berichte bündeln. Namen folgen dem Katalog der App: RP-05b „Einnahmen und Cashflow“ (früher „Einnahmen und Ausgaben“), RP-11a „Prognosegenauigkeit“ (in der alten Tabelle als Budgettreue geführt), RP-11b „Budgettreue“, RP-13a „Verträge und Kosten“, RP-18a „Portfolio-Auswertung“.
+**Aufteilungen:** RP-05, RP-07, RP-11, RP-12, RP-13, RP-15, RP-16, RP-17, RP-18, RP-21 und RP-23 sind in a/b(/c) geteilt, weil sie unabhängige Berichte bündeln. Namen folgen dem Katalog der App: RP-05b „Einnahmen und Cashflow“ (früher „Einnahmen und Ausgaben“), RP-11a (retired forecast-accuracy report; redirects to Budgettreue), RP-11b „Budgettreue“, RP-13a „Verträge und Kosten“, RP-18a „Portfolio-Auswertung“.
+
+### RP-Header – Compact report header and subreports
+- **Story:** As a user, I want to switch reports through one shared menu and find the figure controls immediately below it.
+- **Flow:** Open a report and choose “Bericht wechseln”. Under “Monatsbericht”, choose the indented “Finanz-Check-Verlauf” or monthly A4 sheet; under “Jahresbericht”, choose the annual A4 sheet. Month and period intent remain in the URL, and Back restores the previous presentation.
+- **Acceptance:** Back link, visible title and menu share one compact row, including at 390 px. Controls and the quiet data basis sit together below it. No “Report N” line or visible report arrows. Monthly/annual paper presentations and finance-check history have no second presentation select. Menu labels, focus, deep links and RP-00's period preference remain usable.
+- **Status:** first slice for review (#1150); shared heading and monthly submenu checked with synthetic data on desktop/390 px and WebKit in light/dark. Remaining: move the other wealth, income/spending, budget-adherence, contract, Explorer and portfolio-cost subreports into the same menu and remove their separate view controls. CI and live acceptance remain open.
 
 ### RP-00 – Zeitraum zwischen Reports behalten
 - **Story:** Als Nutzer möchte ich meinen Zeitraum beim Reportwechsel behalten, damit ich mehrere Berichte ohne erneute Auswahl lesen kann.
@@ -26,7 +32,7 @@ Alle Reports mit Nummer laut `docs/FEATURES.md` (34 Reports, 1.1 bis 5.6). Jede 
 - **Story:** Als Nutzer möchte ich den Monat auf einem Blatt mit Ergebniskette und 50/30/20 sehen und drucken, damit ich am Monatsende ohne Suchen entscheide, ob der Monat gut lief und was ich im nächsten ändere.
 - **Ausgangslage:** Monatsende oder laufender Monat; Buchungen und Plan des Monats sind vorhanden.
 - **Ablauf:**
-  1. Reports › Monats-One-Pager öffnen.
+  1. Open Reports › Monatsbericht; choose the indented “A4 Druckblatt · Monat” in the report menu when needed.
   2. Mit „Monat“, „Vormonat“ und „Nächster Monat“ den Monat wählen; bei einem laufenden Monat steht „Monat läuft noch · Beträge bisher“.
   3. „Maßkette des Monats“, 50/30/20 auf zugewiesenem Geld („Zwölftel“), Nettovermögen mit Eigenanteil und Markt, größte Ausgaben, Plan und Finanz-Check-Zellen lesen.
   4. „Drucken“ wählen; „Als PDF speichern“ geht über den Druckdialog (A4 Hochformat).
@@ -36,7 +42,7 @@ Alle Reports mit Nummer laut `docs/FEATURES.md` (34 Reports, 1.1 bis 5.6). Jede 
   - Der Druck ergibt eine saubere A4-Seite ohne App-Menü.
   - Randfall: Ohne Einnahmen im Monat steht „Ohne Einnahmen im Monat lässt sich keine Verteilung berechnen.“; ohne Ausgaben „In diesem Monat gibt es keine Ausgaben in Bedarf und Wunsch.“
   - Randfall: Kapitalerträge erscheinen nur als Hinweis, nicht in Einnahmen oder Sparquote; für einen laufenden Monat gibt es keine Quote.
-- **Status:** live · **Verweis:** 1.1
+- **Status:** report live; shared header and paper-menu entry for review (#1150), live acceptance pending · **Verweis:** 1.1
 
 ### RP-02 – Gehaltsreport mit Brutto/Netto und Jahresvergleich
 - **Story:** Als Nutzer möchte ich Brutto, Abzüge und Netto je Monat und im Jahresvergleich sehen, damit ich weiß, was vom Brutto bleibt, ob jede Zahlung zur Bank passt und ob das Gehalt gestiegen ist.
@@ -184,20 +190,11 @@ Alle Reports mit Nummer laut `docs/FEATURES.md` (34 Reports, 1.1 bis 5.6). Jede 
   - Randfall: Ein laufender Monat bekommt keine Quote; bei zu wenigen Monaten fehlt die rollierende Linie.
 - **Status:** live · **Verweis:** 1.7
 
-### RP-09 – Gesamttabelle
-- **Story:** Als Nutzer möchte ich alle Monate seit Beginn in einer Tabelle mit Nettovermögen und CSV haben, damit ich Zahlen außerhalb der App weiterverwenden und prüfen kann.
-- **Ausgangslage:** Aufzeichnungen seit 01.10.2023.
-- **Ablauf:**
-  1. Reports › Gesamttabelle öffnen.
-  2. „Detailtiefe“ wählen und in der Tabelle seitlich in die Vergangenheit scrollen.
-  3. Nettovermögen am Monatsende ablesen.
-  4. „CSV“ klicken.
-- **Ergebnis:** Eine Datei mit der Monatsübersicht.
-- **Abnahmekriterien:**
-  - Die CSV enthält genau die angezeigten Zeilen und Spalten.
-  - Nettovermögen je Monatsende stimmt mit Vermögen › Nettovermögen überein.
-  - Randfall: Am Handy bleibt die Tabelle scrollbar; das laufende Monat ist enthalten und als solches erkennbar.
-- **Status:** live · **Verweis:** 1.8
+### RP-09 – Gesamttabelle (Explorer template)
+- **Story:** Export the displayed monthly overview, including month-end net worth, for external checks.
+- **Flow:** Open Reports > Auswertung, select “Gesamttabelle”, choose detail depth, inspect the horizontally scrollable table and export CSV. The retained “Alle Monate: Nettovermögen und CSV” disclosure provides the existing full table.
+- **Acceptance:** No standalone report entry or alias link appears in the hub. `/reports/gesamttabelle` still opens the total Explorer template, preserving explicit period, month, filters and hash. CSV contains exactly its displayed rows and columns; monthly net worth still uses the existing valuation. The running month remains identifiable, mobile tables remain scrollable and privacy masks amounts.
+- **Status:** implemented for review (#1156); CI and owner acceptance pending. **Verweis:** 1.8
 
 ### RP-10 – Projekte und Nebeneinkünfte
 - **Story:** Als Nutzer möchte ich Gewinn und Verlust je Nebenprojekt sehen, damit ich entscheide, ob sich ein Projekt lohnt.
@@ -215,19 +212,11 @@ Alle Reports mit Nummer laut `docs/FEATURES.md` (34 Reports, 1.1 bis 5.6). Jede 
 - **Status:** live · **Verweis:** 1.9
   Fehlt noch: Projektstunden und Stundensätze.
 
-### RP-11a – Prognosegenauigkeit
-- **Story:** Als Nutzer möchte ich sehen, wie treffsicher die Hochrechnung am 15. war, damit ich der Prognose im laufenden Monat vertraue oder meine Planung anpasse.
-- **Ausgangslage:** Die App hält jeweils am 15. den Stand fest; mindestens ein abgeschlossener Monat.
-- **Ablauf:**
-  1. Reports › Prognosegenauigkeit, „Monat“ wählen.
-  2. „Trefferquote“ und „Prognose am 15. vs. Ist am Monatsende“ ansehen (Prognose, Ist, Abweichung € und %, Treffer).
-  3. „größte Abweichungen zuerst“ je Kategorie lesen.
-- **Ergebnis:** Ich sehe, welche Kategorien sich schlecht prognostizieren lassen.
-- **Abnahmekriterien:**
-  - Das Ist am Monatsende entspricht dem Konsum im One-Pager des Monats.
-  - Die Abweichung ist Ist minus Prognose, in Cent exakt.
-  - Randfall: Monate ohne festgehaltenen Stand am 15. sind als nicht bewertet markiert, nicht als Treffer.
-- **Status:** live · **Verweis:** 1.11
+### RP-11a – Retired Prognosegenauigkeit
+- **Story:** Existing forecast-accuracy bookmarks remain useful after the owner retires this report.
+- **Flow:** Open `/reports/planungstreue` or a saved Budgettreue link with `darstellung=planungstreue`; read Budgettreue for the retained month and period.
+- **Acceptance:** No report entry, search result, subview selector or forecast-accuracy body remains. The old report address redirects to Budgettreue with month, explicit period and hash intact; reload works. Geldfluss remains an independent report. Stored snapshots, financial calculations and the Heute Pace note remain unchanged.
+- **Status:** retirement implemented for review (#1156), per owner decision 2026-11-15; CI and owner acceptance pending. **Verweis:** 1.11
 
 ### RP-11b – Budgettreue mit 50/30/20
 - **Story:** Als Nutzer möchte ich Plan gegen Ist je Kategorie und die 50/30/20-Verteilung sehen, damit ich weiß, wo ich den Plan überschreite und ob die Verteilung zu meinen Zielen passt.
@@ -322,17 +311,18 @@ Alle Reports mit Nummer laut `docs/FEATURES.md` (34 Reports, 1.1 bis 5.6). Jede 
 - **Story:** Als Nutzer möchte ich sehen, ob das Geld auf den Budget-Konten bis zu 12 Monate reicht, auch mit geplanten Ereignissen, damit ich rechtzeitig umschichte oder Zahlungen verschiebe.
 - **Ausgangslage:** Wiederkehrende Zahlungen und Sparpläne sind gepflegt; geplante Ereignisse optional.
 - **Ablauf:**
-  1. Plan › Prognose öffnen (der Bericht liegt im Bereich Plan).
+  1. Open Plan › Prognose. `/reports/liquiditaet` redirects here; this destination no longer appears in Reports.
   2. „Prognosezeitraum“ wählen (90 Tage, 6 oder 12 Monate); die Linie mit Band zeigt „Budget-Konten“.
   3. Unter „Werkzeuge“ Einkommenspausen, Ereignisse, Stellschrauben und Buchungen streichen testen; „Ohne Ereignisse“ zeigt den Vergleich.
   4. „Nächste Buchungsereignisse“ prüfen; „Einzelkontovorschau“ je Konto öffnen.
 - **Ergebnis:** Ich sehe den tiefsten Punkt und das Urteil für die nächsten 6 Monate.
 - **Abnahmekriterien:**
+  - The Reports hub and recents omit this destination; its old URL preserves month, period and hash on redirect and reload.
   - Der Startsaldo entspricht der Summe der Budget-Konten in Konten › Übersicht.
   - Ein Ereignis (hinzufügen, abschalten, entfernen) ändert die Linie sofort und ist rückgängig machbar.
   - Der 10-%-Puffer ist als Band sichtbar.
   - Randfall: Ohne größere Buchungen „Im Prognosezeitraum stehen keine größeren Buchungen an.“
-- **Status:** live · **Verweis:** 3.1
+- **Status:** existing Plan flow retained; catalog cleanup implemented for review (#1156), CI and owner acceptance pending · **Verweis:** 3.1
 
 ### RP-15b – Cashflow-Verlauf
 - **Story:** Als Nutzer möchte ich sehen, ob ich mehr verdiene als ich ausgebe, damit ich weiß, ob der Haushalt wirklich Überschuss erzeugt.
@@ -352,16 +342,17 @@ Alle Reports mit Nummer laut `docs/FEATURES.md` (34 Reports, 1.1 bis 5.6). Jede 
 - **Story:** Als Nutzer möchte ich die Zahlungen der nächsten 12 Monate im Kalender sehen, damit ich große Fälligkeiten (Versicherung, Steuern) vorab abdecke.
 - **Ausgangslage:** Wiederkehrende Zahlungen, Sparpläne und künftige Umbuchungen sind gepflegt.
 - **Ablauf:**
-  1. Reports › Jahresvorschau Zahlungen öffnen.
+  1. Open Plan › Zahlungen and select the calendar. `/reports/vorschau` redirects here; Jahresvorschau no longer appears in Reports.
   2. „Jahreskalender Zahlungen“ und „Zahlungskalender“ lesen; „Maßkette Jahresvorschau“ zeigt die EUR-Summe.
   3. „Fälligkeiten und Verknüpfungen“ prüfen (Fällig, Vertrag, Status/Buchung).
   4. „Wiederkehrende Zahlungen öffnen“ führt zur Pflege.
 - **Ergebnis:** Ich weiß, wann welcher Betrag fällig wird.
 - **Abnahmekriterien:**
+  - The Reports hub and recents omit this destination; its old URL preserves month, period and hash on redirect and reload.
   - Die Summe der Monate entspricht den erwarteten Abgängen in Plan › Zahlungen plus Sparplanausführungen.
   - Eine Zahlung wird nicht doppelt gezählt, wenn Umbuchung und Zeitplan dasselbe Ereignis sind.
   - Randfall: Nicht verknüpfte erwartete Zahlungen bleiben getrennt und werden nicht geraten; ein „Abrechnungsausgleich“ zeigt Einzugstermin und Betrag.
-- **Status:** live · **Verweis:** 3.4
+- **Status:** existing Plan flow retained; catalog cleanup implemented for review (#1156), CI and owner acceptance pending · **Verweis:** 3.4
 
 ### RP-16a – Vermögensverläufe
 - **Story:** Als Nutzer möchte ich sehen, woraus das Vermögen über die Zeit besteht, damit ich erkenne, wie sich die Mischung aus Konten, Anlagen und Schulden verschiebt.
@@ -381,15 +372,16 @@ Alle Reports mit Nummer laut `docs/FEATURES.md` (34 Reports, 1.1 bis 5.6). Jede 
 - **Story:** Als Nutzer möchte ich sehen, ob die Sparziele im Plan liegen, damit ich Rate oder Termin rechtzeitig anpasse.
 - **Ausgangslage:** Sparziele unter Plan › Ziele angelegt; für Tagesgeld ist die Zuordnung zu Zielen erfasst.
 - **Ablauf:**
-  1. Reports › Sparziele-Fortschritt, „Monat“ wählen (Sparziele · Monat).
+  1. Open Plan › Ziele and select the progress view and month. `/reports/sparziele` redirects here; Sparziele no longer appears in Reports.
   2. Fortschrittsbalken mit Soll-Marke lesen; „Tagesgeld-Zuordnung · bis heute“ ansehen.
   3. „Zielstände und Quellen“ prüfen.
 - **Ergebnis:** Ich sehe Stand je Ziel und Notgroschen in Monaten.
 - **Abnahmekriterien:**
+  - The Reports hub and recents omit this destination; its old URL preserves month, period and hash on redirect and reload.
   - Der Zielstand entspricht Plan › Ziele für denselben Monat.
   - Die Reserve in Monaten entspricht geschlossenem Bedarf laut Finanz-Check.
   - Randfall: Fremdwährungsreserven sind ausdrücklich unvollständig markiert; Konten ohne Zielzuordnung zählen nicht zu einem Ziel.
-- **Status:** live · **Verweis:** 3.5
+- **Status:** existing Plan flow retained; catalog cleanup implemented for review (#1156), CI and owner acceptance pending · **Verweis:** 3.5
   Fehlt noch: Zuordnung geteilter Konten und Kategorien zu Zielen (keine Quelle).
 
 ### RP-16c – Vermögen und Schulden
@@ -487,15 +479,18 @@ Alle Reports mit Nummer laut `docs/FEATURES.md` (34 Reports, 1.1 bis 5.6). Jede 
 - **Story:** Als Nutzer möchte ich das Jahr auf zwei A4-Seiten drucken, damit ich ein Ablagedokument für Steuer, Überblick und Jahresabschluss habe.
 - **Ausgangslage:** Mindestens ein abgeschlossenes Jahr.
 - **Ablauf:**
-  1. Reports › Jahresreport öffnen, „Jahr“ wählen.
+  1. Open Reports › Jahresreport and select “Jahr”; the indented “A4 Druckblatt · Jahr” is available in the report menu.
   2. Blatt 1 und 2 lesen: Nettovermögenskette, Einkommen, Konsum, Zukunft, Sparquote, Kapitalerträge, Cashflow je Monat, größte Kategorien, 50/30/20, Finanz-Check, Befunde.
+     The summary shows starting net worth and the change in euros and percent; the A4 detail shows the change beside the existing net worth chain.
   3. „Drucken“ und „Als PDF speichern“ über den Druckdialog.
 - **Ergebnis:** Ein zweiseitiges Jahresblatt.
 - **Abnahmekriterien:**
   - Der Druck ergibt genau zwei A4-Seiten.
   - Nettovermögenskette entspricht Vermögen › Nettovermögen; Sparquote entspricht Sparquote und Geldalter.
+  - Wealth change is end minus start from the same net worth series, with exact cents and the shared ratio calculation. With starting net worth ≤ 0, the euro change remains available and the percentage says “nicht ermittelbar” with its reason. Missing valuations retain their specific reason without substituting zero.
+  - Amount privacy also hides the wealth-change percentage. Full and partial years still print on two A4 pages.
   - Randfall: Nur volle Monate zählen; ein laufendes Jahr ist als Teiljahr erkennbar; Gehaltserhöhungen und Preisänderungen gibt es noch nicht als Befunde.
-- **Status:** live · **Verweis:** 5.1
+- **Status:** existing report live; wealth-change extension (#1118), shared header and paper-menu entry (#1150) implemented, review/live acceptance pending. Investments/trading, with/without market, split savings rate, complete prior-year comparisons and context from #1118 remain open. · **Verweis:** 5.1
 
 ### RP-20a – Jahreskennzahlen und Vermögenszuwachs (#1118, first slice)
 - **Story:** Als Nutzer möchte ich Vermögenszuwachs und die Veränderung meiner bisherigen Jahreskennzahlen sehen, damit ich das Jahr beurteilen kann.
@@ -517,15 +512,16 @@ Alle Reports mit Nummer laut `docs/FEATURES.md` (34 Reports, 1.1 bis 5.6). Jede 
 - **Story:** Als Nutzer möchte ich sehen, welche Regeln verletzt sind und seit wann, damit ich zuerst die offene Regel der aktuellen Stufe behebe.
 - **Ausgangslage:** Regelwerk ist unter Einstellungen › Regelwerk konfiguriert; die App speichert die Ergebnisse zu den Monatsenden.
 - **Ablauf:**
-  1. Reports › Finanz-Check-Verlauf öffnen.
+  1. Open “Bericht wechseln” in a report and choose the indented “Finanz-Check-Verlauf” under “Monatsbericht”. Its direct link remains reachable.
   2. „Stufen nach Nettovermögen“ und „Regeln der aktuellen Stufe“ lesen; die Statusleiste zeigt 12 Monatsenden plus heute.
   3. In „Regelwerk mit Verlauf“ Schwelle, Status und „seit“-Datum prüfen; offene Aktionen sind verlinkt.
 - **Ergebnis:** Ich sehe, welche Regel seit wann offen ist.
 - **Abnahmekriterien:**
   - Der Status je Regel entspricht Einstellungen › Regelwerk und Heute für den Stichtag.
+  - The shared report menu replaces the second presentation select; Back and reopening preserve the selected month context.
   - Das Öffnen des Berichts berechnet die gespeicherten Ergebnisse idempotent neu.
   - Randfall: Ein Tag ohne Daten bleibt „nicht bewertbar“; nur die letzten zwölf Monatsenden sind gespeichert.
-- **Status:** live · **Verweis:** 5.2
+- **Status:** report live; compact shared header and menu path for review (#1150), live acceptance pending · **Verweis:** 5.2
 
 ### RP-21b – Kontakte-Abrechnung
 - **Story:** Als Nutzer möchte ich sehen, wer wem wie viel schuldet, damit ich Auslagen zurückfordere und den Überblick über offene Salden habe.
@@ -533,13 +529,18 @@ Alle Reports mit Nummer laut `docs/FEATURES.md` (34 Reports, 1.1 bis 5.6). Jede 
 - **Ablauf:**
   1. Reports › Kontakte-Abrechnung öffnen (fester Gesamtzeitraum, nur EUR).
   2. „Offen“ und „Maßkette Kontakte“ (Forderung minus Guthaben) lesen.
-  3. Eine Person öffnen: Kontoblatt mit laufendem Saldo und Quellbuchungen.
+  3. Eine Person öffnen: zuerst offene Forderungen mit Datum, Empfänger, Betrag und Offen (rechts), danach der Saldoverlauf über die gesamte erfasste Zeit.
+  4. „Vergangene Buchungen“ bei Bedarf aufklappen und in Seiten zu 20 Bewegungen blättern; die Zusammenfassung nennt Anzahl und Summe der vollständig beglichenen Auslagen. Offene Auslagen bleiben unabhängig vom Monat oben.
+  5. Tatsächlich verbleibendes freies Guthaben erscheint in einer Zeile; „Guthaben ändern“ führt zum Kontakt. Automatische Verrechnungsdetails bleiben dort.
 - **Ergebnis:** Ich sehe je Person den offenen Saldo.
 - **Abnahmekriterien:**
   - Der Saldo je Person entspricht Konten › Kontakte.
   - Vorgemerkte Buchungen sind ausdrücklich eingeschlossen.
   - Randfall: Mischwährung ist nicht verfügbar („Der Report ist nicht verfügbar. Es wird kein Teilsaldo gezeigt.“); Salden fließen nicht ins Nettovermögen.
-- **Status:** live · **Verweis:** 5.4
+  - Keine Pluspräfixe in den Zeilen. Forderungen und Guthaben haben ausgeschriebene Richtungen; der Nettosaldo stammt unverändert aus derselben Kontaktabrechnung wie Konten › Kontakte. Die Tabellensumme ist die Bruttoforderung; vorhandenes Guthaben bleibt separat sichtbar.
+  - Datenschutz blendet Beträge auch in Summen, Kopiertext und zugänglichen Beschriftungen aus; Desktop 1440 und Telefon 390 in Hell/Dunkel bleiben bedienbar.
+  - Plan-Prüfung (#1149, ohne Verhaltensänderung): Neue Kategorie-Einkäufe mit Kontaktanteilen belasten die ursprüngliche Einkaufskategorie brutto bis zur Rückzahlung. Zugeordnete Rückzahlungen fließen in diese Kategorie zurück. Der Anteil wird nicht zusätzlich als eigene Auslagen-Kategorie belastet und nicht zusätzlich im Nettovermögen gezählt. Historische/alleinstehende Auslagen ohne belegte Ursprungskategorie behalten ihre gespeicherte Kategorie. Grundlage: `docs/shared-expenses.md`, `SPEC.md` (#963/#978); keine Neuberechnung oder Datenänderung in diesem Teil.
+- **Status:** teilweise · **Verweis:** 5.4, #1149. Erster Teil: offene Tabelle, gesamter Saldoverlauf und geschlossene, paginierte Vergangenheit für den gewählten Kontakt. Offen: alle Kontakte untereinander statt der bisherigen Auswahl, ausgeglichene Kontakte ausschließlich in der gemeinsamen Vergangenheit sowie vollständige Wiederverwendung des Buchungsregister-Bauteils. Private Abnahme ausständig.
 
 ### RP-22 – Explorer
 - **Story:** Als Nutzer möchte ich eigene Fragen als Pivot über Buchungen stellen, damit ich Auswertungen bekomme, die kein fester Bericht bietet.

@@ -1,6 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import { mkdir } from 'node:fs/promises';
-import { expect } from '@playwright/test';
+import { expect, type APIRequestContext } from '@playwright/test';
 import { test } from './isolated-ledger';
 import { redesignReportsOn } from './report-frame';
 
@@ -91,7 +91,7 @@ test('961/962 contacts: zero net retains credit and movement source context', as
   await sheet.locator('[data-r8-detail="contact-history"] > summary').click();
   const source = sheet.getByRole('button', { name: /Ursprungsbuchung öffnen/ });
   await expect(source).toContainText(payee.name);
-  await expect(source).toContainText(`Kategorie: ${advance.name}`);
+  await expect(source).toHaveAccessibleName(new RegExp(`Kategorie: ${advance.name}`));
   const bookingNote = source.getByTitle(note);
   await expect(bookingNote).toHaveText(note);
   await page.mouse.move(0, 0);
@@ -109,12 +109,7 @@ test('961/962 contacts: zero net retains credit and movement source context', as
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
 
-test('850 contacts: 5000-cent debt forgiveness, exact shortfall, cash unchanged, stale denial and Undo', async ({
-  page,
-  request,
-  isolatedLedger,
-}, info) => {
-  const origin = isolatedLedger.origin;
+async function debtFixture(request: APIRequestContext, origin: string) {
   const post = async (path: string, data: unknown) => {
     const response = await request.post(`/api${path}`, { data, headers: { origin } });
     expect(response.ok(), await response.text()).toBe(true);
@@ -173,6 +168,19 @@ test('850 contacts: 5000-cent debt forgiveness, exact shortfall, cash unchanged,
   expect(assigned.ok()).toBe(true);
   const cash = (await read('/accounts')).accounts[0].balanceCents;
   expect(cash).toBe(97000);
+  return { post, read, gifts, account, owed, credit, balanced, cash };
+}
+
+test('850 contacts: 5000-cent debt forgiveness, exact shortfall, cash unchanged, stale denial and Undo', async ({
+  page,
+  request,
+  isolatedLedger,
+}) => {
+  const origin = isolatedLedger.origin;
+  const { post, read, gifts, account, owed, credit, balanced, cash } = await debtFixture(
+    request,
+    origin,
+  );
   await page.goto(`/reports/kontakte?kontakt=${owed.id}&verlauf=1#details`);
   if (!(await redesignReportsOn(page))) {
     await expect(page.getByRole('region', { name: 'Kontaktkontoauszug' })).toBeVisible();
@@ -210,7 +218,7 @@ test('850 contacts: 5000-cent debt forgiveness, exact shortfall, cash unchanged,
   await body.getByRole('link', { name: new RegExp(owed.name) }).click();
   const history = body.locator('[data-r8-detail="contact-history"]');
   await history.locator(':scope > summary').click();
-  const source = history.getByRole('button', { name: /Ursprungsbuchung öffnen/ }).first();
+  const source = body.getByRole('button', { name: /Ursprungsbuchung öffnen/ }).first();
   await source.click();
   await expect(page.getByRole('dialog', { name: 'Buchung bearbeiten' })).toBeVisible();
   const sourceOverviewUrl = '**/api/contacts?history=1';
@@ -233,38 +241,6 @@ test('850 contacts: 5000-cent debt forgiveness, exact shortfall, cash unchanged,
   await page.keyboard.press('Escape');
   await expect(source).toBeFocused();
   await history.locator(':scope > summary').click();
-  const calculation = page.getByTestId('report-calculation');
-  await expect(calculation.getByText('Wir bekommen', { exact: true })).toBeVisible();
-  await expect(calculation).toContainText('50,00 €');
-  await expect(calculation).toContainText('20,00 €');
-  const evidence = 'docs/evidence/redesign-reports-20261103-a';
-  await mkdir(evidence, { recursive: true });
-  await page.evaluate(() => {
-    if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
-    window.scrollTo(0, 0);
-    return document.fonts.ready;
-  });
-  for (const theme of ['light', 'dark']) {
-    await page.evaluate((value) => {
-      document.documentElement.dataset['theme'] = value;
-    }, theme);
-    expect((await new AxeBuilder({ page }).include('main').analyze()).violations).toEqual([]);
-    await page.screenshot({
-      path: `${evidence}/r4-contacts-${info.project.name}-${theme}.png`,
-      fullPage: true,
-    });
-  }
-  await page.getByRole('combobox', { name: 'Darstellung der Kontakte' }).selectOption('offen');
-  await expect(body.locator('.r4-open-items')).toContainText('50,00 €');
-  for (const theme of ['light', 'dark']) {
-    await page.evaluate((value) => {
-      document.documentElement.dataset['theme'] = value;
-    }, theme);
-    await page.screenshot({
-      path: `${evidence}/r4-open-items-${info.project.name}-${theme}.png`,
-      fullPage: true,
-    });
-  }
   await body.getByRole('button', { name: 'Schulden erlassen', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: 'Schulden erlassen', exact: true });
   const submit = dialog.getByRole('button', { name: 'Schulden erlassen', exact: true });
@@ -276,26 +252,6 @@ test('850 contacts: 5000-cent debt forgiveness, exact shortfall, cash unchanged,
   await expect(submit).toBeDisabled();
   await dialog.getByLabel('Betrag', { exact: true }).fill('50');
   await expect(submit).toBeEnabled();
-  for (const theme of ['light', 'dark']) {
-    await page.evaluate((value) => {
-      document.documentElement.dataset['theme'] = value;
-    }, theme);
-    expect((await new AxeBuilder({ page }).include('dialog').analyze()).violations).toEqual([]);
-    await page.screenshot({
-      path: `${evidence}/r4-forgive-${info.project.name}-${theme}.png`,
-      fullPage: true,
-    });
-  }
-  const viewport = page.viewportSize()!;
-  await page.setViewportSize({ width: 320, height: 844 });
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-  for (const button of await dialog.getByRole('button').all()) {
-    const box = (await button.boundingBox())!;
-    expect(box.height).toBeGreaterThanOrEqual(44);
-    expect(box.x).toBeGreaterThanOrEqual(0);
-    expect(box.x + box.width).toBeLessThanOrEqual(320);
-  }
-  await page.setViewportSize(viewport);
   // A failed balance refresh preserves the named category and local draft, while denying a write.
   await dialog.getByLabel('Notiz', { exact: true }).fill('Synthetic forgiveness draft');
   const overviewUrl = '**/api/contacts?history=1';
@@ -387,4 +343,86 @@ test('850 contacts: 5000-cent debt forgiveness, exact shortfall, cash unchanged,
   await expect(body.locator('.contacts-balance')).toContainText('50,00 €');
   await page.setViewportSize({ width: 320, height: 844 });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+});
+
+test('1149 contacts: open register and forgiveness remain readable and accessible in both themes', async ({
+  page,
+  request,
+  isolatedLedger,
+}, info) => {
+  const { gifts, owed } = await debtFixture(request, isolatedLedger.origin);
+  await page.goto(`/reports/kontakte?kontakt=${owed.id}&verlauf=1#details`);
+  if (!(await redesignReportsOn(page))) return;
+  const body = page.locator('.r4-contact-report');
+  const calculation = page.getByTestId('report-calculation');
+  await expect(calculation.getByText('Wir bekommen', { exact: true })).toBeVisible();
+  await expect(calculation).toContainText('50,00 €');
+  await expect(calculation).toContainText('20,00 €');
+  const evidence = 'docs/evidence/redesign-reports-20261103-a';
+  await mkdir(evidence, { recursive: true });
+  await page.evaluate(() => {
+    if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+    window.scrollTo(0, 0);
+    return document.fonts.ready;
+  });
+  for (const theme of ['light', 'dark']) {
+    await page.evaluate((value) => {
+      document.documentElement.dataset['theme'] = value;
+    }, theme);
+    expect((await new AxeBuilder({ page }).include('main').analyze()).violations).toEqual([]);
+    await page.screenshot({
+      path: `${evidence}/r4-contacts-${info.project.name}-${theme}.png`,
+      fullPage: true,
+    });
+  }
+  await page.getByRole('combobox', { name: 'Darstellung der Kontakte' }).selectOption('offen');
+  const openTable = body.getByRole('table', { name: /Offene Forderungen/ });
+  await expect(openTable).toContainText('50,00 €');
+  await expect(openTable.getByRole('columnheader')).toHaveText([
+    'Datum',
+    'Empfänger',
+    'Betrag',
+    'Offen',
+  ]);
+  await expect(openTable.getByRole('columnheader', { name: 'Offen', exact: true })).toBeVisible();
+  for (const theme of ['light', 'dark']) {
+    await page.evaluate((value) => {
+      document.documentElement.dataset['theme'] = value;
+    }, theme);
+    await page.screenshot({
+      path: `${evidence}/r4-open-items-${info.project.name}-${theme}.png`,
+      fullPage: true,
+    });
+  }
+  await body.getByRole('button', { name: 'Schulden erlassen', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Schulden erlassen', exact: true });
+  const submit = dialog.getByRole('button', { name: 'Schulden erlassen', exact: true });
+  await expect(submit).toBeDisabled();
+  await dialog.getByLabel('Kategorie', { exact: true }).selectOption(gifts.id);
+  await expect(dialog).toContainText('verfügbar 20,00 € → −30,00 €. Fehlbetrag danach: 30,00 €');
+  await expect(dialog).toContainText('Kontaktschuld danach: 0,00 €. Kontogeld bleibt unverändert.');
+  await dialog.getByLabel('Betrag', { exact: true }).fill('50,01');
+  await expect(submit).toBeDisabled();
+  await dialog.getByLabel('Betrag', { exact: true }).fill('50');
+  await expect(submit).toBeEnabled();
+  for (const theme of ['light', 'dark']) {
+    await page.evaluate((value) => {
+      document.documentElement.dataset['theme'] = value;
+    }, theme);
+    expect((await new AxeBuilder({ page }).include('dialog').analyze()).violations).toEqual([]);
+    await page.screenshot({
+      path: `${evidence}/r4-forgive-${info.project.name}-${theme}.png`,
+      fullPage: true,
+    });
+  }
+  const viewport = page.viewportSize()!;
+  await page.setViewportSize({ width: 320, height: 844 });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  for (const button of await dialog.getByRole('button').all()) {
+    const box = (await button.boundingBox())!;
+    expect(box.height).toBeGreaterThanOrEqual(44);
+    expect(box.x).toBeGreaterThanOrEqual(0);
+    expect(box.x + box.width).toBeLessThanOrEqual(320);
+  }
+  await page.setViewportSize(viewport);
 });

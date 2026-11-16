@@ -31,6 +31,7 @@ Bereich: Plan (`/plan/monat`, `/plan/jahr`, `/plan/erwartet`, `/plan/sparziele`,
   3. Im Feld „Klasse“ wähle ich Bedarf, Wunsch oder Zukunft.
   4. Ich verschiebe Kategorien mit den Pfeilen; „Reihenfolge gespeichert.“ erscheint.
   5. Ich öffne „Plan › Monat“ und sehe die Kategorie in der Gruppe; die Ansicht „Klassen“ gruppiert nach Klasse.
+  6. Beim Buchen wähle ich alternativ „Neue Kategorie …“ direkt im Kategorie-Wähler, gebe Name und Gruppe im bestehenden Formular ein und speichere. Die neue Kategorie ist danach ausgewählt.
 - **Ergebnis:** Struktur und Klasse sind gespeichert und wirken in Plan, Buchungs-Kategorien und Reports (z. B. 50/30/20).
 - **Abnahmekriterien:**
   1. Eine neue Kategorie erscheint in Plan und im Kategorie-Auswahlfeld.
@@ -38,14 +39,16 @@ Bereich: Plan (`/plan/monat`, `/plan/jahr`, `/plan/erwartet`, `/plan/sparziele`,
   3. Ohne Gruppe meldet die Seite „Noch keine Gruppen. Lege zuerst eine Gruppe an.“
   4. Ungespeicherte Änderungen werden beim Schließen mit einer Rückfrage geschützt.
   5. Bestehende Buchungen bleiben der Kategorie zugeordnet.
-- **Status:** live — **Verweis:** Y06
+  6. Im Buchungsdialog, bei der Inline-Kategorieänderung und unter Prüfen öffnet „Neue Kategorie …“ dasselbe Formular. Doppelte Namen werden mit „Dieser Name wird schon verwendet.“ abgelehnt.
+  7. „Rückgängig“ entfernt eine neu angelegte, noch unbenutzte Kategorie; ein offener Buchungsentwurf verliert dabei die entfernte Auswahl. Das Anlegen allein verändert keine Geldwerte.
+- **Status:** Grundfunktion live; Kategorieanlage im Wähler #1104 implementiert, PR-/CI-Prüfung und Live-Abnahme offen — **Verweis:** Y06, #1104
 
 ### P-03 – Kategoriestruktur wie im Vorsystem
 - **Story:** Als Nutzer möchte ich Gruppen und Kategorien wie in meiner früheren YNAB-Struktur wiederfinden (Reihenfolge, Einzelkategorien statt Sammelkategorien, versteckte Kategorien), damit ich mich nicht neu einarbeiten muss und alte Gewohnheiten weiter gelten.
 - **Ausgangslage:** Die Struktur wurde bei der Übernahme am 02.10. zusammengelegt und passt nicht zu meiner Denkweise.
-- **Ablauf:** Ablauf aus dem Issue (geplant), nicht in der Oberfläche auslösbar:
+- **Ablauf:** Über das vorhandene Betreiber-Werkzeug `restructure`, nicht in der Oberfläche auslösbar (Prüfschritte: `docs/ops.md`, Abschnitt 12.6.2):
   1. Die Zuordnung je Teilbuchung und Monatszuweisung wird privat vorbereitet.
-  2. Ein Probelauf auf einer Datenbankkopie prüft Salden, „Zu verteilen“ und Vermögen.
+  2. Vorschau und Anwendung auf einer Datenbankkopie prüfen Salden, „Zu verteilen“ je betroffenem Monat samt Folgemonat und Vermögen; ein Rückgängig-Probelauf stellt den Ausgangszustand wieder her.
   3. Ich gebe den Lauf frei; vorher wird gesichert.
   4. Das Betreiber-Werkzeug spielt die neue Struktur live ein.
   5. Ich öffne „Plan › Monat“ und prüfe Gruppen und Reihenfolge.
@@ -55,8 +58,9 @@ Bereich: Plan (`/plan/monat`, `/plan/jahr`, `/plan/erwartet`, `/plan/sparziele`,
   2. Salden, „Zu verteilen“ und Vermögen sind vor und nach dem Lauf identisch.
   3. Keine Buchung geht verloren; jede ist weiter einer Kategorie zugeordnet.
   4. Versteckte Kategorien erscheinen nicht im Plan, ihre Buchungen bleiben in den Konten sichtbar.
-- **Status:** offen — **Verweis:** #969
-- Fehlt noch: Probelauf, Freigabe und Live-Lauf; fehlende Werkzeug-Funktionen (Sortieren, Umbenennen, Ausblenden) als kleine PRs.
+  5. Sparziele und Investieren stehen in der vereinbarten gemeinsamen Gruppe; bestehende Zielverknüpfungen bleiben erhalten.
+- **Status:** offen; Betreiber-Werkzeug vorhanden, synthetischer Wiederherstellungs-Probelauf und Ablauf dokumentiert — **Verweis:** #969
+- Fehlt noch: private Zuordnung, Probelauf auf der echten Datenbankkopie, Freigabe des konkreten Plans, Sicherung, Live-Lauf und Abnahme. Der synthetische Test ersetzt diese Schritte nicht.
 
 ### P-04 – Vorschläge und „Leere füllen“
 - **Story:** Als Nutzer möchte ich blasse Vorschläge (Ziel, Median) und „Leere füllen“ nutzen, damit ich den Monat mit wenigen Klicks vorbelege, ohne jede Kategorie einzeln zu tippen.
@@ -64,17 +68,17 @@ Bereich: Plan (`/plan/monat`, `/plan/jahr`, `/plan/erwartet`, `/plan/sparziele`,
 - **Ablauf:**
   1. Ich öffne „Plan › Monat“ für einen einzelnen Monat; leere Kategorien zeigen blasse Vorschläge.
   2. Ich öffne „Automatisch zuweisen“ (bzw. „Verteilen ▾“) und wähle „Wie letzter Monat“, „Ø 3 Monate“ oder „Ziel“.
-  3. Die App zeigt die Vorschau der Beträge.
-  4. Ich tippe „Leere füllen“. Die App weist nur leere Kategorien zu, in angezeigter Reihenfolge, solange Geld da ist.
+  3. Im geführten „Geld verteilen“ wähle ich für Kategorien ohne Ziel „Wie letzter Monat“ (Zuweisungen) oder „Ø 3 Monate“ (Ausgaben). Ich prüfe und bearbeite die Vorschau vor „Vorlage zuweisen“.
+  4. Alternativ tippe ich im Plan „Leere füllen“. Die App weist nur leere Kategorien zu, in angezeigter Reihenfolge, solange Geld da ist.
   5. Ich kann alles mit „Rückgängig“ in einem Schritt zurücknehmen.
 - **Ergebnis:** Die Zuweisungen sind gespeichert; es gibt eine Rückgängig-Gruppe.
 - **Abnahmekriterien:**
-  1. Ohne Klick auf „Leere füllen“ wird nichts gespeichert.
+  1. Ohne Bestätigung („Leere füllen“ bzw. „Vorlage zuweisen“) wird nichts gespeichert. Vorlagen ohne historische Werte sind mit Begründung gesperrt; manuelle Überschreitungen zeigen den bestehenden Dispo-Hinweis.
   2. Ist nicht genug Geld da, wird in Reihenfolge teilweise gefüllt; die Lücke bleibt sichtbar.
   3. Bei mehreren Monaten ist die Funktion mit „Nur bei einem Monat“ gesperrt.
   4. Gibt es nichts zu füllen, steht „Keine leere Kategorie mit Vorschlag“.
   5. „Rückgängig“ und „Wiederholen“ stellen den Stand her.
-- **Status:** live — **Verweis:** Y09a
+- **Status:** live; Assistenten-Vorlagen implementiert, Abnahme offen — **Verweis:** Y09a, #1097
 
 ### P-05 – Geld verteilen, geführt
 - **Story:** Als Nutzer möchte ich am Gehaltstag Schritt für Schritt Geld verteilen, damit ich keine Kategorie vergesse und am Ende weiß, dass jeder Euro eine Aufgabe hat.
@@ -83,7 +87,7 @@ Bereich: Plan (`/plan/monat`, `/plan/jahr`, `/plan/erwartet`, `/plan/sparziele`,
   1. Ich tippe in Heute bei „Als Nächstes“ auf „Verteilen“ oder in Plan › Monat auf „Geld verteilen“ (Menü „Verteilen“ › „Schritt für Schritt verteilen“).
   2. Schritt „Eingang prüfen“: gebuchte Einnahmen im Budgetmonat und erwartete Zahlungen werden gezeigt; nur Gebuchtes ist verteilbar.
   3. Schritt „Lücken“: unterfinanzierte und überzogene Kategorien werden aufgelistet.
-  4. Schritt „Zuweisen“: Ich weise je Kategorie zu; „Zu verteilen jetzt“ sinkt mit.
+  4. Schritt „Zuweisen“: Ich wähle eine historische Vorlage für Kategorien ohne Ziel, passe die Vorschau an und bestätige „Vorlage zuweisen“. Alternativ weise ich je Zielkategorie zu; „Zu verteilen jetzt“ sinkt mit.
   5. Schritt „Rest und Zusammenfassung“: ich sehe „Änderungen in diesem Durchgang“ und kann mit „Rückgängig“ zurücknehmen oder „Zurück zum Plan“ gehen.
 - **Ergebnis:** Zuweisungen sind gespeichert; bei null steht „Jeder Euro hat einen Job.“
 - **Abnahmekriterien:**
@@ -92,7 +96,8 @@ Bereich: Plan (`/plan/monat`, `/plan/jahr`, `/plan/erwartet`, `/plan/sparziele`,
   3. Ist nichts zu verteilen, steht „Nichts zu verteilen.“
   4. Schlägt ein Schreibvorgang fehl, steht „Das hat nicht geklappt. Versuch es noch einmal.“ und es wird nichts doppelt gebucht.
   5. Auf dem Handy (390 px) ist jeder Schritt bedienbar.
-- **Status:** live — **Verweis:** #1055, #1071
+  6. Beide Vorlagen schreiben erst nach Bestätigung in einer rückgängig machbaren Gruppe. Ohne historische Werte sind sie mit Begründung gesperrt. Die Vorschau bleibt auf „Zu verteilen“ begrenzt; manuelle Überschreitungen zeigen den bestehenden Dispo-Hinweis. Alle Beträge bleiben centgenau.
+- **Status:** live; Vorlagen-Erweiterung implementiert, Abnahme offen — **Verweis:** #1055, #1071, #1097
 - Hinweis: #1055 ist im GitHub-Stand noch offen; #1071 (drei Kleinpunkte) ist geschlossen. Status vor Abnahme prüfen.
 
 ### P-06 – Überziehungen decken

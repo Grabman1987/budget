@@ -5,12 +5,19 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Hono, type MiddlewareHandler } from 'hono';
 import { backupConfigFromEnv } from '../backup/backup';
+import { restoreTestStatus } from '../backup/restore-test';
+import { latestArchiveKey } from '../backup/retention';
 import { S3Client } from '../backup/s3';
 import { admitExport } from './export-admission';
 
 /** Read an existing completed night copy; never create a snapshot or expose storage credentials. */
 export function encryptedBackupRoutes(db: Db, stepUp: MiddlewareHandler): Hono {
   const api = new Hono();
+  // Latest monthly restore test (docs/ops.md section 8.4): status only, no key or storage details.
+  api.get('/restore-test', (c) => {
+    c.header('Cache-Control', 'no-store');
+    return c.json(restoreTestStatus(db, new Date()));
+  });
   api.get('/backup.age', stepUp, async (c) => {
     // Hono routes HEAD through GET and discards its body without consuming the stream.
     if (c.req.method === 'HEAD') return c.body(null, 405, { Allow: 'GET' });
@@ -33,14 +40,7 @@ export function encryptedBackupRoutes(db: Db, stepUp: MiddlewareHandler): Hono {
         return c.json({ error: 'backup_unavailable' }, 503);
       }
       const client = new S3Client(config.s3);
-      const keys = (await client.list(config.prefix))
-        .filter(
-          (key) =>
-            key.startsWith(config.prefix) &&
-            /^budget-\d{4}-\d{2}-\d{2}\.tar\.age$/.test(key.slice(config.prefix.length)),
-        )
-        .sort();
-      const key = keys.at(-1);
+      const key = latestArchiveKey(await client.list(config.prefix), config.prefix);
       if (!key) {
         await finish();
         return c.json({ error: 'backup_missing' }, 404);

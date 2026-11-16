@@ -9,7 +9,7 @@ Bildschirm: `/monatsabschluss/<Monat>` (z. B. 2026-10). Einstieg: Plan › Kopfz
 - **Ablauf:**
   1. Nutzer öffnet Plan und klickt „Monat abschließen“. Die App zeigt oben die Fortschrittsleiste „n von 5 Schritten mit Aufgaben bearbeitet“ und den Stichtag.
   2. Schritt 1: Er ordnet offene Buchungen zu und prüft Vorschläge im eingebetteten Prüfen-Block („n offene Aufgaben im Monat“).
-  3. Schritt 2: Er vergleicht die Kontostände zum Stichtag. Je Konto klickt er „Kontostand prüfen“ (bei manuellen Anlagen „Wert aktualisieren“) oder bestätigt unveränderte Konten gemeinsam mit „Gemeinsam bestätigen“.
+  3. Schritt 2: Er vergleicht die Kontostände zum Stichtag. Liegt ein passender Bankstand vor, sieht er Datum, Betrag und Differenz; bei Übereinstimmung bestätigt er mit „Abgleich sperren bis heute“ in einem Klick. Bei Differenz öffnet „Kontostand prüfen“ die bestehende Prüfung mit vorbelegtem Bankstand. Ohne passenden Bankstand bleibt die manuelle Eingabe erhalten. Manuelle Anlagen nutzen „Wert aktualisieren“; unveränderte Konten lassen sich mit „Gemeinsam bestätigen“ prüfen.
   4. Schritt 3: Er öffnet „Überzogene decken“, prüft die gemeinsame Plan-Vorschau mit Quellen, Zielkategorien, Beträgen und offenem Rest und bestätigt „Deckung anwenden“. Alternativ klickt er je Kategorie „Geld verschieben“ oder wählt „Übertrag akzeptieren · Grund angeben“.
   5. Mit „Weiter“ geht er zum nächsten Schritt; „Verlassen“ geht zurück zum Plan. „Weiter“ bleibt gesperrt, solange der Schritt offen ist.
   6. Jeder Schritt zeigt „Warum“ und „Danach“; „nichts offen“ erscheint bei Schritten ohne Aufgaben.
@@ -20,8 +20,10 @@ Bildschirm: `/monatsabschluss/<Monat>` (z. B. 2026-10). Einstieg: Plan › Kopfz
   3. Kommt nach dem Erledigen eine neue oder geänderte Aufgabe dazu, öffnet sich der Schritt wieder.
   4. Liegt der Stichtag noch in der Zukunft, steht „Der Monatsletzte steht noch bevor. Du kannst vorbereiten und später fortsetzen.“
   5. Lädt der Schritt nicht, zeigt die App eine Fehlermeldung mit Wiederholen statt eines leeren Schritts.
-  6. Schritt 3 verwendet dieselbe Sammeldeckung und Vorschau wie das Plan-Menü; erst die Bestätigung schreibt eine gemeinsam rückgängig machbare Audit-Gruppe. Eine geänderte Grundlage erfordert eine neue Vorschau. Ohne Überziehung erscheint „Keine Kategorie ist überzogen.“ ohne Sammelaktion.
-- **Status:** teilweise — **Verweis:** Y24, #1096 (Sammeldeckung implementiert; unabhängig geprüft; Live-Abnahme offen)
+  6. Bankstände werden nur für den passenden Stichtag vorbelegt. Jede Bestätigung prüft die Abschlussrevision und bleibt gemeinsam rückgängig; Differenzen erzeugen keinen automatischen Ausgleich.
+  7. Bei verbleibender Differenz zeigt Schritt 2 den Betrag neben „Ausgleich buchen und abschließen“. Ein ausdrücklicher Klick erstellt Ausgleich und Kontoprüfung gemeinsam. Unter dem anfangs zugeklappten „Mehr“ bleiben Grund (optional, leer ohne Platzhalter) und Ausgleichsdatum verfügbar. Bereits geprüfte Zeiträume verlangen weiterhin die ausdrückliche Freigabe. Einmal Rückgängig entfernt Ausgleich und Kontoprüfung gemeinsam.
+- **Ergänzter Ablauf (#1163):** Nach dem Vergleich in Schritt 2 kann der Nutzer die sichtbare Differenz direkt mit „Ausgleich buchen und abschließen“ bestätigen oder zuvor „Mehr“ öffnen.
+- **Status:** teilweise; Bankstand-Vorbelegung und Einzelbestätigung (#1095) sowie Ein-Klick-Ausgleich mit optionalem Grund (#1163) lokal implementiert, Veröffentlichung und Nutzerabnahme ausständig. — **Verweis:** Y24, #1095, #1163, #1096 (Sammeldeckung implementiert; Live-Abnahme offen)
   Fehlt noch: Einbindung der Hintergrundaufgabe „Job E“ und die Abnahme im Parallelbetrieb durch den Nutzer (Gate 4); die anderen Routinen siehe M-03.
 
 ### M-01a – Offene Arbeit mit Grund aufschieben
@@ -64,7 +66,7 @@ Bildschirm: `/monatsabschluss/<Monat>` (z. B. 2026-10). Einstieg: Plan › Kopfz
 - **Ablauf:**
   1. Nutzer öffnet Schritt 4. Die App zeigt „Bedarf, Wunsch und Zukunft“ als 50/30/20-Balken, „Wiederkehrende Zahlungen im nächsten Monat“ und „Plan je Kategorie“ mit Plan Vormonat, Ist Vormonat, Ø 12 Monate, Nächster Plan.
   2. Er klickt je Gruppe oder für alle auf „wie Vormonat“ oder „Durchschnitt“. Das ändert nur den Entwurf.
-  3. Er passt Beträge im Feld „Nächster Plan“ an.
+  3. Er passt Beträge im Feld „Nächster Plan“ an. Für die separate Gehaltstag-Verteilung bietet Plan › Geld verteilen „Wie letzter Monat“ und „Ø 3 Monate“ als bearbeitbare Vorschau für Kategorien ohne Ziel (#1097).
   4. Er klickt „Plan übernehmen“ (oder „· alle“). Die App schreibt die Zuweisungen in den Folgemonat.
   5. Mit „Entwurf verwerfen“ verwirft er den Entwurf. Beim Verlassen mit offenem Entwurf fragt „Entwurf behalten?“ nach.
 - **Ergebnis:** Die Zuweisungen stehen im nächsten Monat und sind als eine Gruppe rückgängig machbar. Erwartetes Einkommen wird nicht gebucht und nicht zugewiesen.
@@ -75,6 +77,7 @@ Bildschirm: `/monatsabschluss/<Monat>` (z. B. 2026-10). Einstieg: Plan › Kopfz
   4. Ein „Rückgängig“ nimmt alle Zuweisungen der Gruppe gemeinsam zurück.
   5. Ohne Kategorien steht „Lege zuerst Kategorien im Plan an.“
 - **Status:** teilweise — **Verweis:** Y24
+  Ergänzung #1097: Assistenten-Vorlagen implementiert, Abnahme offen. Sie speichern erst mit „Vorlage zuweisen“, gemeinsam rückgängig machbar; fehlende historische Werte werden begründet. Die Monatsabschluss-Vorlagen behalten ihren bisherigen Ablauf.
   Fehlt noch: Abnahme durch den Nutzer; Hintergrundaufgabe „Job E“ noch nicht eingebunden.
 
 ### M-03 – Wochen-, Quartals- und Jahresroutinen

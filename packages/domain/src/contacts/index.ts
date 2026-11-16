@@ -15,7 +15,7 @@ export interface ContactMovement {
   creditCategoryId?: string | null;
   creditSourceSplitId?: string;
   creditOnly?: boolean;
-  /** Owner-adjusted automatic uses are fixed; releasing credit never reallocates it silently. */
+  /** Recorded automatic and owner-adjusted uses are fixed, including an empty saved choice. */
   creditAllocations?: { receiptSplitId: string; amountCents: number }[];
 }
 export interface ContactAllocation {
@@ -40,8 +40,26 @@ export interface ContactCredit {
   targetOutlaySplitId?: string;
 }
 
+/** A contact decision conflicts with its saved allocations; safe to show at the API boundary. */
+export class ContactAllocationError extends Error {
+  constructor(readonly reason: string) {
+    super(
+      'Die Kontakt-Auslage passt nicht zur gespeicherten Verrechnung oder zum verfügbaren Kontaktguthaben. Bitte zuerst die zugehörige Verrechnung prüfen.',
+    );
+    this.name = 'ContactAllocationError';
+  }
+}
+
+/** Unsafe stored arithmetic is an internal invariant failure, never input validation. */
+export class ContactInvariantError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'ContactInvariantError';
+  }
+}
+
 const money = (n: number) => {
-  if (!Number.isSafeInteger(n) || n < 0) throw new Error('Invalid contact amount');
+  if (!Number.isSafeInteger(n) || n < 0) throw new ContactAllocationError('Invalid contact amount');
 };
 
 /** Oldest outlay first. Date then stable input order resolves same-day ties. */
@@ -74,13 +92,13 @@ export function allocateContactReceipt(
       a.amountCents <= 0 ||
       a.amountCents > target.remainingCents
     )
-      throw new Error('Allocation exceeds an open outlay or repeats its target');
+      throw new ContactAllocationError('Allocation exceeds an open outlay or repeats its target');
     seen.add(a.outlaySplitId);
   }
   const allocated = allocations.reduce((s, a) => s + a.amountCents, 0);
   money(allocated);
   if (allocated > applied || (!options.retainCredit && allocated !== applied))
-    throw new Error(
+    throw new ContactAllocationError(
       'Allocate the receipt up to the open balance; retain only the excess as credit',
     );
   return { allocations, creditCents: amountCents - allocated };
@@ -98,27 +116,48 @@ export function contactStatement<T extends ContactMovement>(
   const receipts: (ContactSettlement & { recorded: boolean })[] = [];
   const lines: (T & { contactDeltaCents: number; balanceCents: number })[] = [];
   const credits: ContactCredit[] = [];
+  const reservations = new Map<string, number>();
+  const fixedUses = (m: ContactMovement) =>
+    m.creditSourceSplitId
+      ? [{ receiptSplitId: m.creditSourceSplitId, amountCents: -m.amountCents }]
+      : (m.creditAllocations ?? []);
+  for (const m of ordered.filter((m) => m.amountCents < 0))
+    for (const use of fixedUses(m)) {
+      money(use.amountCents);
+      reservations.set(
+        use.receiptSplitId,
+        (reservations.get(use.receiptSplitId) ?? 0) + use.amountCents,
+      );
+      money(reservations.get(use.receiptSplitId)!);
+    }
   const creditUses: { receiptSplitId: string; outlaySplitId: string; amountCents: number }[] = [];
   let creditCents = 0;
   let balanceCents = 0;
   let closedThroughSplitId: string | null = null;
   for (const m of ordered) {
-    if (!Number.isSafeInteger(m.amountCents)) throw new Error('Invalid contact movement');
+    if (!Number.isSafeInteger(m.amountCents))
+      throw new ContactInvariantError('Invalid contact movement');
     balanceCents -= m.amountCents;
     if (!Number.isSafeInteger(balanceCents))
-      throw new Error('Contact balance exceeds integer range');
+      throw new ContactInvariantError('Contact balance exceeds integer range');
     lines.push({ ...m, contactDeltaCents: -m.amountCents || 0, balanceCents });
     if (m.amountCents < 0) {
+      for (const use of fixedUses(m))
+        reservations.set(
+          use.receiptSplitId,
+          reservations.get(use.receiptSplitId)! - use.amountCents,
+        );
       let uncovered = -m.amountCents;
       for (const credit of credits.filter((c) => c.targetOutlaySplitId === m.splitId)) {
-        if (credit.remainingCents > uncovered) throw new Error('Allocation exceeds an open outlay');
+        if (credit.remainingCents > uncovered)
+          throw new ContactAllocationError('Allocation exceeds an open outlay');
         uncovered -= credit.remainingCents;
         creditCents -= credit.remainingCents;
         credit.remainingCents = 0;
       }
       const chosen = m.creditAllocations;
       if (chosen && new Set(chosen.map((a) => a.receiptSplitId)).size !== chosen.length)
-        throw new Error('Repeated contact credit source');
+        throw new ContactAllocationError('Repeated contact credit source');
       for (const credit of credits) {
         if (credit.targetOutlaySplitId) continue;
         if (m.creditSourceSplitId && credit.receiptSplitId !== m.creditSourceSplitId) continue;
@@ -126,12 +165,14 @@ export function contactStatement<T extends ContactMovement>(
         if (!m.creditSourceSplitId && credit.categoryId && credit.categoryId !== m.categoryId)
           continue;
         const explicit = chosen?.find((a) => a.receiptSplitId === credit.receiptSplitId);
+        // Recorded uses retain their cents even when an earlier purchase is inserted.
+        const reserved = reservations.get(credit.receiptSplitId) ?? 0;
         const amountCents = chosen
           ? (explicit?.amountCents ?? 0)
-          : Math.min(credit.remainingCents, uncovered);
+          : Math.min(Math.max(0, credit.remainingCents - reserved), uncovered);
         money(amountCents);
         if (amountCents > credit.remainingCents || amountCents > uncovered)
-          throw new Error('Selected contact credit is no longer available');
+          throw new ContactAllocationError('Selected contact credit is no longer available');
         if (!amountCents) continue;
         credit.remainingCents -= amountCents;
         uncovered -= amountCents;
@@ -148,9 +189,9 @@ export function contactStatement<T extends ContactMovement>(
             .filter((u) => u.outlaySplitId === m.splitId)
             .reduce((sum, u) => sum + u.amountCents, 0)
       )
-        throw new Error('Selected contact credit is no longer available');
+        throw new ContactAllocationError('Selected contact credit is no longer available');
       if (m.creditSourceSplitId && uncovered)
-        throw new Error('Selected contact credit is no longer available');
+        throw new ContactAllocationError('Selected contact credit is no longer available');
       const covered = creditUses
         .filter((u) => u.outlaySplitId === m.splitId)
         .reduce((sum, u) => sum + u.amountCents, 0);
@@ -168,7 +209,7 @@ export function contactStatement<T extends ContactMovement>(
           target.creditSourceSplitId ||
           target.date < m.date
         )
-          throw new Error('Allocation exceeds an open outlay');
+          throw new ContactAllocationError('Allocation exceeds an open outlay');
         const reserved = credits
           .filter((c) => c.targetOutlaySplitId === target.splitId)
           .reduce((sum, c) => sum + c.remainingCents, 0);
@@ -191,9 +232,9 @@ export function contactStatement<T extends ContactMovement>(
         plan.allocations.reduce((sum, a) => sum + a.amountCents, 0) + plan.creditCents !==
         m.amountCents
       )
-        throw new Error('Saved contact credit no longer matches its receipt');
+        throw new ContactAllocationError('Saved contact credit no longer matches its receipt');
       if (persisted && plan.creditCents !== persisted.creditCents)
-        throw new Error('Saved contact credit no longer matches its receipt');
+        throw new ContactAllocationError('Saved contact credit no longer matches its receipt');
       for (const a of plan.allocations) {
         const target = outlays.find((o) => o.splitId === a.outlaySplitId);
         if (target) target.remainingCents -= a.amountCents;
@@ -226,7 +267,8 @@ export function contactStatement<T extends ContactMovement>(
       saved.delete(m.splitId);
     }
   }
-  if (saved.size) throw new Error('Contact settlement is missing its actual receipt');
+  if (saved.size)
+    throw new ContactAllocationError('Contact settlement is missing its actual receipt');
   return {
     balanceCents,
     creditCents,
@@ -246,11 +288,12 @@ export function contactTotals(
   let receivableCents = 0;
   let payableCents = 0;
   for (const { balanceCents, receivableCents: open, creditCents } of contacts) {
-    if (!Number.isSafeInteger(balanceCents)) throw new Error('Invalid contact balance');
+    if (!Number.isSafeInteger(balanceCents))
+      throw new ContactInvariantError('Invalid contact balance');
     receivableCents += open ?? Math.max(0, balanceCents);
     payableCents += creditCents ?? Math.max(0, -balanceCents);
     if (!Number.isSafeInteger(receivableCents) || !Number.isSafeInteger(payableCents))
-      throw new Error('Contact totals exceed integer range');
+      throw new ContactInvariantError('Contact totals exceed integer range');
   }
   return { receivableCents, payableCents, balanceCents: receivableCents - payableCents };
 }

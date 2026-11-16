@@ -33,14 +33,12 @@
   font-size: var(--fs-table);
   font-variant-numeric: tabular-nums;
 }
-[data-budget-redesign='1'] .r4-contact-list ul,
-[data-budget-redesign='1'] .r4-open-items ul {
+[data-budget-redesign='1'] .r4-contact-list ul {
   list-style: none;
   margin: 8px 0;
   padding: 0;
 }
-[data-budget-redesign='1'] .r4-contact-list li a,
-[data-budget-redesign='1'] .r4-open-items li a {
+[data-budget-redesign='1'] .r4-contact-list li a {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -143,4 +141,59 @@
 
 [data-budget-redesign='1'] .contact-forgiveness-only .bk-foot {
   flex-wrap: wrap;
+}
+
+[data-budget-redesign='1'] .r4-contact-rows {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+[data-budget-redesign='1'] .contact-report-register {
+  table-layout: fixed;
+}
+[data-budget-redesign='1'] .contact-report-register thead {
+  display: table-header-group;
+}
+[data-budget-redesign='1'] .r4-contact-rows .contact-statement-section {
+  overflow-x: auto;
+}
+[data-budget-redesign='1'] .contact-report-register :is(thead, tbody) :is(th, td):first-child {
+  width: 22%;
+  max-width: none;
+  font-family: var(--font-tech);
+  white-space: nowrap;
+}
+[data-budget-redesign='1'] .contact-report-register :is(thead, tbody) :is(th, td):nth-child(2) {
+  width: 34%;
+  text-align: left;
+}
+[data-budget-redesign='1']
+  .contact-report-register
+  :is(thead, tbody)
+  :is(th, td):nth-last-child(-n + 2) {
+  width: 22%;
+  font-variant-numeric: tabular-nums;
+}
+[data-budget-redesign='1'] .contact-report-register .contact-source {
+  min-height: 44px;
+  width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+[data-budget-redesign='1'] .contact-report-register .contact-movement-meta {
+  display: block;
+  white-space: normal;
+}
+[data-budget-redesign='1'] .contact-report-register tfoot th {
+  text-align: left;
+}
+[data-budget-redesign='1'] .r4-contact-credit a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+}
+@media (max-width: 767px) {
+  [data-budget-redesign='1'] .contact-report-register :is(td, th) {
+    padding-inline: 4px;
+  }
 }

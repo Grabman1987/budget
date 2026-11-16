@@ -1,8 +1,9 @@
 import { useAmountPrivacy, amountsHidden, cx } from '@budget/ui';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { PickCategory } from './capture-model';
 import { Combobox, type ComboOption } from './combobox';
 import { eur } from './format';
+import { CreatePickerCategory } from './create-picker-category';
 
 /** "Verfügbar" of an option: the amount only (the list has a column heading), red when overspent. */
 export const availableHint = (availableCents: number | null, hidden = amountsHidden()) =>
@@ -41,6 +42,8 @@ export function CategoryCombobox({
   error,
   placeholder = 'Kategorie suchen',
   pickFirst = true,
+  allowCreate = false,
+  excludeIncome = false,
 }: {
   label: string;
   categories: ReadonlyArray<PickCategory>;
@@ -54,34 +57,100 @@ export function CategoryCombobox({
   error?: string | undefined;
   placeholder?: string;
   pickFirst?: boolean;
+  /** Mutating category fields only; filters never offer creation. */
+  allowCreate?: boolean;
+  excludeIncome?: boolean;
 }) {
   const hidden = useAmountPrivacy();
   // What is being typed to search; `null` shows the chosen name and the whole list.
   const [typing, setTyping] = useState<string | null>(null);
+  const [invalid, setInvalid] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const input = useRef<HTMLInputElement>(null);
+  const created = useRef<{ id: string; seen: boolean } | null>(null);
+  useEffect(() => {
+    const tracked = created.current;
+    if (!tracked) return;
+    if (categories.some((category) => category.id === tracked.id)) tracked.seen = true;
+    else if (tracked.seen) {
+      created.current = null;
+      // The category's audited Undo can remove an unused category while the draft stays open.
+      if (selectedName === '') onSelect('');
+    }
+  }, [categories, selectedName, onSelect]);
   const options = useMemo(
     () => [...leading, ...categoryOptions(categories, hidden), ...trailing],
     [leading, categories, hidden, trailing],
   );
   const showsAvailable = categories.some((c) => c.availableCents !== null);
+  const typedOption =
+    typing === null
+      ? undefined
+      : options.filter(
+          (option) =>
+            option.label.trim().toLocaleLowerCase('de-AT') ===
+            typing.trim().toLocaleLowerCase('de-AT'),
+        );
+  const unresolved = capturePicker && typing !== null;
+  const invalidMessage = 'Bitte eine Kategorie aus der Liste wählen.';
   return (
-    <Combobox
-      label={label}
-      value={typing ?? selectedName}
-      filter={typing ?? ''}
-      placeholder={placeholder}
-      error={error}
-      listWhenEmpty
-      captureCategory={capturePicker}
-      pickFirst={pickFirst}
-      emptyText="Keine Kategorie gefunden."
-      options={options}
-      {...(showsAvailable ? { hintHeading: 'Verfügbar' } : {})}
-      onChange={setTyping}
-      onFocusChange={(focused) => !focused && setTyping(null)}
-      onSelect={(o) => {
-        onSelect(o.id);
-        setTyping(null);
-      }}
-    />
+    <>
+      <Combobox
+        label={label}
+        inputRef={input}
+        value={typing ?? selectedName}
+        filter={typing ?? ''}
+        placeholder={placeholder}
+        error={invalid && unresolved ? invalidMessage : error}
+        inputValidity={capturePicker && typing !== null ? invalidMessage : ''}
+        onInvalid={() => setInvalid(true)}
+        listWhenEmpty
+        captureCategory={capturePicker}
+        pickFirst={pickFirst}
+        emptyText="Keine Kategorie gefunden."
+        options={options}
+        action={
+          allowCreate ? { label: 'Neue Kategorie …', onSelect: () => setCreating(true) } : undefined
+        }
+        {...(showsAvailable ? { hintHeading: 'Verfügbar' } : {})}
+        onChange={(text) => {
+          setTyping(text);
+          if (capturePicker && text.trim() === '') onSelect('');
+        }}
+        onFocusChange={(focused) => {
+          if (focused) return;
+          if (capturePicker && typing !== null) {
+            if (typedOption?.length === 1) {
+              onSelect(typedOption[0]!.id);
+              setTyping(null);
+              setInvalid(false);
+            } else if (selectedName) {
+              setTyping(null);
+              setInvalid(false);
+            } else setInvalid(typing.trim() !== '');
+          } else setTyping(null);
+        }}
+        onSelect={(o) => {
+          created.current = null;
+          onSelect(o.id);
+          setTyping(null);
+          setInvalid(false);
+        }}
+      />
+      {creating && (
+        <CreatePickerCategory
+          excludeIncome={excludeIncome}
+          onSelect={(id) => {
+            created.current = { id, seen: false };
+            onSelect(id);
+          }}
+          onClose={() => {
+            setCreating(false);
+            // The nested modal must be gone before its parent input can receive focus.
+            requestAnimationFrame(() => input.current?.focus());
+          }}
+        />
+      )}
+    </>
   );
 }

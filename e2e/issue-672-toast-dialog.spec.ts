@@ -50,6 +50,14 @@ test('a visible toast does not cover the Speichern button of an open dialog', as
     .getByRole('button', { name: /Betrag ändern/ })
     .click();
   const edit = page.getByRole('dialog', { name: 'Buchung bearbeiten' });
+  const redesign = await redesignLoaded(page);
+  if (redesign) {
+    await expect(edit).toBeHidden();
+    await page.getByRole('button', { name: 'Bearbeitung freigeben', exact: true }).click();
+    // Keep exercising the locked-save guard after the new opening confirmation.
+    await expect(edit.getByLabel('Trotzdem ändern')).toBeChecked();
+    await edit.getByLabel('Trotzdem ändern').uncheck();
+  }
   await expect(edit).toBeVisible();
   await expect(toast(page)).toContainText('Kontostand geprüft');
   await edit.getByLabel('Betrag', { exact: true }).fill('21');
@@ -59,7 +67,7 @@ test('a visible toast does not cover the Speichern button of an open dialog', as
   await expect(toast(page)).toHaveCount(1);
 
   const save = captureSaveControl(edit);
-  if ((await redesignLoaded(page)) && page.viewportSize()!.width < 768) {
+  if (redesign && page.viewportSize()!.width < 768) {
     // Phone save exposes the existing lock guard before submitting a protected change.
     await expect(save).toBeDisabled();
     await expect(save).toHaveAccessibleDescription(/geprüft/);
@@ -79,6 +87,7 @@ test('a visible toast does not cover the Speichern button of an open dialog', as
       .getByRole('row', { name: new RegExp(payee) })
       .getByRole('button', { name: /Betrag ändern/ })
       .click();
+    await page.getByRole('button', { name: 'Bearbeitung freigeben', exact: true }).click();
     await expect(edit.getByLabel('Notiz', { exact: true })).toHaveValue(note);
   } else {
     await save.click();

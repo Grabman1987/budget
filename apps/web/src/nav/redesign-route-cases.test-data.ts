@@ -97,7 +97,7 @@ export const aliasPatterns = [
     '/reports/planungstreue',
     'alias',
     '/reports/budgettreue',
-    { darstellung: 'planungstreue' },
+    { darstellung: 'budget' },
     'sample',
     'adherence',
   ],

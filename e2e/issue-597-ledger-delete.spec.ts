@@ -1,4 +1,4 @@
-import { captureCloseControl } from './ledger-helpers';
+import { captureCloseControl, redesignLoaded } from './ledger-helpers';
 import AxeBuilder from '@axe-core/playwright';
 import { expect, type Page } from '@playwright/test';
 import { openDatabase, schema } from '@budget/db';
@@ -114,6 +114,11 @@ test('597 immediate delete, protected explanation, paired bulk preview and exact
   await expect.poll(readRows).toEqual(before);
 
   await page.locator(`tr[data-booking="${locked.id}"] .kname-btn`).click();
+  if (await redesignLoaded(page)) {
+    await page.getByRole('button', { name: 'Bearbeitung freigeben', exact: true }).click();
+    // The existing protected-delete oracle applies after the explicit release is revoked.
+    await edit.getByLabel('Trotzdem ändern').uncheck();
+  }
   await edit.getByRole('button', { name: 'Löschen', exact: true }).click();
   const blocked = page.getByRole('alertdialog', { name: 'Buchung löschen?' });
   await expect(blocked).toContainText('geprüft');

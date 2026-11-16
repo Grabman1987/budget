@@ -15,9 +15,10 @@ import { useBudgetWrite } from '../budget/use-category-writes';
 import { InboxWorkflow } from '../inbox/inbox-page';
 import { fetchAccounts } from '../ledger/api';
 import { eur, longDay, nativeCurrency } from '../ledger/format';
-import { LEDGER_KEY } from '../ledger/queries';
+import { LEDGER_KEY, accountsQuery } from '../ledger/queries';
 import { ManualValue } from '../ledger/manual-value';
 import { ReconcileFlow } from '../ledger/reconcile-panel';
+import { BankLockButton } from '../ledger/bank-balance';
 import { ErrorNote, LoadingNote } from '../ledger/states';
 import { monthLabel } from '../nav/month';
 import { AppLink } from '../shell/app-link';
@@ -133,6 +134,9 @@ function CloseFlow({
     queryFn: () => fetchAccounts(data.asOf),
     enabled: step === 2,
   });
+  // Current metadata can retain a bank snapshot for the close day; historical reads omit it.
+  // Keep all historical account/ledger values from the existing as-of query.
+  const currentAccounts = useQuery({ ...accountsQuery(), enabled: step === 2 });
   const rows = budget.data ? planRows(budget.data) : [];
   const coverPreview = useCoverAllPreview(data.month, budget.data);
   const open = data.work.filter(
@@ -364,7 +368,18 @@ function CloseFlow({
                   data.state.decisions.find(
                     (d) => d.step === 2 && d.id === a.id && d.fingerprint === work.fingerprint,
                   );
-                const account = accounts.data?.accounts.find((r) => r.id === a.id);
+                const historicalAccount = accounts.data?.accounts.find((r) => r.id === a.id);
+                const account = historicalAccount && {
+                  ...historicalAccount,
+                  bankBalance:
+                    currentAccounts.data?.accounts.find((r) => r.id === a.id)?.bankBalance ?? null,
+                };
+                const bank = !a.manual && account?.bankBalance;
+                const matchingBank =
+                  bank &&
+                  bank.amountCents !== null &&
+                  bank.effectiveDate === data.asOf &&
+                  (!bank.currency || bank.currency === account.currency);
                 return (
                   <div className="close-row" key={a.id}>
                     <h3>{a.name}</h3>
@@ -384,34 +399,75 @@ function CloseFlow({
                           : 'offen'}
                     </p>
                     {!a.done && (
-                      <div className="close-actions">
-                        <Button
-                          variant="ghost"
-                          disabled={(!a.manual && !account) || busy}
-                          onClick={() => {
-                            setChosenStep(step);
-                            setSelected(selected === a.id ? null : a.id);
-                          }}
-                        >
-                          {selected === a.id
-                            ? 'Einklappen'
-                            : a.manual
-                              ? 'Wert aktualisieren'
-                              : 'Kontostand prüfen'}
-                        </Button>
-                        {work && !decision && (
+                      <>
+                        {matchingBank && (
+                          <p>
+                            Bankstand vom {longDay(bank.effectiveDate!)}:{' '}
+                            {nativeCurrency(bank.amountCents!, a.currency)}
+                            {' · '}Differenz:{' '}
+                            {nativeCurrency(bank.amountCents! - a.clearedCents, a.currency, true)}
+                          </p>
+                        )}
+                        <div className="close-actions">
+                          {matchingBank && bank.canLock && account && (
+                            <BankLockButton
+                              account={account}
+                              disabled={
+                                busy ||
+                                !fresh ||
+                                selected !== null ||
+                                accounts.isFetching ||
+                                currentAccounts.isFetching ||
+                                currentAccounts.isError
+                              }
+                              onBusy={setBusy}
+                              onDone={onReload}
+                              confirm={async () => {
+                                try {
+                                  return (
+                                    await reconcileCloseAccount(data.month, a.id, {
+                                      date: data.asOf,
+                                      statementBalanceCents: bank.amountCents!,
+                                      sourceRevision: data.sourceRevision,
+                                    })
+                                  ).result;
+                                } catch (error) {
+                                  onReload();
+                                  throw error;
+                                }
+                              }}
+                            />
+                          )}
                           <Button
                             variant="ghost"
-                            disabled={busy}
+                            disabled={
+                              (!a.manual && (!account || currentAccounts.isPending)) || busy
+                            }
                             onClick={() => {
                               setChosenStep(step);
-                              setDeferring([work]);
+                              setSelected(selected === a.id ? null : a.id);
                             }}
                           >
-                            Nicht nötig · Grund angeben
+                            {selected === a.id
+                              ? 'Einklappen'
+                              : a.manual
+                                ? 'Wert aktualisieren'
+                                : 'Kontostand prüfen'}
                           </Button>
-                        )}
-                      </div>
+                          {work && !decision && (
+                            <Button
+                              variant="ghost"
+                              disabled={busy}
+                              onClick={() => {
+                                setChosenStep(step);
+                                setDeferring([work]);
+                              }}
+                            >
+                              Nicht nötig · Grund angeben
+                            </Button>
+                          )}
+                        </div>
+                      </>
                     )}
                     {selected === a.id &&
                       (a.manual ? (

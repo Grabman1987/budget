@@ -16,6 +16,7 @@ import { AccountFormDialog } from './account-form-dialog';
 import { CategoryCombobox } from './category-picker';
 import { pickableCategories } from './capture-model';
 import { defaultCorrectionCategoryLabel } from './reconcile-category';
+import { lockKnownBankBalance } from './bank-balance';
 import './reconcile-panel.css';
 
 /** Value that follows `value` after a pause (the preview is asked for when typing stops). */
@@ -84,7 +85,14 @@ export function ReconcileFlow({
       ? account.clearedCents
       : null,
   );
-  const [text, setText] = useState('');
+  const [text, setText] = useState(() => {
+    const bank = account.bankBalance;
+    return bank?.effectiveDate === date &&
+      bank.amountCents !== null &&
+      (!bank.currency || bank.currency === account.currency)
+      ? formatDecimal(cents(bank.amountCents))
+      : '';
+  });
   const [categoryId, setCategoryId] = useState('');
   const lookups = useQuery({ ...lookupsQuery(), enabled: !closeContext });
   const categories = pickableCategories(
@@ -116,6 +124,8 @@ export function ReconcileFlow({
 
   const parsed = parseAmount(text);
   const statement = parsed.ok && text.trim() !== '' ? parsed.cents : null;
+  const useBankLock =
+    !closeContext && bank?.canLock && bankDate === date && statement === bank.amountCents;
   const asked = useDebounced({ date, statement }, 300);
   // The bank balance of a day that has not happened yet does not exist: check up to today.
   const future = date > today;
@@ -169,9 +179,12 @@ export function ReconcileFlow({
         date: asked.date,
         statementBalanceCents: asked.statement as number,
         ...extra,
-        ...(closeContext && extra.adjust && reason.trim() ? { note: reason.trim() } : {}),
+        ...(extra.adjust && reason.trim() ? { note: reason.trim() } : {}),
       };
-      return closeContext ? closeContext.confirm(input) : reconcileAccount(account.id, input);
+      if (closeContext) return closeContext.confirm(input);
+      if (useBankLock && Object.keys(extra).length === 0)
+        return lockKnownBankBalance(account.id).then((result) => ({ result }));
+      return reconcileAccount(account.id, input);
     },
     onSettled: () => {
       closeContext?.onBusy(false);
@@ -197,8 +210,7 @@ export function ReconcileFlow({
     },
   });
   const run = (extra: Partial<ReconcileRequest>) => {
-    if (closeContext && (confirm.isPending || staleClose || (extra.adjust && !reason.trim())))
-      return;
+    if (closeContext && (confirm.isPending || staleClose)) return;
     if (!current || confirm.isPending) return;
     if (!closeContext && date !== todayInVienna()) {
       setDate(todayInVienna());
@@ -251,7 +263,10 @@ export function ReconcileFlow({
         Vergleicht den gebuchten App-Saldo mit dem Saldo laut Bank. Stimmt beides überein, werden
         die bestätigten Buchungen als geprüft festgeschrieben. Vorgemerkte Buchungen zählen nicht.
       </p>
-      {!closeContext && <p className="kmeta">Stichtag und Ausgleich: heute, {longDay(date)}.</p>}
+      {!closeContext && <p className="kmeta">Stichtag: heute, {longDay(date)}.</p>}
+      {bank && bank.amountCents !== null && bankDate === date && (
+        <p className="kmeta">Bankstand vom {longDay(bankDate)}.</p>
+      )}
       {bank && bank.amountCents !== null && bankDate && (
         <Button
           variant="ghost"
@@ -393,7 +408,7 @@ export function ReconcileFlow({
                 disabled={confirm.isPending || candidateBusy || staleClose}
                 onClick={() => run({})}
               >
-                Kontostand stimmt
+                {useBankLock ? 'Abgleich sperren bis heute' : 'Kontostand stimmt'}
               </Button>
             </div>
           </>
@@ -527,7 +542,8 @@ export function ReconcileFlow({
             {canCorrect && (
               <>
                 <div className="kform">
-                  {closeContext && (
+                  <details className="reconcile-adjustment-date">
+                    <summary>Mehr</summary>
                     <Field label="Grund für den Ausgleich">
                       {({ id }) => (
                         <TextInput
@@ -536,34 +552,23 @@ export function ReconcileFlow({
                           maxLength={500}
                           disabled={confirm.isPending}
                           onChange={(event) => setReason(event.target.value)}
-                          aria-required="true"
                         />
                       )}
                     </Field>
-                  )}
-                  {closeContext && (
-                    <p className="kmeta">
-                      Ein Grund ist nur erforderlich, wenn ein verbleibender Unterschied als
-                      Ausgleich gebucht wird.
-                    </p>
-                  )}
-                  {closeContext && (
-                    <details className="reconcile-adjustment-date">
-                      <summary>Anderes Ausgleichsdatum</summary>
-                      <Field label="Ausgleichsdatum">
-                        {({ id }) => (
-                          <TextInput
-                            id={id}
-                            type="date"
-                            min={account.openingDate}
-                            max={date}
-                            value={adjustmentDay}
-                            onChange={(e) => setAdjustDate(e.target.value)}
-                          />
-                        )}
-                      </Field>
-                    </details>
-                  )}
+                    <p className="kmeta">Der Grund ist optional.</p>
+                    <Field label="Ausgleichsdatum">
+                      {({ id }) => (
+                        <TextInput
+                          id={id}
+                          type="date"
+                          min={account.openingDate}
+                          max={date}
+                          value={adjustmentDay}
+                          onChange={(e) => setAdjustDate(e.target.value)}
+                        />
+                      )}
+                    </Field>
+                  </details>
                   {!adjustmentValid && (
                     <p className="field-error" role="alert">
                       Das Ausgleichsdatum muss zwischen Kontoeröffnung und Stichtag liegen.
@@ -602,15 +607,9 @@ export function ReconcileFlow({
                 <div className="panel-actions reconcile-adjustment-actions">
                   <span>Differenz {money(data.differenceCents, true)}</span>
                   <Button
-                    variant={
-                      finding.kind === 'missing' || finding.kind === 'other' ? 'primary' : 'ghost'
-                    }
+                    variant="primary"
                     disabled={
-                      confirm.isPending ||
-                      staleClose ||
-                      Boolean(closeContext && !reason.trim()) ||
-                      !adjustmentValid ||
-                      (locked && !unlock)
+                      confirm.isPending || staleClose || !adjustmentValid || (locked && !unlock)
                     }
                     onClick={() =>
                       run({
@@ -621,7 +620,7 @@ export function ReconcileFlow({
                       })
                     }
                   >
-                    Differenz ausgleichen
+                    Ausgleich buchen und abschließen
                   </Button>
                 </div>
               </>

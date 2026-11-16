@@ -248,38 +248,40 @@ it('keeps pending work, moved bookings and unproven checks outside the quiet coh
   );
 });
 
-it('requires a reason only for an individual residual adjustment and rolls back a missing reason', async () => {
-  const revision = (await call('GET')).body.sourceRevision;
-  const body = {
-    date: '2026-09-30',
-    statementBalanceCents: 99900,
-    adjust: true,
-    categoryId: 'essen',
-    sourceRevision: revision,
-  };
-  const before = opened.db.select().from(schema.auditLog).all().length;
-  expect(
-    (await call('POST', '/month-close/2026-09/accounts/giro/reconciliation', body)).status,
-  ).toBe(400);
-  expect(opened.db.select().from(schema.auditLog).all()).toHaveLength(before);
-  expect(opened.db.select().from(schema.booking).all()).toHaveLength(0);
-  const saved = await call('POST', '/month-close/2026-09/accounts/giro/reconciliation', {
-    ...body,
-    note: 'Synthetic residual',
-  });
-  expect(saved.status).toBe(201);
-  expect(saved.body.result.differenceCents).toBe(-100);
-  expect((await call('POST', '/undo', { groupId: saved.body.result.groupId })).status).toBe(200);
-  expect(
-    opened.db.select().from(schema.booking).where(isNull(schema.booking.deletedAt)).all(),
-  ).toHaveLength(0);
-  const noDifference = await call('POST', '/month-close/2026-09/accounts/giro/reconciliation', {
-    date: '2026-09-30',
-    statementBalanceCents: 100000,
-    sourceRevision: (await call('GET')).body.sourceRevision,
-  });
-  expect(noDifference.status).toBe(201);
-});
+it.each([undefined, '', '   ', 'Synthetic residual'])(
+  'accepts an optional adjustment reason %s and undoes the whole reconciliation',
+  async (note) => {
+    const saved = await call('POST', '/month-close/2026-09/accounts/giro/reconciliation', {
+      date: '2026-09-30',
+      statementBalanceCents: 99900,
+      adjust: true,
+      categoryId: 'essen',
+      sourceRevision: (await call('GET')).body.sourceRevision,
+      ...(note === undefined ? {} : { note }),
+    });
+    expect(saved.status).toBe(201);
+    expect(saved.body.result.differenceCents).toBe(-100);
+    expect(opened.db.select().from(schema.accountReconciliation).all()).toMatchObject([
+      { note: note?.trim() || null, adjustmentBookingId: saved.body.result.adjustmentBookingId },
+    ]);
+    expect(opened.db.select().from(schema.booking).all()).toMatchObject([
+      { amountCents: -100, status: 'reconciled', payeeId: 'payee-reconciliation' },
+    ]);
+    expect((await call('GET')).body.accounts.find((a: any) => a.id === 'giro').done).toBe(true);
+    expect((await call('POST', '/undo', { groupId: saved.body.result.groupId })).status).toBe(200);
+    expect(
+      opened.db.select().from(schema.booking).where(isNull(schema.booking.deletedAt)).all(),
+    ).toHaveLength(0);
+    expect(
+      opened.db
+        .select()
+        .from(schema.accountReconciliation)
+        .where(isNull(schema.accountReconciliation.deletedAt))
+        .all(),
+    ).toHaveLength(0);
+    expect((await call('GET')).body.accounts.find((a: any) => a.id === 'giro').done).toBe(false);
+  },
+);
 
 it('rolls back the complete quiet group if a later canonical reconciliation fails', async () => {
   for (const [accountId, statementBalanceCents] of [

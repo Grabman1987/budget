@@ -31,13 +31,28 @@ export const tradeQuery = (id: string) =>
     retry: false,
     queryFn: () => request<{ trade: TradeRow }>('GET', `/api/trades/${encodeURIComponent(id)}`),
   });
-export const saveTrade = (values: ManualTrade, id?: string) => {
+/**
+ * `extra` (new trades only): `importKey` makes the write idempotent per account (a repeat writes
+ * nothing and answers with the stored trade and `duplicate: true`); `settlementAccountId` writes
+ * the counter booking on the Verrechnungskonto in the same undo group.
+ */
+export const saveTrade = (
+  values: ManualTrade,
+  id?: string,
+  extra: { importKey?: string; settlementAccountId?: string } = {},
+) => {
   const patch: Partial<ManualTrade> = { ...values };
   delete patch.accountId;
-  return request<{ trade: TradeRow; groupId: string; bookingId: string | null }>(
+  return request<{
+    trade: TradeRow;
+    groupId: string;
+    bookingId: string | null;
+    transferId?: string | null;
+    duplicate?: boolean;
+  }>(
     id ? 'PATCH' : 'POST',
     id ? `/api/trades/${encodeURIComponent(id)}` : '/api/trades',
-    id ? patch : values,
+    id ? patch : { ...values, ...extra },
   );
 };
 export const removeTrade = (id: string) =>

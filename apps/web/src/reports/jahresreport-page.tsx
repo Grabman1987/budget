@@ -11,7 +11,7 @@ import {
 } from '@budget/domain';
 import { useQuery } from '@tanstack/react-query';
 import { YearSummary, YearWealthChange } from './period-report-summary';
-import { PeriodPresentation, usePaperView } from './period-presentation';
+import { usePaperView } from './period-presentation';
 import { REDESIGN_ENABLED } from '../shell/redesign-flag';
 import { Printer } from 'lucide-react';
 import { useState } from 'react';
@@ -32,6 +32,7 @@ import {
   wholeText,
 } from './overview-format';
 import { YearCashflowChart, YearNetWorthChart } from './year-charts';
+import { YearWealthChangeValue } from './year-wealth-change';
 import './overview-reports.css';
 import './jahresreport-page.css';
 
@@ -98,10 +99,7 @@ export function JahresreportPage({ report, meta }: { report: ReportEntry; meta: 
       }
       {...(REDESIGN_ENABLED
         ? {
-            extraFields: [
-              { label: 'Jahr', value: yearControls },
-              ...(paperView ? [{ label: 'Darstellung', value: <PeriodPresentation /> }] : []),
-            ],
+            extraFields: [{ label: 'Jahr', value: yearControls }],
           }
         : {})}
       verdict={
@@ -266,7 +264,7 @@ function SheetOne({
           <div className="ov-sheet-fig">
             <span className="tech">Nettovermögen</span>
             <strong data-testid="yr-networth-end">{eur(nw.endCents, { cents: false })}</strong>
-            <span>{eur(nw.endCents - nw.startCents, { cents: false, sign: true })} im Jahr</span>
+            <YearWealthChangeValue netWorth={nw} />
           </div>
         ) : null}
       </header>

@@ -100,7 +100,7 @@ async function masked(page: Page, bodyId: string, clearAmount: RegExp, clearVerd
   expect(exposed).not.toMatch(clearAmount);
 }
 
-test('Budgettreue retains exact plan and stored forecast bodies, quality, month and query intent', async ({
+test('Budgettreue retains exact plan, forecast API facts and retired bookmark intent', async ({
   page,
   request,
   isolatedLedger,
@@ -134,52 +134,20 @@ test('Budgettreue retains exact plan and stored forecast bodies, quality, month 
   await expect(page.getByTestId('ba-over')).toBeVisible();
   const budget = await page.getByTestId('budget-adherence').innerText();
   await inspect(page, info, 'budget');
-  await page.goto('/reports/planungstreue?monat=2026-09');
-  await expect(page.getByTestId('planning-accuracy')).toContainText(
-    'Erst ab November 2026 belastbar',
-  );
-  const forecast = await page.getByTestId('planning-accuracy').innerText();
-  await revealReportDetail(page);
-  const verdict = await page.getByTestId('report-verdict').innerText();
-  await page.goto(
-    '/reports/budgettreue?monat=2026-09&zeitraum=1J&darstellung=planungstreue&ansicht=saved-id&exakt=true&projekt=project-id',
-  );
-  await expect(page.getByTestId('planning-accuracy')).toHaveText(forecast, { useInnerText: true });
-  await revealReportDetail(page);
-  await expect(page.getByTestId('report-verdict')).toHaveText(verdict, { useInnerText: true });
-  await expect(page.getByTestId('planning-accuracy')).toContainText(
-    'Fehlende Prognosen werden nicht nachträglich geschätzt.',
-  );
-  const drill = page.getByRole('link', { name: 'Synthetic food', exact: true });
-  await expect(drill).toHaveAttribute('href', /kategorie=food.*von=2026-09-01.*bis=2026-09-30/);
-  await expect(page.getByRole('link', { name: 'September 2026', exact: true })).toHaveAttribute(
-    'href',
-    /\/reports\/budgettreue\?/,
-  );
-  await inspect(page, info, 'planning');
-  await chooseBudgetCostInflationView(page, 'Ansicht der Budgettreue', 'budget', 'Plan und Ist');
+  await page.goto('/reports/planungstreue?monat=2026-09&zeitraum=1J#details');
+  await expect(page).toHaveURL(/\/reports\/budgettreue\?/);
   await expect(page.getByTestId('budget-adherence')).toHaveText(budget, { useInnerText: true });
-  const query = new URL(page.url()).searchParams;
-  for (const [key, value] of Object.entries({
-    monat: '2026-09',
-    zeitraum: '1J',
-    darstellung: 'budget',
-    ansicht: 'saved-id',
-    exakt: 'true',
-    projekt: 'project-id',
-  })) {
-    expect(query.get(key)).toBe(value);
-  }
+  expect(new URL(page.url()).searchParams.get('monat')).toBe('2026-09');
+  expect(new URL(page.url()).searchParams.get('zeitraum')).toBe('1J');
+  expect(new URL(page.url()).hash).toBe('#details');
+  await page.goto('/reports/budgettreue?monat=2026-09&darstellung=planungstreue');
+  await expect(page.getByTestId('budget-adherence')).toHaveText(budget, { useInnerText: true });
+  await expect(page.getByTestId('planning-accuracy')).toHaveCount(0);
+  await expect(page.getByRole('combobox', { name: 'Ansicht der Budgettreue' })).toHaveCount(0);
   await page.reload();
-  await expect(page.getByTestId('ba-over')).toBeVisible();
-  await page.goBack();
-  await expect(page.getByTestId('planning-accuracy')).toHaveText(forecast, { useInnerText: true });
+  await expect(page.getByTestId('budget-adherence')).toHaveText(budget, { useInnerText: true });
   await page.getByRole('button', { name: 'Vormonat', exact: true }).click();
   await expect(page).toHaveURL(/monat=2026-08/);
-  await expect(page.getByTestId('planning-accuracy')).toContainText(
-    'Für diesen Monat liegt noch kein Vergleich vor.',
-  );
-
   await page.goto('/reports/budgettreue?monat=2026-09');
   await expect(page.getByTestId('budget-adherence')).toHaveText(budget, { useInnerText: true });
   await expect(page.getByTestId('budget-adherence')).toContainText('300,01 €');
@@ -187,20 +155,7 @@ test('Budgettreue retains exact plan and stored forecast bodies, quality, month 
   const budgetVerdict = await page.getByTestId('report-verdict').innerText();
   await privacy(page, true);
   await masked(page, 'budget-adherence', /300[,.]01/, budgetVerdict);
-  await chooseBudgetCostInflationView(
-    page,
-    'Ansicht der Budgettreue',
-    'planungstreue',
-    'Planungstreue',
-  );
-  await masked(page, 'planning-accuracy', /300[,.]0[01]/, verdict);
   await privacy(page, false);
-  await expect(page.getByTestId('planning-accuracy')).toHaveText(forecast, { useInnerText: true });
-  await expect(page.getByTestId('planning-accuracy')).toContainText('300,01 €');
-  await expect(page.getByTestId('planning-accuracy')).toContainText('300,00 €');
-  await revealReportDetail(page);
-  await expect(page.getByTestId('report-verdict')).toHaveText(verdict, { useInnerText: true });
-  await chooseBudgetCostInflationView(page, 'Ansicht der Budgettreue', 'budget', 'Plan und Ist');
   await expect(page.getByTestId('budget-adherence')).toHaveText(budget, { useInnerText: true });
   await revealReportDetail(page);
   await expect(page.getByTestId('report-verdict')).toHaveText(budgetVerdict, {
