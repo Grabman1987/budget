@@ -777,7 +777,7 @@ export function CaptureForm({
       appliedPayee.current = draft.payee.trim().toLowerCase();
       setSaveAttempted(false);
       categoryRequest.current++;
-      categoryChosen.current = false;
+      categoryChosen.current = !draft.splitOn && Boolean(draft.categoryId);
       appliedByPayee.current = draft.splitOn ? null : draft.categoryId;
       setKeptPayee(draft.payee);
       setDraft((d) => ({

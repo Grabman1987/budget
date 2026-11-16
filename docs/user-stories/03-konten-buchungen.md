@@ -63,12 +63,12 @@ Bereich: Konten (`/konten`, `/konten/$id`), Alle Buchungen (`/konten/buchungen`)
   2. Ich wähle „Art der Buchung“ (Ausgabe, Einnahme, Umbuchung), „Konto“, „Datum“ und „Betrag“.
   3. Ich wähle „Empfänger“ (Suchen oder neu anlegen) und Kategorie; optional „Projekt“, Notiz, „Belege“.
      Fehlt die Kategorie, wähle ich „Neue Kategorie …“, fülle Name und Gruppe im bestehenden Formular aus und speichere. Die Kategorie wird ausgewählt; der Buchungsentwurf bleibt erhalten.
-     A category can be clicked, selected with the keyboard, or entered as a unique full label. Blur and save accept a unique case-insensitive match. Searching keeps the last valid selection; unmatched or ambiguous text restores its label on blur. Only deliberately emptying the field clears the selection. Without a valid selection, unresolved search text blocks saving.
+     A category can be clicked, selected with the keyboard, or entered as a unique full label. Blur and save accept a unique case-insensitive match. Searching keeps the last valid selection, including while replacing text; unmatched or ambiguous text restores its label on blur. Leaving the field empty clears the selection. Without a valid selection, unresolved search text blocks saving. A newly created category replaces the search text with its selected label.
      Under “Bezahlt für”, I add a contact share. First use starts in “Betrag” mode with an empty amount; subsequent new shares use the last unit (% or Betrag) chosen on this device.
   4. Bei einem Bargeld-Konto steht „Bargeldbuchungen sind sofort bestätigt“, sonst startet die Buchung „Vorgemerkt“.
   5. Optional wähle ich bei „Wiederholen“ Wöchentlich, Monatlich, Vierteljährlich oder Jährlich; die App legt eine wiederkehrende Zahlung an.
   6. Ich tippe „Buchung speichern“.
-     After "Speichern und neu", the next booking keeps the date, account, payee and category. The kept account counts as chosen. Payee history may replace only an untouched default account; a payee without history never changes the account. Automatic category suggestions follow the new payee's latest booking; no history or a latest split booking leaves the category empty. The register account and explicit choices remain authoritative.
+     After "Speichern und neu", the next booking keeps the date, account, payee and category. The kept account and category count as chosen. Payee history may replace only untouched suggestions; a payee without history never changes the account. Automatic category suggestions follow the new payee's latest booking; no history or a latest split booking leaves an untouched category empty. The register account, carried values and explicit choices remain authoritative.
 - **Ergebnis:** Die Buchung steht im Konto und in „Alle Buchungen“; mit „Wiederholen“ zusätzlich in Plan › Wiederkehrende Zahlungen.
 - **Abnahmekriterien:**
   1. Eine neue Bankbuchung startet „vorgemerkt“, eine Bargeldbuchung „bestätigt“.

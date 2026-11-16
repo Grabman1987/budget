@@ -115,12 +115,15 @@ export function CategoryCombobox({
         {...(showsAvailable ? { hintHeading: 'Verfügbar' } : {})}
         onChange={(text) => {
           setTyping(text);
-          if (capturePicker && text.trim() === '') onSelect('');
         }}
         onFocusChange={(focused) => {
           if (focused) return;
           if (capturePicker && typing !== null) {
-            if (typedOption?.length === 1) {
+            if (typing.trim() === '') {
+              onSelect('');
+              setTyping(null);
+              setInvalid(false);
+            } else if (typedOption?.length === 1) {
               onSelect(typedOption[0]!.id);
               setTyping(null);
               setInvalid(false);
@@ -143,6 +146,8 @@ export function CategoryCombobox({
           onSelect={(id) => {
             created.current = { id, seen: false };
             onSelect(id);
+            setTyping(null);
+            setInvalid(false);
           }}
           onClose={() => {
             setCreating(false);

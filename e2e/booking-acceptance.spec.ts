@@ -80,6 +80,7 @@ test('German date, arithmetic, defaults, height and visible save persist exact c
     payeeId: payee.id,
     date: '2026-10-01',
     amountCents: -321,
+    splits: [{ categoryId: category.id, amountCents: -321 }],
   });
   await openHeuteReview(page, '/?panel=buchung');
   const dialog = page.getByRole('dialog', { name: 'Buchung erfassen' });
