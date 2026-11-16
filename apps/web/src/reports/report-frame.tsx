@@ -128,6 +128,32 @@ function RedesignReportFrame({
           </div>
         </div>
         <div className="redesign-report-calculation" data-testid="report-calculation">
+          <strong className="redesign-report-result" data-testid="report-frame-result">
+            {metricText(result, calculation?.signed, calculation?.pointsLabel)}
+          </strong>
+          {result && (
+            <span className="redesign-report-result-label">{maskMoneyText(result.label)}</span>
+          )}
+          {verdict?.partial && <span className="redesign-report-result-label">Teilzeitraum</span>}
+          {verdict?.estimated && (
+            <span className="redesign-report-result-label">≈ Bewertung teilweise geschätzt</span>
+          )}
+        </div>
+      </header>
+      {verdict ? (
+        <VerdictLine facts={verdict} {...(verdictTestId ? { testId: verdictTestId } : {})} />
+      ) : (
+        <p className="report-verdict" data-testid={verdictTestId ?? 'report-verdict'}>
+          Keine Bewertung möglich: Für diese Ansicht liegen noch keine auswertbaren Bewertungsdaten
+          vor.
+        </p>
+      )}
+      {(explanation || calculation) && (
+        <details className="redesign-report-detail">
+          <summary>Berechnung und Einordnung</summary>
+          {explanation && (
+            <p>{typeof explanation === 'string' ? maskMoneyText(explanation) : explanation}</p>
+          )}
           {calculation && (
             <div className="redesign-report-equation">
               {calculation.displayTerms ? (
@@ -150,25 +176,10 @@ function RedesignReportFrame({
                 />
               )}
               <span aria-hidden="true">=</span>
+              <strong>
+                {metricText(calculation.result, calculation.signed, calculation.pointsLabel)}
+              </strong>
             </div>
-          )}
-          <strong className="redesign-report-result" data-testid="report-frame-result">
-            {metricText(result, calculation?.signed, calculation?.pointsLabel)}
-          </strong>
-          {result && (
-            <span className="redesign-report-result-label">{maskMoneyText(result.label)}</span>
-          )}
-          {verdict?.partial && <span className="redesign-report-result-label">Teilzeitraum</span>}
-          {verdict?.estimated && (
-            <span className="redesign-report-result-label">≈ Bewertung teilweise geschätzt</span>
-          )}
-        </div>
-      </header>
-      {(explanation || verdict || calculation) && (
-        <details className="redesign-report-detail">
-          <summary>Berechnung und Einordnung</summary>
-          {explanation && (
-            <p>{typeof explanation === 'string' ? maskMoneyText(explanation) : explanation}</p>
           )}
           {calculation && (
             <dl>
@@ -200,9 +211,6 @@ function RedesignReportFrame({
                 </dd>
               </div>
             </dl>
-          )}
-          {verdict && (
-            <VerdictLine facts={verdict} {...(verdictTestId ? { testId: verdictTestId } : {})} />
           )}
         </details>
       )}
