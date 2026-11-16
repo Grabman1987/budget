@@ -113,6 +113,8 @@ export function ExplorerReportPage({ report, meta }: { report: ReportEntry; meta
       search: ((previous: Record<string, unknown>) => ({ ...previous, ...patch })) as never,
       // A period edit keeps the entire draft; it does not discard or leave the editor.
       ...(periodOnly ? { ignoreBlocker: true, replace: true } : {}),
+      // Opening a cell must not jump to the top; the drill-down scrolls itself into view.
+      ...('zelle' in patch ? { resetScroll: false } : {}),
     });
   const chooseTemplate = (id: typeof template, period?: Period) => {
     if (REDESIGN_ENABLED) {

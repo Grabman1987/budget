@@ -177,6 +177,11 @@ export interface ExplorerTemplateContribution {
   date: string;
   /** This split's classified contribution to this cell, not the whole cash booking amount. */
   cents: number;
+  payeeName: string | null;
+  accountName: string | null;
+  memo: string | null;
+  /** Signed cash amount of the whole booking when it differs from the share (a split). */
+  bookingCents: number | null;
 }
 
 /** Exact classified source splits; no booking, assignment, refund or transfer is rewritten. */
@@ -217,7 +222,17 @@ export function explorerTemplateSources(
           : rowKey === category.class || rowKey === `${category.class}:${category.groupId}`;
     }
     return included
-      ? [{ bookingId: split.bookingId, date: split.date, cents: split.amountCents * sign }]
+      ? [
+          {
+            bookingId: split.bookingId,
+            date: split.date,
+            cents: split.amountCents * sign,
+            payeeName: split.payeeName,
+            accountName: split.accountName ?? null,
+            memo: split.memo ?? null,
+            bookingCents: split.bookingCents ?? null,
+          },
+        ]
       : [];
   });
 }
