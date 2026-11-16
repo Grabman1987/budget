@@ -522,13 +522,18 @@ Historical references follow `docs/FEATURES.md` (positions 1.1–5.6). The hub r
 - **Ablauf:**
   1. Reports › Kontakte-Abrechnung öffnen (fester Gesamtzeitraum, nur EUR).
   2. „Offen“ und „Maßkette Kontakte“ (Forderung minus Guthaben) lesen.
-  3. Eine Person öffnen: Kontoblatt mit laufendem Saldo und Quellbuchungen.
+  3. Eine Person öffnen: zuerst offene Forderungen mit Datum, Empfänger, Betrag und Offen (rechts), danach der Saldoverlauf über die gesamte erfasste Zeit.
+  4. „Vergangene Buchungen“ bei Bedarf aufklappen und in Seiten zu 20 Bewegungen blättern; die Zusammenfassung nennt Anzahl und Summe der vollständig beglichenen Auslagen. Offene Auslagen bleiben unabhängig vom Monat oben.
+  5. Tatsächlich verbleibendes freies Guthaben erscheint in einer Zeile; „Guthaben ändern“ führt zum Kontakt. Automatische Verrechnungsdetails bleiben dort.
 - **Ergebnis:** Ich sehe je Person den offenen Saldo.
 - **Abnahmekriterien:**
   - Der Saldo je Person entspricht Konten › Kontakte.
   - Vorgemerkte Buchungen sind ausdrücklich eingeschlossen.
   - Randfall: Mischwährung ist nicht verfügbar („Der Report ist nicht verfügbar. Es wird kein Teilsaldo gezeigt.“); Salden fließen nicht ins Nettovermögen.
-- **Status:** live · **Verweis:** 5.4
+  - Keine Pluspräfixe in den Zeilen. Forderungen und Guthaben haben ausgeschriebene Richtungen; der Nettosaldo stammt unverändert aus derselben Kontaktabrechnung wie Konten › Kontakte. Die Tabellensumme ist die Bruttoforderung; vorhandenes Guthaben bleibt separat sichtbar.
+  - Datenschutz blendet Beträge auch in Summen, Kopiertext und zugänglichen Beschriftungen aus; Desktop 1440 und Telefon 390 in Hell/Dunkel bleiben bedienbar.
+  - Plan-Prüfung (#1149, ohne Verhaltensänderung): Neue Kategorie-Einkäufe mit Kontaktanteilen belasten die ursprüngliche Einkaufskategorie brutto bis zur Rückzahlung. Zugeordnete Rückzahlungen fließen in diese Kategorie zurück. Der Anteil wird nicht zusätzlich als eigene Auslagen-Kategorie belastet und nicht zusätzlich im Nettovermögen gezählt. Historische/alleinstehende Auslagen ohne belegte Ursprungskategorie behalten ihre gespeicherte Kategorie. Grundlage: `docs/shared-expenses.md`, `SPEC.md` (#963/#978); keine Neuberechnung oder Datenänderung in diesem Teil.
+- **Status:** teilweise · **Verweis:** 5.4, #1149. Erster Teil: offene Tabelle, gesamter Saldoverlauf und geschlossene, paginierte Vergangenheit für den gewählten Kontakt. Offen: alle Kontakte untereinander statt der bisherigen Auswahl, ausgeglichene Kontakte ausschließlich in der gemeinsamen Vergangenheit sowie vollständige Wiederverwendung des Buchungsregister-Bauteils. Private Abnahme ausständig.
 
 ### RP-22 – Explorer
 - **Story:** Als Nutzer möchte ich eigene Fragen als Pivot über Buchungen stellen, damit ich Auswertungen bekomme, die kein fester Bericht bietet.

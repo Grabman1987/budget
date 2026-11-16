@@ -123,9 +123,9 @@ test('fixed EUR report preserves credit, running history, source links and recei
     has: page.getByRole('button', { name: /Ursprungsbuchung öffnen · Anteil Haushalt/ }),
   });
   const receipt = movements.filter({ hasText: '−120,00 €' });
-  await expect(outlay.locator('td').nth(1)).toHaveText('+100,00 €');
+  await expect(outlay.locator('td').nth(on ? 2 : 1)).toHaveText(on ? '100,00 €' : '+100,00 €');
   await expect(outlay).toContainText('01.09.2026');
-  await expect(receipt.locator('td').nth(1)).toHaveText('−120,00 €');
+  await expect(receipt.locator('td').nth(on ? 2 : 1)).toHaveText('−120,00 €');
   if (!on)
     await expect(
       sheet.getByRole('heading', { name: data.contact.name, exact: true }),
@@ -202,7 +202,7 @@ test('balanced contacts stay hidden by default and retain deep-linked full histo
   await expect(sheet.locator('.contacts-balance')).toContainText('Ausgeglichen');
   await expect(sheet.locator('.contacts-balance')).toContainText('0,00 €');
   const closed = sheet.locator('.contacts-closed-history > summary');
-  if (await closed.count()) await closed.click();
+  if (!on && (await closed.count())) await closed.click();
   await expect(sheet.locator('.contact-movements tbody tr')).toHaveCount(2);
   await expect(
     sheet.getByRole('button', { name: /Ursprungsbuchung öffnen · Anteil Haushalt/ }),
