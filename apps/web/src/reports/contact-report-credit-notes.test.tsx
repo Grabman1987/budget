@@ -161,6 +161,7 @@ it('shows both sides of a zero net header and credit in the default list and aut
     (screen.getByRole('checkbox', { name: 'Auch ausgeglichene Kontakte' }) as HTMLInputElement)
       .checked,
   ).toBe(false);
+  fireEvent.click(screen.getByText('Berechnung und Einordnung'));
   const chain = screen.getByRole('group', { name: 'Maßkette Kontakte' });
   expect(chain.textContent).toContain('Wir bekommen');
   expect(chain.textContent).toContain('Wir schulden');

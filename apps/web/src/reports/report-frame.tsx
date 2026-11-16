@@ -6,7 +6,7 @@ import {
   useAmountPrivacy,
   type DimensionChainTerm,
 } from '@budget/ui';
-import { useParams } from '@tanstack/react-router';
+import { useParams, useSearch } from '@tanstack/react-router';
 import { ChevronLeft } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { eur, longDay } from '../ledger/format';
@@ -75,7 +75,13 @@ function RedesignReportFrame({
   const id =
     sourceReportId ?? params.reportId ?? verdict?.reportId ?? location.pathname.split('/')[2] ?? '';
   const catalog = hubReport(id);
-  const name = catalog?.id === id ? catalog.name : (title ?? meta.title);
+  const presentation = useSearch({ strict: false }) as { darstellung?: string };
+  const name =
+    id === 'onepager' && presentation.darstellung === 'finanzcheck'
+      ? 'Finanz-Check-Verlauf'
+      : catalog?.id === id
+        ? catalog.name
+        : (title ?? meta.title);
   const calculation = verdict?.unavailable ? undefined : suppliedCalculation;
   const result = verdict?.unavailable ? undefined : (calculation?.result ?? verdict?.metric);
   const inputs =
@@ -93,9 +99,10 @@ function RedesignReportFrame({
           </AppLink>
           <div className="redesign-report-title">
             <h1>{maskMoneyText(name)}</h1>
-            {id && <ReportNavigation id={id} />}
           </div>
-          {catalog && <p className="redesign-report-number">Report {catalog.no}</p>}
+          {id && <ReportNavigation id={id} />}
+        </div>
+        <div className="redesign-report-toolbar">
           <div className="redesign-report-controls">
             {extraFields.map((field) => (
               <div key={field.label} className="redesign-report-control">
@@ -104,8 +111,49 @@ function RedesignReportFrame({
               </div>
             ))}
           </div>
+
+          {reportControls && <div className="redesign-report-extra-controls">{reportControls}</div>}
+          <div className="redesign-report-source" data-testid="report-frame-source">
+            <span>
+              Datenbasis:{' '}
+              <span data-testid="report-frame-basis">{reportDataBasis ?? 'wird geladen'}</span>
+            </span>
+            {sourceDate && <span>Stand {longDay(sourceDate)}</span>}
+            {reportStand && (
+              <span>
+                {reportStand.label}:{' '}
+                <span data-testid="report-frame-stand">{reportStand.value}</span>
+              </span>
+            )}
+          </div>
         </div>
         <div className="redesign-report-calculation" data-testid="report-calculation">
+          <strong className="redesign-report-result" data-testid="report-frame-result">
+            {metricText(result, calculation?.signed, calculation?.pointsLabel)}
+          </strong>
+          {result && (
+            <span className="redesign-report-result-label">{maskMoneyText(result.label)}</span>
+          )}
+          {verdict?.partial && <span className="redesign-report-result-label">Teilzeitraum</span>}
+          {verdict?.estimated && (
+            <span className="redesign-report-result-label">≈ Bewertung teilweise geschätzt</span>
+          )}
+        </div>
+      </header>
+      {verdict ? (
+        <VerdictLine facts={verdict} {...(verdictTestId ? { testId: verdictTestId } : {})} />
+      ) : (
+        <p className="report-verdict" data-testid={verdictTestId ?? 'report-verdict'}>
+          Keine Bewertung möglich: Für diese Ansicht liegen noch keine auswertbaren Bewertungsdaten
+          vor.
+        </p>
+      )}
+      {(explanation || calculation) && (
+        <details className="redesign-report-detail">
+          <summary>Berechnung und Einordnung</summary>
+          {explanation && (
+            <p>{typeof explanation === 'string' ? maskMoneyText(explanation) : explanation}</p>
+          )}
           {calculation && (
             <div className="redesign-report-equation">
               {calculation.displayTerms ? (
@@ -128,38 +176,10 @@ function RedesignReportFrame({
                 />
               )}
               <span aria-hidden="true">=</span>
+              <strong>
+                {metricText(calculation.result, calculation.signed, calculation.pointsLabel)}
+              </strong>
             </div>
-          )}
-          <strong className="redesign-report-result" data-testid="report-frame-result">
-            {metricText(result, calculation?.signed, calculation?.pointsLabel)}
-          </strong>
-          {result && (
-            <span className="redesign-report-result-label">{maskMoneyText(result.label)}</span>
-          )}
-          {verdict?.partial && <span className="redesign-report-result-label">Teilzeitraum</span>}
-          {verdict?.estimated && (
-            <span className="redesign-report-result-label">≈ Bewertung teilweise geschätzt</span>
-          )}
-        </div>
-        <div className="redesign-report-source" data-testid="report-frame-source">
-          <span>
-            Datenbasis:{' '}
-            <span data-testid="report-frame-basis">{reportDataBasis ?? 'wird geladen'}</span>
-          </span>
-          {sourceDate && <span>Stand {longDay(sourceDate)}</span>}
-          {reportStand && (
-            <span>
-              {reportStand.label}: <span data-testid="report-frame-stand">{reportStand.value}</span>
-            </span>
-          )}
-        </div>
-        {reportControls && <div className="redesign-report-extra-controls">{reportControls}</div>}
-      </header>
-      {(explanation || verdict || calculation) && (
-        <details className="redesign-report-detail">
-          <summary>Berechnung und Einordnung</summary>
-          {explanation && (
-            <p>{typeof explanation === 'string' ? maskMoneyText(explanation) : explanation}</p>
           )}
           {calculation && (
             <dl>
@@ -191,9 +211,6 @@ function RedesignReportFrame({
                 </dd>
               </div>
             </dl>
-          )}
-          {verdict && (
-            <VerdictLine facts={verdict} {...(verdictTestId ? { testId: verdictTestId } : {})} />
           )}
         </details>
       )}

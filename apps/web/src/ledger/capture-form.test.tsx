@@ -126,10 +126,16 @@ beforeEach(() => {
   create.mockResolvedValue({ bookings: [], groupId: 'synthetic-group' });
 });
 
-it.each([false, true])(
-  'uses explicit confirmation for a reconciled edit (opening release: %s)',
-  async (initialUnlockReconciled) => {
+it.each([
+  [false, false],
+  [false, true],
+  [true, false],
+  [true, true],
+] as const)(
+  'uses explicit confirmation for a reconciled edit (phone: %s, opening release: %s)',
+  async (phone, initialUnlockReconciled) => {
     flags.REDESIGN_ENABLED = true;
+    flags.phone = phone;
     const booking: ListedBooking = {
       id: 'synthetic-checked',
       accountId: 'giro',
@@ -184,6 +190,15 @@ it.each([false, true])(
     expect(release.checked).toBe(initialUnlockReconciled);
     expect(patch).not.toHaveBeenCalled();
     if (!initialUnlockReconciled) {
+      fireEvent.change(screen.getByLabelText('Betrag', { exact: true }), {
+        target: { value: '15,00' },
+      });
+      if (phone) {
+        const save = screen.getByRole('button', { name: 'Speichern' }) as HTMLButtonElement;
+        expect(save.disabled).toBe(true);
+        expect(save.getAttribute('aria-describedby')).toBe('booking-save-reason');
+        expect(document.getElementById('booking-save-reason')?.textContent).toContain('geprüft');
+      }
       await user.click(release);
       expect(release.checked).toBe(false);
       const body = document.querySelector<HTMLElement>('.bk-body')!;
@@ -296,7 +311,7 @@ it('shifts mobile keypad digits into cents and retains paste, validation and sav
   expect(amount.value).toBe('12,34');
   await user.clear(amount);
   expect(amount.getAttribute('aria-invalid')).toBe('false');
-  expect(screen.getByText('Jede Zeile braucht einen Betrag.')).toBeTruthy();
+  expect(screen.queryByText('Jede Zeile braucht einen Betrag.')).toBeNull();
   await user.click(amount);
   await user.keyboard('1234');
   await user.click(screen.getByRole('button', { name: 'Einnahme' }));
@@ -305,7 +320,7 @@ it('shifts mobile keypad digits into cents and retains paste, validation and sav
   expect(create.mock.calls[0]![0].input.amountCents).toBe(1234);
 });
 
-it('explains the disabled phone save on open and retains save-and-new', async () => {
+it('shows phone validation only after a save attempt and resets it after save-and-new', async () => {
   flags.REDESIGN_ENABLED = true;
   flags.phone = true;
   render(
@@ -326,7 +341,7 @@ it('explains the disabled phone save on open and retains save-and-new', async ()
   await screen.findByRole('option', { name: 'Giro Muster' });
   const amount = screen.getByLabelText('Betrag', { exact: true });
   expect(amount.getAttribute('inputmode')).toBe('decimal');
-  expect(screen.getByText('Jede Zeile braucht einen Betrag.')).toBeTruthy();
+  expect(screen.queryByText('Jede Zeile braucht einen Betrag.')).toBeNull();
   expect((screen.getByRole('button', { name: 'Speichern' }) as HTMLButtonElement).disabled).toBe(
     true,
   );
@@ -336,16 +351,13 @@ it('explains the disabled phone save on open and retains save-and-new', async ()
   expect(screen.queryByRole('button', { name: /^Markierung/ })).toBeNull();
   expect(screen.queryByLabelText('Markierung')).toBeNull();
   expect(screen.getByRole('button', { name: 'Speichern' }).closest('.bk-body')).toBeTruthy();
-  expect(screen.getByText('Jede Zeile braucht einen Betrag.').className).toBe('bk-save-hint');
   expect(screen.getByRole('button', { name: 'Speichern' }).getAttribute('aria-describedby')).toBe(
-    'booking-save-reason',
+    null,
   );
   fireEvent.blur(amount);
-  expect(screen.getByText('Jede Zeile braucht einen Betrag.')).toBeTruthy();
+  expect(screen.queryByText('Jede Zeile braucht einen Betrag.')).toBeNull();
   fireEvent.change(amount, { target: { value: '12,34' } });
-  expect(screen.getByText('Jede Zeile einer Ausgabe braucht eine Kategorie.').className).toBe(
-    'bk-save-hint',
-  );
+  expect(screen.queryByText('Jede Zeile einer Ausgabe braucht eine Kategorie.')).toBeNull();
   fireEvent.keyDown(amount, { key: 'Enter', ctrlKey: true });
   expect(screen.getByText('Jede Zeile einer Ausgabe braucht eine Kategorie.').className).toBe(
     'bk-save-reason',
@@ -357,7 +369,7 @@ it('explains the disabled phone save on open and retains save-and-new', async ()
   fireEvent.click(screen.getByRole('button', { name: 'Speichern und neu' }));
   await waitFor(() => expect((amount as HTMLInputElement).value).toBe(''));
   expect(create).toHaveBeenCalledTimes(1);
-  expect(screen.getByText('Jede Zeile braucht einen Betrag.')).toBeTruthy();
+  expect(screen.queryByText('Jede Zeile braucht einen Betrag.')).toBeNull();
 });
 it.each(['1.10.2026', '1.10.26', '01.10.', '1.10.'])(
   'saves the short German date %s as ISO through Ctrl+Enter',
@@ -447,7 +459,7 @@ it('places status by account, repeat by date and sharing by category, and expose
   );
 });
 
-it('Ctrl+Enter saves from an open category dropdown without taking its highlighted option', async () => {
+it('Ctrl+Enter keeps the valid income category while resolving an unmatched search', async () => {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(
     <QueryClientProvider client={client}>
@@ -463,15 +475,20 @@ it('Ctrl+Enter saves from an open category dropdown without taking its highlight
     </QueryClientProvider>,
   );
   await waitFor(() => expect(screen.getByRole('option', { name: 'Bargeld Muster' })).toBeTruthy());
-  fireEvent.click(screen.getByRole('button', { name: 'Einnahme' }));
-  fireEvent.change(screen.getByLabelText('Betrag', { exact: true }), {
-    target: { value: '12,34' },
-  });
-  const category = screen.getByLabelText('Kategorie', { exact: true });
-  fireEvent.focus(category);
-  fireEvent.change(category, { target: { value: 'Zu' } });
-  fireEvent.keyDown(category, { key: 'Enter', ctrlKey: true });
+  const user = userEvent.setup();
+  await user.click(screen.getByRole('button', { name: 'Einnahme' }));
+  await user.type(screen.getByLabelText('Betrag', { exact: true }), '12,34');
+  const category = screen.getByLabelText<HTMLInputElement>('Kategorie', { exact: true });
+  await user.click(category);
+  await user.paste('Zu');
+  expect(document.activeElement).toBe(category);
+  await user.keyboard('{Control>}{Enter}{/Control}');
   await waitFor(() => expect(create).toHaveBeenCalledTimes(1));
+  expect(category.value).toBe('Zu verteilen');
+  expect(create.mock.lastCall?.[0].input).toMatchObject({
+    amountCents: 1234,
+    splits: [{ categoryId: null, amountCents: 1234 }],
+  });
 });
 it.each([false, true])(
   'bank capture retains pending, repetition and source semantics with redesign %s (#841)',
@@ -847,7 +864,7 @@ it('treats contact-sharing input as dirty before the gross amount is entered', a
   await waitFor(() => expect(dirty.current).toBe(true));
 });
 
-function renderPayeeSuggestions(phone: boolean) {
+function renderPayeeSuggestions(phone: boolean, accountContext = true) {
   flags.REDESIGN_ENABLED = true;
   flags.phone = phone;
   const client = new QueryClient({
@@ -873,7 +890,7 @@ function renderPayeeSuggestions(phone: boolean) {
     <QueryClientProvider client={client}>
       <ToastProvider>
         <CaptureForm
-          state={{ mode: 'create', accountId: 'wallet' }}
+          state={{ mode: 'create', ...(accountContext ? { accountId: 'wallet' } : {}) }}
           onDone={vi.fn()}
           dirtyRef={{ current: false }}
           discard={{ asking: false, keep: vi.fn(), discard: vi.fn() }}
@@ -882,6 +899,7 @@ function renderPayeeSuggestions(phone: boolean) {
       </ToastProvider>
     </QueryClientProvider>,
   );
+  return client;
 }
 const payeeHistory: Awaited<ReturnType<typeof ledgerApi.fetchBookings>> = {
   items: [
@@ -923,6 +941,110 @@ const payeeHistory: Awaited<ReturnType<typeof ledgerApi.fetchBookings>> = {
   sumCents: -100,
 };
 it.each([false, true])(
+  'keeps typed, clicked and keyboard category labels equal to saved categories after save-and-new (phone: %s)',
+  async (phone) => {
+    renderPayeeSuggestions(phone);
+    const user = userEvent.setup();
+    const category = () => screen.getByRole<HTMLInputElement>('combobox', { name: 'Kategorie' });
+    const amount = () => screen.getByLabelText('Betrag', { exact: true });
+    expect(screen.queryByText('Jede Zeile einer Ausgabe braucht eine Kategorie.')).toBeNull();
+    await user.type(amount(), '10,00');
+    expect(screen.queryByText('Jede Zeile einer Ausgabe braucht eine Kategorie.')).toBeNull();
+    for (const method of ['typed', 'clicked', 'keyboard']) {
+      await user.click(category());
+      await user.clear(category());
+      await user.type(category(), 'Freizeit Muster');
+      if (method === 'clicked')
+        await user.click(screen.getByRole('option', { name: 'Freizeit Muster' }));
+      else if (method === 'keyboard') await user.keyboard('{Enter}');
+      else await user.tab();
+      expect(category().value).toBe('Freizeit Muster');
+      await user.clear(amount());
+      await user.type(amount(), '10,00');
+      await user.click(screen.getByRole('button', { name: 'Speichern und neu' }));
+      await waitFor(() =>
+        expect(create).toHaveBeenCalledTimes(['typed', 'clicked', 'keyboard'].indexOf(method) + 1),
+      );
+      expect(create.mock.lastCall?.[0].input.splits[0].categoryId).toBe('other');
+    }
+    await user.click(category());
+    await user.clear(category());
+    await user.click(amount());
+    expect(category().value).toBe('');
+    await user.type(category(), 'Unbekannte Kategorie');
+    await user.click(amount());
+    expect(category().value).toBe('Unbekannte Kategorie');
+    expect(category().getAttribute('aria-invalid')).toBe('true');
+    expect(screen.getByText('Bitte eine Kategorie aus der Liste wählen.')).toBeTruthy();
+    fireEvent.keyDown(category(), { key: 'Enter', ctrlKey: true });
+    expect(create).toHaveBeenCalledTimes(3);
+  },
+);
+
+it('keeps the carried account and category for a new payee after save-and-new and preserves manual choices', async () => {
+  const lookup = vi.spyOn(ledgerApi, 'fetchBookings').mockResolvedValue(payeeHistory);
+  try {
+    renderPayeeSuggestions(false, false);
+    const user = userEvent.setup();
+    const payee = screen.getByLabelText('Empfänger');
+    const category = () => screen.getByRole<HTMLInputElement>('combobox', { name: 'Kategorie' });
+    const account = screen.getByLabelText('Konto', { exact: true }) as HTMLSelectElement;
+    await user.type(payee, 'Laden Bei{Enter}');
+    await waitFor(() => expect(category().value).toBe('Essen Muster'));
+    expect(account.value).toBe('giro');
+    await user.type(screen.getByLabelText('Betrag', { exact: true }), '10,00');
+    await user.click(screen.getByRole('button', { name: 'Speichern und neu' }));
+    await waitFor(() => expect(create).toHaveBeenCalledTimes(1));
+    await user.clear(payee);
+    await user.type(payee, 'Neuer Musterladen');
+    await user.tab();
+    await waitFor(() => expect(category().value).toBe('Essen Muster'));
+    expect(account.value).toBe('giro');
+    await user.selectOptions(account, 'wallet');
+    await user.click(category());
+    await user.click(screen.getByRole('option', { name: 'Freizeit Muster' }));
+    await user.clear(payee);
+    await user.type(payee, 'Laden Bei{Enter}');
+    await user.tab();
+    expect(account.value).toBe('wallet');
+    expect(category().value).toBe('Freizeit Muster');
+  } finally {
+    lookup.mockRestore();
+  }
+});
+it('keeps the suggested account while history is pending and when the payee is removed', async () => {
+  let resolve!: (page: typeof payeeHistory) => void;
+  const lookup = vi
+    .spyOn(ledgerApi, 'fetchBookings')
+    .mockResolvedValueOnce(payeeHistory)
+    .mockReturnValueOnce(
+      new Promise((done) => {
+        resolve = done;
+      }),
+    );
+  try {
+    renderPayeeSuggestions(false, false);
+    const user = userEvent.setup();
+    const payee = screen.getByLabelText('Empfänger');
+    const account = screen.getByLabelText('Konto', { exact: true }) as HTMLSelectElement;
+    await user.type(payee, 'Laden Bei{Enter}');
+    await waitFor(() => expect(account.value).toBe('giro'));
+    await user.clear(payee);
+    await user.type(payee, 'Anderer{Enter}');
+    expect(account.value).toBe('giro');
+    await user.type(screen.getByLabelText('Betrag', { exact: true }), '10,00');
+    fireEvent.keyDown(payee, { key: 'Enter', ctrlKey: true });
+    expect(create).not.toHaveBeenCalled();
+    await act(async () => resolve(payeeHistory));
+    expect(account.value).toBe('giro');
+    await user.clear(payee);
+    await user.tab();
+    expect(account.value).toBe('giro');
+  } finally {
+    lookup.mockRestore();
+  }
+});
+it.each([false, true])(
   'suggests the latest payee category and preserves an explicit same-category choice (phone: %s)',
   async (phone) => {
     const lookup = vi.spyOn(ledgerApi, 'fetchBookings').mockResolvedValue(payeeHistory);
@@ -960,10 +1082,20 @@ it.each(['manual category', 'different payee', 'kind'])(
   'ignores delayed category history after %s changes',
   async (change) => {
     let resolve!: (page: typeof payeeHistory) => void;
-    const lookup = vi.spyOn(ledgerApi, 'fetchBookings').mockReturnValue(
-      new Promise((done) => {
-        resolve = done;
-      }),
+    const lookup = vi.spyOn(ledgerApi, 'fetchBookings').mockImplementation((filter) =>
+      filter.payeeId === 'other-shop'
+        ? Promise.resolve({
+            ...payeeHistory,
+            items: [
+              {
+                ...payeeHistory.items[0]!,
+                splits: [{ ...payeeHistory.items[0]!.splits[0]!, categoryId: 'other' }],
+              },
+            ],
+          })
+        : new Promise((done) => {
+            resolve = done;
+          }),
     );
     try {
       renderPayeeSuggestions(false);
@@ -991,12 +1123,17 @@ it.each(['manual category', 'different payee', 'kind'])(
   },
 );
 
-it('continues past ambiguous recent bookings to the latest usable category', async () => {
+it('leaves the category empty when the latest booking is a split instead of reusing older history', async () => {
   const lookup = vi
     .spyOn(ledgerApi, 'fetchBookings')
     .mockResolvedValueOnce({
       ...payeeHistory,
-      items: [{ ...payeeHistory.items[0]!, splits: [] }],
+      items: [
+        {
+          ...payeeHistory.items[0]!,
+          splits: [payeeHistory.items[0]!.splits[0]!, payeeHistory.items[0]!.splits[0]!],
+        },
+      ],
       nextCursor: 'older',
     })
     .mockResolvedValueOnce(payeeHistory);
@@ -1006,12 +1143,84 @@ it('continues past ambiguous recent bookings to the latest usable category', asy
     await user.type(screen.getByLabelText('Empfänger'), 'Laden Bei{Enter}');
     await waitFor(() =>
       expect((screen.getByRole('combobox', { name: 'Kategorie' }) as HTMLInputElement).value).toBe(
+        '',
+      ),
+    );
+    expect(lookup).toHaveBeenCalledTimes(1);
+    expect(lookup.mock.calls[0]?.[2]).toBe(1);
+    expect(create).not.toHaveBeenCalled();
+  } finally {
+    lookup.mockRestore();
+  }
+});
+
+it('does not use a stored payee default when the payee has no booking history', async () => {
+  const lookup = vi
+    .spyOn(ledgerApi, 'fetchBookings')
+    .mockResolvedValue({ ...payeeHistory, items: [], total: 0, sumCents: 0 });
+  try {
+    renderPayeeSuggestions(false, false);
+    const user = userEvent.setup();
+    await screen.findByRole('option', { name: 'Bargeld Muster' });
+    const previousAccount = (screen.getByLabelText('Konto', { exact: true }) as HTMLSelectElement)
+      .value;
+    await user.type(screen.getByLabelText('Empfänger'), 'Anderer{Enter}');
+    await waitFor(() => expect(lookup).toHaveBeenCalled());
+    expect((screen.getByRole('combobox', { name: 'Kategorie' }) as HTMLInputElement).value).toBe(
+      '',
+    );
+    expect((screen.getByLabelText('Konto', { exact: true }) as HTMLSelectElement).value).toBe(
+      previousAccount,
+    );
+  } finally {
+    lookup.mockRestore();
+  }
+});
+
+it('keeps automatic values when the unchanged payee is left again', async () => {
+  const lookup = vi.spyOn(ledgerApi, 'fetchBookings').mockResolvedValue(payeeHistory);
+  try {
+    renderPayeeSuggestions(false, false);
+    const user = userEvent.setup();
+    const payee = screen.getByLabelText('Empfänger');
+    const category = screen.getByRole('combobox', { name: 'Kategorie' }) as HTMLInputElement;
+    await user.type(payee, 'Laden Bei{Enter}');
+    await waitFor(() => expect(category.value).toBe('Essen Muster'));
+    await user.click(payee);
+    await user.tab();
+    expect(category.value).toBe('Essen Muster');
+    expect((screen.getByLabelText('Konto', { exact: true }) as HTMLSelectElement).value).toBe(
+      'giro',
+    );
+    expect(lookup).toHaveBeenCalledTimes(1);
+  } finally {
+    lookup.mockRestore();
+  }
+});
+
+it('retries an explicit payee choice after the payee cache catches up', async () => {
+  const lookup = vi.spyOn(ledgerApi, 'fetchBookings').mockResolvedValue(payeeHistory);
+  try {
+    const client = renderPayeeSuggestions(false, false);
+    act(() => client.setQueryData(['payees'], { payees: [] }));
+    const user = userEvent.setup();
+    const payee = screen.getByLabelText('Empfänger');
+    await user.type(payee, 'Laden Beispiel');
+    await user.tab();
+    expect(lookup).not.toHaveBeenCalled();
+    act(() =>
+      client.setQueryData(['payees'], {
+        payees: [{ id: 'shop', name: 'Laden Beispiel', defaultCategoryId: null }],
+      }),
+    );
+    await user.click(payee);
+    await user.click(await screen.findByRole('option', { name: 'Laden Beispiel' }));
+    await waitFor(() =>
+      expect((screen.getByRole('combobox', { name: 'Kategorie' }) as HTMLInputElement).value).toBe(
         'Essen Muster',
       ),
     );
-    expect(lookup).toHaveBeenCalledTimes(2);
-    expect(lookup.mock.calls[1]?.[1]).toBe('older');
-    expect(create).not.toHaveBeenCalled();
+    expect(lookup).toHaveBeenCalledTimes(1);
   } finally {
     lookup.mockRestore();
   }
@@ -1170,4 +1379,66 @@ it('holds Save back while an upload runs and ignores a result from the previous 
   fireEvent.click(await screen.findByRole('button', { name: 'Spätes Ergebnis' }));
   expect(screen.queryByTestId('attached-receipt')).toBeNull();
   expect(http.request).not.toHaveBeenCalled();
+});
+
+it('keeps the saved account and category when the next payee has history on another account', async () => {
+  const lookup = vi.spyOn(ledgerApi, 'fetchBookings').mockResolvedValue(payeeHistory);
+  try {
+    renderPayeeSuggestions(false, false);
+    const user = userEvent.setup();
+    const account = screen.getByLabelText('Konto', { exact: true }) as HTMLSelectElement;
+    await screen.findByRole('option', { name: 'Bargeld Muster' });
+    await user.selectOptions(account, 'wallet');
+    await user.click(screen.getByRole('combobox', { name: 'Kategorie' }));
+    await user.click(screen.getByRole('option', { name: 'Essen Muster' }));
+    await user.type(screen.getByLabelText('Betrag', { exact: true }), '10,00');
+    await user.click(screen.getByRole('button', { name: 'Speichern und neu' }));
+    await waitFor(() => expect(create).toHaveBeenCalledTimes(1));
+    expect(account.value).toBe('wallet');
+    await waitFor(() =>
+      expect(document.activeElement).toBe(screen.getByLabelText('Betrag', { exact: true })),
+    );
+    await user.type(screen.getByLabelText('Empfänger'), 'Laden Bei');
+    await user.click(await screen.findByRole('option', { name: 'Laden Beispiel' }));
+    expect(account.value).toBe('wallet');
+    expect(screen.getByRole<HTMLInputElement>('combobox', { name: 'Kategorie' }).value).toBe(
+      'Essen Muster',
+    );
+    expect(lookup).not.toHaveBeenCalled();
+  } finally {
+    lookup.mockRestore();
+  }
+});
+
+it.each(['blur', 'save'])(
+  'retains a picked category after unmatched typing on %s',
+  async (commit) => {
+    renderPayeeSuggestions(false);
+    const user = userEvent.setup();
+    const category = screen.getByRole<HTMLInputElement>('combobox', { name: 'Kategorie' });
+    await user.type(screen.getByLabelText('Betrag', { exact: true }), '10,00');
+    await user.click(category);
+    await user.click(screen.getByRole('option', { name: 'Essen Muster' }));
+    await user.click(category);
+    await user.paste('Unbekannter Suchtext');
+    if (commit === 'blur') await user.click(screen.getByLabelText('Betrag', { exact: true }));
+    else await user.keyboard('{Control>}{Enter}{/Control}');
+    expect(category.value).toBe('Essen Muster');
+    if (commit === 'blur') await user.click(screen.getByRole('button', { name: 'Speichern' }));
+    await waitFor(() => expect(create).toHaveBeenCalledTimes(1));
+    expect(create.mock.lastCall?.[0].input.splits[0].categoryId).toBe('food');
+  },
+);
+
+it('takes over a unique case-insensitive category label on keyboard save without blur', async () => {
+  renderPayeeSuggestions(false);
+  const user = userEvent.setup();
+  await user.type(screen.getByLabelText('Betrag', { exact: true }), '10,00');
+  const category = screen.getByRole<HTMLInputElement>('combobox', { name: 'Kategorie' });
+  await user.click(category);
+  await user.paste('freizeit muster');
+  await user.keyboard('{Control>}{Enter}{/Control}');
+  await waitFor(() => expect(create).toHaveBeenCalledTimes(1));
+  expect(category.value).toBe('Freizeit Muster');
+  expect(create.mock.lastCall?.[0].input.splits[0].categoryId).toBe('other');
 });

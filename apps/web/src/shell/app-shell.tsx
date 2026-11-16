@@ -10,6 +10,7 @@ import { Sidebar } from './sidebar';
 import { Topbar } from './topbar';
 import { PageHeader } from './page-header';
 import { areaById } from '../nav/areas';
+import { findReport } from '../nav/reports-catalog';
 import { useStoredFlag } from './use-stored-flag';
 import { useSidebarWidth } from './use-sidebar-width';
 import { QueueList } from '../pwa/queue-ui';
@@ -48,6 +49,8 @@ export function AppShell() {
     );
   const heuteControls = pathname === '/' || pathname.startsWith('/heute/details/');
   const kontenPageHeading = page?.area === 'konten' && !pathname.startsWith('/konten/kontakte');
+  // Report frames carry their own visible heading on desktop and phone.
+  const reportPageHeading = page?.area === 'reports' && !!findReport(pathname.split('/')[2] ?? '');
   const [searchOpen, setSearchOpen] = useState(false);
   const [controlsInBody, setControlsInBody] = useState(false);
   const phone = useIsPhone();
@@ -98,7 +101,10 @@ export function AppShell() {
                 }
                 showProfile={pathname === '/'}
                 mobileHeading={
-                  !TITLE_ON_MOBILE_AREAS.has(page.area) && !wealthPageHeading && !kontenPageHeading
+                  !TITLE_ON_MOBILE_AREAS.has(page.area) &&
+                  !wealthPageHeading &&
+                  !kontenPageHeading &&
+                  !reportPageHeading
                 }
                 controls={heuteControls ? <HeuteShellHead showStand={false} /> : undefined}
                 onControlsPlacement={(place) => setControlsInBody(place === 'body')}

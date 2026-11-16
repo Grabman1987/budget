@@ -35,10 +35,12 @@ async function chain(page: Page) {
 
 test('shows the prototype figure and the chain adds up', async ({ page }) => {
   await ready(page);
+  const redesign = await wealthRedesign(page);
+  const heading = redesign ? page.getByTestId('redesign-report-head') : page;
   await expect(
-    page.getByRole('heading', {
+    heading.getByRole('heading', {
       level: 1,
-      name: (await wealthRedesign(page)) ? 'Vermögensreport' : 'Vermögen',
+      name: redesign ? 'Vermögensreport' : 'Vermögen',
     }),
   ).toBeVisible();
   await expect(page.getByTestId('nw-figure')).toHaveText('84.730,00 €');

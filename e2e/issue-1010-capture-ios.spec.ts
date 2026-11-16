@@ -13,8 +13,8 @@ for (const width of [390, 1440]) {
       await expect(save).toBeDisabled();
       await expect(dialog.getByRole('button', { name: 'Fertig', exact: true })).toHaveCount(0);
       if (width === 390) {
-        await expect(save).toHaveAccessibleDescription('Jede Zeile braucht einen Betrag.');
-        await expect(dialog.locator('#booking-save-reason')).toHaveClass('bk-save-hint');
+        await expect(save).not.toHaveAttribute('aria-describedby');
+        await expect(dialog.locator('#booking-save-reason')).toHaveCount(0);
         await expect(dialog.getByRole('button', { name: 'Abbrechen', exact: true })).toHaveCount(0);
         await expect(dialog.locator('.bk-foot')).toHaveCount(0);
         await expect(dialog.getByRole('button', { name: /^Markierung/ })).toHaveCount(0);
@@ -37,6 +37,8 @@ for (const width of [390, 1440]) {
         .getByRole('option', { name: /^Lebensmittel/ })
         .first()
         .click();
+      // A new payee has no account history; choose an account explicitly (#1145).
+      await dialog.getByLabel('Bezahlt von', { exact: true }).selectOption({ index: 1 });
       await amount.focus();
       if (width === 390) {
         const header = dialog.locator('.bk-editor-titlebar');

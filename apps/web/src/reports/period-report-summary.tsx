@@ -98,7 +98,7 @@ function PrintSettings({ pages, monthly = false }: { pages: number; monthly?: bo
           </div>
         ))}
       </dl>
-      <PeriodPresentation monthly={monthly} linkOnly />
+      <PeriodPresentation monthly={monthly} />
     </aside>
   );
 }

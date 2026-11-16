@@ -244,12 +244,19 @@ for (const group of REPORT_GROUPS) {
       const text = await verdict.textContent();
       expect(text!.length, report.id).toBeLessThanOrEqual(140);
       expect(text, report.id).not.toMatch(/undefined|NaN|\{\w+\}/);
-      const title = (await page.locator('.titleblock').isVisible())
-        ? page.locator('.titleblock')
-        : (await page.locator('.redesign-report-head').isVisible())
-          ? page.locator('.redesign-report-head')
-          : page.getByRole('banner');
-      expect((await verdict.boundingBox())!.y).toBeGreaterThan((await title.boundingBox())!.y);
+      // Readers can replace the frame between the visibility and geometry checks.
+      await expect
+        .poll(async () => {
+          const title = (await page.locator('.titleblock').isVisible())
+            ? page.locator('.titleblock')
+            : (await page.locator('.redesign-report-head').isVisible())
+              ? page.locator('.redesign-report-head')
+              : page.getByRole('banner');
+          const verdictBox = await verdict.boundingBox();
+          const titleBox = await title.boundingBox();
+          return verdictBox && titleBox ? verdictBox.y - titleBox.y : 0;
+        }, report.id)
+        .toBeGreaterThan(0);
     }
     for (const theme of ['light', 'dark']) {
       await page.evaluate((value) => {
