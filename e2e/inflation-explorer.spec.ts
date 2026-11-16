@@ -102,7 +102,7 @@ for (const mapped of [true, false]) {
           mapped ? (i === 0 ? '105,00' : '103,00') : '102,00',
         );
         await expect(section.getByRole('cell').nth(2)).toHaveText(
-          mapped ? (i === 0 ? '+5,00 Pp' : '+7,00 Pp') : '+8,00 Pp',
+          mapped ? (i === 0 ? '5,00 Pp' : '7,00 Pp') : '8,00 Pp',
         );
         await expect(section).toContainText(
           mapped
@@ -155,7 +155,7 @@ for (const mapped of [true, false]) {
             .getByTestId('explorer-category-' + categories[0]!.id)
             .getByRole('cell')
             .nth(2),
-        ).toHaveText('+5,00 Pp');
+        ).toHaveText('5,00 Pp');
       }
     },
   );

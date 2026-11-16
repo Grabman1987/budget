@@ -15,7 +15,8 @@ import { shortMonth } from './month-frame';
 import { ReportBodyDisclosure } from './report-body-disclosure';
 import { PayrollProjectChart } from './payroll-project-chart';
 import { projectsReportQuery } from './payroll-projects-api';
-import { PERIOD_OPTIONS, ScrollRegion, useReportPeriod } from './spending-shared';
+import { PERIOD_OPTIONS, useReportPeriod } from './spending-shared';
+import { ReportTable } from './report-table';
 import './payroll-projects.css';
 export function ProjectsReport({
   report,
@@ -254,47 +255,49 @@ export function ProjectsReport({
                     })),
                   }))}
                 >
-                  <ScrollRegion className="pp-scroll" label="Monatliche Projektergebnisse">
-                    <table className="rtable">
-                      <thead>
-                        <tr>
-                          <th>Projekt</th>
-                          {data.months.map((m) => (
-                            <th key={m} className="n">
-                              {shortMonth(m)}
-                            </th>
-                          ))}
-                          <th className="n">Summe</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {data.projects.map((p) => (
-                          <tr key={p.id}>
-                            <th>{REDESIGN_ENABLED ? maskMoneyText(p.name) : p.name}</th>
-                            {p.perMonth.map((v, i) => (
-                              <td
-                                key={i}
-                                data-chart-point={i}
-                                className={`n ${v > 0 ? 'pp-profit' : v < 0 ? 'pp-loss' : ''}`}
-                              >
-                                {eur(v, { sign: true })}
-                              </td>
-                            ))}
-                            <td className="n">{eur(p.resultCents, { sign: true })}</td>
-                          </tr>
+                  <ReportTable
+                    caption="Monatliche Projektergebnisse"
+                    regionLabel="Monatliche Projektergebnisse"
+                    className="rtable"
+                  >
+                    <thead>
+                      <tr>
+                        <th>Projekt</th>
+                        {data.months.map((m) => (
+                          <th key={m} className="n">
+                            {shortMonth(m)}
+                          </th>
                         ))}
-                        <tr className="is-total">
-                          <th>Zusammen</th>
-                          {data.total.perMonth.map((v, i) => (
-                            <td key={i} className="n">
-                              {eur(v, { sign: true })}
+                        <th className="n">Summe</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {data.projects.map((p) => (
+                        <tr key={p.id}>
+                          <th>{REDESIGN_ENABLED ? maskMoneyText(p.name) : p.name}</th>
+                          {p.perMonth.map((v, i) => (
+                            <td
+                              key={i}
+                              data-chart-point={i}
+                              className={`n ${v > 0 ? 'pp-profit' : v < 0 ? 'pp-loss' : ''}`}
+                            >
+                              {eur(v)}
                             </td>
                           ))}
-                          <td className="n">{eur(data.total.resultCents, { sign: true })}</td>
+                          <td className="n">{eur(p.resultCents)}</td>
                         </tr>
-                      </tbody>
-                    </table>
-                  </ScrollRegion>
+                      ))}
+                      <tr className="is-total">
+                        <th>Zusammen</th>
+                        {data.total.perMonth.map((v, i) => (
+                          <td key={i} className="n">
+                            {eur(v)}
+                          </td>
+                        ))}
+                        <td className="n">{eur(data.total.resultCents)}</td>
+                      </tr>
+                    </tbody>
+                  </ReportTable>
                 </ChartValues>
               </section>
             </ReportBodyDisclosure>

@@ -230,7 +230,7 @@ function Body({ history }: { history: NetWorthHistory }) {
                   <td className="n">
                     <strong>{eur(r.nowCents)}</strong>
                   </td>
-                  <td className="n">{eur(r.deltaCents, { sign: true })}</td>
+                  <td className="n">{eur(r.deltaCents)}</td>
                   <td className="n">
                     {r.shareBp === null ? (
                       <span className="muted">Schuld</span>
@@ -244,7 +244,7 @@ function Body({ history }: { history: NetWorthHistory }) {
                 <td>Nettovermögen</td>
                 <td className="n">{eur(chain.startCents)}</td>
                 <td className="n">{eur(chain.nowCents)}</td>
-                <td className="n">{eur(chain.deltaCents, { sign: true })}</td>
+                <td className="n">{eur(chain.deltaCents)}</td>
                 <td />
               </tr>
             </tbody>

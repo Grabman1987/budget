@@ -21,6 +21,7 @@ import { assetsDebtsVerdictFacts } from './verdict-facts';
 import './reports-future.css';
 import { REDESIGN_ENABLED } from '../shell/redesign-flag';
 import { WealthSourceAnalysis } from './wealth-source-analysis';
+import { ReportTable } from './report-table';
 
 const PERIOD_OPTIONS = ZEITRAUM_VALUES.map((value) => ({ value, label: value }));
 const percent = new Intl.NumberFormat('de-AT', {
@@ -198,7 +199,7 @@ function Body({
           <span className="tbd-state" hidden={debtOnly}>
             <span className={rising ? 'ok' : 'ink'} data-testid="ad-state">
               <Arrow className="icon icon-sm" size={16} strokeWidth={1.75} aria-hidden="true" />
-              {eur(change.deltaCents, { sign: true })}
+              {eur(change.deltaCents)}
               {rate ? ` · ${rate}` : ''}
             </span>
           </span>
@@ -228,7 +229,7 @@ function Body({
                 <span className="tech">
                   {debtOnly ? 'Veränderung Nettovermögen' : 'Veränderung im Zeitraum'}
                 </span>
-                <strong data-testid="ad-change">{eur(change.deltaCents, { sign: true })}</strong>
+                <strong data-testid="ad-change">{eur(change.deltaCents)}</strong>
                 <small data-testid="ad-change-rate">
                   {rate ?? 'Prozent nicht berechenbar (Start bei 0)'}, seit {longDay(history.from)}
                 </small>
@@ -305,67 +306,61 @@ function MonthDetails({
         <div className="tbd-head">
           <h2 id="ad-months">Monatsenden</h2>
         </div>
-        <div
-          className="rf-scroll"
-          role="region"
-          aria-label="Monatsenden, bei Bedarf horizontal verschiebbar"
-          // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- Keyboard users must be able to scroll the table on narrow viewports.
-          tabIndex={0}
+        <ReportTable
+          caption="Vermögenswerte, Schulden und Nettovermögen zu jedem Monatsende"
+          regionLabel="Monatsenden, bei Bedarf horizontal verschiebbar"
+          className="rf-table"
+          data-testid="ad-months"
         >
-          <table className="rf-table" data-testid="ad-months">
-            <caption className="sr-only">
-              Vermögenswerte, Schulden und Nettovermögen zu jedem Monatsende
-            </caption>
-            <thead>
-              <tr>
-                <th scope="col" className="tech">
-                  Monat
+          <thead>
+            <tr>
+              <th scope="col" className="tech">
+                Monat
+              </th>
+              <th scope="col" className="tech n">
+                Vermögenswerte
+              </th>
+              <th scope="col" className="tech n">
+                Schulden
+              </th>
+              <th scope="col" className="tech n">
+                Nettovermögen
+              </th>
+              <th scope="col" className="tech">
+                Bewertung
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {months.map((m) => (
+              <tr key={m.month} className={m.month === selected ? 'is-picked' : undefined}>
+                <th scope="row">
+                  <button
+                    type="button"
+                    className="rf-month-btn"
+                    aria-pressed={m.month === selected}
+                    onClick={() => onSelect(m.month)}
+                  >
+                    {longMonth(m.month)}
+                    {m.partial && <small>bis {longDay(m.date)}</small>}
+                  </button>
                 </th>
-                <th scope="col" className="tech n">
-                  Vermögenswerte
-                </th>
-                <th scope="col" className="tech n">
-                  Schulden
-                </th>
-                <th scope="col" className="tech n">
-                  Nettovermögen
-                </th>
-                <th scope="col" className="tech">
-                  Bewertung
-                </th>
+                <td className="n">{eur(m.assetsCents)}</td>
+                <td className="n">{eur(m.debtsCents)}</td>
+                <td className="n">
+                  <strong>{eur(m.netCents)}</strong>
+                </td>
+                <td>
+                  {m.incomplete ? (
+                    'teilweise geschätzt'
+                  ) : (
+                    <span className="muted">vollständig</span>
+                  )}
+                </td>
               </tr>
-            </thead>
-            <tbody>
-              {months.map((m) => (
-                <tr key={m.month} className={m.month === selected ? 'is-picked' : undefined}>
-                  <th scope="row">
-                    <button
-                      type="button"
-                      className="rf-month-btn"
-                      aria-pressed={m.month === selected}
-                      onClick={() => onSelect(m.month)}
-                    >
-                      {longMonth(m.month)}
-                      {m.partial && <small>bis {longDay(m.date)}</small>}
-                    </button>
-                  </th>
-                  <td className="n">{eur(m.assetsCents)}</td>
-                  <td className="n">{eur(m.debtsCents)}</td>
-                  <td className="n">
-                    <strong>{eur(m.netCents)}</strong>
-                  </td>
-                  <td>
-                    {m.incomplete ? (
-                      'teilweise geschätzt'
-                    ) : (
-                      <span className="muted">vollständig</span>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+            ))}
+          </tbody>
+        </ReportTable>
       </section>
       <Breakdown history={history} month={selected} />
     </>
@@ -418,42 +413,36 @@ function Breakdown({ history, month }: { history: AssetsDebtsHistory; month: str
           {m.partial ? `Stand ${longDay(m.date)}` : `Monatsende ${longDay(m.date)}`}
         </span>
       </div>
-      <div
-        className="rf-scroll"
-        role="region"
-        aria-label="Konten des gewählten Monats, bei Bedarf horizontal verschiebbar"
-        // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- Keyboard users must be able to scroll the table on narrow viewports.
-        tabIndex={0}
+      <ReportTable
+        caption={`Vermögenswerte und Schulden nach Konto, ${longMonth(m.month)}`}
+        regionLabel="Konten des gewählten Monats, bei Bedarf horizontal verschiebbar"
+        className="rf-table"
+        data-testid="ad-accounts"
       >
-        <table className="rf-table" data-testid="ad-accounts">
-          <caption className="sr-only">
-            Vermögenswerte und Schulden nach Konto, {longMonth(m.month)}
-          </caption>
-          <thead>
-            <tr>
-              <th scope="col" className="tech">
-                Konto
-              </th>
-              <th scope="col" className="tech">
-                Typ
-              </th>
-              <th scope="col" className="tech n">
-                Betrag
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {group('Vermögenswerte', m.assets, m.assetsCents, 'ad-g-assets')}
-            {group('Schulden', m.debts, m.debtsCents, 'ad-g-debts')}
-            <tr className="is-total">
-              <td colSpan={2}>Nettovermögen</td>
-              <td className="n" data-testid="ad-g-net">
-                {eur(m.netCents)}
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+        <thead>
+          <tr>
+            <th scope="col" className="tech">
+              Konto
+            </th>
+            <th scope="col" className="tech">
+              Typ
+            </th>
+            <th scope="col" className="tech n">
+              Betrag
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {group('Vermögenswerte', m.assets, m.assetsCents, 'ad-g-assets')}
+          {group('Schulden', m.debts, m.debtsCents, 'ad-g-debts')}
+          <tr className="is-total">
+            <td colSpan={2}>Nettovermögen</td>
+            <td className="n" data-testid="ad-g-net">
+              {eur(m.netCents)}
+            </td>
+          </tr>
+        </tbody>
+      </ReportTable>
     </section>
   );
 }
@@ -476,54 +465,51 @@ function DebtComparison({ history }: { history: AssetsDebtsHistory }) {
         die Restschuld; getilgte Konten bleiben enthalten. Gezahlte Zinsen werden aus diesen Salden
         nicht abgeleitet.
       </p>
-      <div
-        className="rf-scroll"
-        role="region"
-        aria-label="Schuldenvergleich nach Konto"
-        // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- Keyboard users scroll all columns.
-        tabIndex={0}
+      <ReportTable
+        caption="Schuldenvergleich nach Konto"
+        regionLabel="Schuldenvergleich nach Konto"
+        className="rf-table"
+        data-testid="debt-account-comparison"
       >
-        <table className="rf-table" data-testid="debt-account-comparison">
-          <thead>
-            <tr>
-              <th scope="col">Konto</th>
-              <th scope="col" className="n">
-                {longDay(first.date)}
-              </th>
-              <th scope="col" className="n">
-                {longDay(last.date)}
-              </th>
-              <th scope="col" className="n">
-                Veränderung
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {[...accounts.values()].map((account) => {
-              const start = -(
-                first.debts.find((row) => row.accountId === account.accountId)?.valueCents ?? 0
-              );
-              const end = -(
-                last.debts.find((row) => row.accountId === account.accountId)?.valueCents ?? 0
-              );
-              return (
-                <tr key={account.accountId}>
-                  <th scope="row">{account.name}</th>
-                  <td className="n">{eur(start)}</td>
-                  <td className="n">{eur(end)}</td>
-                  <td className="n">{eur(end - start, { sign: true })}</td>
-                </tr>
-              );
-            })}
-            <tr className="is-total">
-              <th scope="row">Restschuld gesamt</th>
-              <td className="n">{eur(-first.debtsCents)}</td>
-              <td className="n">{eur(-last.debtsCents)}</td>
-              <td className="n">{eur(first.debtsCents - last.debtsCents, { sign: true })}</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+        <thead>
+          <tr>
+            <th scope="col">Konto</th>
+            <th scope="col" className="n">
+              {longDay(first.date)}
+            </th>
+            <th scope="col" className="n">
+              {longDay(last.date)}
+            </th>
+            <th scope="col" className="n">
+              Veränderung
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {[...accounts.values()].map((account) => {
+            const start = -(
+              first.debts.find((row) => row.accountId === account.accountId)?.valueCents ?? 0
+            );
+            const end = -(
+              last.debts.find((row) => row.accountId === account.accountId)?.valueCents ?? 0
+            );
+            return (
+              <tr key={account.accountId}>
+                <th scope="row">{account.name}</th>
+                <td className="n">{eur(start)}</td>
+                <td className="n">{eur(end)}</td>
+                <td className="n">{eur(end - start)}</td>
+              </tr>
+            );
+          })}
+          <tr className="is-total">
+            <th scope="row">Restschuld gesamt</th>
+            <td className="n">{eur(-first.debtsCents)}</td>
+            <td className="n">{eur(-last.debtsCents)}</td>
+            <td className="n">{eur(first.debtsCents - last.debtsCents)}</td>
+          </tr>
+        </tbody>
+      </ReportTable>
     </section>
   );
 }

@@ -24,6 +24,7 @@ import { ReportFrame as PageFrame } from './report-frame';
 import { periodComparisonQuery } from './overview-api';
 import { bpText, monthLong, monthShortYear } from './overview-format';
 import './overview-reports.css';
+import { ReportTable } from './report-table';
 import './compare-report.css';
 import './period-report-summary.css';
 import './table-print.css';
@@ -218,8 +219,8 @@ function Delta({ now, before }: { now: number; before: number }) {
   const bp = changeBp(now, before);
   return (
     <small>
-      {eur(now - before, { sign: true, cents: false })}
-      {bp !== null ? ` · ${bpText(bp, { sign: true })}` : ''}
+      {eur(now - before, { cents: false })}
+      {bp !== null ? ` · ${bpText(bp)}` : ''}
     </small>
   );
 }
@@ -351,7 +352,7 @@ function Rows({
                   </span>
                 </ChartValue>
                 <span className="dv-val">
-                  <strong>{eur(row.deltaCents, { cents: false, sign: true })}</strong>
+                  <strong>{eur(row.deltaCents, { cents: false })}</strong>
                   <small>
                     {eur(row.previousCents, { cents: false })} →{' '}
                     {eur(row.currentCents, { cents: false })}
@@ -393,18 +394,12 @@ function Rows({
         </p>
       )}
       {REDESIGN_ENABLED && (
-        <div
-          className="period-comparison-table"
-          id="vg-table"
-          role="region"
-          aria-label="Zeitraumvergleich als Tabelle, horizontal verschiebbar"
-          // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- The complete table needs a keyboard scrolling alternative.
-          tabIndex={0}
-        >
-          <table className="period-summary-table">
-            <caption>
-              {periodName(comparison.current)} gegen {periodName(comparison.previous)}
-            </caption>
+        <div className="period-comparison-table" id="vg-table">
+          <ReportTable
+            caption={`${periodName(comparison.current)} gegen ${periodName(comparison.previous)}`}
+            regionLabel="Zeitraumvergleich als Tabelle, horizontal verschiebbar"
+            className="period-summary-table"
+          >
             <thead>
               <tr>
                 <th>Kategorie</th>
@@ -419,7 +414,7 @@ function Rows({
                   <th scope="row">{maskMoneyText(row.name)}</th>
                   <td>{eur(row.currentCents)}</td>
                   <td>{eur(row.previousCents)}</td>
-                  <td>{eur(row.deltaCents, { sign: true })}</td>
+                  <td>{eur(row.deltaCents)}</td>
                 </tr>
               ))}
             </tbody>
@@ -428,14 +423,10 @@ function Rows({
                 <th>Summe Konsum · alle Kategorien</th>
                 <td>{eur(comparison.chain.currentCents)}</td>
                 <td>{eur(comparison.chain.previousCents)}</td>
-                <td>
-                  {eur(comparison.chain.currentCents - comparison.chain.previousCents, {
-                    sign: true,
-                  })}
-                </td>
+                <td>{eur(comparison.chain.currentCents - comparison.chain.previousCents)}</td>
               </tr>
             </tfoot>
-          </table>
+          </ReportTable>
         </div>
       )}
       <p className="ov-note">

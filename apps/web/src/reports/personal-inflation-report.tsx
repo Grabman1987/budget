@@ -32,6 +32,7 @@ import type { ReportEntry } from '../nav/reports-catalog';
 import { ReportFrame as PageFrame } from './report-frame';
 import { bpText, monthShort, ReportQuery, ScrollRegion } from './spending-shared';
 import { InflationExplorer } from './inflation-explorer';
+import { ReportTable } from './report-table';
 
 const inflationQuery = queryOptions({
   queryKey: [...LEDGER_KEY, 'personal-inflation'],
@@ -43,7 +44,7 @@ const num1 = new Intl.NumberFormat('de-AT', { minimumFractionDigits: 1, maximumF
 const num2 = new Intl.NumberFormat('de-AT', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const index1 = (value: number) => num1.format(value);
 /** Percentage points from hundredths of a point (`81` = +0,81 Pp). */
-const pp = (bp: number) => `${bp < 0 ? MINUS : '+'}${num2.format(Math.abs(bp) / 100)}`;
+const pp = (bp: number) => `${bp < 0 ? MINUS : ''}${num2.format(Math.abs(bp) / 100)}`;
 const yearPercent = (bp: number | null) =>
   bp === null ? '–' : `${bp < 0 ? MINUS : bp > 0 ? '+' : ''}${num2.format(Math.abs(bp) / 100)} %`;
 
@@ -369,58 +370,59 @@ export function BasketBody({
               <div className="sr-head">
                 <h2 id="pi-yearly">Je Kalenderjahr</h2>
               </div>
-              <ScrollRegion label="Teuerung je Kalenderjahr">
-                <table className="sr-table" data-testid="yearly-table">
-                  <thead>
-                    <tr>
-                      <th scope="col">Jahr</th>
-                      <th scope="col">Deine Teuerung</th>
-                      <th scope="col">
-                        <Term term="VPI" />
-                      </th>
-                      <th scope="col">Ergebnis</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {data.years.map((y) => (
-                      <tr key={y.year}>
-                        <th scope="row">
-                          {y.year}
-                          {!y.throughMonth.endsWith('-12') && (
-                            <small>bis {monthShort(y.throughMonth)}</small>
-                          )}
-                        </th>
-                        {y.ownChangeBp === null ? (
-                          <td colSpan={3}>
-                            Für diesen Monat fehlt der Vergleichsmonat im Vorjahr.
-                          </td>
-                        ) : (
-                          <>
-                            <td>{yearPercent(y.ownChangeBp)}</td>
-                            <td>{yearPercent(y.referenceChangeBp)}</td>
-                            <td>
-                              {y.differenceBp === null ? (
-                                <>
-                                  Für den <Term term="VPI" /> fehlt der Vergleichsmonat.
-                                </>
-                              ) : y.differenceBp === 0 ? (
-                                <>
-                                  Gleich wie der <Term term="VPI" />
-                                </>
-                              ) : (
-                                <>
-                                  {pp(y.differenceBp)} Prozentpunkte Differenz zum{' '}
-                                  <Term term="VPI" />
-                                </>
-                              )}
-                            </td>
-                          </>
+              <ReportTable
+                caption="Teuerung je Kalenderjahr"
+                regionLabel="Teuerung je Kalenderjahr"
+                className="sr-table"
+                data-testid="yearly-table"
+              >
+                <thead>
+                  <tr>
+                    <th scope="col">Jahr</th>
+                    <th scope="col">Deine Teuerung</th>
+                    <th scope="col">
+                      <Term term="VPI" />
+                    </th>
+                    <th scope="col">Ergebnis</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.years.map((y) => (
+                    <tr key={y.year}>
+                      <th scope="row">
+                        {y.year}
+                        {!y.throughMonth.endsWith('-12') && (
+                          <small>bis {monthShort(y.throughMonth)}</small>
                         )}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </ScrollRegion>
+                      </th>
+                      {y.ownChangeBp === null ? (
+                        <td colSpan={3}>Für diesen Monat fehlt der Vergleichsmonat im Vorjahr.</td>
+                      ) : (
+                        <>
+                          <td>{yearPercent(y.ownChangeBp)}</td>
+                          <td>{yearPercent(y.referenceChangeBp)}</td>
+                          <td>
+                            {y.differenceBp === null ? (
+                              <>
+                                Für den <Term term="VPI" /> fehlt der Vergleichsmonat.
+                              </>
+                            ) : y.differenceBp === 0 ? (
+                              <>
+                                Gleich wie der <Term term="VPI" />
+                              </>
+                            ) : (
+                              <>
+                                {pp(Math.abs(y.differenceBp))} Prozentpunkte{' '}
+                                {y.differenceBp > 0 ? 'über' : 'unter'} dem <Term term="VPI" />
+                              </>
+                            )}
+                          </td>
+                        </>
+                      )}
+                    </tr>
+                  ))}
+                </tbody>
+              </ReportTable>
               <p className="sr-note">
                 Dezember gegen Dezember; im laufenden Jahr der letzte Monat gegen denselben
                 Vorjahresmonat.
@@ -442,53 +444,53 @@ export function BasketBody({
             Vergleich {monthShort(data.fromMonth as string)} bis{' '}
             {monthShort(data.toMonth as string)} · Veränderung zum Vorjahresmonat.
           </p>
-          <ScrollRegion label="Beitrag je Kategorie, bei Bedarf horizontal verschiebbar">
-            <table className="sr-table" data-testid="contributions-table">
-              <caption className="sr-only">
-                Gewicht, Preisänderung und Beitrag in Prozentpunkten je Kategorie
-              </caption>
-              <thead>
-                <tr>
-                  <th scope="col">Kategorie</th>
-                  <th scope="col" className="n">
-                    Gewicht
+          <ReportTable
+            caption="Gewicht, Preisänderung und Beitrag in Prozentpunkten je Kategorie"
+            regionLabel="Beitrag je Kategorie, bei Bedarf horizontal verschiebbar"
+            className="sr-table"
+            data-testid="contributions-table"
+          >
+            <thead>
+              <tr>
+                <th scope="col">Kategorie</th>
+                <th scope="col" className="n">
+                  Gewicht
+                </th>
+                <th scope="col" className="n">
+                  Änderung 12 M
+                </th>
+                <th scope="col">Beitrag</th>
+                <th scope="col" className="n">
+                  <Term term="Pp" />
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.contributions.map((c) => (
+                <tr key={c.id}>
+                  <th scope="row">
+                    <span className="sr-name">
+                      {c.class ? <ClassSwatch kind={c.class} /> : null}
+                      <span>{c.name}</span>
+                    </span>
                   </th>
-                  <th scope="col" className="n">
-                    Änderung 12 M
-                  </th>
-                  <th scope="col">Beitrag</th>
-                  <th scope="col" className="n">
-                    <Term term="Pp" />
-                  </th>
+                  <td className="n">{bpText(c.shareBp)}</td>
+                  <td className="n">{bpText(c.changeBp)}</td>
+                  <td>
+                    <span className="sr-pp" aria-hidden="true">
+                      <i
+                        className={c.contributionBp < 0 ? 'is-neg' : ''}
+                        style={{ width: `${(Math.abs(c.contributionBp) / maxPp) * 100}%` }}
+                      />
+                    </span>
+                  </td>
+                  <td className="n">
+                    <strong>{pp(c.contributionBp)}</strong>
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {data.contributions.map((c) => (
-                  <tr key={c.id}>
-                    <th scope="row">
-                      <span className="sr-name">
-                        {c.class ? <ClassSwatch kind={c.class} /> : null}
-                        <span>{c.name}</span>
-                      </span>
-                    </th>
-                    <td className="n">{bpText(c.shareBp)}</td>
-                    <td className="n">{bpText(c.changeBp, { sign: true })}</td>
-                    <td>
-                      <span className="sr-pp" aria-hidden="true">
-                        <i
-                          className={c.contributionBp < 0 ? 'is-neg' : ''}
-                          style={{ width: `${(Math.abs(c.contributionBp) / maxPp) * 100}%` }}
-                        />
-                      </span>
-                    </td>
-                    <td className="n">
-                      <strong>{pp(c.contributionBp)}</strong>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </ScrollRegion>
+              ))}
+            </tbody>
+          </ReportTable>
           <p className="sr-note">
             Die Beiträge stammen aus denselben Indexänderungen wie die Leitkennzahl. Gerundete
             Hundertstel Prozentpunkte werden so verteilt, dass die Summe genau stimmt.
@@ -521,28 +523,31 @@ export function BasketBody({
           {basketView === 'year' ? (
             <BasketYears data={data} />
           ) : (
-            <ScrollRegion label="Verträge im Warenkorb">
-              <table className="sr-table" data-testid="inflation-basket">
-                <thead>
-                  <tr>
-                    <th scope="col">Kategorie / Vertrag</th>
-                    <th scope="col">Messung / Quelle</th>
-                    <th scope="col">Gewicht</th>
-                    <th scope="col">Basis: Preis / Index</th>
-                    <th scope="col">Zuletzt: Preis / Index</th>
-                    <th scope="col">Änderung ab Basis</th>
-                    <th scope="col">
-                      Beitrag <Term term="Pp" />
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {[...new Set(data.basket.map((b) => b.categoryId))].map((id) => (
-                    <BasketCategory key={id} id={id} data={data} />
-                  ))}
-                </tbody>
-              </table>
-            </ScrollRegion>
+            <ReportTable
+              caption="Verträge im Warenkorb"
+              regionLabel="Verträge im Warenkorb"
+              className="sr-table"
+              data-testid="inflation-basket"
+            >
+              <thead>
+                <tr>
+                  <th scope="col">Kategorie / Vertrag</th>
+                  <th scope="col">Messung / Quelle</th>
+                  <th scope="col">Gewicht</th>
+                  <th scope="col">Basis: Preis / Index</th>
+                  <th scope="col">Zuletzt: Preis / Index</th>
+                  <th scope="col">Änderung ab Basis</th>
+                  <th scope="col">
+                    Beitrag <Term term="Pp" />
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {[...new Set(data.basket.map((b) => b.categoryId))].map((id) => (
+                  <BasketCategory key={id} id={id} data={data} />
+                ))}
+              </tbody>
+            </ReportTable>
           )}
           <p className="sr-note">
             {basketView === 'year'
@@ -628,7 +633,7 @@ function InflationIndexSummary({ data }: { data: InflationReport }) {
               .map((row) => (
                 <tr key={row.id}>
                   <th scope="row">{row.name}</th>
-                  <td>{privateAmount(bpText(row.changeBp, { sign: true }))}</td>
+                  <td>{privateAmount(bpText(row.changeBp))}</td>
                   <td>{privateAmount(pp(row.contributionBp))} Pp</td>
                 </tr>
               ))}
@@ -798,72 +803,71 @@ function MonthlyChart({ data }: { data: InflationReport }) {
 
 function BasketYears({ data }: { data: InflationReport }) {
   return (
-    <ScrollRegion label="Warenkorb je Kalenderjahr">
-      <table className="sr-table" data-testid="inflation-basket-yearly">
-        <caption className="sr-only">
-          Monatsmittel, Preisänderung zum Vorjahr und Inflationsbeitrag je Warenkorbposition und
-          Jahr
-        </caption>
-        <thead>
-          <tr>
-            <th scope="col" rowSpan={2}>
-              Kategorie / Vertrag
+    <ReportTable
+      caption="Monatsmittel, Preisänderung zum Vorjahr und Inflationsbeitrag je Warenkorbposition und Jahr"
+      regionLabel="Warenkorb je Kalenderjahr"
+      className="sr-table"
+      data-testid="inflation-basket-yearly"
+    >
+      <thead>
+        <tr>
+          <th scope="col" rowSpan={2}>
+            Kategorie / Vertrag
+          </th>
+          {data.years.map((y) => (
+            <th scope="col" colSpan={3} key={y.year}>
+              {y.year}
+              {!y.throughMonth.endsWith('-12') && <small>bis {monthShort(y.throughMonth)}</small>}
+              <small>Ø: beobachtete Monate im Kalenderjahr</small>
+              <small>
+                Beitrag: {monthShort(addMonths(y.throughMonth, -12))} bis{' '}
+                {monthShort(y.throughMonth)}
+              </small>
             </th>
-            {data.years.map((y) => (
-              <th scope="col" colSpan={3} key={y.year}>
-                {y.year}
-                {!y.throughMonth.endsWith('-12') && <small>bis {monthShort(y.throughMonth)}</small>}
-                <small>Ø: beobachtete Monate im Kalenderjahr</small>
-                <small>
-                  Beitrag: {monthShort(addMonths(y.throughMonth, -12))} bis{' '}
-                  {monthShort(y.throughMonth)}
-                </small>
-              </th>
-            ))}
-          </tr>
-          <tr>
-            {data.years.map((y) => (
-              <Fragment key={y.year}>
-                <th scope="col" className="n">
-                  Ø je Monat
-                </th>
-                <th scope="col" className="n">
-                  Preis zum Vorjahr
-                </th>
-                <th scope="col" className="n">
-                  Beitrag <Term term="Pp" />
-                </th>
-              </Fragment>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {[...new Set(data.basket.map((b) => b.categoryId))].map((id) => (
-            <BasketCategory key={id} id={id} data={data} yearly />
           ))}
-        </tbody>
-        <tfoot>
-          <tr className="is-total">
-            <th scope="row">Deine Teuerung</th>
-            {data.years.map((y) => (
-              <td key={y.year} colSpan={3} className="n">
-                {yearPercent(y.ownChangeBp)}
-              </td>
-            ))}
-          </tr>
-          <tr>
-            <th scope="row">
-              <Term term="VPI" />
-            </th>
-            {data.years.map((y) => (
-              <td key={y.year} colSpan={3} className="n">
-                {yearPercent(y.referenceChangeBp)}
-              </td>
-            ))}
-          </tr>
-        </tfoot>
-      </table>
-    </ScrollRegion>
+        </tr>
+        <tr>
+          {data.years.map((y) => (
+            <Fragment key={y.year}>
+              <th scope="col" className="n">
+                Ø je Monat
+              </th>
+              <th scope="col" className="n">
+                Preis zum Vorjahr
+              </th>
+              <th scope="col" className="n">
+                Beitrag <Term term="Pp" />
+              </th>
+            </Fragment>
+          ))}
+        </tr>
+      </thead>
+      <tbody>
+        {[...new Set(data.basket.map((b) => b.categoryId))].map((id) => (
+          <BasketCategory key={id} id={id} data={data} yearly />
+        ))}
+      </tbody>
+      <tfoot>
+        <tr className="is-total">
+          <th scope="row">Deine Teuerung</th>
+          {data.years.map((y) => (
+            <td key={y.year} colSpan={3} className="n">
+              {yearPercent(y.ownChangeBp)}
+            </td>
+          ))}
+        </tr>
+        <tr>
+          <th scope="row">
+            <Term term="VPI" />
+          </th>
+          {data.years.map((y) => (
+            <td key={y.year} colSpan={3} className="n">
+              {yearPercent(y.referenceChangeBp)}
+            </td>
+          ))}
+        </tr>
+      </tfoot>
+    </ReportTable>
   );
 }
 
@@ -937,7 +941,7 @@ function BasketCategory({
                 {basketPrice(b, b.nowCents)}
                 <small>{basketPeriod(b, b.history.at(-1)!.month)}</small>
               </td>
-              <td>{bpText(b.changeBp, { sign: true })}</td>
+              <td>{bpText(b.changeBp)}</td>
               <td>{pp(b.contributionBp)}</td>
             </>
           )}

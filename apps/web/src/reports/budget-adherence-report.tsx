@@ -22,7 +22,8 @@ import type { ReportEntry } from '../nav/reports-catalog';
 import { ReportFrame as PageFrame } from './report-frame';
 import { AppLink } from '../shell/app-link';
 import { useMonth } from '../shell/use-month';
-import { bpText, monthShort, ReportQuery, ScrollRegion } from './spending-shared';
+import { bpText, monthShort, ReportQuery } from './spending-shared';
+import { ReportTable } from './report-table';
 
 const adherenceQuery = (month: string) =>
   queryOptions({
@@ -242,10 +243,10 @@ function Body({ data }: { data: BudgetAdherenceReport }) {
                               {data.live ? (
                                 <TriangleAlert size={16} strokeWidth={1.75} aria-hidden="true" />
                               ) : null}
-                              {eur(x.istCents - x.planCents, { cents: false, sign: true })}
+                              {eur(x.istCents - x.planCents, { cents: false })}
                             </span>
                           ) : (
-                            eur(x.istCents - x.planCents, { cents: false, sign: true })
+                            eur(x.istCents - x.planCents, { cents: false })
                           )}
                         </span>
                       </div>
@@ -312,67 +313,66 @@ function Body({ data }: { data: BudgetAdherenceReport }) {
               Für die letzten geschlossenen Monate ist noch nichts zugewiesen.
             </p>
           ) : (
-            <ScrollRegion label="Planabweichung je Kategorie, bei Bedarf horizontal verschiebbar">
-              <table className="sr-table">
-                <caption className="sr-only">
-                  Zugewiesen und ausgegeben je Kategorie, 12 Monate bis {data.deviation.to}
-                </caption>
-                <thead>
-                  <tr>
-                    <th scope="col">Kategorie</th>
-                    <th scope="col" className="n">
-                      Plan 12 M
+            <ReportTable
+              caption={`Zugewiesen und ausgegeben je Kategorie, 12 Monate bis ${data.deviation.to}`}
+              regionLabel="Planabweichung je Kategorie, bei Bedarf horizontal verschiebbar"
+              className="sr-table"
+            >
+              <thead>
+                <tr>
+                  <th scope="col">Kategorie</th>
+                  <th scope="col" className="n">
+                    Plan 12 M
+                  </th>
+                  <th scope="col" className="n">
+                    Ist 12 M
+                  </th>
+                  <th scope="col" className="n">
+                    Abweichung
+                  </th>
+                  <th scope="col">Einordnung</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.deviation.rows.slice(0, 10).map((r) => (
+                  <tr key={r.id}>
+                    <th scope="row">
+                      <span className="sr-name">
+                        <ClassSwatch kind={r.class} />
+                        <span>{r.name}</span>
+                      </span>
                     </th>
-                    <th scope="col" className="n">
-                      Ist 12 M
-                    </th>
-                    <th scope="col" className="n">
-                      Abweichung
-                    </th>
-                    <th scope="col">Einordnung</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {data.deviation.rows.slice(0, 10).map((r) => (
-                    <tr key={r.id}>
-                      <th scope="row">
-                        <span className="sr-name">
-                          <ClassSwatch kind={r.class} />
-                          <span>{r.name}</span>
+                    <td className="n">{eur(r.planCents, { cents: false })}</td>
+                    <td className="n">{eur(r.istCents, { cents: false })}</td>
+                    <td className="n">
+                      <strong>
+                        {r.deviationBp === null
+                          ? eur(r.deviationCents, { cents: false })
+                          : bpText(r.deviationBp)}
+                      </strong>
+                      {r.deviationBp === null && (
+                        <small>Kein Prozentvergleich · absolute Abweichung</small>
+                      )}
+                    </td>
+                    <td>
+                      {r.inBand === null ? (
+                        <span className="sr-status">Abweichung in Euro</span>
+                      ) : r.inBand ? (
+                        <span className="sr-status is-ok">
+                          <CircleCheck size={16} strokeWidth={1.75} aria-hidden="true" />
+                          im Band
                         </span>
-                      </th>
-                      <td className="n">{eur(r.planCents, { cents: false })}</td>
-                      <td className="n">{eur(r.istCents, { cents: false })}</td>
-                      <td className="n">
-                        <strong>
-                          {r.deviationBp === null
-                            ? eur(r.deviationCents, { cents: false, sign: true })
-                            : bpText(r.deviationBp, { sign: true })}
-                        </strong>
-                        {r.deviationBp === null && (
-                          <small>Kein Prozentvergleich · absolute Abweichung</small>
-                        )}
-                      </td>
-                      <td>
-                        {r.inBand === null ? (
-                          <span className="sr-status">Abweichung in Euro</span>
-                        ) : r.inBand ? (
-                          <span className="sr-status is-ok">
-                            <CircleCheck size={16} strokeWidth={1.75} aria-hidden="true" />
-                            im Band
-                          </span>
-                        ) : (
-                          <span className="sr-status">
-                            <TriangleAlert size={16} strokeWidth={1.75} aria-hidden="true" />
-                            Plan anpassen?
-                          </span>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </ScrollRegion>
+                      ) : (
+                        <span className="sr-status">
+                          <TriangleAlert size={16} strokeWidth={1.75} aria-hidden="true" />
+                          Plan anpassen?
+                        </span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </ReportTable>
           )}
           <p className="sr-note">
             Plan = zugewiesenes Geld der zwölf Monate

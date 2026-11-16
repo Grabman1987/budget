@@ -1,4 +1,5 @@
 import { REDESIGN_ENABLED } from '../shell/redesign-flag';
+import { ReportTable } from './report-table';
 import { savingsPresentation } from './flow-savings-presentation';
 import { ReportBodyDisclosure } from './report-body-disclosure';
 import './flow-savings-redesign.css';
@@ -357,60 +358,53 @@ function SavingsBody({
           <div className="tbd-head">
             <h2 id="years-title">Je Jahr</h2>
           </div>
-          <div
-            className="rscroll"
-            role="region"
-            aria-label="Jahrestabelle, bei Bedarf horizontal verschiebbar"
-            // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- Keyboard users must be able to scroll the complete table.
-            tabIndex={0}
+          <ReportTable
+            caption="Sparquote und Geldalter je Kalenderjahr"
+            regionLabel="Jahrestabelle, bei Bedarf horizontal verschiebbar"
+            className="rtable"
           >
-            <table className="rtable">
-              <caption className="sr-only">Sparquote und Geldalter je Kalenderjahr</caption>
-              <thead>
-                <tr>
-                  <th scope="col" className="tech">
-                    Jahr
+            <thead>
+              <tr>
+                <th scope="col" className="tech">
+                  Jahr
+                </th>
+                <th scope="col" className="tech n">
+                  Einnahmen
+                </th>
+                <th scope="col" className="tech n">
+                  Konsum
+                </th>
+                <th scope="col" className="tech n">
+                  Gespart
+                </th>
+                <th scope="col" className="tech n">
+                  <Term>Sparquote</Term>
+                </th>
+                <th scope="col" className="tech n">
+                  Ø Geldalter
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {overview.years.map((y) => (
+                <tr key={y.year}>
+                  <th scope="row">
+                    {y.year}
+                    {y.months < 12 && <small className="muted"> {y.months} Monate</small>}
                   </th>
-                  <th scope="col" className="tech n">
-                    Einnahmen
-                  </th>
-                  <th scope="col" className="tech n">
-                    Konsum
-                  </th>
-                  <th scope="col" className="tech n">
-                    Gespart
-                  </th>
-                  <th scope="col" className="tech n">
-                    <Term>Sparquote</Term>
-                  </th>
-                  <th scope="col" className="tech n">
-                    Ø Geldalter
-                  </th>
+                  <td className="n">{eur(y.incomeCents, { cents: false })}</td>
+                  <td className="n">{eur(y.consumptionCents, { cents: false })}</td>
+                  <td className="n">{eur(y.incomeCents - y.consumptionCents, { cents: false })}</td>
+                  <td className="n">
+                    <strong>{y.rateBp === null ? '–' : percentTenth(y.rateBp)}</strong>
+                  </td>
+                  <td className="n">
+                    {y.averageMoneyAgeDays === null ? '–' : days(y.averageMoneyAgeDays)}
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {overview.years.map((y) => (
-                  <tr key={y.year}>
-                    <th scope="row">
-                      {y.year}
-                      {y.months < 12 && <small className="muted"> {y.months} Monate</small>}
-                    </th>
-                    <td className="n">{eur(y.incomeCents, { cents: false })}</td>
-                    <td className="n">{eur(y.consumptionCents, { cents: false })}</td>
-                    <td className="n">
-                      {eur(y.incomeCents - y.consumptionCents, { cents: false })}
-                    </td>
-                    <td className="n">
-                      <strong>{y.rateBp === null ? '–' : percentTenth(y.rateBp)}</strong>
-                    </td>
-                    <td className="n">
-                      {y.averageMoneyAgeDays === null ? '–' : days(y.averageMoneyAgeDays)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+              ))}
+            </tbody>
+          </ReportTable>
         </section>
       </ReportBodyDisclosure>
     </>

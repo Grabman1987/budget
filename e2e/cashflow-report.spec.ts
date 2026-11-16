@@ -71,10 +71,10 @@ test('figure, chain, Kapitalerträge line, charts and table agree with the cashf
   await expect(rows).toHaveCount(t.months + 1);
   const total = rows.last().locator('td');
   await expect(total.nth(1)).toHaveText(eur(t.incomeCents));
-  await expect(total.nth(4)).toHaveText(eur(t.netCents, { sign: true }));
+  await expect(total.nth(4)).toHaveText(eur(t.netCents));
   await expect(total.nth(6)).toHaveText(eur(t.capitalCents));
   const newest = data.months.filter((m) => m.inWindow).at(-1)!;
-  await expect(rows.first().locator('td').nth(4)).toHaveText(eur(newest.netCents, { sign: true }));
+  await expect(rows.first().locator('td').nth(4)).toHaveText(eur(newest.netCents));
   await expect(rows.first().locator('td').nth(6)).toHaveText(eur(newest.capitalCents));
   await inspect(page, info, 'cashflow');
 });

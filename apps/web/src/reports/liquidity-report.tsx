@@ -54,6 +54,7 @@ import { expectedQuery, skipOccurrence, type ExpectedPayment } from '../expected
 import './reports-future.css';
 import { salaryDay, upcomingEvents, useLiquiditySelection } from './liquidity-selection';
 import { ForecastRedesign } from './forecast-redesign';
+import { ReportTable } from './report-table';
 import { PlanPageFrame } from '../budget/plan-page-frame';
 import type { PageFrameProps } from '../pages/placeholder-page';
 import type { ReactNode } from 'react';
@@ -820,33 +821,28 @@ function EventsCard({ view }: { view: LiquidityReportView }) {
           Keine Ereignisse geplant.
         </p>
       ) : (
-        <div
-          className="rf-scroll"
-          role="region"
-          aria-label="Geplante Ereignisse, bei Bedarf horizontal verschiebbar"
-          // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- Keyboard users must be able to scroll the table on narrow viewports.
-          tabIndex={0}
+        <ReportTable
+          caption="Geplante Ereignisse"
+          regionLabel="Geplante Ereignisse, bei Bedarf horizontal verschiebbar"
+          className="rf-table rf-events"
         >
-          <p className="table-scroll-hint">Seitlich wischen für weitere Spalten</p>
-          <table className="rf-table rf-events">
-            <thead>
-              <tr>
-                <th className="tech">Datum / Beginn</th>
-                <th className="tech">Ereignis</th>
-                <th className="tech n">Betrag</th>
-                <th className="tech">Zählt</th>
-                <th>
-                  <span className="sr-only">Entfernen</span>
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {view.events.map((e) => (
-                <EventRow key={e.id} event={e} write={write} />
-              ))}
-            </tbody>
-          </table>
-        </div>
+          <thead>
+            <tr>
+              <th className="tech">Datum / Beginn</th>
+              <th className="tech">Ereignis</th>
+              <th className="tech n">Betrag</th>
+              <th className="tech">Zählt</th>
+              <th>
+                <span className="sr-only">Entfernen</span>
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {view.events.map((e) => (
+              <EventRow key={e.id} event={e} write={write} />
+            ))}
+          </tbody>
+        </ReportTable>
       )}
       <form
         className="rf-add"
@@ -942,7 +938,7 @@ function EventRow({
         </small>
       </td>
       <td className="n">
-        <strong>{eur(e.amountCents, { sign: true })}</strong>
+        <strong>{eur(e.amountCents)}</strong>
       </td>
       <td>
         <Switch
@@ -1008,7 +1004,7 @@ function LeversCard({
                   <small>{LEVER_TEXT[l.id].note(l.labels)}</small>
                 </span>
                 <span className="rf-gain" data-testid={`lever-gain-${l.id}`}>
-                  {l.active ? 'aktiv' : eur(l.gainCents, { cents: false, sign: true })}
+                  {l.active ? 'aktiv' : eur(l.gainCents, { cents: false })}
                 </span>
               </label>
             </li>
@@ -1033,59 +1029,55 @@ function OutlookCard({ report }: { report: LiquidityReport }) {
           <span className="ink">bis {shortDay(report.verdictEnd)}</span>
         </span>
       </div>
-      <div
-        className="rf-scroll"
-        role="region"
-        aria-label="Vorausschau je Monat, bei Bedarf horizontal verschiebbar"
-        // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- Keyboard users must be able to scroll the table on narrow viewports.
-        tabIndex={0}
+      <ReportTable
+        caption="Vorausschau je Monat"
+        regionLabel="Vorausschau je Monat, bei Bedarf horizontal verschiebbar"
+        className="rf-table"
+        data-testid="liq-outlook"
       >
-        <p className="table-scroll-hint">Seitlich wischen für weitere Spalten</p>
-        <table className="rf-table" data-testid="liq-outlook">
-          <thead>
-            <tr>
-              <th className="tech">Monat</th>
-              <th className="tech n">Anfang</th>
-              <th className="tech n">Einnahmen</th>
-              <th className="tech n">Zahlungen</th>
-              <th className="tech n">Variabel (Plan)</th>
-              <th className="tech n">Ereignisse</th>
-              <th className="tech n">Ende</th>
-              <th className="tech n">Tiefpunkt</th>
-              <th className="tech n">mit Puffer</th>
+        <thead>
+          <tr>
+            <th className="tech">Monat</th>
+            <th className="tech n">Anfang</th>
+            <th className="tech n">Einnahmen</th>
+            <th className="tech n">Zahlungen</th>
+            <th className="tech n">Variabel (Plan)</th>
+            <th className="tech n">Ereignisse</th>
+            <th className="tech n">Ende</th>
+            <th className="tech n">Tiefpunkt</th>
+            <th className="tech n">mit Puffer</th>
+          </tr>
+        </thead>
+        <tbody>
+          {report.months.map((m, i) => (
+            <tr key={m.month}>
+              <td>
+                {monthLong(m.month)}
+                {i === 0 && m.partialStart && <small>ab {shortDay(report.startDay)}</small>}
+              </td>
+              <td className="n">{eur(m.startCents)}</td>
+              <td className="n">{eur(m.incomeCents)}</td>
+              <td className="n">{eur(m.fixedCents)}</td>
+              <td className="n">{eur(m.variableCents)}</td>
+              <td className="n">
+                {m.eventCents ? (
+                  <strong>{eur(m.eventCents)}</strong>
+                ) : (
+                  <span className="muted">–</span>
+                )}
+              </td>
+              <td className="n">
+                <strong>{eur(m.endCents)}</strong>
+                {m.partialEnd && <small>am {shortDay(report.verdictEnd)}</small>}
+              </td>
+              <td className={`n${m.lowCents < 0 ? ' is-alert' : ''}`}>{eur(m.lowCents)}</td>
+              <td className={`n${m.lowBufferCents < 0 ? ' is-short' : ' muted'}`}>
+                {eur(m.lowBufferCents)}
+              </td>
             </tr>
-          </thead>
-          <tbody>
-            {report.months.map((m, i) => (
-              <tr key={m.month}>
-                <td>
-                  {monthLong(m.month)}
-                  {i === 0 && m.partialStart && <small>ab {shortDay(report.startDay)}</small>}
-                </td>
-                <td className="n">{eur(m.startCents)}</td>
-                <td className="n">{eur(m.incomeCents, { sign: true })}</td>
-                <td className="n">{eur(m.fixedCents)}</td>
-                <td className="n">{eur(m.variableCents)}</td>
-                <td className="n">
-                  {m.eventCents ? (
-                    <strong>{eur(m.eventCents, { sign: true })}</strong>
-                  ) : (
-                    <span className="muted">–</span>
-                  )}
-                </td>
-                <td className="n">
-                  <strong>{eur(m.endCents)}</strong>
-                  {m.partialEnd && <small>am {shortDay(report.verdictEnd)}</small>}
-                </td>
-                <td className={`n${m.lowCents < 0 ? ' is-alert' : ''}`}>{eur(m.lowCents)}</td>
-                <td className={`n${m.lowBufferCents < 0 ? ' is-short' : ' muted'}`}>
-                  {eur(m.lowBufferCents)}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+          ))}
+        </tbody>
+      </ReportTable>
     </section>
   );
 }
@@ -1101,80 +1093,75 @@ function MovementsCard({ report }: { report: LiquidityReport }) {
       <div className="tbd-head">
         <h2 id="liq-moves">Große Bewegungen je Monat</h2>
       </div>
-      <div
-        className="rf-scroll"
-        role="region"
-        aria-label="Große Bewegungen je Monat, bei Bedarf horizontal verschiebbar"
-        // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- Keyboard users must be able to scroll the table on narrow viewports.
-        tabIndex={0}
+      <ReportTable
+        caption="Große Bewegungen je Monat"
+        regionLabel="Große Bewegungen je Monat, bei Bedarf horizontal verschiebbar"
+        className="rf-table rf-moves"
       >
-        <p className="table-scroll-hint">Seitlich wischen für weitere Spalten</p>
-        <table className="rf-table rf-moves">
-          <thead>
-            <tr>
-              <th className="tech">Datum</th>
-              <th className="tech">Bewegung</th>
-              <th className="tech n">Betrag</th>
-              <th className="tech n">Saldo danach</th>
-              <th className="tech rf-act">
-                <span className="sr-only">Aktion</span>
+        <thead>
+          <tr>
+            <th className="tech">Datum</th>
+            <th className="tech">Bewegung</th>
+            <th className="tech n">Betrag</th>
+            <th className="tech n">Saldo danach</th>
+            <th className="tech rf-act">
+              <span className="sr-only">Aktion</span>
+            </th>
+          </tr>
+        </thead>
+        {report.movements.map((b) => (
+          <tbody key={b.month}>
+            <tr className="rf-grp">
+              <th scope="colgroup" colSpan={3}>
+                {monthLong(b.month)}
               </th>
+              <td className="n">{eur(b.startCents)}</td>
+              <td />
             </tr>
-          </thead>
-          {report.movements.map((b) => (
-            <tbody key={b.month}>
-              <tr className="rf-grp">
-                <th scope="colgroup" colSpan={3}>
-                  {monthLong(b.month)}
-                </th>
-                <td className="n">{eur(b.startCents)}</td>
-                <td />
-              </tr>
-              {b.rows.map((r, i) => (
-                <tr key={`${r.day}-${i}`} className={r.planned ? 'is-event' : undefined}>
-                  <td>{shortDay(r.day)}</td>
-                  <td>
-                    {r.planned && <i className="rf-sq rf-sq-event" aria-hidden="true" />}
-                    {r.label}
-                    {r.planned && <small>geplantes Ereignis</small>}
-                  </td>
-                  <td className="n">{eur(r.cents, { sign: true })}</td>
-                  <td className="n">{eur(r.afterCents)}</td>
-                  <td className="rf-act">
-                    {r.ref && !r.planned && (
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="rf-strike"
-                        title={`${strikeLabel(r.cents)}: ${r.label}, ${shortDay(r.day)}`}
-                        aria-label={`${strikeLabel(r.cents)}: ${r.label}, ${shortDay(r.day)}`}
-                        onClick={() => {
-                          const ref = r.ref!;
-                          void write(
-                            () => skipOccurrence(ref.paymentId, ref.dueDate),
-                            () => `${r.label}: ${shortDay(r.day)} gestrichen`,
-                          );
-                        }}
-                      >
-                        <CircleMinus size={16} strokeWidth={1.75} aria-hidden="true" />
-                      </Button>
-                    )}
-                  </td>
-                </tr>
-              ))}
-              <tr className="is-rest">
-                <td>{shortDay(b.lastDay)}</td>
-                <td>Variable Ausgaben und kleine Zahlungen im Monat</td>
-                <td className="n">{eur(b.restCents, { sign: true })}</td>
-                <td className="n">
-                  <strong>{eur(b.endCents)}</strong>
+            {b.rows.map((r, i) => (
+              <tr key={`${r.day}-${i}`} className={r.planned ? 'is-event' : undefined}>
+                <td>{shortDay(r.day)}</td>
+                <td>
+                  {r.planned && <i className="rf-sq rf-sq-event" aria-hidden="true" />}
+                  {r.label}
+                  {r.planned && <small>geplantes Ereignis</small>}
                 </td>
-                <td />
+                <td className="n">{eur(r.cents)}</td>
+                <td className="n">{eur(r.afterCents)}</td>
+                <td className="rf-act">
+                  {r.ref && !r.planned && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="rf-strike"
+                      title={`${strikeLabel(r.cents)}: ${r.label}, ${shortDay(r.day)}`}
+                      aria-label={`${strikeLabel(r.cents)}: ${r.label}, ${shortDay(r.day)}`}
+                      onClick={() => {
+                        const ref = r.ref!;
+                        void write(
+                          () => skipOccurrence(ref.paymentId, ref.dueDate),
+                          () => `${r.label}: ${shortDay(r.day)} gestrichen`,
+                        );
+                      }}
+                    >
+                      <CircleMinus size={16} strokeWidth={1.75} aria-hidden="true" />
+                    </Button>
+                  )}
+                </td>
               </tr>
-            </tbody>
-          ))}
-        </table>
-      </div>
+            ))}
+            <tr className="is-rest">
+              <td>{shortDay(b.lastDay)}</td>
+              <td>Variable Ausgaben und kleine Zahlungen im Monat</td>
+              <td className="n">{eur(b.restCents)}</td>
+              <td className="n">
+                <strong>{eur(b.endCents)}</strong>
+              </td>
+              <td />
+            </tr>
+          </tbody>
+        ))}
+      </ReportTable>
       <p className="vnote">
         Je Monat: Anfang, Bewegungen ab 250 € und geplante Ereignisse, der Rest als eine Zeile,
         Ende. Streichen nimmt nur diese eine Zahlung aus der Prognose, die Regel bleibt; Rückgängig
