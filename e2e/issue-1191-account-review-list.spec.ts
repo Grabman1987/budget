@@ -38,6 +38,7 @@ for (const theme of ['light', 'dark']) {
       defaultCategoryId: category.id,
     });
     await post('/bookings', {
+      type: 'booking',
       date: '2026-09-17',
       accountId: accounts[0].id,
       payeeId: payee.id,
