@@ -4,6 +4,8 @@ Historical references follow `docs/FEATURES.md` (positions 1.1–5.6). The hub r
 
 **Shared entry:** Open Reports (`/reports`) and search by report name or question. The redesign groups its 16 main reports into columns; recent active reports remain available. In a report, use "Bericht wechseln" or Alt+Shift+Left/Right to switch reports. Period reports retain their shared period controls and remembered period; explicit URL periods take precedence. Monthly and annual reports retain their own month/year controls. "Berechnung und Einordnung" explains the calculation. Plan destinations and the total Explorer template are documented below for bookmark compatibility; they have no standalone report entries.
 
+**Shared table continuation (#1161):** RP-05b, the retained RP-07a year grid, RP-08 monthly grid and RP-09 full-history grid use the same register table shell as RP-14. Read the named table, scroll within its region (keyboard or phone), and keep the header and nested row hierarchy visible. Acceptance: aligned tabular numbers, register typography/density, unchanged drilldowns, CSV and masked amounts, with print showing the full table. Status: layout foundation implemented for review; each existing grid retains its current row heat/sign policy pending the later report-group slices. RP-07b's separate category-list table and other report tables remain outside this slice.
+
 **Aufteilungen:** RP-05, RP-07, RP-11, RP-12, RP-13, RP-15, RP-16, RP-17, RP-18, RP-21 und RP-23 sind in a/b(/c) geteilt, weil sie unabhängige Berichte bündeln. Namen folgen dem Katalog der App: RP-05b „Einnahmen und Cashflow“ (früher „Einnahmen und Ausgaben“), RP-11a (retired forecast-accuracy report; redirects to Budgettreue), RP-11b „Budgettreue“, RP-13a „Verträge und Kosten“, RP-18a „Portfolio-Auswertung“.
 
 ### RP-00 – Zeitraum zwischen Reports behalten
@@ -294,12 +296,16 @@ Historical references follow `docs/FEATURES.md` (positions 1.1–5.6). The hub r
   2. „Kosten nach Art“ und „Maßkette erfasste Bank- und Zinskosten“ lesen (Kreditzinsen, Bank- und Kartengebühren, Handelsgebühren, Fremdwährung, Überziehung).
   3. „Haben- und Dividenden-Erträge“ separat ansehen; „Kredit- und Dispolinien · Originalwährungen“ prüfen.
   4. „Quellen und Abgrenzung“ öffnen.
+  5. Read cost types, sources, credit lines and calendar years in the shared register tables; scroll additional columns horizontally on phone or with the keyboard.
 - **Ergebnis:** Ich kenne die größte Kostenquelle und die Jahressummen.
 - **Abnahmekriterien:**
   - Die Summe nach Art entspricht der Maßkette; Tilgung zählt nicht als Kosten.
   - Zinskosten decken sich mit Kosten im Report Kosten, Steuern, Erträge für Wertpapierkosten.
+  - Tables share register density, right-aligned tabular figures and a sticky header within the scroll region; the page itself does not scroll horizontally (1440/390, light/dark).
+  - Positive amounts and changes have no plus prefix; negative values retain their minus. Historical costs and changes use neutral ink; higher expenses are never coloured green.
+  - “Beträge verbergen” still masks all money, including native currency; source links and legacy report addresses remain available.
   - Randfall: Ohne gebuchte Zinsen dienen gespeicherte Kreditkonditionen als markierte Schätzung; Spreads und TER ohne Daten sind nicht enthalten.
-- **Status:** live · **Verweis:** 2.6
+- **Status:** existing report live; shared-table slice implemented for review (#1161), owner acceptance pending · **Verweis:** 2.6
 
 ### RP-15a – Liquiditätsprognose
 - **Story:** Als Nutzer möchte ich sehen, ob das Geld auf den Budget-Konten bis zu 12 Monate reicht, auch mit geplanten Ereignissen, damit ich rechtzeitig umschichte oder Zahlungen verschiebe.

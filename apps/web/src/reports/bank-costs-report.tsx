@@ -26,7 +26,11 @@ import type { PageMeta } from '../nav/pages';
 import type { ReportEntry } from '../nav/reports-catalog';
 import { ReportFrame as PageFrame } from './report-frame';
 import { AppLink } from '../shell/app-link';
-import { bpText, monthShort, ReportQuery, ScrollRegion } from './spending-shared';
+import { bpText, monthShort, ReportQuery } from './spending-shared';
+import { ReportTable } from './report-table';
+
+// Historical costs and changes use neutral ink: higher expenses are never a positive signal.
+// Headings name the direction; negative values retain their minus, positives have no prefix.
 const costsQuery = queryOptions({
   queryKey: [...LEDGER_KEY, 'bank-costs-report'],
   retry: false,
@@ -110,12 +114,10 @@ function Body({ data }: { data: BankCostsReport }) {
           <h2 id="bc-main">
             {REDESIGN_ENABLED ? 'Kosten je Monat' : 'Was kostet uns das Geld selbst?'}
           </h2>
-          <span
-            className={`sr-state ${data.changeCents !== null && data.changeCents <= 0 ? 'is-good' : ''}`}
-          >
+          <span className="sr-state">
             {data.changeCents === null
               ? 'Noch keine zwölf Monate davor zum Vergleich'
-              : `${eur(data.changeCents, { sign: true })} gegenüber zwölf Monaten davor`}
+              : `${eur(data.changeCents)} gegenüber zwölf Monaten davor`}
           </span>
         </div>
         {!REDESIGN_ENABLED && (
@@ -215,44 +217,57 @@ function Body({ data }: { data: BankCostsReport }) {
           <div className="sr-head">
             <h2 id="bc-kinds">Kosten nach Art</h2>
           </div>
-          <ScrollRegion label="Tabelle der Kostenarten">
-            <table className="sr-table" data-testid="cost-kinds">
-              <thead>
-                <tr>
-                  <th scope="col">Posten</th>
-                  <th scope="col">12 Monate</th>
-                  <th scope="col">12 Monate davor</th>
-                  <th scope="col">Veränderung</th>
-                  <th scope="col">Anteil</th>
+          <ReportTable
+            caption="Tabelle der Kostenarten"
+            regionLabel="Tabelle der Kostenarten"
+            className="sr-table"
+            data-testid="cost-kinds"
+          >
+            <thead>
+              <tr>
+                <th scope="col">Posten</th>
+                <th scope="col" className="n">
+                  12 Monate
+                </th>
+                <th scope="col" className="n">
+                  12 Monate davor
+                </th>
+                <th scope="col" className="n">
+                  Veränderung
+                </th>
+                <th scope="col" className="n">
+                  Anteil
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.rows.map((r) => (
+                <tr key={r.key}>
+                  <th scope="row">{r.name}</th>
+                  <td className="n">{eur(r.cents)}</td>
+                  <td className="n">{r.previousCents === null ? '–' : eur(r.previousCents)}</td>
+                  <td className="n">{bpText(r.changeBp)}</td>
+                  <td className="n">{bpText(r.shareBp)}</td>
                 </tr>
-              </thead>
-              <tbody>
-                {data.rows.map((r) => (
-                  <tr key={r.key}>
-                    <th scope="row">{r.name}</th>
-                    <td>{eur(r.cents)}</td>
-                    <td>{r.previousCents === null ? '–' : eur(r.previousCents)}</td>
-                    <td>{bpText(r.changeBp, { sign: true })}</td>
-                    <td>{bpText(r.shareBp)}</td>
-                  </tr>
-                ))}
-                <tr className="is-total">
-                  <th scope="row">Kosten</th>
-                  <td>{eur(data.totalCents)}</td>
-                  <td>{data.previousTotalCents === null ? '–' : eur(data.previousTotalCents)}</td>
-                  <td colSpan={2} />
-                </tr>
-                <tr>
-                  <th scope="row">Haben- und Dividenden-Erträge</th>
-                  <td>{eur(data.earningsCents)}</td>
-                  <td>
-                    {data.previousEarningsCents === null ? '–' : eur(data.previousEarningsCents)}
-                  </td>
-                  <td colSpan={2}>Kein Haushaltseinkommen</td>
-                </tr>
-              </tbody>
-            </table>
-          </ScrollRegion>
+              ))}
+              <tr className="is-total">
+                <th scope="row">Kosten</th>
+                <td className="n">{eur(data.totalCents)}</td>
+                <td className="n">
+                  {data.previousTotalCents === null ? '–' : eur(data.previousTotalCents)}
+                </td>
+                <td colSpan={2} />
+              </tr>
+              <tr>
+                <th scope="row">Haben- und Dividenden-Erträge</th>
+                <td className="n">{eur(data.earningsCents)}</td>
+                <td className="n">
+                  {data.previousEarningsCents === null ? '–' : eur(data.previousEarningsCents)}
+                </td>
+                <td colSpan={2}>Kein Haushaltseinkommen</td>
+              </tr>
+            </tbody>
+          </ReportTable>
         </section>
       </ReportBodyDisclosure>
       <ReportBodyDisclosure id="costs-sources" label="Kosten nach Quelle">
@@ -260,29 +275,34 @@ function Body({ data }: { data: BankCostsReport }) {
           <div className="sr-head">
             <h2 id="bc-sources">Je Kostenquelle · 12 Monate</h2>
           </div>
-          <ScrollRegion label="Kosten je Quelle">
-            <table className="sr-table" data-testid="cost-sources">
-              <thead>
-                <tr>
-                  <th scope="col">Quelle</th>
-                  <th scope="col">Art</th>
-                  <th scope="col">Kosten</th>
+          <ReportTable
+            caption="Kosten je Quelle"
+            regionLabel="Kosten je Quelle"
+            className="sr-table"
+            data-testid="cost-sources"
+          >
+            <thead>
+              <tr>
+                <th scope="col">Quelle</th>
+                <th scope="col">Art</th>
+                <th scope="col" className="n">
+                  Kosten
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.sources.map((s) => (
+                <tr key={s.id}>
+                  <th scope="row">
+                    {s.name}
+                    {s.derived && <small>aus Kreditkonditionen geschätzt</small>}
+                  </th>
+                  <td>{data.partLabels[s.kind]}</td>
+                  <td className="n">{eur(s.cents)}</td>
                 </tr>
-              </thead>
-              <tbody>
-                {data.sources.map((s) => (
-                  <tr key={s.id}>
-                    <th scope="row">
-                      {s.name}
-                      {s.derived && <small>aus Kreditkonditionen geschätzt</small>}
-                    </th>
-                    <td>{data.partLabels[s.kind]}</td>
-                    <td>{eur(s.cents)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </ScrollRegion>
+              ))}
+            </tbody>
+          </ReportTable>
           <p className="sr-note">
             <AppLink to="/einstellungen/konten">Kreditkonditionen pflegen</AppLink> ·{' '}
             <AppLink to="/vermoegen/schulden">Schuldenrechner öffnen</AppLink>
@@ -294,41 +314,49 @@ function Body({ data }: { data: BankCostsReport }) {
           <div className="sr-head">
             <h2 id="bc-years">Je Kalenderjahr</h2>
           </div>
-          <ScrollRegion label="Jährliche Kosten und Erträge">
-            <table className="sr-table">
-              <thead>
-                <tr>
-                  <th scope="col">Jahr</th>
-                  {data.rows.map((r) => (
-                    <th key={r.key} scope="col">
-                      {r.name}
-                    </th>
-                  ))}
-                  <th scope="col">Kosten</th>
-                  <th scope="col">Erträge separat</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data.years.map((y) => (
-                  <tr key={y.year}>
-                    <th scope="row">
-                      {y.year}
-                      {y.partial && (
-                        <small>
-                          {monthShort(y.from)} bis {monthShort(y.to)}
-                        </small>
-                      )}
-                    </th>
-                    {y.partCents.map((v, i) => (
-                      <td key={data.rows[i]?.key}>{v ? eur(v) : '·'}</td>
-                    ))}
-                    <td>{eur(y.totalCents)}</td>
-                    <td>{eur(y.earningsCents)}</td>
-                  </tr>
+          <ReportTable
+            caption="Jährliche Kosten und Erträge"
+            regionLabel="Jährliche Kosten und Erträge"
+            className="sr-table"
+          >
+            <thead>
+              <tr>
+                <th scope="col">Jahr</th>
+                {data.rows.map((r) => (
+                  <th key={r.key} scope="col" className="n">
+                    {r.name}
+                  </th>
                 ))}
-              </tbody>
-            </table>
-          </ScrollRegion>
+                <th scope="col" className="n">
+                  Kosten
+                </th>
+                <th scope="col" className="n">
+                  Erträge separat
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.years.map((y) => (
+                <tr key={y.year}>
+                  <th scope="row">
+                    {y.year}
+                    {y.partial && (
+                      <small>
+                        {monthShort(y.from)} bis {monthShort(y.to)}
+                      </small>
+                    )}
+                  </th>
+                  {y.partCents.map((v, i) => (
+                    <td key={data.rows[i]?.key} className="n">
+                      {v ? eur(v) : '·'}
+                    </td>
+                  ))}
+                  <td className="n">{eur(y.totalCents)}</td>
+                  <td className="n">{eur(y.earningsCents)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </ReportTable>
         </section>
       </ReportBodyDisclosure>
     </>
@@ -348,50 +376,61 @@ export function CreditLinesTable({ lines }: { lines: CreditLineRow[] }) {
         wird nicht zur erfassten Kostensumme addiert.
       </p>
       {lines.length ? (
-        <ScrollRegion label="Tabelle der Kredit- und Dispolinien">
-          <table className="sr-table" data-testid="credit-lines">
-            <thead>
-              <tr>
-                <th scope="col">Konto</th>
-                <th scope="col">Rahmen</th>
-                <th scope="col">Zinssatz p. a.</th>
-                <th scope="col">Genutzt</th>
-                <th scope="col">Zinsen pro Monat (geschätzt)</th>
-              </tr>
-            </thead>
-            <tbody>
-              {lines.map((line) => {
-                const interest =
-                  line.usedCents === 0
-                    ? 0
-                    : line.rateBp === null
-                      ? null
-                      : monthlyInterestCents(line.usedCents, line.rateBp);
-                return (
-                  <tr key={line.id}>
-                    <th scope="row">{line.name}</th>
-                    <td>
-                      {line.limitCents === null
-                        ? 'Keine Angabe'
-                        : nativeCurrency(line.limitCents, line.currency)}
-                    </td>
-                    <td>
-                      {line.rateBp === null
-                        ? 'Keine Angabe'
-                        : `${formatDecimal(cents(line.rateBp))} %`}
-                    </td>
-                    <td>{nativeCurrency(line.usedCents, line.currency)}</td>
-                    <td>
-                      {interest === null
-                        ? 'Nicht schätzbar'
-                        : nativeCurrency(interest, line.currency)}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </ScrollRegion>
+        <ReportTable
+          caption="Tabelle der Kredit- und Dispolinien"
+          regionLabel="Tabelle der Kredit- und Dispolinien"
+          className="sr-table"
+          data-testid="credit-lines"
+        >
+          <thead>
+            <tr>
+              <th scope="col">Konto</th>
+              <th scope="col" className="n">
+                Rahmen
+              </th>
+              <th scope="col" className="n">
+                Zinssatz p. a.
+              </th>
+              <th scope="col" className="n">
+                Genutzt
+              </th>
+              <th scope="col" className="n">
+                Zinsen pro Monat (geschätzt)
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {lines.map((line) => {
+              const interest =
+                line.usedCents === 0
+                  ? 0
+                  : line.rateBp === null
+                    ? null
+                    : monthlyInterestCents(line.usedCents, line.rateBp);
+              return (
+                <tr key={line.id}>
+                  <th scope="row">{line.name}</th>
+                  <td className="n">
+                    {line.limitCents === null
+                      ? 'Keine Angabe'
+                      : nativeCurrency(line.limitCents, line.currency)}
+                  </td>
+                  <td className="n">
+                    {line.rateBp === null
+                      ? 'Keine Angabe'
+                      : `${formatDecimal(cents(line.rateBp))} %`}
+                  </td>
+                  <td className="n">{nativeCurrency(line.usedCents, line.currency)}</td>
+                  <td className="n">
+                    {interest === null
+                      ? 'Nicht schätzbar'
+                      : nativeCurrency(interest, line.currency)}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </ReportTable>
       ) : (
         <p className="sr-note">Keine offenen Kredit- oder Dispolinien.</p>
       )}
