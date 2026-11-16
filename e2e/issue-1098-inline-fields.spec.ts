@@ -115,6 +115,8 @@ test('inline payee and category retain cents, undo, locks and selection in both 
   );
   await row.getByRole('button', { name: /^Empfänger ändern:/ }).click();
   const dialog = page.getByRole('dialog', { name: 'Buchung bearbeiten' });
+  if (await redesignLoaded(page))
+    await page.getByRole('button', { name: 'Bearbeitung freigeben', exact: true }).click();
   await expect(dialog).toBeVisible();
   await expect(row.getByRole('combobox')).toHaveCount(0);
   await captureCloseControl(dialog).click();

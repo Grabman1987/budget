@@ -1,4 +1,5 @@
 import { DialogClose } from './dialog-close';
+import { BookingReleaseQuestion } from './booking-release-question';
 import { BookingAssignmentReview } from '../assignment/review';
 import {
   useAmountPrivacy,
@@ -147,6 +148,7 @@ export function CaptureForm({
   discard,
   requestClose,
   queued,
+  initialUnlockReconciled = false,
 }: {
   state: NonNullable<BookingPanelState>;
   onDone: () => void;
@@ -156,6 +158,8 @@ export function CaptureForm({
   discard: DiscardAsk;
   requestClose: () => void;
   queued?: QueuedBooking;
+  /** Explicit confirmation from this editor opening; never persisted across openings. */
+  initialUnlockReconciled?: boolean;
 }) {
   useAmountPrivacy();
   const qc = useQueryClient();
@@ -287,7 +291,7 @@ export function CaptureForm({
       .then(setOfflineChoices)
       .catch(() => undefined);
   }, []);
-  const [unlock, setUnlock] = useState(false);
+  const [unlock, setUnlock] = useState(initialUnlockReconciled);
   const [releaseAsking, setReleaseAsking] = useState(false);
   const releaseQuestion = useRef<HTMLDivElement>(null);
   const releaseReturn = useRef<HTMLInputElement>(null);
@@ -1543,23 +1547,11 @@ export function CaptureForm({
         </p>
       </div>
       {releaseAsking && (
-        <div
-          ref={releaseQuestion}
-          className="kdiff bk-discard kdelete-question"
-          role="alertdialog"
-          aria-label="Geprüfte Buchung wirklich bearbeiten?"
-          aria-describedby="booking-release-reason"
-        >
-          <p id="booking-release-reason">
-            Diese Buchung ist abgeglichen. Änderungen oder Löschen können den geprüften Kontostand
-            verändern. Bei Kontaktanteilen kann auch der Kontaktsaldo betroffen sein. Die Änderung
-            wird protokolliert und kann rückgängig gemacht werden.
-          </p>
-          <Button variant="ghost" onClick={() => finishRelease(false)}>
-            Abbrechen
-          </Button>
-          <Button onClick={() => finishRelease(true)}>Bearbeitung freigeben</Button>
-        </div>
+        <BookingReleaseQuestion
+          questionRef={releaseQuestion}
+          onCancel={() => finishRelease(false)}
+          onConfirm={() => finishRelease(true)}
+        />
       )}
       {discard.asking && (
         <div
