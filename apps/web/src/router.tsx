@@ -718,7 +718,9 @@ const redirects = [
   redirectRoute('/reports/projekte', '/reports/einnahmen-ausgaben', { darstellung: 'projekte' }),
   redirectRoute('/reports/empfaenger', '/reports/ausgaben', { darstellung: 'empfaenger' }),
   redirectRoute('/reports/planungstreue', '/reports/budgettreue', { darstellung: 'budget' }),
-  redirectRoute('/reports/kosten', '/reports/abos', { darstellung: 'bankkosten' }),
+  redirectRoute('/reports/kosten', REDESIGN_ENABLED ? '/reports/psteuern' : '/reports/abos', {
+    darstellung: 'bankkosten',
+  }),
   redirectRoute('/reports/vermoegen', '/reports/vermoegen-schulden', { darstellung: 'verlauf' }),
   redirectRoute('/reports/gesamtuebersicht', '/reports/vermoegen-schulden', {
     darstellung: 'gesamt',
@@ -830,6 +832,11 @@ const reportRoute = createRoute({
   path: '/reports/$reportId',
   validateSearch: validateReportSearch,
   beforeLoad: ({ params, search, location }) => {
+    if (REDESIGN_ENABLED && params.reportId === 'abos' && search.darstellung === 'bankkosten')
+      throw redirect({
+        href: `/reports/psteuern${location.searchStr}${location.hash ? `#${location.hash}` : ''}`,
+        replace: true,
+      });
     const remembered = REDESIGN_ENABLED
       ? rememberedReportPeriod(params.reportId, search)
       : undefined;

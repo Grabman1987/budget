@@ -28,7 +28,12 @@ test('everyday terms keep function routes, data kinds and global actions distinc
     ['Baby', 'Plan · Prognose', '/plan/prognose', ''],
     ['Einkommenspause', 'Plan · Prognose', '/plan/prognose', ''],
     ['Dispo', 'Vermögen · Schulden', '/vermoegen/schulden', ''],
-    ['Gebühren', '2.6 Bank- und Zinskosten', '/reports/abos', 'bankkosten'],
+    [
+      'Gebühren',
+      '2.6 Bank- und Zinskosten',
+      redesign ? '/reports/psteuern' : '/reports/abos',
+      'bankkosten',
+    ],
     ['Budgettreue', redesign ? '14 Budgettreue' : '2.2 Budgettreue', '/reports/budgettreue', ''],
   ]) {
     const input = await open();

@@ -1,4 +1,5 @@
 import { useId } from 'react';
+import { BankCostsReportPage } from '../reports/bank-costs-report';
 import { useNavigate, useSearch } from '@tanstack/react-router';
 import { Select } from '@budget/ui';
 import { REDESIGN_ENABLED } from '../shell/redesign-flag';
@@ -41,15 +42,42 @@ const costsQuery = queryOptions({
 
 export function PortfolioCostsReport({ report, meta }: { report: ReportEntry; meta: PageMeta }) {
   useAmountPrivacy();
-  const query = useQuery(costsQuery);
-  const data = query.data?.costs;
   const viewId = useId();
   const search = useSearch({ strict: false }) as { darstellung?: string };
   const navigate = useNavigate();
   const view =
-    REDESIGN_ENABLED && ['ertraege', 'kostenverlauf'].includes(search.darstellung ?? '')
+    REDESIGN_ENABLED &&
+    ['ertraege', 'kostenverlauf', 'bankkosten'].includes(search.darstellung ?? '')
       ? search.darstellung
       : 'gebuehren';
+  const query = useQuery({ ...costsQuery, enabled: view !== 'bankkosten' });
+  const data = query.data?.costs;
+  const control = REDESIGN_ENABLED ? (
+    <label className="wealth-report-view-select" htmlFor={viewId}>
+      <span>Darstellung</span>
+      <Select
+        id={viewId}
+        aria-label="Darstellung von Kosten, Steuern und Erträgen"
+        value={view}
+        onChange={(event) =>
+          void navigate({
+            to: '.',
+            search: ((previous: Record<string, unknown>) => ({
+              ...previous,
+              darstellung: event.target.value,
+            })) as never,
+          })
+        }
+      >
+        <option value="bankkosten">Bank- und Zinskosten</option>
+        <option value="gebuehren">Gebühren und Steuern</option>
+        <option value="ertraege">Erträge</option>
+        <option value="kostenverlauf">Kosten im Verlauf</option>
+      </Select>
+    </label>
+  ) : undefined;
+  if (view === 'bankkosten')
+    return <BankCostsReportPage report={report} meta={meta} viewControl={control} />;
   return (
     <PageFrame
       sourceDate={data?.to}
@@ -100,31 +128,7 @@ export function PortfolioCostsReport({ report, meta }: { report: ReportEntry; me
             }
           : undefined
       }
-      reportControls={
-        REDESIGN_ENABLED ? (
-          <label className="wealth-report-view-select" htmlFor={viewId}>
-            <span>Darstellung</span>
-            <Select
-              id={viewId}
-              aria-label="Darstellung von Kosten, Steuern und Erträgen"
-              value={view}
-              onChange={(event) =>
-                void navigate({
-                  to: '.',
-                  search: ((previous: Record<string, unknown>) => ({
-                    ...previous,
-                    darstellung: event.target.value,
-                  })) as never,
-                })
-              }
-            >
-              <option value="gebuehren">Gebühren und Steuern</option>
-              <option value="ertraege">Erträge</option>
-              <option value="kostenverlauf">Kosten im Verlauf</option>
-            </Select>
-          </label>
-        ) : undefined
-      }
+      reportControls={control}
       verdict={
         data && !query.isFetching && !query.isError
           ? {

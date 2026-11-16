@@ -272,3 +272,9 @@ source identifiers/conventions, device/recovery/restore checks and gate sign-off
 No new layout, bank credentials or financial assumptions should be guessed.
 
 Book-derived rules and their configurable parameters: [English specification](concept/book-rules.md). Optional source inputs remain private database values.
+
+## Cost report consolidation (#1160, navigation slice)
+
+Redesign ON: Portfolio › Kosten und Steuern includes the retained bank/interest cost reader alongside fees/taxes, income and cost history. Verträge und Abos contains contracts only. Both old bank-cost addresses retain query context and hashes through redirects. Existing domain calculations, source periods, privacy and estimates are unchanged. Implementation is in review, not live acceptance.
+
+Remaining: one deduplicated total per calendar year across bank costs, broker taxes and TER, and the portfolio-value cost ratio. Bank and portfolio subtotals overlap in trading fees and use different periods, so this slice deliberately does not sum them. No migration.

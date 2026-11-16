@@ -103,3 +103,12 @@ it('ON uses the approved identities and 3+2+3+8 groups; every legacy name retain
   fireEvent.change(screen.getByRole('searchbox'), { target: { value: '' } });
   expect(rendered.container.querySelectorAll('.report-hub-list > li')).toHaveLength(16);
 });
+
+it('ON groups bank costs with portfolio costs and leaves contracts on their own', () => {
+  expect(hubReport('kosten')).toMatchObject({
+    id: 'psteuern',
+    name: 'Kosten und Steuern',
+    group: 'portfolio',
+  });
+  expect(hubReport('abos')).toMatchObject({ name: 'Verträge und Abos', sources: ['abos'] });
+});
