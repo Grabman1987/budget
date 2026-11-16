@@ -191,6 +191,16 @@
   align-items: end;
   gap: 4px;
 }
+/* Reserve the full tabular date plus field padding before shrinking adjacent controls. */
+.bkform-redesign .bk-date-input > .input {
+  width: calc(10ch + 26px);
+  min-width: calc(10ch + 26px);
+  flex-grow: 1;
+  font-variant-numeric: tabular-nums;
+}
+.bkform-redesign .bk-date-row:has(> .kdate:only-child) {
+  grid-template-columns: minmax(0, 1fr);
+}
 .bkform-redesign .bk-note {
   min-height: 104px;
 }
@@ -331,7 +341,7 @@
   }
   .bkform-redesign .bk-context-fields {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-columns: minmax(max-content, 1fr) minmax(0, 1fr);
     /* Both cells are one Field (label row + control row): top-aligned labels, equal control rows. */
     align-items: start;
     gap: 12px;
@@ -389,6 +399,12 @@
   }
   .bkform-redesign:not(.bk-split-cols) .bk-context-fields > .kform-pair {
     grid-column: 1 / -1;
+  }
+}
+
+@media (min-width: 768px) and (max-width: 900px) {
+  .bkform-redesign .bk-context-fields {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 @media (max-width: 767px) {
