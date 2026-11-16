@@ -13,6 +13,17 @@ import { chartPoints } from '../charts/tooltip-data';
 import { eur } from '../ledger/format';
 import { monthShort } from './table-format';
 
+/** The statement sentence of the period: cashflow, average, comparison; says if the running month counts. */
+export function cashflowStatementLine(data: IncomeExpenseReportData, months: string[]): string {
+  const statement = cashflowStatement(data.months, months, data);
+  const running = data.currentMonth && months.includes(data.currentMonth);
+  return `Cashflow = Einnahmen − Ausgaben. Im Zeitraum${running ? ' (inkl. laufendem Monat)' : ''} ${statement ? eur(statement.total) : '—'}, durchschnittlich ${statement ? eur(statement.averagePerMonth) : '—'} pro Monat${
+    statement?.comparison
+      ? `; ${statement.comparison.kind === 'previous-year' ? 'Vorjahreszeitraum' : 'Vorperiode'} ${eur(statement.comparison.total)}, Veränderung ${eur(statement.comparison.delta)}`
+      : ''
+  }.`;
+}
+
 /** Cashflow of the period: statement line, monthly bars around zero plus cumulative line, table. */
 export function IncomeExpenseCashflow({
   data,
@@ -25,7 +36,6 @@ export function IncomeExpenseCashflow({
   const selected = data.months.filter((m) => months.includes(m.month));
   if (!selected.length) return null;
   const rows = cashflowDevelopment(selected, data);
-  const statement = cashflowStatement(data.months, months, data);
   const values = rows.flatMap((r) => [r.cashflow, r.cumulative]);
   const lo = Math.min(0, ...values);
   const hi = Math.max(1, ...values);
@@ -35,6 +45,7 @@ export function IncomeExpenseCashflow({
   const y = (v: number) => 150 - ((v - lo) / (hi - lo)) * 130;
   const barWidth = Math.max(2, slot * 0.5);
   const last = rows.at(-1)!;
+  const running = (m: string) => m === data.currentMonth;
   return (
     <section
       className="income-expense-cashflow"
@@ -43,12 +54,7 @@ export function IncomeExpenseCashflow({
     >
       <h3 id="ie-cashflow-title">Cashflow</h3>
       <p className="r8-scope" data-testid="cashflow-statement">
-        Cashflow = Einnahmen − Ausgaben. Im Zeitraum {statement ? eur(statement.total) : '—'},
-        durchschnittlich {statement ? eur(statement.averagePerMonth) : '—'} pro Monat
-        {statement?.comparison
-          ? `; ${statement.comparison.kind === 'previous-year' ? 'Vorjahreszeitraum' : 'Vorperiode'} ${eur(statement.comparison.total)}, Veränderung ${eur(statement.comparison.delta)}`
-          : ''}
-        .
+        {cashflowStatementLine(data, months)}
       </p>
       <ChartSvg
         width={760}
@@ -78,9 +84,10 @@ export function IncomeExpenseCashflow({
               width={barWidth}
               height={Math.abs(y(0) - y(r.cashflow))}
               fill={r.cashflow >= 0 ? 'var(--primary)' : 'none'}
-              stroke={r.cashflow >= 0 ? 'none' : 'var(--ink)'}
+              fillOpacity={running(r.month) ? 0.4 : undefined}
+              stroke={r.cashflow >= 0 && !running(r.month) ? 'none' : 'var(--ink)'}
               strokeWidth={1.5}
-              strokeDasharray={r.cashflow >= 0 ? undefined : '3 2'}
+              strokeDasharray={r.cashflow >= 0 && !running(r.month) ? undefined : '3 2'}
             />
           </g>
         ))}
@@ -97,8 +104,9 @@ export function IncomeExpenseCashflow({
       <LineLegend items={[{ kind: 'actual', label: 'Kumulierter Cashflow' }]} />
       <p className="r8-scope">
         Säulen: Cashflow je Monat; gefüllt über der Nulllinie positiv, gestrichelt umrandet unter
-        der Nulllinie negativ. Linie: kumulierter Cashflow, aktuell {eur(last.cumulative)}.
-        Zukunft-Umbuchungen sind als Ausgaben enthalten (siehe Hinweis zur Datenbasis).
+        der Nulllinie negativ. Linie: kumulierter Cashflow, aktuell {eur(last.cumulative)}. Der
+        laufende Monat ist heller und gestrichelt dargestellt. Zukunft-Umbuchungen sind als Ausgaben
+        enthalten (siehe Hinweis zur Datenbasis).
       </p>
       <div
         className="r8-month-table"
@@ -106,6 +114,7 @@ export function IncomeExpenseCashflow({
         aria-label="Cashflow je Monat, horizontal verschiebbar"
         // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- Keyboard users can scroll the exact-value table.
         tabIndex={0}
+        style={rows.length > 12 ? { maxHeight: '24rem', overflowY: 'auto' } : undefined}
       >
         <table className="r8-months">
           <caption className="sr-only">Cashflow je Monat mit kumuliertem Verlauf</caption>
@@ -119,9 +128,12 @@ export function IncomeExpenseCashflow({
             </tr>
           </thead>
           <tbody>
-            {[...rows].reverse().map((r) => (
+            {rows.map((r) => (
               <tr key={r.month}>
-                <th scope="row">{monthShort(r.month, true)}</th>
+                <th scope="row">
+                  {monthShort(r.month, true)}
+                  {running(r.month) ? ' · laufend' : ''}
+                </th>
                 <td>{eur(r.income)}</td>
                 <td>{eur(r.expenses)}</td>
                 <td>{eur(r.cashflow)}</td>

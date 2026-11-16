@@ -141,6 +141,14 @@ export function IncomeExpenseSummary({
                     height={Math.abs(y(0) - y(v))}
                     width={Math.max(1, slot * 0.32)}
                     fill={j === 0 ? 'var(--primary)' : 'var(--line-2)'}
+                    {...(r.month === data.currentMonth
+                      ? {
+                          fillOpacity: 0.4,
+                          stroke: 'var(--ink)',
+                          strokeWidth: 1,
+                          strokeDasharray: '3 2',
+                        }
+                      : {})}
                   />
                 ))}
               </g>
@@ -159,8 +167,9 @@ export function IncomeExpenseSummary({
       </div>
       <LineLegend items={[{ kind: 'actual', label: 'Cashflow' }]} />
       <p className="r8-scope">
-        Säulen: Haushaltseinnahmen und Ausgaben inkl. Zukunft. Tatsächliches Buchungsdatum;
-        Kapitalerträge und Erstattungen ohne Kategorie sind keine Haushaltseinnahmen.
+        Säulen: Haushaltseinnahmen und Ausgaben inkl. Zukunft; der laufende Monat ist heller und
+        gestrichelt. Tatsächliches Buchungsdatum; Kapitalerträge und Erstattungen ohne Kategorie
+        sind keine Haushaltseinnahmen.
       </p>
       <div
         className="r8-month-table"
@@ -168,11 +177,10 @@ export function IncomeExpenseSummary({
         aria-label="Monatliche Einnahmen, Ausgaben und Cashflow, horizontal verschiebbar"
         // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- Keyboard users can scroll the exact-value table.
         tabIndex={0}
+        style={m.selected.length > 12 ? { maxHeight: '24rem', overflowY: 'auto' } : undefined}
       >
         <table className="r8-months">
-          <caption className="sr-only">
-            Letzte drei Monate des gewählten Zeitraums und vollständige Summe
-          </caption>
+          <caption className="sr-only">Alle Monate des gewählten Zeitraums und Summe</caption>
           <thead>
             <tr>
               <th>Monat</th>
@@ -182,17 +190,17 @@ export function IncomeExpenseSummary({
             </tr>
           </thead>
           <tbody>
-            {m.selected
-              .slice(-3)
-              .reverse()
-              .map((r) => (
-                <tr key={r.month}>
-                  <th scope="row">{monthShort(r.month, true)}</th>
-                  <td>{eur(monthHouseholdIncome(r, data))}</td>
-                  <td>{eur(monthTotalSpending(r))}</td>
-                  <td>{eur(incomeExpenseNet(r, data))}</td>
-                </tr>
-              ))}
+            {m.selected.map((r) => (
+              <tr key={r.month}>
+                <th scope="row">
+                  {monthShort(r.month, true)}
+                  {r.month === data.currentMonth ? ' · laufend' : ''}
+                </th>
+                <td>{eur(monthHouseholdIncome(r, data))}</td>
+                <td>{eur(monthTotalSpending(r))}</td>
+                <td>{eur(incomeExpenseNet(r, data))}</td>
+              </tr>
+            ))}
           </tbody>
           <tfoot>
             <tr>

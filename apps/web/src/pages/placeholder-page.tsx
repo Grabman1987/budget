@@ -31,6 +31,8 @@ export interface PageFrameProps {
   detail?: boolean;
   verdict?: VerdictFacts | undefined;
   verdictTestId?: string | undefined;
+  /** A report's own statement line; replaces the verdict sentence (verdict still feeds the headline). */
+  statement?: ReactNode;
   meta: PageMeta;
   title?: string;
   subtitle?: string;
@@ -100,6 +102,7 @@ export function PageFrame({
   revealCurrentRegister,
   verdict,
   verdictTestId,
+  statement,
   reportControls,
   pageNavigation,
 }: PageFrameProps) {
@@ -128,8 +131,14 @@ export function PageFrame({
         {...(accountFields ? { accountFields } : {})}
       />
       {reportControls}
-      {verdict && (
-        <VerdictLine facts={verdict} {...(verdictTestId ? { testId: verdictTestId } : {})} />
+      {statement ? (
+        <p className="report-verdict" data-testid={verdictTestId ?? 'report-verdict'}>
+          {statement}
+        </p>
+      ) : (
+        verdict && (
+          <VerdictLine facts={verdict} {...(verdictTestId ? { testId: verdictTestId } : {})} />
+        )
       )}
       {meta.area === 'einstellungen' ? (
         <SettingsFrame register={meta.register} detail={detail}>

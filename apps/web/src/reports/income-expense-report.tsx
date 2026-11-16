@@ -36,7 +36,7 @@ import { monthShort } from './table-format';
 import { TableReportFrame } from './table-report-frame';
 import type { IncomeExpenseReportData } from '@budget/db';
 import type { ReactNode } from 'react';
-import { IncomeExpenseCashflow } from './income-expense-cashflow';
+import { IncomeExpenseCashflow, cashflowStatementLine } from './income-expense-cashflow';
 import { ReportProjectScopeNote } from './report-project-scope';
 import { REDESIGN_ENABLED } from '../shell/redesign-flag';
 import {
@@ -83,11 +83,7 @@ export function IncomeExpenseReport({
   const expanded = new Set(gruppen ?? []);
   const data = !query.isFetching && query.isSuccess ? query.data : null;
   const window = data?.firstMonth
-    ? reportPeriodMonths(
-        period,
-        period.includes('..') ? data.currentMonth! : (data.lastFullMonth ?? ''),
-        data.firstMonth,
-      )
+    ? reportPeriodMonths(period, data.currentMonth, data.firstMonth)
     : [];
   const months = data?.months.filter((m) => window.includes(m.month)) ?? [];
   const rows = data ? incomeExpenseRows(months, data, expanded) : [];
@@ -134,15 +130,16 @@ export function IncomeExpenseReport({
       <TableReportFrame
         calculation={REDESIGN_ENABLED && summary ? summary.calculation : undefined}
         basisOverride={
-          REDESIGN_ENABLED && window.length
-            ? `${monthShort(window[0]!, true)} bis ${monthShort(window.at(-1)!, true)} · Buchungsdatum`
+          window.length
+            ? `${monthShort(window[0]!, true)} bis ${monthShort(window.at(-1)!, true)}${window.at(-1) === data?.currentMonth ? ' (laufend)' : ''} · Buchungsdatum`
             : undefined
         }
+        statement={months.length && data ? cashflowStatementLine(data, window) : undefined}
         report={report}
         meta={meta}
         through="full"
         verdictEnd={window.at(-1)}
-        currentAllowed={period.includes('..')}
+        currentAllowed
         query={query}
         reportControls={viewControl}
         className="income-expense-report"
@@ -152,6 +149,7 @@ export function IncomeExpenseReport({
             value: (
               <ReportPeriodControl
                 trend={false}
+                includeCurrent
                 label="Zeitraum"
                 value={period}
                 onChange={(p) => {

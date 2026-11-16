@@ -15,6 +15,9 @@ test('income versus expense expands categories, drills bookings and exports the 
   const cashflow = page.getByTestId('income-expense-cashflow');
   await expect(cashflow.getByRole('heading', { name: 'Cashflow' })).toBeVisible();
   await expect(page.getByTestId('cashflow-statement')).toContainText('durchschnittlich');
+  await expect(page.getByTestId('report-verdict')).toContainText('inkl. laufendem Monat');
+  await expect(page.getByTestId('report-verdict')).not.toContainText('im Plan');
+  await expect(cashflow.getByRole('rowheader', { name: /· laufend$/ })).toHaveCount(1);
   await expect(cashflow.getByRole('columnheader', { name: 'kumuliert' })).toBeVisible();
   const cashflow = page.getByTestId('income-expense-cashflow');
   await expect(cashflow.getByRole('heading', { name: 'Cashflow' })).toBeVisible();

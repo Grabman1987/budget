@@ -68,6 +68,7 @@ function RedesignReportFrame({
   sourceReportId,
   verdict,
   verdictTestId,
+  statement,
   children,
 }: ReportFrameProps) {
   useAmountPrivacy();
@@ -140,7 +141,11 @@ function RedesignReportFrame({
           )}
         </div>
       </header>
-      {verdict ? (
+      {statement ? (
+        <p className="report-verdict" data-testid={verdictTestId ?? 'report-verdict'}>
+          {statement}
+        </p>
+      ) : verdict ? (
         <VerdictLine facts={verdict} {...(verdictTestId ? { testId: verdictTestId } : {})} />
       ) : (
         <p className="report-verdict" data-testid={verdictTestId ?? 'report-verdict'}>
