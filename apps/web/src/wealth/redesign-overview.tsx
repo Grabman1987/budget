@@ -320,7 +320,7 @@ export function WealthOverview() {
             <h2 id="wealth-composition-title">Zusammensetzung nach Anlageart</h2>
             <span>
               <AppLink to="/reports/vermoegen-schulden">Vermögensreport →</AppLink>
-              <AppLink to="/reports/psteuern">Kosten, Steuern, Erträge →</AppLink>
+              <AppLink to="/reports/psteuern">Kosten und Steuern →</AppLink>
             </span>
           </div>
           <table className="wealth-table">

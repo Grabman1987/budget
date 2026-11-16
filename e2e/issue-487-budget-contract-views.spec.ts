@@ -2,7 +2,7 @@ import {
   retainBudgetCostInflationReaders,
   chooseBudgetCostInflationView,
 } from './budget-cost-inflation-controls';
-import { revealReportDetail } from './report-frame';
+import { redesignReportsOn, revealReportDetail } from './report-frame';
 import { withShellControls } from './shell-actions';
 import AxeBuilder from '@axe-core/playwright';
 import { createBooking, openDatabase, schema } from '@budget/db';
@@ -185,10 +185,15 @@ test('Verträge und Kosten retains separate source periods, subtotal coverage an
     unconvertedCount: 0,
   });
   await page.goto('/reports/abos');
+  const redesign = await redesignReportsOn(page);
   await expect(page.getByTestId('contracts-report')).toContainText('Noch keine Verträge');
-  await expect(page).toHaveTitle(/^Verträge und Kosten · /);
+  await expect(page).toHaveTitle(
+    redesign ? /^Vertr\u00e4ge und Abos · / : /^Vertr\u00e4ge und Kosten · /,
+  );
   if (info.project.name !== 'desktop') {
-    await expect(page.locator('.m-title-text')).toHaveText('Verträge und Kosten');
+    await expect(page.locator('.m-title-text')).toHaveText(
+      redesign ? 'Vertr\u00e4ge und Abos' : 'Vertr\u00e4ge und Kosten',
+    );
   }
   const contractBody = await page.getByTestId('contracts-report').innerText();
   await inspect(page, info, 'contracts');
@@ -201,9 +206,13 @@ test('Verträge und Kosten retains separate source periods, subtotal coverage an
     '/reports/abos?monat=2020-01&zeitraum=1M&darstellung=bankkosten&ansicht=saved-id&exakt=true&projektUngueltig=true',
   );
   await expect(page.getByTestId('bank-costs-report')).toHaveText(bankBody, { useInnerText: true });
-  await expect(page).toHaveTitle(/^Verträge und Kosten · /);
+  await expect(page).toHaveTitle(
+    redesign ? /^Kosten und Steuern · / : /^Vertr\u00e4ge und Kosten · /,
+  );
   if (info.project.name !== 'desktop') {
-    await expect(page.locator('.m-title-text')).toHaveText('Verträge und Kosten');
+    await expect(page.locator('.m-title-text')).toHaveText(
+      redesign ? 'Kosten und Steuern' : 'Vertr\u00e4ge und Kosten',
+    );
   }
   await revealReportDetail(page);
   await expect(page.getByTestId('report-verdict')).toHaveText(verdict, { useInnerText: true });
@@ -214,15 +223,38 @@ test('Verträge und Kosten retains separate source periods, subtotal coverage an
     'nicht die vollständige Gesamtbelastung',
   );
   await expect(page.getByTestId('bc-coverage')).toContainText('02.10.2026: 1');
+  if (redesign) {
+    const selector = page.getByRole('combobox', {
+      name: 'Darstellung von Kosten, Steuern und Erträgen',
+      exact: true,
+    });
+    await selector.selectOption('gebuehren');
+    await expect(page).toHaveURL(/\/reports\/psteuern\?/);
+    await expect(page.getByTestId('bank-costs-report')).toHaveCount(0);
+    await expect(page.locator('.portfolio-costs-report')).toBeVisible();
+    await selector.selectOption('bankkosten');
+    await expect(page.getByTestId('bank-costs-report')).toHaveText(bankBody, {
+      useInnerText: true,
+    });
+    expect(new URL(page.url()).searchParams.get('monat')).toBe('2020-01');
+    expect(new URL(page.url()).searchParams.get('zeitraum')).toBe('1M');
+  }
   await inspect(page, info, 'bank-costs');
   await page.reload();
   await expect(page.getByTestId('bank-costs-report')).toHaveText(bankBody, { useInnerText: true });
-  await chooseBudgetCostInflationView(
-    page,
-    'Ansicht von Verträgen und Kosten',
-    'vertraege',
-    'Verträge',
-  );
+  if (redesign) {
+    const target = new URL(page.url());
+    target.pathname = '/reports/abos';
+    target.searchParams.set('darstellung', 'vertraege');
+    await page.goto(target.href);
+  } else {
+    await chooseBudgetCostInflationView(
+      page,
+      'Ansicht von Verträgen und Kosten',
+      'vertraege',
+      'Verträge',
+    );
+  }
   await expect(page.getByTestId('contracts-report')).toHaveText(contractBody, {
     useInnerText: true,
   });
@@ -246,20 +278,30 @@ test('Verträge und Kosten retains separate source periods, subtotal coverage an
   await privacy(page, true);
   await expect(page.getByTestId('bc-total')).toHaveText('••• €');
   await masked(page, 'bank-costs-report', /6[,.]91/, verdict);
-  await chooseBudgetCostInflationView(
-    page,
-    'Ansicht von Verträgen und Kosten',
-    'vertraege',
-    'Verträge',
-  );
+  if (redesign) {
+    const target = new URL(page.url());
+    target.pathname = '/reports/abos';
+    target.searchParams.set('darstellung', 'vertraege');
+    await page.goto(target.href);
+  } else {
+    await chooseBudgetCostInflationView(
+      page,
+      'Ansicht von Verträgen und Kosten',
+      'vertraege',
+      'Verträge',
+    );
+  }
   // This fixture has no contracts; only the bank reader's known money is asserted for privacy.
   await expect(page.getByTestId('contracts-report')).toContainText('Noch keine Verträge');
-  await chooseBudgetCostInflationView(
-    page,
-    'Ansicht von Verträgen und Kosten',
-    'bankkosten',
-    'Bank- und Zinskosten',
-  );
+  if (redesign) await page.goto('/reports/kosten');
+  else {
+    await chooseBudgetCostInflationView(
+      page,
+      'Ansicht von Verträgen und Kosten',
+      'bankkosten',
+      'Bank- und Zinskosten',
+    );
+  }
   await expect(page.getByTestId('bc-total')).toHaveText('••• €');
   await masked(page, 'bank-costs-report', /6[,.]91/, verdict);
   await privacy(page, false);

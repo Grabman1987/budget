@@ -183,7 +183,7 @@ export function PortfolioDepotComparisonBody({ data }: { data: DepotComparison }
           {longDay(to)}, getrennt vom gewählten Renditezeitraum. Umrechnung mit gespeichertem
           Tageskurs oder letztem Kurs davor, pro Betrag auf Cent gerundet. TER wird je Depot nicht
           geschätzt; die vollständige Kosten-/TER-Auswertung steht unter{' '}
-          <AppLink to="/reports/psteuern">Kosten, Steuern, Erträge</AppLink>.
+          <AppLink to="/reports/psteuern">Kosten und Steuern</AppLink>.
         </p>
       </details>
       <p className="vnote">

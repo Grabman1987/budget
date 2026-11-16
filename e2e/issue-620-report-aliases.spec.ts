@@ -42,6 +42,19 @@ const landings = [
 
 async function selectedView(page: Page, target: string, view: string) {
   if (!view) return;
+  if ((await redesignReportsOn(page)) && target === '/reports/abos') {
+    await expect(page.getByTestId('contracts-report')).toBeVisible();
+    await expect(
+      page.getByRole('combobox', { name: 'Ansicht von Vertr\u00e4gen und Kosten' }),
+    ).toHaveCount(0);
+    return;
+  }
+  if ((await redesignReportsOn(page)) && target === '/reports/psteuern') {
+    await expect(
+      page.getByRole('combobox', { name: 'Darstellung von Kosten, Steuern und Ertr\u00e4gen' }),
+    ).toHaveValue('bankkosten');
+    return;
+  }
   if (
     (await redesignReportsOn(page)) &&
     ['/reports/einnahmen-ausgaben', '/reports/ausgaben', '/reports/abos'].includes(target)
@@ -83,13 +96,15 @@ for (const [slug, target, view] of landings) {
     const redesign = await redesignReportsOn(page);
     const finanzcheck = slug === 'finanzcheck' && redesign;
     const expectedTarget =
-      redesign && slug === 'kontakte'
-        ? '/reports/kontakte'
-        : redesign && ['pallocation', 'peinzahlungen', 'prendite'].includes(slug)
-          ? '/reports/vermoegen-schulden'
-          : finanzcheck
-            ? '/reports/onepager'
-            : target;
+      redesign && slug === 'kosten'
+        ? '/reports/psteuern'
+        : redesign && slug === 'kontakte'
+          ? '/reports/kontakte'
+          : redesign && ['pallocation', 'peinzahlungen', 'prendite'].includes(slug)
+            ? '/reports/vermoegen-schulden'
+            : finanzcheck
+              ? '/reports/onepager'
+              : target;
     await expect.poll(() => new URL(page.url()).pathname).toBe(expectedTarget);
     if (finanzcheck) {
       expect(new URL(page.url()).searchParams.get('darstellung')).toBe('finanzcheck');

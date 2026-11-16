@@ -6,7 +6,7 @@ Historical references follow `docs/FEATURES.md` (positions 1.1–5.6). The hub r
 
 **Shared table continuation (#1161):** RP-05b, the retained RP-07a year grid, RP-08 monthly grid and RP-09 full-history grid use the same register table shell as RP-14. Read the named table, scroll within its region (keyboard or phone), and keep the header and nested row hierarchy visible. Acceptance: aligned tabular numbers, register typography/density, unchanged drilldowns, CSV and masked amounts, with print showing the full table. Status: layout foundation implemented for review; each existing grid retains its current row heat/sign policy pending the later report-group slices. RP-07b's separate category-list table and other report tables remain outside this slice.
 
-**Aufteilungen:** RP-05, RP-07, RP-11, RP-12, RP-13, RP-15, RP-16, RP-17, RP-18, RP-21 und RP-23 sind in a/b(/c) geteilt, weil sie unabhängige Berichte bündeln. Namen folgen dem Katalog der App: RP-05b „Einnahmen und Cashflow“ (früher „Einnahmen und Ausgaben“), RP-11a (retired forecast-accuracy report; redirects to Budgettreue), RP-11b „Budgettreue“, RP-13a „Verträge und Kosten“, RP-18a „Portfolio-Auswertung“.
+**Aufteilungen:** RP-05, RP-07, RP-11, RP-12, RP-13, RP-15, RP-16, RP-17, RP-18, RP-21 und RP-23 sind in a/b(/c) geteilt, weil sie unabhängige Berichte bündeln. Namen folgen dem Katalog der App: RP-05b „Einnahmen und Cashflow“ (früher „Einnahmen und Ausgaben“), RP-11a (retired forecast-accuracy report; redirects to Budgettreue), RP-11b „Budgettreue“, RP-13a „Verträge und Abos“, RP-18a „Portfolio-Auswertung“.
 
 ### RP-Header – Compact report header and subreports
 - **Story:** As a user, I want to switch reports through one shared menu and find the figure controls immediately below it.
@@ -293,11 +293,11 @@ Historical references follow `docs/FEATURES.md` (positions 1.1–5.6). The hub r
   - Randfall: Ausgaben ohne Kategorie und Überweisungen sind bewusst nicht enthalten (Hinweis im Bericht).
 - **Status:** live · **Verweis:** 2.5
 
-### RP-13a – Verträge und Kosten
+### RP-13a – Verträge und Abos
 - **Story:** Als Nutzer möchte ich meine Verträge und Abos mit Preis und Preisverlauf sehen, damit ich Preiserhöhungen bemerke und überlege, was ich kündigen kann.
 - **Ausgangslage:** Wiederkehrende Zahlungen sind unter Plan › Zahlungen gepflegt und mit Buchungen verknüpft.
 - **Ablauf:**
-  1. Reports › Verträge und Kosten öffnen.
+  1. Reports › Verträge und Abos öffnen.
   2. „Gebunden je Monat“ (Fixkosten plus periodische Zahlungen geteilt durch 12) mit „Monatsbindung und Preisverlauf“ lesen.
   3. „Preis prüfen“ nennt erhöhte Preise; „Alle Verträge und Abos“ zeigt „Letzte Preisänderung“.
   4. „Fremdwährung“ zeigt Verträge in anderer Währung; „Wiederkehrende Zahlungen pflegen“ führt zu Plan › Zahlungen.
@@ -306,7 +306,9 @@ Historical references follow `docs/FEATURES.md` (positions 1.1–5.6). The hub r
   - Die Monatsbindung entspricht der Summe der Beträge in Plan › Zahlungen (geteilt durch Intervall).
   - Preise stammen aus verknüpften Buchungen und sind als abgeleitet markiert.
   - Randfall: Ohne Verträge „Noch keine Verträge“; Zahlungen mit Enddatum zählen nicht zur Bindung; Kündigungsfristen gibt es nicht (nicht im Datenmodell).
-- **Status:** live · **Verweis:** 2.3
+- **Status:** implementation in review (#1160 navigation slice); owner acceptance pending · **Verweis:** 2.3
+
+- **Navigation acceptance (#1160):** No bank-cost selector remains in contracts. The former `/reports/abos?darstellung=bankkosten` bookmark redirects to `/reports/psteuern?darstellung=bankkosten`, preserving query context and hash.
 
 ### RP-13b – Persönliche Inflation
 - **Story:** Als Nutzer möchte ich meine persönliche Inflation gegen den Verbraucherpreisindex sehen, damit ich weiß, ob meine Kosten schneller steigen als die allgemeine Teuerung und woran es liegt.
@@ -327,7 +329,7 @@ Historical references follow `docs/FEATURES.md` (positions 1.1–5.6). The hub r
 - **Story:** Als Nutzer möchte ich sehen, was mich das Geld selbst kostet (Zinsen, Gebühren, Dispo), damit ich einen teuren Kredit, ein teures Konto oder Depot ablöse.
 - **Ausgangslage:** Mindestens ein geschlossener Monat; Kredite haben gepflegte Konditionen.
 - **Ablauf:**
-  1. Reports › Bank- und Zinskosten öffnen.
+  1. Reports › Portfolio › Kosten und Steuern öffnen; Darstellung „Bank- und Zinskosten“ wählen.
   2. „Kosten nach Art“ und „Maßkette erfasste Bank- und Zinskosten“ lesen (Kreditzinsen, Bank- und Kartengebühren, Handelsgebühren, Fremdwährung, Überziehung).
   3. „Haben- und Dividenden-Erträge“ separat ansehen; „Kredit- und Dispolinien · Originalwährungen“ prüfen.
   4. „Quellen und Abgrenzung“ öffnen.
@@ -340,7 +342,10 @@ Historical references follow `docs/FEATURES.md` (positions 1.1–5.6). The hub r
   - Positive amounts and changes have no plus prefix; negative values retain their minus. Historical costs and changes use neutral ink; higher expenses are never coloured green.
   - “Beträge verbergen” still masks all money, including native currency; source links and legacy report addresses remain available.
   - Randfall: Ohne gebuchte Zinsen dienen gespeicherte Kreditkonditionen als markierte Schätzung; Spreads und TER ohne Daten sind nicht enthalten.
-- **Status:** existing report live; shared-table slice implemented for review (#1161), owner acceptance pending · **Verweis:** 2.6
+- **Status:** implementation in review (#1160 navigation slice); owner acceptance pending · **Verweis:** 2.6
+
+- **Navigation acceptance (#1160):** Bank costs share the Portfolio report and selector. `/reports/kosten` and former contract bank-cost bookmarks retain the bank reader; source amounts, estimates, privacy, reload and Back remain intact.
+- **Remaining (#1160):** One deduplicated annual total across bank costs, broker taxes and TER, and a cost ratio against portfolio value. Current bank and portfolio readers retain their distinct source-defined periods; their subtotals must not be added together.
 
 ### RP-15a – Liquiditätsprognose
 - **Story:** Als Nutzer möchte ich sehen, ob das Geld auf den Budget-Konten bis zu 12 Monate reicht, auch mit geplanten Ereignissen, damit ich rechtzeitig umschichte oder Zahlungen verschiebe.
@@ -495,12 +500,12 @@ Historical references follow `docs/FEATURES.md` (positions 1.1–5.6). The hub r
 - **Status:** live · **Verweis:** 4.4
   Fehlt noch: Abnahme gegen Portfolio Performance.
 
-### RP-19 – Kosten, Steuern, Erträge
+### RP-19 – Kosten und Steuern
 - **Story:** Als Nutzer möchte ich sehen, was von den Erträgen nach Gebühren und Steuern bleibt, damit ich teure Produkte erkenne und die Nettorendite kenne.
 - **Ausgangslage:** Dividenden, Zinsen, Gebühren und Steuern sind erfasst.
 - **Ablauf:**
-  1. Reports › Kosten, Steuern, Erträge öffnen.
-  2. Mit „Darstellung“ zwischen „Gebühren und Steuern“, „Erträge“ und „Kosten im Verlauf“ wechseln.
+  1. Reports › Portfolio › Kosten und Steuern öffnen.
+  2. Mit „Darstellung“ zwischen „Bank- und Zinskosten“, „Gebühren und Steuern“, „Erträge“ und „Kosten im Verlauf“ wechseln.
   3. „Erträge nach Kosten und Steuern, 12 Monate“ lesen: brutto, „Einbehalt laut Broker, wie gebucht“, „Gebühren und TER“, „Netto nach Steuern und Kosten“.
   4. Stückliste je Produkt ansehen; CSV je Währung.
 - **Ergebnis:** Ich kenne Nettoertrag und Kosten je Produkt.
@@ -508,7 +513,10 @@ Historical references follow `docs/FEATURES.md` (positions 1.1–5.6). The hub r
   - Ertrag minus Steuer minus Gebühren ergibt Netto; die Summe der Produkte stimmt.
   - Steuern erscheinen wie gebucht; es gibt keine zweite Berechnung (illustrative latente KESt ist als Beispiel gekennzeichnet).
   - Randfall: Nicht erfasste Spreads fehlen und sind benannt.
-- **Status:** live · **Verweis:** 4.5
+- **Status:** implementation in review (#1160 navigation slice); owner acceptance pending · **Verweis:** 4.5
+
+- **Navigation acceptance (#1160):** Bank costs share the Portfolio report and selector. `/reports/kosten` and former contract bank-cost bookmarks retain the bank reader; source amounts, estimates, privacy, reload and Back remain intact.
+- **Remaining (#1160):** One deduplicated annual total across bank costs, broker taxes and TER, and a cost ratio against portfolio value. Current bank and portfolio readers retain their distinct source-defined periods; their subtotals must not be added together.
 
 ### RP-20 – Jahresreport
 - **Extension:** Owner decision #1118 extends this report; delivery scope and remaining acceptance are tracked in RP-20a below.
