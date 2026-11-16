@@ -1,5 +1,7 @@
 # Budget feature coverage: YNAB and Portfolio Performance replacement
 
+#1157 slice (2026-11-16): redesign ON removes the duplicate debt-history and financial-freedom choices from the wealth report. Old report bookmarks redirect to the existing Verm?gen pages with URL context retained; the complete freedom reader/editor stays available there. Calculations and persistence are unchanged; OFF still compiles. Review/CI/owner acceptance pending. Remaining: Bilanz/Verlauf/Gespart gegen Markt consolidation, portfolio menu reports and combined Wertentwicklung.
+
 2026-10-15 reading guide: [Traceability](product/traceability.md) maps all 50 Y/I
 feature IDs to current contracts, source/test starting points and acceptance
 examples. [Report contracts](product/report-contracts.md) covers the historical 34

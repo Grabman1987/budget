@@ -46,9 +46,5 @@ test('flagged overview separates total wealth, signed basis, chart and retained 
   await expect(page.getByTestId('nw-figure')).toBeVisible();
   await page.goBack();
   await page.getByRole('link', { name: 'Report →', exact: true }).click();
-  await expect(page).toHaveURL(
-    (url) =>
-      url.pathname === '/reports/vermoegen-schulden' &&
-      url.searchParams.get('darstellung') === 'freiheit',
-  );
+  await expect(page).toHaveURL((url) => url.pathname === '/vermoegen/freiheit');
 });

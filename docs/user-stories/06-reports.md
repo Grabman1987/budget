@@ -385,13 +385,14 @@ Historical references follow `docs/FEATURES.md` (positions 1.1–5.6). The hub r
   1. Reports › Vermögen & Schulden, „Zeitraum“ wählen (Standard Alles).
   2. Kopfzahlen Nettovermögen, Vermögenswerte, Schulden und Veränderung lesen; Balken je Monatsende, Linie Nettovermögen.
   3. Mit `?monat=` bzw. einem Monat „Monatsenden“ die Konten dieses Monats öffnen.
-  4. „Schulden nach Konto“ vergleichen.
+  4. „Schulden nach Konto“ vergleichen. Detailed debt planning and financial freedom open under Vermögen; neither is a separate wealth-report view.
 - **Ergebnis:** Ich kenne Vermögen, Schulden und Veränderung je Monat.
 - **Abnahmekriterien:**
   - Endwert und Anfangswert entsprechen Vermögen › Nettovermögen.
   - Ein Konto zählt als Vermögen, solange es positiv ist, und als Schuld, solange es negativ ist.
   - Randfall: Monate mit geschätzten Kursen tragen „≈“; die Monatstabelle ist die lesbare Alternative am Handy.
-- **Status:** live · **Verweis:** 3.6
+- **Acceptance addition (#1157):** In redesign ON, old `darstellung=schulden` and `darstellung=freiheit` report bookmarks redirect to `/vermoegen/schulden` and `/vermoegen/freiheit`, preserving period, month and fragment through reload. Existing figures, goal edits, privacy and Undo remain unchanged.
+- **Status:** existing report live; duplicate-view removal implemented for review, CI and owner acceptance pending (#1157). Wealth-view consolidation and portfolio menu/value-development work remain open. · **Verweis:** 3.6
 
 ### RP-17a – Depots im Vergleich
 - **Story:** Als Nutzer möchte ich meine Depots nebeneinander vergleichen, damit ich erkenne, welcher Broker oder welches Konto am besten läuft.

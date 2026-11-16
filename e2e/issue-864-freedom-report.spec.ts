@@ -15,11 +15,12 @@ test('freedom report retains assumptions, current sources, actuals and projectio
     return;
   }
   const view = (await (await page.request.get('/api/wealth/freedom')).json()) as FreedomView;
+  await expect(page).toHaveURL((url) => url.pathname === '/vermoegen/freiheit');
   await expect(
     page.getByRole('combobox', { name: 'Darstellung des Vermögensreports' }),
-  ).toHaveValue('freiheit');
-  await expect(page.getByTestId('report-frame-result')).toHaveText(
-    view.progressBp === null ? '—' : formatPercent(view.progressBp),
+  ).toHaveCount(0);
+  await expect(page.getByTestId('freedom-figure')).toHaveText(
+    view.progressBp === null ? '— %' : formatPercent(view.progressBp),
   );
   await expect(page.getByRole('heading', { name: 'Investiert: Quellkonten' })).toBeVisible();
   const saving = page.getByLabel('Sparrate pro Monat', { exact: true });
@@ -55,7 +56,6 @@ test('freedom report retains assumptions, current sources, actuals and projectio
       });
   }
   await page.reload();
-  await expect(
-    page.getByRole('combobox', { name: 'Darstellung des Vermögensreports' }),
-  ).toHaveValue('freiheit');
+  await expect(page).toHaveURL((url) => url.pathname === '/vermoegen/freiheit');
+  await expect(page.getByTestId('freedom-chart')).toBeVisible();
 });

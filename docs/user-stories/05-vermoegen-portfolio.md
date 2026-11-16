@@ -258,7 +258,7 @@ Geteilt: V-06 und V-09 sind aufgeteilt (V-06a/V-06b, V-09a/V-09b). V-17 und V-18
 - **Story:** Als Nutzer möchte ich die Freiheitszahl (R16) mit Soll-Pfad sehen, damit ich erkenne, ob ich auf Kurs zum Zieljahr bin und welche Sparrate dafür nötig ist.
 - **Ausgangslage:** Mindestens ein abgeschlossener Budgetmonat (Ausgabenbasis) und Investments mit Wert.
 - **Ablauf:**
-  1. Vermögen › Freiheit öffnen: „Freiheitszahl“ zeigt Prozent, darunter „Maßkette Freiheitszahl“ (Investiert ÷ 25 Jahresausgaben).
+  1. Open Vermögen › Freiheit at `/vermoegen/freiheit`: „Freiheitszahl“ shows progress and „Maßkette Freiheitszahl“. The old `darstellung=freiheit` wealth-report bookmark redirects here in redesign ON.
   2. Unter „Persönliches Ziel“ bei „Ziel bis“ „Jahr (Jänner)“ oder „Alter im Kalenderjahr“ wählen und das Ziel speichern; „Nötige Sparrate“ erscheint.
   3. Unter „Annahmen“ „Sparrate pro Monat“ und „Rendite nach Inflation“ eintragen; „Ziel erreicht“ nennt den Monat.
   4. „Weg zum Ziel“ zeigt den Ist-Verlauf seit Oktober 2023 und die Prognose. Die Kontenauswahl steht unter „Investiert“.
@@ -269,6 +269,7 @@ Geteilt: V-06 und V-09 sind aufgeteilt (V-06a/V-06b, V-09a/V-09b). V-17 und V-18
   - Ein Zieländerung lässt sich rückgängig machen („Zieländerung rückgängig gemacht“).
   - Randfall: Ohne abgeschlossene Monate steht „Noch keine abgeschlossenen Budgetmonate. Die Ausgabenbasis fehlt.“; ohne Sparrate beginnt die Prognose nicht.
   - Randfall: Erreicht die Prognose das Ziel nicht, heißt es „Nicht innerhalb von 60 Jahren“.
+- **Navigation acceptance (#1157):** Freedom remains under Vermögen with its area menu, original source accounts, privacy, goal editing and grouped Undo; no duplicate report view. Navigation implemented for review; CI and owner acceptance pending.
 - **Status:** teilweise · **Verweis:** I20
   Fehlt noch: private Abnahme, gespeicherte Annahmen.
 

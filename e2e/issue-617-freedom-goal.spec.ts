@@ -1,4 +1,3 @@
-import { redesignReportsOn } from './report-frame';
 import { withShellControls } from './shell-actions';
 import AxeBuilder from '@axe-core/playwright';
 import { changeFreedomGoal, openDatabase, saveProfile } from '@budget/db';
@@ -36,8 +35,6 @@ const goal = async (page: Page) =>
 
 async function openFreedom(page: Page) {
   await page.goto('/vermoegen/freiheit');
-  if (await redesignReportsOn(page))
-    await page.goto('/reports/vermoegen-schulden?darstellung=freiheit');
 }
 
 test('stored year and age survive reload, audited undo/redo and a real second-context conflict', async ({
