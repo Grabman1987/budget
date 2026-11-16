@@ -372,6 +372,7 @@ export const previewReconciliation = (
   ).then((r) => r.preview);
 
 export interface ReconcileRequest {
+  note?: string;
   date: string;
   statementBalanceCents: number;
   removeBookingIds?: string[];

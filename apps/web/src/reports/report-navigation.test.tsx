@@ -25,7 +25,6 @@ const aliases = [
   ['cashflow', 'einnahmen-ausgaben'],
   ['projekte', 'einnahmen-ausgaben'],
   ['empfaenger', 'ausgaben'],
-  ['planungstreue', 'budgettreue'],
   ['kosten', 'abos'],
   ['vermoegen', 'vermoegen-schulden'],
   ['gesamtuebersicht', 'vermoegen-schulden'],

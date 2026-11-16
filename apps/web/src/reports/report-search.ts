@@ -71,7 +71,6 @@ export const validateReportSearch = (search: Record<string, unknown>) => ({
     'verlauf',
     'gesamt',
     'budget',
-    'planungstreue',
     'vertraege',
     'bankkosten',
     ...(REDESIGN_ENABLED
@@ -103,7 +102,6 @@ export const validateReportSearch = (search: Record<string, unknown>) => ({
         | 'verlauf'
         | 'gesamt'
         | 'budget'
-        | 'planungstreue'
         | 'vertraege'
         | 'bankkosten'
         | 'eigene'

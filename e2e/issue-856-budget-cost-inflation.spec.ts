@@ -8,7 +8,6 @@ import {
   openDatabase,
   schema,
 } from '@budget/db';
-import { formatPercent } from '@budget/domain';
 import AxeBuilder from '@axe-core/playwright';
 import { cents, formatEuro } from '@budget/domain';
 import { mkdirSync } from 'node:fs';
@@ -26,14 +25,6 @@ const cases = [
     body: 'budget-adherence',
     primary: '.r11-budget-total',
     old: 'ba-over',
-  },
-  {
-    name: 'accuracy',
-    path: '/reports/budgettreue?monat=2026-08&darstellung=planungstreue',
-    api: '/api/reports/planning-accuracy?month=2026-08',
-    body: 'planning-accuracy',
-    primary: '#accuracy-months',
-    old: 'planning-accuracy',
   },
   {
     name: 'contracts',
@@ -95,8 +86,6 @@ for (const scene of cases)
         'nicht die vollständige Gesamtbelastung',
       );
     }
-    if (scene.name === 'accuracy' && data.summary.count < 2)
-      await expect(page.getByTestId('report-frame-result')).toHaveText('—');
     if (scene.name === 'inflation') {
       const comparison = data.latestComparison;
       expect(comparison).not.toBeNull();
@@ -112,7 +101,7 @@ for (const scene of cases)
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
         true,
       );
-      if (info.project.name !== 'webkit-iphone' && scene.name !== 'accuracy') {
+      if (info.project.name !== 'webkit-iphone') {
         mkdirSync(folder, { recursive: true });
         await page.screenshot({
           path: join(folder, `r11-${scene.name}-${info.project.name}-${theme}.png`),
@@ -228,7 +217,7 @@ test('856 report loading, failed read, retry and existing offline fallback keep 
 
 isolatedTest(
   '856 populated forecast accuracy uses observed snapshots, literal actuals and its exact six-month window',
-  async ({ page, request, isolatedLedger }, info) => {
+  async ({ page, request, isolatedLedger }) => {
     const opened = openDatabase(isolatedLedger.databasePath);
     const actor = { actor: 'synthetic-report-856' };
     try {
@@ -303,36 +292,7 @@ isolatedTest(
     });
     expect(data.categories[0]).toMatchObject({ categoryId: 'r11-category', actualCents: 28012 });
     await page.goto('/reports/budgettreue?monat=2026-09&darstellung=planungstreue');
-    await expect(
-      page.getByRole('group', { name: 'Monatliche Abweichung in Prozent', exact: true }),
-    ).toBeVisible();
-    await expect(page.locator('.accuracy-bar-column')).toHaveCount(6);
-    const on = await redesignReportsOn(page);
-    if (!on) {
-      await expect(page.getByRole('heading', { name: /^Trefferquote 6 Monate:/ })).toBeVisible();
-      return;
-    }
-    await expect(page.getByTestId('report-frame-result')).toHaveText(
-      formatPercent(data.summary.meanAbsoluteBp),
-    );
-    await expect(page.getByRole('row', { name: /^April 2026/ })).toContainText('300,02 €');
-    const folder = 'docs/evidence/redesign-reports-20261103-a';
-    for (const theme of ['light', 'dark']) {
-      await page.evaluate((value) => (document.documentElement.dataset['theme'] = value), theme);
-      expect((await new AxeBuilder({ page }).include('main').analyze()).violations).toEqual([]);
-      if (info.project.name !== 'webkit-iphone') {
-        mkdirSync(folder, { recursive: true });
-        await page.screenshot({
-          path: join(folder, `r11-accuracy-${info.project.name}-${theme}.png`),
-          fullPage: true,
-        });
-      }
-    }
-    await page.setViewportSize({ width: 320, height: 844 });
-    for (const chart of await page.locator('.accuracy-bars > .chart-interactive').all())
-      expect((await chart.boundingBox())!.width).toBeGreaterThanOrEqual(44);
-    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
-      true,
-    );
+    await expect(page.getByTestId('budget-adherence')).toBeVisible();
+    await expect(page.getByTestId('planning-accuracy')).toHaveCount(0);
   },
 );

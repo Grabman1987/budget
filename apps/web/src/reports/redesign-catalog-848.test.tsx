@@ -1,12 +1,12 @@
 // @vitest-environment jsdom
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { expect, it, vi } from 'vitest';
 import { REPORTS, LIQUIDITY_FORECAST } from '../nav/reports-catalog';
 import {
   HUB_GROUPS,
   HUB_REPORTS,
-  MOVED_REPORTS,
+  recentReports,
   hubReport,
   matchingHubReports,
 } from './report-hub-model';
@@ -58,7 +58,7 @@ it('ON uses the approved identities and 3+2+3+8 groups; every legacy name retain
     for (const id of report.sources)
       expect(adjacentReports(id)).toEqual(adjacentReports(report.id));
   });
-  const moved = new Set<string>(MOVED_REPORTS.map((report) => report.id));
+  const moved = new Set(['liquiditaet', 'vorschau', 'sparziele', 'gesamttabelle', 'planungstreue']);
   for (const source of [LIQUIDITY_FORECAST, ...REPORTS]) {
     if (moved.has(source.id)) continue;
     expect(hubReport(source.id), source.id).toBeDefined();
@@ -67,6 +67,11 @@ it('ON uses the approved identities and 3+2+3+8 groups; every legacy name retain
       source.name,
     ).toContain(hubReport(source.id)!.id);
   }
+  sessionStorage.setItem(
+    'budget.reports.recent.v1',
+    JSON.stringify(['planungstreue', 'gesamttabelle', 'sparziele', 'vorschau', 'liquiditaet']),
+  );
+  expect(recentReports()).toEqual([]);
   const rendered = render(<ReportHub initialGroup="portfolio" />);
   expect(screen.queryByRole('group', { name: 'Berichtsgruppen' })).toBeNull();
   for (const name of ['Alle', 'Berichte', 'Auswertungen', 'Portfolio', 'Einnahmen und Ausgaben'])
@@ -79,12 +84,15 @@ it('ON uses the approved identities and 3+2+3+8 groups; every legacy name retain
   // Unfinished consolidated bodies use their retained source paths, never a synthetic target.
   for (const id of ['finanzcheck', 'pallocation', 'peinzahlungen', 'prendite'])
     expect(rendered.container.querySelector(`a[href="/reports/${id}"]`), id).not.toBeNull();
-  for (const source of MOVED_REPORTS)
-    expect(
-      within(screen.getByRole('navigation', { name: 'Nach Plan verschobene Berichte' }))
-        .getByRole('link', { name: `${source.name} → ${source.destination}` })
-        .getAttribute('href'),
-    ).toBe(`/reports/${source.id}`);
+  expect(screen.queryByRole('navigation', { name: 'Nach Plan verschobene Berichte' })).toBeNull();
+  for (const name of [
+    'Gesamttabelle',
+    'Prognosegenauigkeit',
+    'Jahresvorschau Zahlungen',
+    'Sparziele-Fortschritt',
+    'Liquiditätsprognose',
+  ])
+    expect(screen.queryByRole('link', { name })).toBeNull();
   fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'Rendite und Kennzahlen' } });
   expect(rendered.container.querySelectorAll('.report-hub-list > li')).toHaveLength(1);
   expect(screen.getByRole('link', { name: /Vermögensreport/ }).getAttribute('href')).toBe(

@@ -350,10 +350,6 @@ const probes = {
     await css(p, '[data-testid="projects-report"] .pp-project');
   },
   payees: (p: Page) => id(p, 'payee-total'),
-  accuracy: async (p: Page) =>
-    (await redesignReportsOn(p))
-      ? css(p, '#accuracy-months')
-      : css(p, '[data-testid="planning-accuracy"] section[aria-label="Trefferquote"]'),
   bankCosts: async (p: Page) =>
     (await redesignReportsOn(p)) ? css(p, '[data-testid="bank-costs-chart"]') : id(p, 'bc-total'),
   wealthHistory: (p: Page) => id(p, 'wh-figure'),
@@ -498,13 +494,7 @@ const reportAliases = [
     'projectReport',
   ],
   ['empfaenger', '/reports/ausgaben', 'darstellung=empfaenger', 'Empfänger', 'payees'],
-  [
-    'planungstreue',
-    '/reports/budgettreue',
-    'darstellung=planungstreue',
-    'Planungstreue',
-    'accuracy',
-  ],
+  ['planungstreue', '/reports/budgettreue', 'darstellung=budget', '', 'adherence'],
   ['kosten', '/reports/abos', 'darstellung=bankkosten', 'Bank- und Zinskosten', 'bankCosts'],
   [
     'vermoegen',
@@ -576,30 +566,17 @@ for (const [slug, legacyPath, legacyIntent, view, legacyBody] of reportAliases)
       if (view) {
         if (
           (await redesignReportsOn(page)) &&
-          [
-            '/reports/einnahmen-ausgaben',
-            '/reports/ausgaben',
-            '/reports/budgettreue',
-            '/reports/abos',
-          ].includes(path)
+          ['/reports/einnahmen-ausgaben', '/reports/ausgaben', '/reports/abos'].includes(path)
         ) {
           const label =
-            path === '/reports/budgettreue'
-              ? 'Ansicht der Budgettreue'
-              : path === '/reports/abos'
-                ? 'Ansicht von Verträgen und Kosten'
-                : path === '/reports/ausgaben'
-                  ? 'Ansicht der Ausgabenanalyse'
-                  : 'Ansicht von Einnahmen und Cashflow';
+            path === '/reports/abos'
+              ? 'Ansicht von Verträgen und Kosten'
+              : path === '/reports/ausgaben'
+                ? 'Ansicht der Ausgabenanalyse'
+                : 'Ansicht von Einnahmen und Cashflow';
           await expect(
             page.getByRole('combobox', { name: label, exact: true }).locator('option:checked'),
-          ).toHaveText(
-            view === 'Planungstreue'
-              ? 'Prognosegenauigkeit'
-              : view === 'Plan und Ist'
-                ? 'Budgettreue'
-                : view,
-          );
+          ).toHaveText(view);
         } else if ((await redesignReportsOn(page)) && path === '/reports/explorer') {
           await expect(
             page

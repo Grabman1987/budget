@@ -102,13 +102,6 @@ const ORIGINAL_REPORT_GROUPS: ReadonlyArray<ReportGroup> = [
       'Monatstabelle, Säulen und Nettolinie',
       'period',
     ],
-    [
-      'planungstreue',
-      'Prognosegenauigkeit',
-      'Wie treffsicher ist die Hochrechnung am 15.?',
-      'Monatliche Abweichungsbalken, Prognose/Ist-Tabelle',
-      'month',
-    ],
   ]),
   group('ausgaben', 2, 'Ausgaben und Plan', [
     [
@@ -259,18 +252,24 @@ const ORIGINAL_REPORT_GROUPS: ReadonlyArray<ReportGroup> = [
 const overviewGroup = ORIGINAL_REPORT_GROUPS.find((g) => g.slug === 'ueberblick')!;
 overviewGroup.items = [overviewGroup.items.at(-1)!, ...overviewGroup.items.slice(0, -1)];
 
-/** Keep historical report positions while moving 3.1 to Plan. */
+/** Plan and template readers retain their historical metadata and positions. */
 export const LIQUIDITY_FORECAST = ORIGINAL_REPORT_GROUPS.flatMap((group) => group.items).find(
   (report) => report.id === 'liquiditaet',
 )!;
 export const REPORT_GROUPS: ReadonlyArray<ReportGroup> = ORIGINAL_REPORT_GROUPS.map((group) => ({
   ...group,
-  items: group.items.filter((report) => report.id !== 'liquiditaet'),
+  items: group.items.filter(
+    (report) => !['liquiditaet', 'vorschau', 'sparziele', 'gesamttabelle'].includes(report.id),
+  ),
 }));
 
 export const REPORTS: ReadonlyArray<ReportEntry & { group: ReportGroup }> = REPORT_GROUPS.flatMap(
   (g) => g.items.map((item) => ({ ...item, group: g })),
 );
 
-export const findReport = (id: string) => REPORTS.find((r) => r.id === id);
+// Template and Plan readers retain metadata without publishing standalone report entries.
+export const findReport = (id: string) =>
+  ORIGINAL_REPORT_GROUPS.flatMap((g) => g.items.map((item) => ({ ...item, group: g }))).find(
+    (r) => r.id === id,
+  );
 export const findReportGroup = (slug: string) => REPORT_GROUPS.find((g) => g.slug === slug);

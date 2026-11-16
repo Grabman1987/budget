@@ -1,7 +1,7 @@
 import { expect, it } from 'vitest';
 import { validateReportSearch } from './report-search';
 
-it.each(['budget', 'planungstreue', 'vertraege', 'bankkosten'])(
+it.each(['budget', 'vertraege', 'bankkosten'])(
   'retains %s independently of saved views, exact windows and project identity',
   (darstellung) => {
     for (const exakt of [true, 'true']) {
@@ -21,7 +21,7 @@ it.each(['budget', 'planungstreue', 'vertraege', 'bankkosten'])(
   },
 );
 
-it('keeps existing variants and rejects an unknown representation', () => {
+it('keeps existing variants and rejects the retired forecast representation', () => {
   for (const darstellung of [
     'income',
     'overview',
@@ -34,7 +34,7 @@ it('keeps existing variants and rejects an unknown representation', () => {
   ]) {
     expect(validateReportSearch({ darstellung }).darstellung).toBe(darstellung);
   }
-  expect(validateReportSearch({ darstellung: 'unknown', exakt: 'false' })).toMatchObject({
+  expect(validateReportSearch({ darstellung: 'planungstreue', exakt: 'false' })).toMatchObject({
     darstellung: undefined,
     exakt: undefined,
   });

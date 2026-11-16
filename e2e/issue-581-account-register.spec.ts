@@ -226,6 +226,8 @@ test('inline writes keep exact cents, undo and reconciled locks', async ({
   await expect(row.getByRole('button', { name: /^Kategorie ändern/ })).toHaveCount(0);
   await expect(row.getByRole('img', { name: 'geprüft', exact: true })).toBeVisible();
   await row.getByRole('button', { name: /^Betrag ändern/ }).click();
+  if (await redesignLoaded(page))
+    await page.getByRole('button', { name: 'Bearbeitung freigeben', exact: true }).click();
   await expect(page.getByRole('dialog', { name: 'Buchung bearbeiten' })).toBeVisible();
   await expect(row.getByLabel('Betrag bearbeiten')).toHaveCount(0);
   expect(await read()).toMatchObject({ amountCents: -1234, status: 'reconciled' });

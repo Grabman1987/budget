@@ -57,6 +57,77 @@ function categoryTotal(id: string) {
     .reduce((s, r) => s + r.amount, 0);
 }
 
+it.each(['2026-09-01', '2026-09-04'])(
+  'preserves recorded allocations when inserting an outlay on %s',
+  (date) => {
+    const first = outlay('essen', 1001, '2026-09-01');
+    receipt(1001, '2026-09-02');
+    receipt(601, '2026-09-03');
+    const later = outlay('reise', 1001, '2026-09-05');
+    const before = statement();
+    const moneyBefore = cash();
+    const added = outlay('essen', 701, date);
+    const after = statement();
+    expect(after.receipts).toEqual(before.receipts);
+    expect(after.creditUses).toEqual(before.creditUses);
+    expect(after.outlays.find((o) => o.splitId === first.id)?.remainingCents).toBe(0);
+    expect(after.outlays.find((o) => o.splitId === later.id)?.remainingCents).toBe(400);
+    expect(after.outlays.find((o) => o.splitId === added.id)?.remainingCents).toBe(701);
+    expect(after.balanceCents).toBe(1101);
+    expect(after.creditCents).toBe(0);
+    expect(cash().balance).toBe(moneyBefore.balance - 701);
+    expect(cash().wealth.totalCents).toBe(moneyBefore.wealth.totalCents - 701);
+  },
+);
+
+it('uses only genuinely free credit and preserves the fixed later use', () => {
+  receipt(1001, '2026-09-02');
+  const later = outlay('reise', 601, '2026-09-05');
+  const added = outlay('essen', 701, '2026-09-03');
+  expect(statement().outlays.map((o) => [o.splitId, o.remainingCents])).toEqual([
+    [added.id, 301],
+    [later.id, 0],
+  ]);
+  expect(statement().creditCents).toBe(0);
+  expect(statement().balanceCents).toBe(301);
+});
+
+it('moves an open outlay across a receipt without changing recorded allocations', () => {
+  const settled = outlay('essen', 1001, '2026-09-01');
+  receipt(1001, '2026-09-02');
+  const open = outlay('reise', 701, '2026-09-03');
+  const before = statement();
+  updateBooking(opened.db, open.bookingId, { date: '2026-08-31' }, testCtx);
+  expect(statement().receipts).toEqual(before.receipts);
+  expect(statement().outlays.find((o) => o.splitId === settled.id)?.remainingCents).toBe(0);
+  expect(statement().balanceCents).toBe(701);
+  const bytes = opened.sqlite.serialize();
+  expect(() => deleteBooking(opened.db, settled.bookingId, testCtx)).toThrow(/contact settlement/);
+  expect(opened.sqlite.serialize().equals(bytes)).toBe(true);
+});
+
+it('preserves explicitly adjusted credit when inserting an earlier outlay', () => {
+  const paid = receipt(1001, '2026-09-02');
+  const later = outlay('reise', 1001, '2026-09-05');
+  chooseContactCredit(
+    opened.db,
+    'k1',
+    {
+      receiptSplitId: paid.splitId,
+      amountCents: 101,
+      date: today,
+      choice: 'free',
+    },
+    testCtx,
+    today,
+  );
+  const before = statement();
+  const added = outlay('essen', 701, '2026-09-03');
+  expect(statement().creditUses).toEqual(before.creditUses);
+  expect(statement().outlays.find((o) => o.splitId === added.id)?.remainingCents).toBe(701);
+  expect(statement().outlays.find((o) => o.splitId === later.id)?.remainingCents).toBe(101);
+});
+
 it.each(['category', 'gift', 'free'] as const)(
   'releases only the needed latest automatic cents for %s, with grouped Undo/redo',
   (choice) => {
