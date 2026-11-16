@@ -31,7 +31,7 @@ import { ReportTable } from './report-table';
 
 // Historical costs and changes use neutral ink: higher expenses are never a positive signal.
 // Headings name the direction; negative values retain their minus, positives have no prefix.
-const costsQuery = queryOptions({
+export const bankCostsQuery = queryOptions({
   queryKey: [...LEDGER_KEY, 'bank-costs-report'],
   retry: false,
   queryFn: () => request<BankCostsReport>('GET', '/api/reports/spending/costs'),
@@ -46,7 +46,7 @@ export function BankCostsReportPage({
   meta: PageMeta;
   viewControl?: ReactNode;
 }) {
-  const query = useQuery(costsQuery);
+  const query = useQuery(bankCostsQuery);
   const data = !query.isFetching ? query.data : undefined;
   return (
     <PageFrame

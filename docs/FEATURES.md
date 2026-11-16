@@ -207,6 +207,8 @@ related working pages and prototype charts do not make these reports finished.
 Each needs connected data, period controls, the specified chart, booking drill-down,
 consistent totals, desktop/mobile checks and printing where required.
 
+Issue #1160, total view: `darstellung=gesamt` in the cost report adds one annual "Kosten gesamt" figure (`combinedCosts` in the domain: bank and interest costs + TER + broker taxes, trading fees counted once, ratio against the portfolio value). No new calculation of the parts; windows of the two readers stay named. No migration.
+
 Issue #1158, first consolidation slice (review pending): the redesign spending report
 adds `darstellung=kategorien`, reusing the existing monthly category table and trend.
 It defaults to the largest absolute category change, with stable ID ordering for ties

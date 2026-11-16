@@ -368,7 +368,7 @@ Historical references follow `docs/FEATURES.md` (positions 1.1–5.6). The hub r
 - **Status:** implementation in review (#1160 navigation slice); owner acceptance pending · **Verweis:** 2.6
 
 - **Navigation acceptance (#1160):** Bank costs share the Portfolio report and selector. `/reports/kosten` and former contract bank-cost bookmarks retain the bank reader; source amounts, estimates, privacy, reload and Back remain intact.
-- **Remaining (#1160):** One deduplicated annual total across bank costs, broker taxes and TER, and a cost ratio against portfolio value. Current bank and portfolio readers retain their distinct source-defined periods; their subtotals must not be added together.
+- **Total view (#1160):** `darstellung=gesamt` ("Kosten gesamt") shows one annual figure: bank and interest costs (12 closed months, trading fees counted once there) plus TER share plus taxes withheld by the broker (rolling 12 months), with the cost ratio against the portfolio value. The portfolio reader's own trading fees are not added (they are the bank reader's "Depot- / Transaktionsgebühren"). Both source windows are named in the table; TER and modelled interest stay marked as estimates. Remaining: calendar-year split of the total, the hub rename check and custody/income-fee bookings that exist only in the portfolio reader.
 
 ### RP-15a – Liquiditätsprognose
 - **Story:** Als Nutzer möchte ich sehen, ob das Geld auf den Budget-Konten bis zu 12 Monate reicht, auch mit geplanten Ereignissen, damit ich rechtzeitig umschichte oder Zahlungen verschiebe.
@@ -539,7 +539,7 @@ Historical references follow `docs/FEATURES.md` (positions 1.1–5.6). The hub r
 - **Status:** implementation in review (#1160 navigation slice); owner acceptance pending · **Verweis:** 4.5
 
 - **Navigation acceptance (#1160):** Bank costs share the Portfolio report and selector. `/reports/kosten` and former contract bank-cost bookmarks retain the bank reader; source amounts, estimates, privacy, reload and Back remain intact.
-- **Remaining (#1160):** One deduplicated annual total across bank costs, broker taxes and TER, and a cost ratio against portfolio value. Current bank and portfolio readers retain their distinct source-defined periods; their subtotals must not be added together.
+- **Total view (#1160):** `darstellung=gesamt` ("Kosten gesamt") shows one annual figure: bank and interest costs (12 closed months, trading fees counted once there) plus TER share plus taxes withheld by the broker (rolling 12 months), with the cost ratio against the portfolio value. The portfolio reader's own trading fees are not added (they are the bank reader's "Depot- / Transaktionsgebühren"). Both source windows are named in the table; TER and modelled interest stay marked as estimates. Remaining: calendar-year split of the total, the hub rename check and custody/income-fee bookings that exist only in the portfolio reader.
 
 ### RP-20 – Jahresreport
 - **Extension:** Owner decision #1118 extends this report; delivery scope and remaining acceptance are tracked in RP-20a below.
