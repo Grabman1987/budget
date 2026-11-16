@@ -28,16 +28,17 @@ Bereich: Konten (`/konten`, `/konten/$id`), Alle Buchungen (`/konten/buchungen`)
   3. Ich tippe den neuen Wert bzw. wähle einen vorhandenen Empfänger und bestätige mit Enter oder verlasse das Feld (Escape verwirft). Eine Kategorie wird bei der Auswahl sofort gespeichert.
   4. Die App speichert und aktualisiert Saldo und Zeile; Status (vorgemerkt/bestätigt/geprüft) und Markierungen bleiben sichtbar.
   5. Über „Status“ filtere ich nach vorgemerkt oder bestätigt.
+  6. I recognize the same status glyph and colour when selecting, hovering or opening a booking.
 - **Ergebnis:** Die Buchung ist geändert; Saldo, Plan und Heute folgen.
 - **Abnahmekriterien:**
   1. Die Inline-Änderung wirkt sofort in der Zeile und im Saldo.
-  2. Statussymbole und Markierungen sind sichtbar.
+  2. Statussymbole und Markierungen sind sichtbar. The confirmed double tick always uses green `--good`; the reconciled lock uses `--ink` (dark blue in light mode, white in dark mode). These roles persist on hover, selected and tinted rows, in capture, review and phone lists. Icons and accessible labels supplement colour; icons reach WCAG AA non-text contrast (3:1). Pending stays unchanged.
   3. Eine geprüfte (gesperrte) Buchung lässt sich nicht still überschreiben; die App erklärt die Sperre.
   4. Ein ungültiger Betrag wird abgelehnt, der alte Wert bleibt.
   5. Auf dem Handy lässt sich die Zeile antippen und bearbeiten.
   6. Kategorie und Empfänger sind bei Splitbuchungen und Umbuchungen nicht inline änderbar; ein Hinweis erklärt den Dialogweg. Geprüfte Buchungen bleiben durch die bestehende Freigabe geschützt.
   7. Jede Änderung ist protokolliert und rückgängig machbar. Eine Empfängeränderung übernimmt keine Standardkategorie und ändert weder Betrag noch Saldo.
-- **Status:** teilweise — bestehendes Register live; Inline-Erweiterung lokal implementiert (#1098). Fehlt noch: Integration, Veröffentlichung und Nutzerabnahme. — **Verweis:** Y02, #1098
+- **Status:** teilweise — bestehendes Register live; Inline-Erweiterung lokal implementiert (#1098). Fehlt noch: Integration, Veröffentlichung und Nutzerabnahme. Status colours #1190 implemented locally; review, CI, publication and owner acceptance pending. — **Verweis:** Y02, #1098, #1190
 
 ### K-03 – Saldenverlauf mit Vorschau
 - **Story:** Als Nutzer möchte ich in einem Konto den Saldoverlauf mit Vorschau auf Geplantes sehen, damit ich künftige Kontostände abschätze und merke, wenn ein Limit berührt wird.

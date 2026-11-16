@@ -2,6 +2,7 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { readFileSync } from 'node:fs';
 import { StatusCell } from './booking-cells';
 
 const flag = vi.hoisted(() => ({ enabled: true }));
@@ -50,5 +51,22 @@ describe('S2 booking status presentation adapter', () => {
     render(<StatusCell status="reconciled" iconOnly />);
     expect(screen.queryByRole('button')).toBeNull();
     expect(screen.getByRole('img', { name: 'geprüft' })).toBeTruthy();
+  });
+});
+
+const statusCss = readFileSync('packages/ui/src/styles/components.css', 'utf8');
+
+describe('shared booking status colours', () => {
+  it.each([
+    ['pending', 'ink-2'],
+    ['confirmed', 'good'],
+    ['reconciled', 'ink'],
+  ] as const)('%s uses its semantic token', (status, token) => {
+    const { container } = render(<StatusCell status={status} iconOnly />);
+    expect(container.querySelector(`svg.booking-status-${status}`)).toBeTruthy();
+    const rule = statusCss.match(
+      new RegExp(`[^{}]*\\.booking-status-${status}[^{}]*\\{([^}]+)\\}`),
+    );
+    expect(rule?.[1]).toContain(`color: var(--${token});`);
   });
 });
