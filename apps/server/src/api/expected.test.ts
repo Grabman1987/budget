@@ -281,3 +281,57 @@ describe('occurrences, refresh, link, unlink, missed', () => {
     expect((await call('GET', '/expected/income?month=2026-13')).status).toBe(400);
   });
 });
+
+it('offers a same-payer income receipt and validates the explicit acknowledgment API', async () => {
+  const created = await call('POST', '/expected', {
+    ...rent,
+    name: 'Test income',
+    kind: 'inflow',
+    categoryId: null,
+    incomeTypeId: INCOME_TYPES.salary.id,
+    dueDay: 31,
+    dateWindowDays: 3,
+    amountCents: 10001,
+  });
+  const id = created.body.payment.id;
+  const receipt = createBooking(
+    db,
+    {
+      accountId: 'giro',
+      date: '2026-03-30',
+      amountCents: 10001,
+      payeeId: 'p1',
+      splits: [{ incomeTypeId: INCOME_TYPES.salary.id, amountCents: 10001 }],
+    },
+    { actor: 'tester' },
+  );
+  expect(
+    (await call('GET', `/expected/${id}/receipt-candidates?dueDate=2026-03-31`)).body.candidates,
+  ).toEqual([{ bookingId: receipt, date: '2026-03-30', amountCents: 10001, currency: 'EUR' }]);
+  expect(
+    (
+      await call('POST', `/expected/${id}/acknowledge-receipt`, {
+        dueDate: 'invalid',
+        bookingId: receipt,
+      })
+    ).status,
+  ).toBe(400);
+  expect(
+    (
+      await call('POST', `/expected/${id}/acknowledge-receipt`, {
+        dueDate: '2026-03-31',
+        bookingId: 'missing',
+      })
+    ).status,
+  ).toBe(409);
+  const result = await call('POST', `/expected/${id}/acknowledge-receipt`, {
+    dueDate: '2026-03-31',
+    bookingId: receipt,
+  });
+  expect(result.status).toBe(200);
+  expect(result.body.occurrence).toMatchObject({ bookingId: receipt, status: 'received' });
+  expect((await call('POST', '/undo', { groupId: result.body.groupId })).status).toBe(200);
+  expect(
+    (await call('GET', `/expected/${id}/receipt-candidates?dueDate=2026-03-31`)).body.candidates,
+  ).toHaveLength(1);
+});
