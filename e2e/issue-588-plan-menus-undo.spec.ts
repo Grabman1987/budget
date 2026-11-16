@@ -178,7 +178,10 @@ test('"Verteilen ▾" actions book like the quick-assign calls and each undo res
   // At 0 € to distribute the assistant is not silently grey.
   await run('Leere füllen');
   await expect(page.getByTestId('to-be-assigned')).toHaveText('0,00 €');
-  await verteilen.click();
+  if (phone) {
+    await verteilen.focus();
+    await page.keyboard.press('Enter');
+  } else await verteilen.click();
   await expect(verteilen).toHaveAttribute('title', 'Nichts zu verteilen');
   await expect(item('Wasserfall-Assistent')).toHaveAttribute('aria-disabled', 'true');
   await expect(item('Wasserfall-Assistent')).toHaveAccessibleDescription('Nichts zu verteilen');
@@ -248,6 +251,10 @@ test('"Überzogene decken" covers from the named source and its undo restores th
     .getByRole('button', { name: 'Überzogene decken', exact: true });
   await expect(cover).toHaveAccessibleDescription('1 überzogen · aus verfügbaren Envelopes');
   await cover.click();
+  const preview = page.getByRole('dialog', { name: 'Überzogene decken · Vorschau' });
+  await expect(preview.getByRole('list')).toContainText('Zu verteilen → Testessen: 50,00 €');
+  await expect(tba).toHaveText('900,00 €');
+  await preview.getByRole('button', { name: 'Deckung anwenden' }).click();
   await expect(toast).toContainText('1 gedeckt, 0 offen · 0,00 € fehlen');
   await expect(row('Testessen').locator('.col-avail .pill')).toHaveText('0,00 €');
   await expect(row('Testessen')).not.toHaveClass(/is-over/);

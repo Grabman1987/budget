@@ -6,7 +6,13 @@ import { ChevronRight } from 'lucide-react';
 import { eur, longDay, nativeCurrency } from '../ledger/format';
 import { ErrorNote, LoadingNote } from '../ledger/states';
 import { monthLabel } from '../nav/month';
-import { incomeQuery, skipOccurrence, type MonthIncomeLine } from './api';
+import {
+  incomeQuery,
+  skipOccurrence,
+  incomeReceiptCandidatesQuery,
+  acknowledgeIncomeReceipt,
+  type MonthIncomeLine,
+} from './api';
 import { useBudgetWrite } from '../budget/use-category-writes';
 import { StatusStamp } from './status-stamp';
 
@@ -131,9 +137,6 @@ export function IncomeBody({
                   <span className="xp-occ-date">
                     <strong>{l.name}</strong>
                     <span className="xp-sub">{longDay(l.dueDate)}</span>
-                    {canClose && l.bookingId === null && l.status !== 'skipped' && (
-                      <AcknowledgeIncome line={l} />
-                    )}
                   </span>
                   <span className="xp-occ-amt">
                     {l.bookingId !== null && l.receivedCents === 0 ? (
@@ -150,6 +153,11 @@ export function IncomeBody({
                     )}
                   </span>
                   <StatusStamp status={l.status} alert={l.status === 'missed'} />
+                  {canClose && l.bookingId === null && l.status !== 'skipped' && (
+                    <div className="xp-occ-act">
+                      <AcknowledgeIncome line={l} />
+                    </div>
+                  )}
                 </li>
               ))}
             </ul>
@@ -191,28 +199,53 @@ export function IncomeBody({
   );
 }
 
-/** Acknowledge receipt without a booking link via the audited single-occurrence action. */
+/** Offer an explicit receipt link alongside acknowledgment without a booking. */
 function AcknowledgeIncome({ line }: { line: MonthIncomeLine }) {
   const write = useBudgetWrite();
+  const candidates = useQuery(incomeReceiptCandidatesQuery(line.paymentId, line.dueDate));
   const [pending, setPending] = useState(false);
   return (
-    <Button
-      size="sm"
-      variant="ghost"
-      disabled={pending}
-      onClick={async () => {
-        setPending(true);
-        try {
-          await write(
-            () => skipOccurrence(line.paymentId, line.dueDate),
-            () => `${line.name}: Bereits erhalten.`,
-          );
-        } finally {
-          setPending(false);
-        }
-      }}
-    >
-      Bereits erhalten
-    </Button>
+    <>
+      {candidates.data?.map((candidate) => (
+        <Button
+          key={candidate.bookingId}
+          size="sm"
+          variant="ghost"
+          disabled={pending}
+          onClick={async () => {
+            setPending(true);
+            try {
+              await write(
+                () => acknowledgeIncomeReceipt(line.paymentId, line.dueDate, candidate.bookingId),
+                () => `${line.name}: Zahlung verknüpft.`,
+              );
+            } finally {
+              setPending(false);
+            }
+          }}
+        >
+          Mit Zahlung vom {longDay(candidate.date)} ·{' '}
+          {nativeCurrency(candidate.amountCents, candidate.currency)} verknüpfen
+        </Button>
+      ))}
+      <Button
+        size="sm"
+        variant="ghost"
+        disabled={pending}
+        onClick={async () => {
+          setPending(true);
+          try {
+            await write(
+              () => skipOccurrence(line.paymentId, line.dueDate),
+              () => `${line.name}: Bereits erhalten.`,
+            );
+          } finally {
+            setPending(false);
+          }
+        }}
+      >
+        Bereits erhalten
+      </Button>
+    </>
   );
 }

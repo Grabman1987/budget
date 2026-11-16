@@ -281,6 +281,7 @@ Geteilt: V-06 und V-09 sind aufgeteilt (V-06a/V-06b, V-09a/V-09b). V-17 und V-18
   2. Die Ursachenansicht nennt erwartet und tatsächlich, Stichtag, Quelle, Instrument-ID, Kurswährung und betroffene Bewegungen.
   3. Bei Krypto erklärt eine nachvollziehbare Bestandsrechnung, ob Zuordnung, fehlende Bewegung oder ein echter Unterschied vorliegt.
   4. Eine Korrektur der Quelle mit Vorschau erneut testen.
+     Bei Währungskonflikten zeigt die Vorschau erwartet und tatsächlich je Quelle. Sie unterscheidet die gemeldete Währung (Yahoo/Ariva) von der Währung in der Quellzuordnung (Cryptocalc); fehlende sichere Belege bleiben sichtbar.
   5. Erst bei erfolgreicher Prüfung schließt die Warnung; „Als erledigt markieren“ täuscht keine Quellreparatur vor.
   Kurswarnungen öffnen über „Warnung erklären“ eine eigene Seite. Diese trennt die gespeicherte Fehlerklasse und das Warnungsdatum von der aktuellen Instrument-Zuordnung, Kurswährung und dem letzten gespeicherten Kurs samt Quelle. Nicht gespeicherte historische Quellwerte bleiben ausdrücklich unbekannt. Die Vorschau prüft alle Quellen mit der aktuellen Zuordnung über die letzten 30 Tage, speichert keine Kurse und schließt keine Warnung. Der bestehende automatische Abruf schließt sie bei Erfolg. Erfasste Bewegungs-IDs sind aufklappbar; eine Quellenkorrektur ist in diesem Schritt noch kein neuer Editor.
 - **Beispiel:** Die Börse meldet 0,50 einer Münze. Die App rechnet aus den erfassten Bewegungen nur 0,48. Die Ansicht zeigt beide Zahlen und die Bewegung, die fehlt (z. B. eine Gebühr von 0,02), damit ich sie nachtragen kann.
@@ -289,12 +290,13 @@ Geteilt: V-06 und V-09 sind aufgeteilt (V-06a/V-06b, V-09a/V-09b). V-17 und V-18
   - Jede Abweichung zeigt Ursache, Stichtag, Quelle, Instrument und betroffene Bewegungen.
   - Ein manuell dokumentierter Kurs löst die Fehlermeldung der automatischen Quelle nicht.
   - Kurswarnungen können über die Oberfläche und den allgemeinen Erledigen-Endpunkt nicht pauschal geschlossen werden; auch eine erfolgreiche Vorschau lässt sie offen.
+  - Währungskonflikte in der Vorschau zeigen erwartete Währung und sicheren Quellbeleg (Antwort oder Zuordnung); fehlende Belege werden nicht aus Fehlertexten geraten. Yahoo-Einheiten wie GBp bleiben im Beleg von GBP unterscheidbar; die bestehende Währungsnormalisierung anderer Quellen bleibt erhalten.
   - Historische Fehlerbelege und aktuelle Vorschauergebnisse sind klar getrennt; Beträge bleiben bei verborgener Betragsanzeige verborgen.
   - Die Bestandsrechnung (Bewegungen) stimmt mit dem Bestand im Instrument überein.
   - Randfall: Viele Krypto-Bewegungen bleiben gruppiert prüfbar; am Handy ist die Ursachenansicht lesbar.
   - Nur Warnungen mit einer Abruf-Fehlerklasse schließen sich nach erfolgreichem Abruf selbst, mit Begründung im Eintrag (#1101, I-01b). Warnungen zu Bestand, fehlenden Bewegungen oder abweichenden Schlusskursen bleiben offen, bis ihre Ursache behoben ist.
 - **Status:** teilweise · **Verweis:** #1081
-  Erster Schritt: Ursachenansicht und schreibfreie Quellvorschau für Kurswarnungen, serverseitige Sperre des pauschalen Abschlusses. Fehlt noch: gespeicherte Fehlerbelege je Quelle einschließlich tatsächlich gelieferter Währung, Editor für Quellkorrekturen, Krypto-Bestandsrechnung mit Zuordnungs-/Bewegungsdiagnose und deren geprüfter Abschluss sowie private Abnahme.
+  Umgesetzt: Ursachenansicht und schreibfreie Quellvorschau für Kurswarnungen, serverseitige Sperre des pauschalen Abschlusses; zweiter Schritt ergänzt sichere Währungsbelege je Vorschauquelle. Fehlt noch: gespeicherte Fehlerbelege je Quelle einschließlich tatsächlich gelieferter Währung, Editor für Quellkorrekturen, Krypto-Bestandsrechnung mit Zuordnungs-/Bewegungsdiagnose und deren geprüfter Abschluss sowie private Abnahme.
 
 ### V-15 – Wertpapierabrechnungen als PDF einlesen
 - **Story:** Als Nutzer möchte ich Wertpapierabrechnungen (Sparplan, Round-up, Kauf/Verkauf) als PDF deterministisch einlesen lassen, damit ich Trades nicht abtippe und Tippfehler bei Stück, Betrag und Gebühren ausgeschlossen sind.

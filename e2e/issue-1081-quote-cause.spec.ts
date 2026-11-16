@@ -60,7 +60,14 @@ test('Konten Prüfen opens a quote cause and tests sources without dismissing th
         currency: 'EUR',
         from: '2026-08-18',
         to: '2026-09-17',
-        attempts: [{ source: 'coingecko', error: 'currency_mismatch', latest: null }],
+        attempts: [
+          {
+            source: 'ariva',
+            error: 'currency_mismatch',
+            latest: null,
+            currencyEvidence: { currency: 'USD', origin: 'response' },
+          },
+        ],
       },
     }),
   );
@@ -78,6 +85,9 @@ test('Konten Prüfen opens a quote cause and tests sources without dismissing th
     'Die Quelle liefert eine andere Kurswährung.',
   );
   await expect(cause.getByRole('status')).toContainText('Warnung bleibt offen');
+  await expect(cause.getByRole('status')).toContainText(
+    'Erwartet: EUR · Von der Quelle gemeldet: USD',
+  );
   await cause.getByText('Betroffene erfasste Bewegungen (1)').click();
   await expect(cause.getByText(/synthetic-movement/)).toBeVisible();
   expect(

@@ -301,3 +301,25 @@ export function eurOf(
   const rate = rates[currency];
   return rate === undefined ? null : toEurCents(cents, rate);
 }
+
+export const incomeReceiptCandidatesQuery = (paymentId: string, dueDate: string) =>
+  queryOptions({
+    queryKey: [...EXPECTED_KEY, 'receipt-candidates', paymentId, dueDate],
+    queryFn: () =>
+      request<{
+        candidates: Array<{
+          bookingId: string;
+          date: string;
+          amountCents: number;
+          currency: string;
+        }>;
+      }>('GET', url(`/${enc(paymentId)}/receipt-candidates${queryString({ dueDate })}`)).then(
+        (r) => r.candidates,
+      ),
+  });
+
+export const acknowledgeIncomeReceipt = (paymentId: string, dueDate: string, bookingId: string) =>
+  request<WriteResult>('POST', url(`/${enc(paymentId)}/acknowledge-receipt`), {
+    dueDate,
+    bookingId,
+  });

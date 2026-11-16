@@ -220,12 +220,50 @@ export function budgetSummary(
 }
 
 /** All covers reuse moveMoney in one transaction/audit group; never create a source overdraft. */
+type CoverMove = { fromId: string | null; toId: string; amountCents: number };
+
+/** Run the existing cover writer in a rolled-back savepoint, including card funding effects. */
+export function previewCoverAllOverspending(
+  db: Executor,
+  month: string,
+  fromId: string | null | undefined,
+  ctx: AuditContext,
+  today: string,
+) {
+  const moves: CoverMove[] = [];
+  class PreviewResult {
+    constructor(readonly result: ReturnType<typeof coverAllOverspending>) {}
+  }
+  try {
+    runInTransaction(db, (tx) => {
+      const result = coverAllOverspending(tx, month, fromId, ctx, today, moves);
+      throw new PreviewResult(result);
+    });
+  } catch (error) {
+    if (!(error instanceof PreviewResult)) throw error;
+    const names = new Map(categoryTree(db).categories.map((c) => [c.id, c.name]));
+    const { coveredCount, openCount, missingCents } = error.result;
+    return {
+      coveredCount,
+      openCount,
+      missingCents,
+      moves: moves.map((move) => ({
+        ...move,
+        fromName: move.fromId === null ? 'Zu verteilen' : names.get(move.fromId)!,
+        toName: names.get(move.toId)!,
+      })),
+    };
+  }
+  throw new Error('Cover preview did not roll back');
+}
+
 export function coverAllOverspending(
   db: Executor,
   month: string,
   fromId: string | null | undefined,
   ctx: AuditContext,
   today: string = todayInVienna(),
+  previewMoves?: CoverMove[],
 ) {
   const grouped = withGroup(ctx);
   return runInTransaction(db, (tx) => {
@@ -276,6 +314,7 @@ export function coverAllOverspending(
         sources,
       );
       for (const move of moves) {
+        previewMoves?.push(move);
         capLeft -= move.amountCents;
         moveMoney(tx, month, move.fromId, move.toId, move.amountCents, grouped);
         moved = true;

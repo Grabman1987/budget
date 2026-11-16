@@ -112,7 +112,10 @@ export function cryptocalcSource(options: CryptocalcOptions): QuoteSource {
       const target = parseCryptocalcUrl(ref.quoteUrl);
       if (!target) throw new MarketError('not_configured', 'quote url');
       if (target.fiat !== ref.currency)
-        throw new MarketError('currency_mismatch', `${target.fiat} instead of ${ref.currency}`);
+        throw new MarketError('currency_mismatch', undefined, {
+          currency: target.fiat,
+          origin: 'mapping',
+        });
       const today = utcDay(now());
       const query = new URLSearchParams({
         currency: target.currency,

@@ -115,11 +115,15 @@ export const coverOverspending = (month: string, categoryId: string, fromId: str
   });
 
 /** Omitted source: suggested positive sources in descending order, one audit/undo. */
-export const coverAll = (month: string, fromId?: string | null) =>
+export const coverAll = (month: string, fromId?: string | null, expectedBasis?: string) =>
   request<WriteResult & { coveredCount: number; openCount: number; missingCents: number }>(
     'POST',
     `${path(month)}/move`,
-    { coverAll: true, ...(fromId !== undefined && { fromId }) },
+    {
+      coverAll: true,
+      ...(fromId !== undefined && { fromId }),
+      ...(expectedBasis && { expectedBasis }),
+    },
   );
 
 export interface BudgetActivityPage extends BudgetMonthView {
@@ -172,4 +176,24 @@ export const budgetUncategorizedQuery = (month: string) =>
       ),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (last) => last.nextCursor ?? undefined,
+  });
+
+export interface CoverPreview {
+  expectedBasis: string;
+  coveredCount: number;
+  openCount: number;
+  missingCents: number;
+  moves: Array<{
+    fromId: string | null;
+    toId: string;
+    fromName: string;
+    toName: string;
+    amountCents: number;
+  }>;
+}
+export const previewCoverAll = (month: string, fromId?: string | null) =>
+  request<CoverPreview>('POST', `${path(month)}/move`, {
+    coverAll: true,
+    preview: true,
+    ...(fromId !== undefined && { fromId }),
   });

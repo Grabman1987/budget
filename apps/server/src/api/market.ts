@@ -9,7 +9,7 @@ import {
   type Db,
 } from '@budget/db';
 import { addDays, parseMicro } from '@budget/domain';
-import { errorKind, type MarketSources } from '@budget/market';
+import { errorKind, MarketError, type MarketSources } from '@budget/market';
 import { randomUUID } from 'node:crypto';
 import { and, eq, isNull, lte } from 'drizzle-orm';
 import { Hono } from 'hono';
@@ -127,7 +127,12 @@ export function marketRoutes(db: Db, today: () => string, sources: MarketSources
         const latest = quotes.at(-1) ?? null;
         attempts.push({ source: source.id, error: latest ? null : 'empty', latest });
       } catch (error) {
-        attempts.push({ source: source.id, error: errorKind(error), latest: null });
+        attempts.push({
+          source: source.id,
+          error: errorKind(error),
+          latest: null,
+          currencyEvidence: error instanceof MarketError ? error.currencyEvidence : null,
+        });
       }
     }
     return c.json({ securityId: sec.id, currency: sec.currency, from, to, attempts });

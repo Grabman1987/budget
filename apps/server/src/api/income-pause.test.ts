@@ -86,6 +86,56 @@ async function createSalary(extra: Record<string, unknown> = {}) {
 }
 
 describe('income pauses for one expected payment', () => {
+  it('removes an explicitly linked early receipt from Heute and liquidity, and Undo restores it (#1109)', async () => {
+    db.insert(schema.payee).values({ id: 'test-payer', name: 'Testzahler' }).run();
+    const sourceId = await createSalary({
+      name: 'Synthetic bonus',
+      payeeId: 'test-payer',
+      incomeTypeId: INCOME_TYPES.side.id,
+      dueDay: 20,
+      dateWindowDays: 3,
+      amountCents: 10001,
+    });
+    const receipt = createBooking(
+      db,
+      {
+        accountId: 'giro',
+        date: TODAY,
+        amountCents: 10001,
+        payeeId: 'test-payer',
+        splits: [{ incomeTypeId: INCOME_TYPES.side.id, amountCents: 10001 }],
+      },
+      { actor: 'tester' },
+    );
+    const before = (await call('GET', '/heute')).body;
+    expect(before.lead.inflowCents).toBe(10001);
+    const forecastBefore = (await call('GET', '/liquidity?horizon=6m')).body.report.months.find(
+      (m: any) => m.month === '2026-03',
+    );
+    expect(forecastBefore.incomeCents).toBe(10001);
+    const linked = await call('POST', `/expected/${sourceId}/acknowledge-receipt`, {
+      dueDate: '2026-03-20',
+      bookingId: receipt,
+    });
+    expect(linked.status).toBe(200);
+    const after = (await call('GET', '/heute')).body;
+    expect(after.lead.inflowCents).toBe(0);
+    expect(after.lead.items.accounts).toEqual(before.lead.items.accounts);
+    expect(after.lead.balanceCents).toBe(210001);
+    expect(
+      (await call('GET', '/liquidity?horizon=6m')).body.report.months.find(
+        (m: any) => m.month === '2026-03',
+      ).incomeCents,
+    ).toBe(0);
+    expect((await call('POST', '/undo', { groupId: linked.body.groupId })).status).toBe(200);
+    expect((await call('GET', '/heute')).body.lead.inflowCents).toBe(10001);
+    expect(
+      (await call('GET', '/liquidity?horizon=6m')).body.report.months.find(
+        (m: any) => m.month === '2026-03',
+      ).incomeCents,
+    ).toBe(10001);
+  });
+
   it('closing one unpaid occurrence removes it from Heute and liquidity, with audited Undo (#1109)', async () => {
     const sourceId = await createSalary({
       name: 'Synthetic bonus',

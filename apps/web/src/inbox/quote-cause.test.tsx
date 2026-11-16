@@ -35,7 +35,12 @@ const preview: QuotePreview = {
   from: '2026-08-18',
   to: '2026-09-17',
   attempts: [
-    { source: 'ariva', error: 'currency_mismatch', latest: null },
+    {
+      source: 'ariva',
+      error: 'currency_mismatch',
+      latest: null,
+      currencyEvidence: { currency: 'USD', origin: 'response' },
+    },
     { source: 'coingecko', error: null, latest: { date: '2026-09-17', priceMicro: 2345678 } },
   ],
 };
@@ -66,6 +71,7 @@ it('separates historic missing evidence from current mapping and previews each s
   fireEvent.click(screen.getByRole('button', { name: 'Quelle erneut testen (Vorschau)' }));
   expect(await screen.findByText(/ariva: Die Quelle liefert eine andere Kurswährung/)).toBeTruthy();
   expect(screen.getByText(/coingecko: 2,345678/)).toBeTruthy();
+  expect(screen.getByText(/Erwartet: EUR · Von der Quelle gemeldet: USD/)).toBeTruthy();
   expect(screen.getByText(/Keine Kurse gespeichert, Warnung bleibt offen/)).toBeTruthy();
   expect(vi.mocked(request).mock.calls[1]).toEqual([
     'POST',
@@ -84,4 +90,30 @@ it('hides both stored and preview price amounts', async () => {
   await screen.findByRole('status');
   expect(container.textContent).not.toContain('1,234567');
   expect(container.textContent).not.toContain('2,345678');
+});
+
+it('distinguishes a configured source currency from a returned currency and missing evidence', async () => {
+  vi.mocked(request)
+    .mockResolvedValueOnce(diagnostics)
+    .mockResolvedValueOnce({
+      ...preview,
+      attempts: [
+        {
+          source: 'cryptocalc',
+          error: 'currency_mismatch',
+          latest: null,
+          currencyEvidence: { currency: 'USD', origin: 'mapping' },
+        },
+        { source: 'ariva', error: 'currency_mismatch', latest: null },
+      ],
+    });
+  mount();
+  await screen.findByText(/manueller Kurs repariert/);
+  fireEvent.click(screen.getByRole('button', { name: 'Quelle erneut testen (Vorschau)' }));
+  expect(await screen.findByText(/Erwartet: EUR · In der Quellzuordnung: USD/)).toBeTruthy();
+  expect(
+    screen.getByText(/cryptocalc: Die Quellzuordnung verwendet eine andere Kurswährung/),
+  ).toBeTruthy();
+  expect(screen.getByText(/Tatsächliche Kurswährung nicht verfügbar/)).toBeTruthy();
+  expect(screen.queryByText(/Von der Quelle gemeldet/)).toBeNull();
 });
