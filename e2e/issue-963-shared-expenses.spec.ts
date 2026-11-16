@@ -50,12 +50,14 @@ test('shared repayment shows its category and offers undoable credit choices', a
     amountCents: 3000,
   });
   await page.goto(`/reports/kontakte?kontakt=${contact.id}`);
-  const sheet = page.getByRole('region', { name: 'Kontaktkontoauszug' });
-  await sheet.getByText('Alle Bewegungen und Zuordnungen', { exact: true }).click();
+  let sheet = page.getByRole('region', { name: 'Kontaktkontoauszug' });
+  await sheet.locator('[data-r8-detail="contact-history"] > summary').click();
   await sheet.getByText('Zuordnung', { exact: true }).click();
   await expect(sheet.locator('.contact-allocation-details')).toContainText(
     'Beispiel Möbel: 20,00 €',
   );
+  await sheet.getByRole('link', { name: 'Guthaben ändern' }).click();
+  sheet = page.getByRole('region', { name: 'Kontaktkontoauszug' });
   await expect(sheet.getByRole('region', { name: 'Kontaktguthaben' })).toContainText(
     'Freies Kontaktguthaben',
   );

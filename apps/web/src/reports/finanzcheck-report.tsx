@@ -39,7 +39,6 @@ import { BalanceChart } from '../heute/charts';
 import { PAYDAY_ONLY_THIS_MONTH, useBalancePeriod } from '../heute/use-balance-period';
 import { useMonth } from '../shell/use-month';
 import { AppLink } from '../shell/app-link';
-import { PeriodPresentation } from './period-presentation';
 import { REDESIGN_ENABLED } from '../shell/redesign-flag';
 import { FINANZCHECK_HEADING_HASHES } from './report-search';
 import { FinancialHealthScores } from './financial-health-scores';
@@ -120,7 +119,6 @@ export function FinanzcheckReport({ report, meta }: { report: ReportEntry; meta:
   return (
     <PageFrame
       sourceReportId={report.id}
-      {...(REDESIGN_ENABLED ? { reportControls: <PeriodPresentation monthly /> } : {})}
       verdict={
         data && !query.isFetching && !query.isError
           ? {

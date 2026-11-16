@@ -11,6 +11,7 @@ import { reportSectionId, useCollapsibleSections } from './month-frame';
 const flag = vi.hoisted(() => ({ REDESIGN_ENABLED: true }));
 vi.mock('../shell/redesign-flag', () => flag);
 vi.mock('@tanstack/react-router', () => ({
+  useSearch: () => ({}),
   useParams: () => ({ reportId: 'onepager' }),
   useNavigate: () => vi.fn(),
 }));
@@ -74,6 +75,17 @@ describe('shared R2 report frame', () => {
     );
     const head = screen.getByTestId('redesign-report-head');
     expect(head.textContent).not.toContain('Wie lief der Monat?');
+    expect(head.textContent).not.toMatch(/Report \d/);
+    expect(
+      head
+        .querySelector('.redesign-report-heading')
+        ?.contains(screen.getByRole('heading', { level: 1 })),
+    ).toBe(true);
+    expect(
+      head
+        .querySelector('.redesign-report-toolbar')
+        ?.contains(screen.getByTestId('report-frame-source')),
+    ).toBe(true);
     expect(head.textContent).toContain('Monatsbericht');
     expect(screen.getByTestId('report-frame-result').textContent).toBe('−15,00 €');
     expect(screen.getByRole('button', { name: 'August' })).toBeTruthy();

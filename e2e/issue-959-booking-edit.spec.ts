@@ -1,4 +1,4 @@
-import { captureCloseControl } from './ledger-helpers';
+import { captureCloseControl, redesignLoaded } from './ledger-helpers';
 import AxeBuilder from '@axe-core/playwright';
 import { expect } from '@playwright/test';
 import { test } from './isolated-ledger';
@@ -43,6 +43,11 @@ test('reconciled split editing keeps fields and cents readable and closes withou
     statementBalanceCents: 87655,
   });
   const before = await (await page.request.get(`/api/bookings/${id}`)).json();
+  const writes: string[] = [];
+  page.on('request', (request) => {
+    if (request.method() !== 'GET' && new URL(request.url()).pathname.startsWith('/api/'))
+      writes.push(request.url());
+  });
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.goto(`/konten/${account.id}`);
   await page
@@ -50,12 +55,30 @@ test('reconciled split editing keeps fields and cents readable and closes withou
     .getByRole('button', { name: /bearbeiten/ })
     .click();
   const dialog = page.getByRole('dialog', { name: 'Buchung bearbeiten', exact: true });
+  if (await redesignLoaded(page)) {
+    const release = page.getByRole('alertdialog', {
+      name: 'Geprüfte Buchung wirklich bearbeiten?',
+    });
+    await expect(dialog).toBeHidden();
+    for (const theme of ['light', 'dark']) {
+      await page.evaluate((value) => {
+        document.documentElement.dataset['theme'] = value;
+      }, theme);
+      expect((await new AxeBuilder({ page }).include('dialog[open]').analyze()).violations).toEqual(
+        [],
+      );
+      for (const button of await release.getByRole('button').all()) {
+        const box = (await button.boundingBox())!;
+        expect(box.width).toBeGreaterThanOrEqual(MIN_TARGET_PX);
+        expect(box.height).toBeGreaterThanOrEqual(MIN_TARGET_PX);
+        expect(box.x).toBeGreaterThanOrEqual(0);
+        expect(box.x + box.width).toBeLessThanOrEqual(page.viewportSize()!.width);
+      }
+      await page.screenshot({ path: info.outputPath(`release-${theme}.png`) });
+    }
+    await page.getByRole('button', { name: 'Bearbeitung freigeben', exact: true }).click();
+  }
   await expect(dialog).toBeVisible();
-  const writes: string[] = [];
-  page.on('request', (request) => {
-    if (request.method() !== 'GET' && new URL(request.url()).pathname.startsWith('/api/'))
-      writes.push(request.url());
-  });
   for (const width of info.project.name === 'desktop' ? [1000, 1440, 1900] : [390]) {
     await page.setViewportSize({ width, height: 900 });
     for (const theme of ['light', 'dark']) {

@@ -1,57 +1,20 @@
-import { REDESIGN_ENABLED } from '../shell/redesign-flag';
 import { ReportViewControl } from './report-view-control';
 import { useNavigate, useSearch } from '@tanstack/react-router';
 import type { PageMeta } from '../nav/pages';
 import type { ReportEntry } from '../nav/reports-catalog';
 import { BudgetAdherenceReportPage } from './budget-adherence-report';
-import { PlanningAccuracyReportPage } from './planning-accuracy-report';
 import { ContractsReportPage } from './contracts-report';
 import { BankCostsReportPage } from './bank-costs-report';
 import './report-views.css';
 
-const BUDGET_VIEWS = [
-  { value: 'budget', label: 'Plan und Ist' },
-  { value: 'planungstreue', label: 'Planungstreue' },
-] as const;
 const CONTRACT_VIEWS = [
   { value: 'vertraege', label: 'Verträge' },
   { value: 'bankkosten', label: 'Bank- und Zinskosten' },
 ] as const;
 
-/** Both readers keep their existing month and six-month quality boundaries. */
+/** Historical forecast bookmarks now show the retained budget report. */
 export function BudgetReportViews({ report, meta }: { report: ReportEntry; meta: PageMeta }) {
-  const search = useSearch({ strict: false }) as { darstellung?: string };
-  const navigate = useNavigate();
-  const view = search.darstellung === 'planungstreue' ? 'planungstreue' : 'budget';
-  const control = (
-    <ReportViewControl
-      className="report-view-switch report-wealth-switch"
-      label="Ansicht der Budgettreue"
-      options={
-        REDESIGN_ENABLED
-          ? [
-              { value: 'budget', label: 'Budgettreue' },
-              { value: 'planungstreue', label: 'Prognosegenauigkeit' },
-            ]
-          : BUDGET_VIEWS
-      }
-      value={view}
-      onChange={(value) =>
-        void navigate({
-          to: '.',
-          search: ((previous: Record<string, unknown>) => ({
-            ...previous,
-            darstellung: value,
-          })) as never,
-        })
-      }
-    />
-  );
-  return view === 'planungstreue' ? (
-    <PlanningAccuracyReportPage report={report} meta={meta} viewControl={control} />
-  ) : (
-    <BudgetAdherenceReportPage report={report} meta={meta} viewControl={control} />
-  );
+  return <BudgetAdherenceReportPage report={report} meta={meta} />;
 }
 
 /** As-of contracts and closed-month bank costs retain separate, source-defined periods. */

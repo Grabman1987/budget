@@ -122,3 +122,8 @@
     right: auto;
   }
 }
+
+.report-switcher-menu .report-switcher-children {
+  margin: 0;
+  padding-inline-start: 20px;
+}

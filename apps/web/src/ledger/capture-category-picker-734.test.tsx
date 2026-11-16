@@ -78,7 +78,6 @@ it('keeps category groups before contacts even for a category-substring/contact-
     'Muster für Wege',
     'Für Kontakt auslegen → Kontakt Alpha',
     'Kontakt neu anlegen',
-    'Neue Kategorie …',
   ]);
   expect(screen.getByText('Gruppe A')).toBeTruthy();
   expect(screen.getByText('Gruppe B')).toBeTruthy();
@@ -86,7 +85,6 @@ it('keeps category groups before contacts even for a category-substring/contact-
   expect(screen.getAllByRole('option').map((o) => o.textContent)).toEqual([
     'Muster für Wege',
     'Für Kontakt auslegen → Kontakt Alpha',
-    'Neue Kategorie …',
   ]);
   expect(field.getAttribute('aria-activedescendant')).toBe(screen.getAllByRole('option')[0]?.id);
   await user.keyboard('{Enter}');
@@ -101,12 +99,12 @@ it('keeps the contact and contact creation reachable after sixty-one categories'
     Array.from({ length: 61 }, (_, i) => category(`cat-${i}`, `Kategorie ${i}`, 'Gruppe A')),
   );
   await user.click(screen.getByRole('combobox', { name: 'Kategorie' }));
-  expect(screen.getAllByRole('option')).toHaveLength(64);
-  expect(screen.getAllByRole('option').at(-3)?.textContent).toBe(
+  expect(screen.getAllByRole('option')).toHaveLength(63);
+  expect(screen.getAllByRole('option').at(-2)?.textContent).toBe(
     'Für Kontakt auslegen → Kontakt Alpha',
   );
-  expect(screen.getAllByRole('option').at(-2)?.textContent).toBe('Kontakt neu anlegen');
-  expect(screen.getAllByRole('option').at(-1)?.textContent).toBe('Neue Kategorie …');
+  expect(screen.getAllByRole('option').at(-1)?.textContent).toBe('Kontakt neu anlegen');
+  expect(screen.getByRole('button', { name: 'Neue Kategorie …' })).toBeTruthy();
   await user.keyboard('{ArrowDown>62/}{Enter}');
   expect(JSON.parse(screen.getByTestId('payload').textContent ?? '')).toMatchObject({
     ok: true,
@@ -156,6 +154,23 @@ it('preserves the default payee combobox cap and prefix matching', async () => {
   ]);
 });
 
+it('rejects an exact category name shared by two options instead of keeping the old selection', async () => {
+  const user = mount([
+    category('cat-a', 'Gleicher Name', 'Gruppe A'),
+    category('cat-b', 'Gleicher Name', 'Gruppe B'),
+  ]);
+  const field = screen.getByRole('combobox', { name: 'Kategorie' });
+  await user.click(field);
+  await user.click(screen.getAllByRole('option', { name: 'Gleicher Name' })[0]!);
+  await user.click(field);
+  await user.clear(field);
+  await user.type(field, 'Gleicher Name');
+  await user.tab();
+  expect(field.getAttribute('aria-invalid')).toBe('true');
+  expect(screen.getByText('Bitte eine Kategorie aus der Liste wählen.')).toBeTruthy();
+  expect(JSON.parse(screen.getByTestId('payload').textContent ?? '')).toMatchObject({ ok: false });
+});
+
 it('keeps a focused category picker visible when the root document is scrolled behind its modal', async () => {
   const oldOverflowX = document.documentElement.style.overflowX;
   const oldOverflowY = document.documentElement.style.overflowY;
@@ -185,4 +200,26 @@ it('keeps a focused category picker visible when the root document is scrolled b
     document.documentElement.style.overflowX = oldOverflowX;
     document.documentElement.style.overflowY = oldOverflowY;
   }
+});
+
+it('keeps the valid category while searching and restores its label on blur', async () => {
+  const user = mount([category('cat-a', 'Kategorie A', 'Gruppe A')]);
+  const field = screen.getByRole<HTMLInputElement>('combobox', { name: 'Kategorie' });
+  await user.click(field);
+  await user.click(screen.getByRole('option', { name: 'Kategorie A' }));
+  await user.click(field);
+  await user.paste('Suchtext ohne Treffer');
+  expect(JSON.parse(screen.getByTestId('payload').textContent ?? '')).toMatchObject({
+    ok: true,
+    value: { splits: [{ categoryId: 'cat-a' }] },
+  });
+  await user.tab();
+  await user.tab();
+  expect(field.value).toBe('Kategorie A');
+  expect(field.getAttribute('aria-invalid')).toBe('false');
+  await user.click(field);
+  await user.clear(field);
+  await user.tab();
+  expect(field.value).toBe('');
+  expect(JSON.parse(screen.getByTestId('payload').textContent ?? '')).toMatchObject({ ok: false });
 });

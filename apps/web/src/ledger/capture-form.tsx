@@ -1,4 +1,5 @@
 import { DialogClose } from './dialog-close';
+import { BookingReleaseQuestion } from './booking-release-question';
 import { BookingAssignmentReview } from '../assignment/review';
 import {
   useAmountPrivacy,
@@ -36,6 +37,7 @@ import {
   type KeyboardEvent,
   type MutableRefObject,
 } from 'react';
+import { flushSync } from 'react-dom';
 import { ApiError, request } from '../api/http';
 import { discardRejectedChange } from '../pwa/queue';
 import { REDESIGN_ENABLED } from '../shell/redesign-flag';
@@ -147,6 +149,7 @@ export function CaptureForm({
   discard,
   requestClose,
   queued,
+  initialUnlockReconciled = false,
 }: {
   state: NonNullable<BookingPanelState>;
   onDone: () => void;
@@ -156,6 +159,8 @@ export function CaptureForm({
   discard: DiscardAsk;
   requestClose: () => void;
   queued?: QueuedBooking;
+  /** Explicit confirmation from this editor opening; never persisted across openings. */
+  initialUnlockReconciled?: boolean;
 }) {
   useAmountPrivacy();
   const qc = useQueryClient();
@@ -248,6 +253,9 @@ export function CaptureForm({
       toast.show({ message: 'Beleg bleibt unter Prüfen und kann dort zugeordnet werden.' });
   };
   const accountPayee = useRef('');
+  const appliedPayee = useRef<string | null>(null);
+  const accountChosen = useRef(false);
+  const [allowDefaultAccount, setAllowDefaultAccount] = useState(true);
 
   const [today] = useState(todayInVienna);
   const [memory] = useState(readMemory);
@@ -281,13 +289,14 @@ export function CaptureForm({
     note.style.height = `${note.scrollHeight + note.offsetHeight - note.clientHeight}px`;
   }, [draft.memo]);
   const [errors, setErrors] = useState<DraftErrors & { form?: string }>({});
+  const [saveAttempted, setSaveAttempted] = useState(false);
   const [offlineChoices, setOfflineChoices] = useState<CaptureChoices>();
   useEffect(() => {
     void readChoices()
       .then(setOfflineChoices)
       .catch(() => undefined);
   }, []);
-  const [unlock, setUnlock] = useState(false);
+  const [unlock, setUnlock] = useState(initialUnlockReconciled);
   const [releaseAsking, setReleaseAsking] = useState(false);
   const releaseQuestion = useRef<HTMLDivElement>(null);
   const releaseReturn = useRef<HTMLInputElement>(null);
@@ -377,7 +386,9 @@ export function CaptureForm({
     () => orderAccounts(accounts.data?.accounts ?? offlineChoices?.accounts ?? [], memory.accounts),
     [accounts.data, offlineChoices, memory],
   );
-  const accountId = draft.accountId || accountFromPayee(open, memory.accounts, undefined);
+  const accountId =
+    draft.accountId ||
+    (allowDefaultAccount ? accountFromPayee(open, memory.accounts, undefined) : '');
   const explicitAccountId =
     state.mode === 'create' ? (state.prefill?.accountId ?? state.accountId) : undefined;
   const hasAccountContext = open.some((account) => account.id === explicitAccountId);
@@ -493,8 +504,7 @@ export function CaptureForm({
   });
   const lineProblem = !lineValidation.ok ? lineValidation.errors.splits : undefined;
   const blocked = !isTransfer && Boolean(lineProblem);
-  const showLineProblem =
-    blocked && (mobileRedesign || Boolean(draft.amount.trim() || errors.splits));
+  const showLineProblem = blocked && saveAttempted;
   const splitError = errors.splits === REMAINDER_SAVE_ERROR && !blocked ? undefined : errors.splits;
 
   const draftDirty = queued
@@ -518,8 +528,17 @@ export function CaptureForm({
     fallback: string | null | undefined,
   ): typeof draft => {
     if (d.splitOn || d.kind === 'transfer' || d.contactId) return d;
-    const next = categoryFromPayee(d.categoryId, appliedByPayee.current, fallback);
-    if (next === undefined || !categoriesFor(allRef.current, d.kind, '').some((c) => c.id === next))
+    if (fallback && !categoriesFor(allRef.current, d.kind, '').some((c) => c.id === fallback))
+      fallback = undefined;
+    const next = fallback
+      ? categoryFromPayee(d.categoryId, appliedByPayee.current, fallback)
+      : d.categoryId === appliedByPayee.current || !d.categoryId
+        ? ''
+        : undefined;
+    if (
+      next === undefined ||
+      (next && !categoriesFor(allRef.current, d.kind, '').some((c) => c.id === next))
+    )
       return d;
     appliedByPayee.current = next;
     return {
@@ -542,30 +561,31 @@ export function CaptureForm({
   }, [all]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /**
-   * The payee's default category is applied when a payee is chosen (list pick or leaving the
+   * The payee's last booking is applied when a payee is chosen (list pick or leaving the
    * field), not while typing: "Spar" on the way to "Sparkasse" must not set anything.
    */
   const applyPayeeDefault = (name: string, chosen = false) => {
     const key = name.trim().toLowerCase();
+    if (!chosen && appliedPayee.current === key) return;
+    appliedPayee.current = key;
     const payee = payees.data?.payees.find((p) => p.name.toLowerCase() === key);
     const request = ++categoryRequest.current;
     const applyCategory = (fallback: string | null | undefined) => {
       if (request !== categoryRequest.current || categoryChosen.current) return;
       setDraft((d) => withPayeeCategory(d, fallback));
     };
-    applyCategory(payee?.defaultCategoryId);
+    applyCategory(undefined);
     const suggestAccount =
       !editing &&
       !queued &&
       !hasAccountContext &&
+      !accountChosen.current &&
       draft.kind !== 'transfer' &&
-      key &&
+      (key || accountPayee.current) &&
       (chosen || key !== accountPayee.current);
     const suggestCategory =
       !editing &&
       !queued &&
-      payee &&
-      !payee.defaultCategoryId &&
       !categoryChosen.current &&
       !draft.splitOn &&
       !draft.contactId &&
@@ -575,43 +595,35 @@ export function CaptureForm({
     const accountVersion = suggestAccount ? ++accountRequest.current : accountRequest.current;
     if (suggestAccount) accountPayee.current = key;
     const applyAccount = (last: string | undefined) => {
-      if (!suggestAccount || accountVersion !== accountRequest.current) return;
-      set(
-        'accountId',
-        accountFromPayee(open, memory.accounts.length ? memory.accounts : [accountId], last),
-      );
+      if (
+        !suggestAccount ||
+        accountVersion !== accountRequest.current ||
+        accountChosen.current ||
+        !open.some((account) => account.id === last)
+      )
+        return;
+      setAllowDefaultAccount(false);
+      set('accountId', last!);
     };
-    if (!payee) return applyAccount(undefined);
+    if (!payee) return;
     const readHistory = async () => {
-      let cursor: string | undefined;
-      do {
-        const page = await fetchBookings(
-          { payeeId: payee.id, to: today },
-          cursor,
-          suggestCategory ? 50 : 1,
-        );
-        if (!cursor) applyAccount(page.items[0]?.accountId);
-        if (!suggestCategory || request !== categoryRequest.current || categoryChosen.current)
-          return;
-        const ids = page.items
-          .map((booking) => recentPayeeCategory(booking, kindRef.current))
-          .filter((id): id is string => Boolean(id));
-        if (!allRef.current.length) {
-          pendingCategory.current = { request, ids };
-          return;
-        }
-        const category = ids.find(
-          (id) =>
-            id && categoriesFor(allRef.current, kindRef.current).some((item) => item.id === id),
-        );
-        if (category) return applyCategory(category);
-        cursor = page.nextCursor ?? undefined;
-      } while (cursor);
+      const page = await fetchBookings({ payeeId: payee.id, to: today }, undefined, 1);
+      applyAccount(page.items[0]?.accountId);
+      if (!suggestCategory || request !== categoryRequest.current || categoryChosen.current) return;
+      const latest = page.items[0];
+      const category =
+        latest?.splits.length === 1 ? recentPayeeCategory(latest, kindRef.current) : undefined;
+      if (category && !allRef.current.length) {
+        pendingCategory.current = { request, ids: [category] };
+        return;
+      }
+      applyCategory(category);
     };
     void readHistory().catch(() => undefined);
   };
 
   const changeKind = (kind: BookingKind) => {
+    appliedPayee.current = null;
     if (kind !== draft.kind) setBankIntent(null);
     setDraft((d) => {
       accountRequest.current++;
@@ -669,8 +681,22 @@ export function CaptureForm({
       .catch(() => undefined);
   };
 
-  const save = async (andNew: boolean) => {
+  const currentSave = useRef<((andNew: boolean) => Promise<void>) | null>(null);
+  const save = async (andNew: boolean): Promise<void> => {
     if (releaseAsking || saving.current || uploadingRef.current) return;
+    const active = document.activeElement;
+    if (
+      active instanceof HTMLInputElement &&
+      active.validity.customError &&
+      active.closest('.is-capture-category') &&
+      formRef.current?.contains(active)
+    ) {
+      // Keyboard saves resolve category search just like leaving the field. Use the updated draft.
+      flushSync(() => active.blur());
+      return currentSave.current?.(andNew);
+    }
+    setSaveAttempted(true);
+    if (!formRef.current?.checkValidity()) return;
     if (!editing && !from) return setErrors({ account: 'Bitte ein verfügbares Konto wählen.' });
     if (blocked) return setErrors({ splits: REMAINDER_SAVE_ERROR });
     const filled = {
@@ -746,6 +772,10 @@ export function CaptureForm({
       setDraftScope(draftScopeRef.current);
       setStatusChosen(false);
       setBankIntent(null);
+      accountRequest.current++;
+      accountChosen.current = true;
+      appliedPayee.current = draft.payee.trim().toLowerCase();
+      setSaveAttempted(false);
       categoryRequest.current++;
       categoryChosen.current = false;
       appliedByPayee.current = draft.splitOn ? null : draft.categoryId;
@@ -906,6 +936,9 @@ export function CaptureForm({
     : !editing && !queued && !statusChosen && !(state.mode === 'create' && state.prefill?.status)
       ? 'pending'
       : draft.status;
+  useLayoutEffect(() => {
+    currentSave.current = save;
+  });
   const shownStatus = manualPair ? bankStatus : effectiveStatus;
   const bankAccount = manualPair?.cashSide === 'from' ? to : from;
   const cashAccount = manualPair?.cashSide === 'from' ? from : to;
@@ -1005,6 +1038,7 @@ export function CaptureForm({
 
   const lineEditor = (
     <SplitEditor
+      key={draftScope}
       draft={draft}
       setDraft={setDraft}
       onCategoryChoose={() => {
@@ -1135,7 +1169,7 @@ export function CaptureForm({
   })();
   const saveBlocked = mobileRedesign ? Boolean(phoneProblem) : blocked;
   const saveReason = mobileRedesign ? phoneProblem : lineProblem;
-  const showSaveReason = mobileRedesign ? Boolean(phoneProblem) : showLineProblem;
+  const showSaveReason = mobileRedesign ? saveAttempted && Boolean(phoneProblem) : showLineProblem;
 
   const saveButton = (
     <Button
@@ -1326,6 +1360,7 @@ export function CaptureForm({
                   onChange={(text) => {
                     accountRequest.current++;
                     categoryRequest.current++;
+                    appliedPayee.current = null;
                     set('payee', text);
                   }}
                   onSelect={(o) => {
@@ -1384,9 +1419,11 @@ export function CaptureForm({
                           aria-describedby={describedBy}
                           onChange={(e) => {
                             accountRequest.current++;
+                            accountChosen.current = true;
                             set('accountId', e.target.value);
                           }}
                         >
+                          {!accountId && <option value="">Konto wählen</option>}
                           <AccountOptions accounts={open} />
                         </Select>
                       </>
@@ -1543,23 +1580,11 @@ export function CaptureForm({
         </p>
       </div>
       {releaseAsking && (
-        <div
-          ref={releaseQuestion}
-          className="kdiff bk-discard kdelete-question"
-          role="alertdialog"
-          aria-label="Geprüfte Buchung wirklich bearbeiten?"
-          aria-describedby="booking-release-reason"
-        >
-          <p id="booking-release-reason">
-            Diese Buchung ist abgeglichen. Änderungen oder Löschen können den geprüften Kontostand
-            verändern. Bei Kontaktanteilen kann auch der Kontaktsaldo betroffen sein. Die Änderung
-            wird protokolliert und kann rückgängig gemacht werden.
-          </p>
-          <Button variant="ghost" onClick={() => finishRelease(false)}>
-            Abbrechen
-          </Button>
-          <Button onClick={() => finishRelease(true)}>Bearbeitung freigeben</Button>
-        </div>
+        <BookingReleaseQuestion
+          questionRef={releaseQuestion}
+          onCancel={() => finishRelease(false)}
+          onConfirm={() => finishRelease(true)}
+        />
       )}
       {discard.asking && (
         <div

@@ -7,7 +7,6 @@ import {
   matchingHubReports,
   recentReports,
   reportAliases,
-  MOVED_REPORTS,
   type HubReport,
   type HubGroup,
 } from './report-hub-model';
@@ -134,20 +133,6 @@ export function ReportHub({ initialGroup }: { initialGroup?: HubGroup | undefine
           </ol>
         )}
       </section>
-      {REDESIGN_ENABLED && (
-        <nav className="report-hub-moved" aria-label="Nach Plan verschobene Berichte">
-          <span>In Plan:</span>
-          {MOVED_REPORTS.filter((report) =>
-            `${report.name} ${report.destination}`
-              .toLocaleLowerCase('de-AT')
-              .includes(search.trim().toLocaleLowerCase('de-AT')),
-          ).map((report) => (
-            <AppLink key={report.id} to={`/reports/${report.id}`}>
-              {report.name} → {report.destination}
-            </AppLink>
-          ))}
-        </nav>
-      )}
     </div>
   );
 }

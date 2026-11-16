@@ -1,5 +1,5 @@
 import { REDESIGN_ENABLED } from '../shell/redesign-flag';
-import { findReport, type ReportEntry } from '../nav/reports-catalog';
+import { findReport, REPORTS, type ReportEntry } from '../nav/reports-catalog';
 
 /** Navigation only: report bodies and their financial queries remain independent. */
 const LEGACY_HUB_GROUPS = [
@@ -73,8 +73,8 @@ const LEGACY_HUB_REPORTS: readonly HubReport[] = [
     no: 6,
     group: 'income',
     name: 'Budgettreue',
-    question: 'Halten wir den Plan, und wie treffsicher ist die Prognose?',
-    sources: ['budgettreue', 'planungstreue'],
+    question: 'Halten wir den Plan, stimmt 50/30/20?',
+    sources: ['budgettreue'],
   },
   {
     id: 'abos',
@@ -208,17 +208,13 @@ const REDESIGN_HUB_REPORTS: readonly HubReport[] = redesignOrder.map((id, index)
 });
 export const HUB_REPORTS = REDESIGN_ENABLED ? REDESIGN_HUB_REPORTS : LEGACY_HUB_REPORTS;
 
-/** Capabilities moved into Plan retain their direct compatibility URLs and searchable old names. */
-export const MOVED_REPORTS = [
-  { id: 'liquiditaet', name: 'Liquiditätsprognose', destination: 'Plan › Prognose' },
-  { id: 'vorschau', name: 'Jahresvorschau Zahlungen', destination: 'Plan › Zahlungen' },
-  { id: 'sparziele', name: 'Sparziele-Fortschritt', destination: 'Plan › Ziele' },
-] as const;
 export const hubReport = (id: string) => HUB_REPORTS.find((report) => report.sources.includes(id));
 export function reportAliases(report: HubReport) {
   return report.sources.flatMap((id) => {
     const source = findReport(id);
-    return source && id !== report.id && source.name !== report.name ? [source] : [];
+    return source && id !== 'gesamttabelle' && id !== report.id && source.name !== report.name
+      ? [source]
+      : [];
   });
 }
 export const matchingHubReports = (search: string, group?: HubGroup) => {
@@ -251,7 +247,10 @@ export function recentReports(): ReportEntry[] {
     if (!Array.isArray(parsed)) return [];
     const ids = [
       ...new Set(
-        parsed.filter((id): id is string => typeof id === 'string' && Boolean(findReport(id))),
+        parsed.filter(
+          (id): id is string =>
+            typeof id === 'string' && REPORTS.some((report) => report.id === id),
+        ),
       ),
     ].slice(0, 3);
     return ids.flatMap((id) => findReport(id) ?? []);

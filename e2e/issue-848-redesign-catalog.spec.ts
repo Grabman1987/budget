@@ -23,13 +23,12 @@ const identities = [
 test('catalog preserves all sixteen destinations, legacy names and usable fallback readers', async ({
   page,
 }, info) => {
-  let redesign = false;
   for (const theme of ['light', 'dark'] as const) {
     await page.emulateMedia({ colorScheme: theme, reducedMotion: 'reduce' });
-    if (info.project.name !== 'desktop') await page.setViewportSize({ width: 320, height: 844 });
+    if (info.project.name !== 'desktop') await page.setViewportSize({ width: 390, height: 844 });
     await page.goto('/reports');
     await expect(page.locator('.report-hub')).toBeVisible();
-    redesign = (await page.locator('[data-budget-redesign="1"]').count()) > 0;
+    const redesign = (await page.locator('[data-budget-redesign="1"]').count()) > 0;
     await expect(page.locator('.report-hub-v2')).toHaveCount(redesign ? 1 : 0);
     await expect(page.locator('.report-hub-list > li')).toHaveCount(16);
     if (!redesign) continue;
@@ -48,7 +47,7 @@ test('catalog preserves all sixteen destinations, legacy names and usable fallba
       ['Finanz-Check-Verlauf', 'onepager'],
       ['Rendite und Kennzahlen', 'vermoegen-schulden'],
       ['Jahresansicht', 'explorer'],
-      ['Prognosegenauigkeit', 'budgettreue'],
+      ['Gesamttabelle', 'explorer'],
     ]) {
       await search.fill(name!);
       await expect(page.locator('.report-hub-list > li > a')).toHaveAttribute(
@@ -56,7 +55,12 @@ test('catalog preserves all sixteen destinations, legacy names and usable fallba
         `/reports/${id}`,
       );
     }
+    await search.fill('Prognosegenauigkeit');
+    await expect(page.locator('.report-hub-list > li')).toHaveCount(0);
     await search.fill('');
+    await expect(page.locator('.report-hub-moved')).toHaveCount(0);
+    for (const id of ['gesamttabelle', 'planungstreue', 'vorschau', 'sparziele', 'liquiditaet'])
+      await expect(page.locator(`.report-hub a[href="/reports/${id}"]`)).toHaveCount(0);
     await expect(
       page.getByRole('link', { name: 'Finanz-Check-Verlauf', exact: true }),
     ).toHaveAttribute('href', '/reports/finanzcheck');
@@ -69,8 +73,14 @@ test('catalog preserves all sixteen destinations, legacy names and usable fallba
     expect((await new AxeBuilder({ page }).include('main').analyze()).violations).toEqual([]);
     await page.screenshot({ path: info.outputPath(`catalog-${theme}.png`), fullPage: true });
   }
-  if (!redesign) return;
+});
+
+test('catalog search and legacy report bookmarks retain their destinations and state', async ({
+  page,
+}, info) => {
   await page.goto('/reports');
+  await expect(page.locator('.report-hub')).toBeVisible();
+  if ((await page.locator('[data-budget-redesign="1"]').count()) === 0) return;
   await page
     .getByRole('button', {
       name:
