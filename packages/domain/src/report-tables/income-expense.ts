@@ -66,7 +66,7 @@ export function incomeExpenseRows(
   rows.push({
     ...row(
       'net',
-      'Netto (Einnahmen − Ausgaben)',
+      'Cashflow (Einnahmen − Ausgaben)',
       'result',
       0,
       vals((m) => incomeExpenseNet(m, meta)),
@@ -103,4 +103,70 @@ export function incomeExpenseSources(
                     meta.categories.some((c) => c.id === s.categoryId && c.groupId === key.slice(6))
                   : false),
   );
+}
+
+export interface CashflowDevelopmentMonth {
+  month: string;
+  income: number;
+  expenses: number;
+  /** Existing monthly net (`incomeExpenseNet`): Haushaltseinnahmen minus all spending incl. Zukunft. */
+  cashflow: number;
+  /** Running sum of `cashflow` over the period; no second formula. */
+  cumulative: number;
+}
+
+export interface CashflowPeriodStatement {
+  total: number;
+  averagePerMonth: number;
+  /** Cashflow of the comparison period, or null when its months are not all in the data. */
+  comparison: { kind: 'previous-year' | 'previous-period'; total: number; delta: number } | null;
+}
+
+const shiftMonth = (month: string, by: number) => {
+  const index = Number(month.slice(0, 4)) * 12 + Number(month.slice(5, 7)) - 1 + by;
+  return `${Math.floor(index / 12)}-${String((index % 12) + 1).padStart(2, '0')}`;
+};
+
+/** Monthly cashflow with its cumulative line for the selected months (ascending order expected). */
+export function cashflowDevelopment(
+  months: ReadonlyArray<IncomeExpenseMonth>,
+  meta: TableMeta,
+): CashflowDevelopmentMonth[] {
+  let cumulative = 0;
+  return months.map((m) => {
+    const cashflow = incomeExpenseNet(m, meta);
+    cumulative += cashflow;
+    return {
+      month: m.month,
+      income: monthHouseholdIncome(m, meta),
+      expenses: monthTotalSpending(m),
+      cashflow,
+      cumulative: cents(cumulative),
+    };
+  });
+}
+
+/** Period total, monthly average and change against the previous year (else previous period). */
+export function cashflowStatement(
+  all: ReadonlyArray<IncomeExpenseMonth>,
+  window: ReadonlyArray<string>,
+  meta: TableMeta,
+): CashflowPeriodStatement | null {
+  if (!window.length) return null;
+  const byMonth = new Map(all.map((m) => [m.month, m]));
+  const sum = (keys: ReadonlyArray<string>) =>
+    keys.reduce((a, k) => a + incomeExpenseNet(byMonth.get(k)!, meta), 0);
+  const total = sum(window.filter((k) => byMonth.has(k)));
+  const comparisonFor = (kind: 'previous-year' | 'previous-period', by: number) => {
+    const keys = window.map((k) => shiftMonth(k, by));
+    if (!keys.every((k) => byMonth.has(k))) return null;
+    const previous = sum(keys);
+    return { kind, total: cents(previous), delta: cents(total - previous) };
+  };
+  return {
+    total: cents(total),
+    averagePerMonth: cents(Math.round(total / window.length)),
+    comparison:
+      comparisonFor('previous-year', -12) ?? comparisonFor('previous-period', -window.length),
+  };
 }

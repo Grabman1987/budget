@@ -1,5 +1,6 @@
 import { monthsBetween } from '../date';
 import { z } from 'zod';
+import { isSalaryAllowanceLabel } from './wage-label-rules';
 
 const money = z.number().int().min(0).max(100_000_000_000);
 const signedMoney = z.number().int().min(-100_000_000_000).max(100_000_000_000);
@@ -126,6 +127,58 @@ export function payrollTotals(slips: PayslipInput[]) {
   };
 }
 
+/** Net pay of one slip counting allowances (Telearbeit, Fahrgeld) as salary; travel expenses stay out. */
+export function payslipPayNetCents(slip: PayslipInput) {
+  return (
+    payrollTotals([slip]).salaryNetCents +
+    slip.lines
+      .filter((l) => l.section === 'reimbursement' && isSalaryAllowanceLabel(l.label))
+      .reduce((n, l) => n + l.amountCents, 0)
+  );
+}
+
+/**
+ * A regular slip that evidently carries a special payment: net above gross, an additional
+ * earning line, or (via `unknownNetIds`) a special/variable wage component from the source.
+ */
+export function regularSlipMixesSpecial(
+  slip: PayslipInput,
+  unknownNetIds: ReadonlySet<string> & { has(id: string): boolean },
+  id?: string,
+) {
+  return (
+    (id !== undefined && unknownNetIds.has(id)) ||
+    slip.netCents > payrollTotals([slip]).grossCents ||
+    slip.lines.some((l) => l.section === 'earning')
+  );
+}
+
+/**
+ * Per month: running pay, special payments and the monthly total. A regular slip that mixes in a
+ * special payment is "split unclear": its whole pay counts in the total, the running part is null.
+ * Tax is never re-allocated between the parts.
+ */
+export function payrollNetComposition(
+  slips: CapturedPayslip[],
+  month: string,
+  unknownNetIds: ReadonlySet<string> = new Set(),
+) {
+  const inMonth = slips.filter((p) => p.month === month);
+  const regular = inMonth.filter((p) => p.kind === 'regular');
+  const special = inMonth.filter((p) => p.kind === 'special');
+  const sum = (list: CapturedPayslip[]) => list.reduce((n, p) => n + payslipPayNetCents(p), 0);
+  const splitUnclear = regular.some((p) => regularSlipMixesSpecial(p, unknownNetIds, p.id));
+  return {
+    month,
+    recorded: inMonth.length > 0,
+    runningCents: regular.length && !splitUnclear ? sum(regular) : null,
+    specialCents: special.length ? sum(special) : 0,
+    totalCents: inMonth.length ? sum(inMonth) : null,
+    splitUnclear,
+    specialSlipIds: special.map((p) => p.id),
+  };
+}
+
 /** Recorded amounts only: no extrapolation to fourteen payments or invented missing months. */
 export function payrollReport(
   slips: CapturedPayslip[],
@@ -216,6 +269,7 @@ export function payrollReport(
     ).netCents,
     timeline: months.map((m) => ({
       month: m,
+      composition: payrollNetComposition(slips, m, unknownNetIds),
       ...payrollTotals(slips.filter((p) => p.month === m && p.kind === 'regular')),
       recorded: slips.some((p) => p.month === m && p.kind === 'regular'),
       netSplitUnknown: slips.some(

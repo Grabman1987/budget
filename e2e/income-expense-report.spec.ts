@@ -12,7 +12,15 @@ test('income versus expense expands categories, drills bookings and exports the 
   const report = page.getByTestId('income-expense-report');
   await expect(report).toBeVisible({ timeout: 30_000 });
   await expect(page.getByTestId('income-expense-chart')).toBeVisible();
-  await expect(report.getByText('Netto (Einnahmen − Ausgaben)', { exact: true })).toBeVisible();
+  const cashflow = page.getByTestId('income-expense-cashflow');
+  await expect(cashflow.getByRole('heading', { name: 'Cashflow' })).toBeVisible();
+  await expect(page.getByTestId('cashflow-statement')).toContainText('durchschnittlich');
+  await expect(cashflow.getByRole('columnheader', { name: 'kumuliert' })).toBeVisible();
+  const cashflow = page.getByTestId('income-expense-cashflow');
+  await expect(cashflow.getByRole('heading', { name: 'Cashflow' })).toBeVisible();
+  await expect(page.getByTestId('cashflow-statement')).toContainText('durchschnittlich');
+  await expect(cashflow.getByRole('columnheader', { name: 'kumuliert' })).toBeVisible();
+  await expect(report.getByText('Cashflow (Einnahmen − Ausgaben)', { exact: true })).toBeVisible();
   const expand = report.getByRole('button', { expanded: false }).first();
   await expect(expand).toBeVisible();
   const collapsed = await report.locator('.rgrid tbody tr').count();
@@ -25,7 +33,7 @@ test('income versus expense expands categories, drills bookings and exports the 
   const download = await downloaded;
   const csv = readFileSync((await download.path())!, 'utf8');
   expect(csv).toContain('"Summe";"Ø Monat"');
-  expect(csv).toContain('Netto (Einnahmen − Ausgaben)');
+  expect(csv).toContain('Cashflow (Einnahmen − Ausgaben)');
   expect(csv.trim().split('\n')).toHaveLength(rows + 1);
   const cell = report.locator('.rgrid tbody tr').first().getByRole('link').first();
   await expect(cell).toHaveAttribute('href', /spalte=2025-09/);

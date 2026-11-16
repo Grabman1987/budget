@@ -61,7 +61,7 @@ const overviewNet = (page: Page) =>
   page
     .locator('.income-expense-report .rgrid tbody tr')
     .filter({
-      has: page.getByRole('rowheader', { name: 'Netto (Einnahmen − Ausgaben)', exact: true }),
+      has: page.getByRole('rowheader', { name: 'Cashflow (Einnahmen − Ausgaben)', exact: true }),
     })
     .getByRole('link')
     .nth(0);
