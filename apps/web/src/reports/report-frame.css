@@ -3,6 +3,11 @@
   gap: 12px;
   min-width: 0;
 }
+[data-budget-redesign='1'] .redesign-report-frame > .report-verdict {
+  background: var(--surface);
+  margin: 0;
+  padding: 12px;
+}
 /* Keep report labels and source controls measurable above the shared drafting grid. */
 [data-budget-redesign='1']
   :is(
