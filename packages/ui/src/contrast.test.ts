@@ -106,6 +106,37 @@ describe('Q1 contrast roles', () => {
       }
     });
 
+    it(`${modes[index]}: booking status icons reach AA non-text contrast on every row state`, () => {
+      // Normal, striped, checked, hovered and selected register rows; controls also hover on ground-2.
+      for (const background of [
+        'surface',
+        'surface-2',
+        'ground',
+        'ground-2',
+        'good-soft',
+        'quiet-soft',
+      ]) {
+        const base = color(background);
+        const surfaces = [base];
+        for (const tint of ['tint', 'tint-2']) {
+          const [r, g, b, alpha] = token(tint)
+            .match(/[\d.]+/g)!
+            .map(Number);
+          surfaces.push(
+            [r!, g!, b!].map((channel, i) => channel * alpha! + base[i]! * (1 - alpha!)),
+          );
+        }
+        // Missing-category rows use the opaque ON warning surface.
+        surfaces.push(rgb(new RegExp('--warning-soft:\\s*([^;]+);').exec(onBlocks[index]!)![1]!));
+        for (const surface of surfaces)
+          for (const foreground of ['good', 'ink'])
+            expect(
+              contrast(color(foreground), surface),
+              `${foreground} on ${background}/row tint`,
+            ).toBeGreaterThanOrEqual(3);
+      }
+    });
+
     it(`${modes[index]}: positive hero metadata and controls keep contrast after local remapping`, () => {
       const background = color('good');
       const foreground = color('on-good');
