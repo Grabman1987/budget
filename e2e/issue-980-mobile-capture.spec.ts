@@ -76,7 +76,7 @@ for (const theme of ['light', 'dark'] as const) {
     await expect(payee).toHaveAttribute('placeholder', 'Empfänger wählen');
     await expect(category).toHaveAttribute('placeholder', 'Kategorie wählen');
     await expect(save).toBeDisabled();
-    await expect(dialog.getByText('Jede Zeile braucht einen Betrag.')).toBeVisible();
+    await expect(dialog.getByText('Jede Zeile braucht einen Betrag.')).toHaveCount(0);
     await screenshot('empty');
     const rowPositions = () =>
       dialog.locator('.bk-cols').evaluate((card) => {
@@ -136,6 +136,8 @@ for (const theme of ['light', 'dark'] as const) {
     await amount.pressSequentially('4');
     await payee.tap();
     await payee.press('Escape');
+    // The synthetic payee has no account history; complete the form explicitly (#1145).
+    await dialog.getByLabel('Bezahlt von', { exact: true }).selectOption({ index: 1 });
     await amount.tap();
     await expect(save).toBeEnabled();
     await expect(save).toHaveCSS('opacity', '1');
