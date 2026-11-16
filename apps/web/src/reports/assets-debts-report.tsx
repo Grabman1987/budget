@@ -199,7 +199,7 @@ function Body({
           <span className="tbd-state" hidden={debtOnly}>
             <span className={rising ? 'ok' : 'ink'} data-testid="ad-state">
               <Arrow className="icon icon-sm" size={16} strokeWidth={1.75} aria-hidden="true" />
-              {eur(change.deltaCents, { sign: true })}
+              {eur(change.deltaCents)}
               {rate ? ` · ${rate}` : ''}
             </span>
           </span>
@@ -229,7 +229,7 @@ function Body({
                 <span className="tech">
                   {debtOnly ? 'Veränderung Nettovermögen' : 'Veränderung im Zeitraum'}
                 </span>
-                <strong data-testid="ad-change">{eur(change.deltaCents, { sign: true })}</strong>
+                <strong data-testid="ad-change">{eur(change.deltaCents)}</strong>
                 <small data-testid="ad-change-rate">
                   {rate ?? 'Prozent nicht berechenbar (Start bei 0)'}, seit {longDay(history.from)}
                 </small>

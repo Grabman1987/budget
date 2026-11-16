@@ -349,7 +349,7 @@ export function MonthSummary({ data }: { data: OnePagerData }) {
           {!('unavailable' in data.netWorth) && (
             <>
               {' '}
-              · Veränderung <b>{eur(data.netWorth.deltaCents, { sign: true })}</b>
+              · Veränderung <b>{eur(data.netWorth.deltaCents)}</b>
             </>
           )}
         </div>
@@ -518,10 +518,10 @@ export function YearSummary({ data }: { data: YearReportRead }) {
                 <div key={label}>
                   <dt>{label}</dt>
                   <dd>
-                    {eur(current - prior, { sign: true })} ·{' '}
+                    {eur(current - prior)} ·{' '}
                     {prior === 0
                       ? 'nicht ermittelbar (Vorjahreswert null)'
-                      : bpText(changeBp(current, prior), { sign: true })}
+                      : bpText(changeBp(current, prior))}
                   </dd>
                 </div>
               ))}
@@ -530,7 +530,7 @@ export function YearSummary({ data }: { data: YearReportRead }) {
                 <dd>
                   {t.savingsRateBp === null || previous.savingsRateBp === null
                     ? 'nicht ermittelbar (kein Haushaltseinkommen)'
-                    : `${bpText(t.savingsRateBp - previous.savingsRateBp, { sign: true }).replace(' %', '')} Prozentpunkte`}
+                    : `${bpText(t.savingsRateBp - previous.savingsRateBp).replace(' %', '')} Prozentpunkte`}
                 </dd>
               </div>
             </dl>
@@ -555,10 +555,10 @@ export function YearWealthChange({ data }: { data: YearReportRead }) {
       {n && change && !data.incomplete?.length ? (
         <>
           Anfang {eur(n.startCents)} → Ende {eur(n.endCents)} · Vermögensänderung{' '}
-          {eur(change.deltaCents, { sign: true })} ·{' '}
+          {eur(change.deltaCents)} ·{' '}
           {change.changeBp === null
             ? 'nicht ermittelbar (Anfangsvermögen null)'
-            : bpText(change.changeBp, { sign: true })}
+            : bpText(change.changeBp)}
         </>
       ) : (
         'Vermögensänderung nicht ermittelbar: Die Bewertung ist unvollständig; es fehlt ein Kurs, Wechselkurs oder Anfangswert.'

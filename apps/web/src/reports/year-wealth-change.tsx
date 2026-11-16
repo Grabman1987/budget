@@ -10,10 +10,10 @@ export function YearWealthChangeValue({ netWorth }: { netWorth: YearNetWorth }) 
   const rate = ratioBp(change, netWorth.startCents);
   return (
     <span>
-      {eur(change, { sign: true })} ·{' '}
+      {eur(change)} ·{' '}
       {rate === null
         ? 'Prozent nicht ermittelbar (Anfangsvermögen nicht positiv)'
-        : privateAmount(bpText(rate, { sign: true }))}
+        : privateAmount(bpText(rate))}
     </span>
   );
 }

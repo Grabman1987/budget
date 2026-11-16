@@ -219,8 +219,8 @@ function Delta({ now, before }: { now: number; before: number }) {
   const bp = changeBp(now, before);
   return (
     <small>
-      {eur(now - before, { sign: true, cents: false })}
-      {bp !== null ? ` · ${bpText(bp, { sign: true })}` : ''}
+      {eur(now - before, { cents: false })}
+      {bp !== null ? ` · ${bpText(bp)}` : ''}
     </small>
   );
 }
@@ -352,7 +352,7 @@ function Rows({
                   </span>
                 </ChartValue>
                 <span className="dv-val">
-                  <strong>{eur(row.deltaCents, { cents: false, sign: true })}</strong>
+                  <strong>{eur(row.deltaCents, { cents: false })}</strong>
                   <small>
                     {eur(row.previousCents, { cents: false })} →{' '}
                     {eur(row.currentCents, { cents: false })}

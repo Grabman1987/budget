@@ -132,7 +132,7 @@ function YearBody({ data, year }: { data: ReportTables; year: number }) {
         <div className="year-compare" data-testid="year-compare">
           <div>
             <span className="tech">Konsum gegen {year - 1}</span>
-            <strong>{eur(comparison.consumptionDeltaCents, { cents: false, sign: true })}</strong>
+            <strong>{eur(comparison.consumptionDeltaCents, { cents: false })}</strong>
             <small>
               {comparison.consumptionDeltaBp === null
                 ? '–'
@@ -142,7 +142,7 @@ function YearBody({ data, year }: { data: ReportTables; year: number }) {
           </div>
           <div>
             <span className="tech">Einnahmen gegen {year - 1}</span>
-            <strong>{eur(comparison.incomeDeltaCents, { cents: false, sign: true })}</strong>
+            <strong>{eur(comparison.incomeDeltaCents, { cents: false })}</strong>
             <small>
               {comparison.incomeDeltaBp === null
                 ? '–'
