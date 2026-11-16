@@ -121,7 +121,11 @@ export function InboxPage() {
   );
   return (
     <KontenFrame meta={META} view="inbox">
-      {search.von && <InboxBack to={search.von} label="Zurück zur vorherigen Ansicht" />}
+      {search.von && (
+        <InboxHeaderItem slot="inbox-back">
+          <InboxBack to={search.von} label="Zurück zur vorherigen Ansicht" />
+        </InboxHeaderItem>
+      )}
       {(!REDESIGN_ENABLED || isPhone) && sourceStatus}
       {REDESIGN_ENABLED && !search.bankRecap && <BankSyncRecap />}
       {REDESIGN_ENABLED && search.bankRecap && search.bankSource && (

@@ -25,11 +25,15 @@ import {
 import { InboxPage } from './inbox-page';
 import { validateInboxSearch } from './navigation';
 
+const flags = vi.hoisted(() => ({ REDESIGN_ENABLED: false }));
+vi.mock('../shell/redesign-flag', () => flags);
+vi.mock('../shell/header-status', () => ({ MobileStatusLine: () => null }));
 vi.mock('../pages/area-head', () => ({ AreaHead: () => <h1>Prüfen</h1> }));
 vi.mock('../receipts/receipt-section', () => ({ ReceiptSection: () => <p>Belegbereich</p> }));
 
 const clients: QueryClient[] = [];
 beforeEach(() => {
+  flags.REDESIGN_ENABLED = false;
   vi.stubGlobal('matchMedia', (media: string) => ({
     matches: false,
     media,
@@ -109,6 +113,7 @@ function server(
       });
     }
     if (url.pathname === '/api/bank-sync') return json({ configured: false, connections: [] });
+    if (url.pathname === '/api/bank-sync/recap') return json({ accounts: [] });
     return json({});
   });
 }
@@ -120,7 +125,7 @@ function Header() {
   );
 }
 
-function mount() {
+function mount(initialEntry = '/konten/pruefen') {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   clients.push(client);
   const root = createRootRoute({ validateSearch: validateInboxSearch, component: Outlet });
@@ -136,7 +141,7 @@ function mount() {
   });
   const router = createRouter({
     routeTree: root.addChildren([inbox]),
-    history: createMemoryHistory({ initialEntries: ['/konten/pruefen'] }),
+    history: createMemoryHistory({ initialEntries: [initialEntry] }),
   });
   render(
     <QueryClientProvider client={client}>
@@ -147,6 +152,28 @@ function mount() {
   );
   return client;
 }
+
+it.each([false, true])(
+  'keeps the return destination and leads the ON toolbar (redesign %s)',
+  async (enabled) => {
+    flags.REDESIGN_ENABLED = enabled;
+    server({ umsaetze: 0, aufgaben: 0 }, { wait: null });
+    mount('/konten/pruefen?von=%2Fkonten%2Fbuchungen');
+    const back = await screen.findByRole('link', { name: 'Zurück zur vorherigen Ansicht' });
+    expect(back.getAttribute('href')).toBe('/konten/buchungen');
+    if (enabled) {
+      await waitFor(() => {
+        const toolbar = document.querySelector('.konten-frame-inbox .konten-view-bar');
+        expect(toolbar?.firstElementChild?.contains(back)).toBe(true);
+      });
+      expect(screen.getAllByRole('link', { name: 'Zurück zur vorherigen Ansicht' })).toHaveLength(
+        1,
+      );
+    } else {
+      expect(back.closest('.konten-view-bar')).toBeNull();
+    }
+  },
+);
 
 const tabTotal = () => {
   const group = document.querySelector('.inbox-segments');

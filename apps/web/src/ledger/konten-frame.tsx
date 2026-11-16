@@ -100,6 +100,7 @@ function RedesignKontenFrame({
       {!inHead && (
         <div className={headerSummary ? 'konten-register-head' : undefined}>
           <div className="konten-view-bar">
+            {view === 'inbox' && <div data-konten-slot="inbox-back" />}
             {menu}
             {headerTools}
             {view === 'inbox' && (
