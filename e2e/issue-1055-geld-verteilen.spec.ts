@@ -187,3 +187,58 @@ for (const theme of ['light', 'dark'] as const) {
     ).toBeNull();
   });
 }
+
+test('historical templates preview, edit, assign and undo as one group', async ({
+  page,
+  request,
+  baseURL,
+}) => {
+  const send = async (path: string, data: unknown, method = 'POST') => {
+    const response = await request.fetch(`/api${path}`, {
+      method,
+      data,
+      headers: { origin: baseURL! },
+    });
+    expect(response.ok(), await response.text()).toBe(true);
+    return response.json();
+  };
+  await send('/accounts', {
+    name: 'Synthetic cash',
+    type: 'cash',
+    openingDate: '2026-09-01',
+    openingBalanceCents: 10000,
+  });
+  const { group } = await send('/categories/groups', { name: 'Synthetic templates' });
+  const { category } = await send('/categories', {
+    name: 'Synthetic history',
+    groupId: group.id,
+    class: 'need',
+    kind: 'variable',
+    stage: 1,
+  });
+  await send(
+    '/budget/2026-09/assigned',
+    { items: [{ categoryId: category.id, assignedCents: 701 }] },
+    'PUT',
+  );
+  await page.goto('/plan/monat?monat=2026-10&ablauf=verteilen');
+  const flow = page.getByTestId('distribute-flow');
+  await flow.getByRole('button', { name: /^Weiter:/ }).click();
+  await flow.getByRole('button', { name: /^Weiter:/ }).click();
+  await flow.getByRole('button', { name: 'Wie letzter Monat', exact: true }).click();
+  const amount = flow.getByRole('textbox', { name: 'Synthetic history · Zugewiesen' });
+  await expect(amount).toHaveValue('7,01');
+  const before = await request.get('/api/budget/2026-10');
+  expect((await before.json()).summary.assignedCents).toBe(0);
+  await amount.fill('100,01');
+  await expect(flow.getByText(/du verplanst mehr, als da ist/)).toBeVisible();
+  await amount.fill('8,03');
+  expect((await new AxeBuilder({ page }).include('main').analyze()).violations).toEqual([]);
+  await flow.getByRole('button', { name: 'Vorlage zuweisen' }).click();
+  await expect(flow.getByTestId('distribute-tba')).toHaveText('84,96 €');
+  await flow.getByRole('button', { name: 'Letzte Änderung rückgängig' }).click();
+  await expect(flow.getByTestId('distribute-tba')).toHaveText('92,99 €');
+  const after = await request.get('/api/budget/2026-10');
+  expect((await after.json()).summary.assignedCents).toBe(0);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+});

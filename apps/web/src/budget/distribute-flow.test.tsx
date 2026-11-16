@@ -727,3 +727,84 @@ it.each(['not-a-date', '2026-10-01T00:00:00.000Z', 'malformed-json', 'null'])(
     expect(sessionStorage.getItem(key)).toBeNull();
   },
 );
+
+it('templates preview historical cents, allow edits and use one existing guarded assignment', async () => {
+  const data = view({ toBeAssignedCents: 1000 });
+  const row = data.summary.envelopes.find((e) => e.categoryId === 'fun')!;
+  row.quickAssign = {
+    lastMonthCents: 701,
+    averageCents: 333,
+    ghostCents: 0,
+    ghostSource: 'median',
+    historyMonths: ['2026-07', '2026-08', '2026-09'],
+  };
+  render(flow(data));
+  next();
+  next();
+  fireEvent.click(screen.getByRole('button', { name: 'Wie letzter Monat' }));
+  expect(assign).not.toHaveBeenCalled();
+  const input = screen.getByRole('textbox', { name: 'Synthetic fun · Zugewiesen' });
+  expect((input as HTMLInputElement).value).toBe('7,01');
+  fireEvent.change(input, { target: { value: '12,01' } });
+  expect(screen.getByText(/du verplanst mehr, als da ist/).textContent).toContain('−2,01');
+  fireEvent.click(screen.getByRole('button', { name: 'Vorlage zuweisen' }));
+  await waitFor(() =>
+    expect(assign).toHaveBeenCalledWith([{ categoryId: 'fun', assignedCents: 1201 }]),
+  );
+  expect(assign).toHaveBeenCalledTimes(1);
+});
+
+it('templates without usable history are disabled with a visible reason', () => {
+  render(flow(view({})));
+  next();
+  next();
+  for (const name of ['Wie letzter Monat', 'Ø 3 Monate'])
+    expect(screen.getByRole('button', { name })).toHaveProperty('disabled', true);
+  expect(screen.getByText(/Keine historischen Zuweisungen/)).toBeTruthy();
+  expect(screen.getByText(/Keine historischen Ausgaben/)).toBeTruthy();
+});
+
+it.each([
+  [200, '2,00'],
+  [1000, '3,33'],
+  [0, '0,00'],
+] as const)(
+  'average template with %i cents caps funding and leaves target/card categories alone',
+  (tba, expected) => {
+    const data = view({ toBeAssignedCents: tba });
+    for (const id of ['fun', 'rent', 'card']) {
+      const row = data.summary.envelopes.find((e) => e.categoryId === id)!;
+      row.quickAssign = {
+        lastMonthCents: 701,
+        averageCents: 333,
+        ghostCents: 0,
+        ghostSource: 'median',
+        historyMonths: ['2026-07', '2026-08', '2026-09'],
+      };
+    }
+    data.summary.envelopes.find((e) => e.categoryId === 'rent')!.target = {
+      kind: 'monthly',
+      amountCents: 701,
+    } as never;
+    render(flow(data));
+    next();
+    next();
+    fireEvent.click(screen.getByRole('button', { name: 'Ø 3 Monate' }));
+    expect(
+      (screen.getByRole('textbox', { name: 'Synthetic fun · Zugewiesen' }) as HTMLInputElement)
+        .value,
+    ).toBe(expected);
+    expect(screen.queryByRole('textbox', { name: 'Synthetic card · Zugewiesen' })).toBeNull();
+    expect(screen.queryByRole('textbox', { name: 'Synthetic rent · Zugewiesen' })).toBeNull();
+    expect(assign).not.toHaveBeenCalled();
+    fireEvent.change(screen.getByRole('textbox', { name: 'Synthetic fun · Zugewiesen' }), {
+      target: { value: '-1' },
+    });
+    expect(screen.getByRole('button', { name: 'Vorlage zuweisen' })).toHaveProperty(
+      'disabled',
+      true,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Vorschau verwerfen' }));
+    expect(screen.queryByRole('textbox')).toBeNull();
+  },
+);
