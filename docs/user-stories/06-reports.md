@@ -28,7 +28,8 @@ Alle Reports mit Nummer laut `docs/FEATURES.md` (34 Reports, 1.1 bis 5.6). Jede 
   its header so I can understand the result before reading tables and charts.
 - **Starting point:** Open any report using the shared redesign report frame.
 - **Flow:**
-  1. Open the report or a retained report link and select its period or view.
+  1. Open the report or a retained report link (including Nettovermögen) and select
+     its period or view.
   2. Read the verdict immediately below the header with calculation details closed.
   3. Open “Berechnung und Einordnung” to inspect the existing calculation inputs.
   4. Hide amounts; the verdict and calculation retain the existing privacy masking.
@@ -40,7 +41,10 @@ Alle Reports mit Nummer laut `docs/FEATURES.md` (34 Reports, 1.1 bis 5.6). Jede 
     retain their existing behavior. No financial figure or formula changes.
   - The verdict is readable at desktop 1440 and phone 390 in light and dark themes.
     One-Pager printing retains only the sheet's own verdict.
-- **Status:** Implemented for review (#1155); required CI and owner acceptance open.
+  - Nettovermögen's full-page visual baselines include the exposed verdict; the
+    existing account reconciliation, calculation-chain and period checks remain.
+- **Status:** Implemented for review (#1155, PR #1169); scoped Linux visual baselines
+  regenerated and independently reviewed; required CI and owner acceptance open.
 
 ### RP-01 – Monats-One-Pager
 - **Story:** Als Nutzer möchte ich den Monat auf einem Blatt mit Ergebniskette und 50/30/20 sehen und drucken, damit ich am Monatsende ohne Suchen entscheide, ob der Monat gut lief und was ich im nächsten ändere.
