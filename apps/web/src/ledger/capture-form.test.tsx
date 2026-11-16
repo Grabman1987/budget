@@ -1378,8 +1378,18 @@ it('keeps the saved account when the next payee has history on another account',
     await user.click(screen.getByRole('button', { name: 'Speichern und neu' }));
     await waitFor(() => expect(create).toHaveBeenCalledTimes(1));
     expect(account.value).toBe('wallet');
-    await user.type(screen.getByLabelText('Empfänger'), 'Laden Bei{Enter}');
-    await waitFor(() => expect(lookup).toHaveBeenCalled());
+    await waitFor(() =>
+      expect(document.activeElement).toBe(screen.getByLabelText('Betrag', { exact: true })),
+    );
+    await user.type(screen.getByLabelText('Empfänger'), 'Laden Bei');
+    await user.click(await screen.findByRole('option', { name: 'Laden Beispiel' }));
+    await waitFor(() =>
+      expect(lookup).toHaveBeenCalledWith(
+        { payeeId: 'shop', to: expect.any(String) },
+        undefined,
+        1,
+      ),
+    );
     expect(account.value).toBe('wallet');
   } finally {
     lookup.mockRestore();

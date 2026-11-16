@@ -687,6 +687,7 @@ export function CaptureForm({
     const active = document.activeElement;
     if (
       active instanceof HTMLInputElement &&
+      active.validity.customError &&
       active.closest('.is-capture-category') &&
       formRef.current?.contains(active)
     ) {
