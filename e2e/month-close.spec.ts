@@ -6,6 +6,9 @@ import { openDatabase } from '../packages/db/src/client';
 import { INCOME_TYPES } from '../packages/db/src/schema/budget';
 import { test } from './isolated-ledger';
 
+// Keep the five-step behavior and accessibility checks independent of entry motion.
+test.use({ reducedMotion: 'reduce' });
+
 test('guided month close walks all five steps, undoes the whole plan and keeps an editable close marker', async ({
   page,
   isolatedLedger,
