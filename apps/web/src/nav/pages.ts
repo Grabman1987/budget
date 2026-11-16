@@ -33,6 +33,15 @@ export const CONTACT_SETTINGS_META: PageDef = {
   spec: 'Kontakt-Stammdaten mit bestehendem Anlegen und Umbenennen; IDs und Verlauf bleiben erhalten.',
 };
 
+export const PAYEE_SETTINGS_META: PageDef = {
+  path: '/einstellungen/empfaenger',
+  title: 'Einstellungen · Empfänger',
+  area: 'einstellungen',
+  register: 'empfaenger',
+  fills: P3,
+  spec: 'Empfänger-Liste mit möglichen Dubletten, Zusammenführen mit Hauptempfänger und Alias.',
+};
+
 /** Every placeholder page with a fixed path. Heute, the report pages and dev pages are separate. */
 export const PAGES: ReadonlyArray<PageDef> = [
   ...(REDESIGN_ENABLED ? [CONTACT_SETTINGS_META] : []),
@@ -156,6 +165,7 @@ export const PAGES: ReadonlyArray<PageDef> = [
     fills: P2,
     spec: 'Konten mit Rolle und Konditionen (Limits, Zinsen, Laufzeit, Kreditkonditionen).',
   },
+  PAYEE_SETTINGS_META,
   {
     path: '/einstellungen/depots',
     title: 'Einstellungen · Depots & Kryptos',

@@ -80,6 +80,7 @@ export const AREAS: ReadonlyArray<AreaDef> = [
       ...(REDESIGN_ENABLED
         ? [{ id: 'kontakte', label: 'Kontakte', to: '/einstellungen/kontakte' }]
         : []),
+      { id: 'empfaenger', label: 'Empfänger', to: '/einstellungen/empfaenger' },
       { id: 'projekte', label: 'Projekte', to: '/einstellungen/projekte' },
       {
         id: 'warenkorb',
@@ -134,7 +135,11 @@ const SETTINGS_GROUP_IDS: ReadonlyArray<{ id: string; label: string; registers: 
   REDESIGN_ENABLED
     ? [
         { id: 'profil', label: 'Profil & Sicherheit', registers: ['profil', 'sicherheit'] },
-        { id: 'konten', label: 'Konten & Depots', registers: ['konten', 'depots', 'kontakte'] },
+        {
+          id: 'konten',
+          label: 'Konten & Depots',
+          registers: ['konten', 'depots', 'kontakte', 'empfaenger'],
+        },
         {
           id: 'regeln',
           label: 'Kategorien & Regeln',
@@ -151,6 +156,7 @@ const SETTINGS_GROUP_IDS: ReadonlyArray<{ id: string; label: string; registers: 
           registers: [
             'konten',
             ...(REDESIGN_ENABLED ? ['kontakte'] : []),
+            'empfaenger',
             'kategorien',
             'warenkorb',
             'projekte',

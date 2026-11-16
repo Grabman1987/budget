@@ -18,6 +18,7 @@ export const LEGACY_PAGE_PATHS = [
   '/vermoegen/freiheit',
   '/einstellungen/profil',
   '/einstellungen/konten',
+  '/einstellungen/empfaenger',
   '/einstellungen/depots',
   '/einstellungen/projekte',
   '/einstellungen/warenkorb',
@@ -50,6 +51,7 @@ const LEGACY_SETTINGS_GROUPS: readonly ExpectedSettingsGroup[] = [
     label: 'Daten',
     items: [
       { id: 'konten', label: 'Konten', to: '/einstellungen/konten' },
+      { id: 'empfaenger', label: 'Empfänger', to: '/einstellungen/empfaenger' },
       { id: 'kategorien', label: 'Kategorien', to: '/einstellungen/kategorien' },
       { id: 'warenkorb', label: 'Warenkorb (Teuerung)', to: '/einstellungen/warenkorb' },
       { id: 'projekte', label: 'Projekte', to: '/einstellungen/projekte' },
@@ -91,6 +93,7 @@ export function expectedSettingsGroups(redesign: boolean): readonly ExpectedSett
         item('konten'),
         item('depots'),
         { id: 'kontakte', label: 'Kontakte', to: CONTACT_SETTINGS_PATH },
+        item('empfaenger'),
       ],
     },
     {

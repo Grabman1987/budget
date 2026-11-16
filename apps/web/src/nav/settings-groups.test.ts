@@ -24,6 +24,7 @@ describe('settings groups', () => {
         'Daten',
         [
           'Konten',
+          'Empfänger',
           'Kategorien',
           'Warenkorb (Teuerung)',
           'Projekte',
@@ -39,6 +40,7 @@ describe('settings groups', () => {
   it('keeps the existing URLs', () => {
     expect(Object.fromEntries(grouped.map((item) => [item.id, item.to]))).toEqual({
       konten: '/einstellungen/konten',
+      empfaenger: '/einstellungen/empfaenger',
       kategorien: '/einstellungen/kategorien',
       warenkorb: '/einstellungen/warenkorb',
       projekte: '/einstellungen/projekte',

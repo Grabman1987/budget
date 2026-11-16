@@ -33,6 +33,7 @@ export * from './income-month';
 export * from './budget-year';
 export * from './planned-events';
 export * from './assignment-rules';
+export * from './payee-duplicates';
 export * from './reports/payslip-intake';
 export * from './reports/payslip-automation';
 export * from './reports/payslip-wage-reread';
