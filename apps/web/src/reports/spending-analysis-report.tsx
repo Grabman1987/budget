@@ -9,6 +9,7 @@ import {
 } from '@budget/ui';
 import { cents, type SpendRow, type SpendingPeriod } from '@budget/domain';
 import type { SpendingReport } from '@budget/db';
+import { ReportViewControl } from './report-view-control';
 import { queryOptions, useQuery } from '@tanstack/react-query';
 import { useState, type CSSProperties, type ReactNode } from 'react';
 import { ChevronDown } from 'lucide-react';
@@ -28,12 +29,23 @@ import { ReportBodyDisclosure } from './report-body-disclosure';
 import { SpendingTrend } from './spending-trend';
 import './income-spending-redesign.css';
 
-const analysisQuery = (period: SpendingPeriod) =>
+export type SpendingComparison = 'vorperiode' | 'vorjahr';
+const COMPARISONS = [
+  { value: 'vorperiode', label: 'Vorperiode' },
+  { value: 'vorjahr', label: 'Vorjahr' },
+] as const;
+
+const analysisQuery = (period: SpendingPeriod, comparison: SpendingComparison) =>
   queryOptions({
-    queryKey: [...LEDGER_KEY, 'spending-analysis', period],
+    queryKey: [...LEDGER_KEY, 'spending-analysis', period, comparison],
     retry: false,
     queryFn: () =>
-      request<SpendingReport>('GET', `/api/reports/spending/analysis?period=${period}`),
+      request<SpendingReport>(
+        'GET',
+        `/api/reports/spending/analysis?period=${period}${
+          comparison === 'vorjahr' ? '&basis=previous-year' : ''
+        }`,
+      ),
   });
 const DEFAULT_COLLAPSED = ['sa-moves', 'sa-classes', 'sa-explorer'] as const;
 const PHONE_COLLAPSED = ['sa-main', ...DEFAULT_COLLAPSED] as const;
@@ -44,15 +56,19 @@ export function SpendingAnalysisReport({
   meta,
   viewControl,
   onPeriodChange,
+  comparison: comparisonMode = 'vorperiode',
+  onComparisonChange,
 }: {
   report: ReportEntry;
   meta: PageMeta;
   viewControl?: ReactNode;
   onPeriodChange?: (period: SpendingPeriod) => void;
+  comparison?: SpendingComparison;
+  onComparisonChange?: (comparison: SpendingComparison) => void;
 }) {
   useAmountPrivacy();
   const [period, setPeriod] = useReportPeriod();
-  const query = useQuery(analysisQuery(period));
+  const query = useQuery(analysisQuery(period, comparisonMode));
   const data = query.data && !query.isFetching ? query.data : undefined;
   const phone = useIsPhone();
   const sections = useCollapsibleSections(
@@ -110,7 +126,13 @@ export function SpendingAnalysisReport({
     >
       <div ref={sections} className="kview sr spending-analysis" data-testid="spending-analysis">
         <ReportQuery query={query} what="Ausgabenanalyse">
-          {(result) => <Body data={result} />}
+          {(result) => (
+            <Body
+              data={result}
+              comparisonMode={comparisonMode}
+              onComparisonChange={onComparisonChange}
+            />
+          )}
         </ReportQuery>
       </div>
     </PageFrame>
@@ -221,7 +243,15 @@ function SignedBar({
   );
 }
 
-function Body({ data }: { data: SpendingReport }) {
+function Body({
+  data,
+  comparisonMode,
+  onComparisonChange,
+}: {
+  data: SpendingReport;
+  comparisonMode: SpendingComparison;
+  onComparisonChange: ((comparison: SpendingComparison) => void) | undefined;
+}) {
   useAmountPrivacy();
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [tableOpen, setTableOpen] = useState(false);
@@ -295,10 +325,21 @@ function Body({ data }: { data: SpendingReport }) {
               ...(riser ? { biggestRiser: { name: riser.name, changeCents: riser.change! } } : {}),
             }}
           />
+          {REDESIGN_ENABLED && onComparisonChange && (
+            <ReportViewControl
+              label="Vergleich mit"
+              options={COMPARISONS}
+              value={comparisonMode}
+              onChange={onComparisonChange}
+            />
+          )}
           {comparison.previousFrom && comparison.previousTo ? (
             <p className="sa-comparison">
-              Vorzeitraum: {longDay(comparison.previousFrom)} bis {longDay(comparison.previousTo)} ·
-              jeweils {comparison.days} Tage. Der Strich markiert den Vorzeitraum.
+              Vorzeitraum: {longDay(comparison.previousFrom)} bis {longDay(comparison.previousTo)}
+              {comparisonMode === 'vorjahr'
+                ? ' (gleiche Tage im Vorjahr)'
+                : ` · jeweils ${comparison.days} Tage`}
+              . Der Strich markiert den Vorzeitraum.
             </p>
           ) : (
             <p className="sa-comparison">

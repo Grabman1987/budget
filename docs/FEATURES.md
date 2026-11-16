@@ -212,9 +212,13 @@ adds `darstellung=kategorien`, reusing the existing monthly category table and t
 It defaults to the largest absolute category change, with stable ID ordering for ties
 and unavailable comparisons last. Period and category selections survive view changes
 and reload; amount privacy and the OFF view set remain intact. The Explorer and old
-category bookmark keep their existing behavior. Remaining scope: unified Ausgaben
-title/menu hierarchy, group trends/change ordering, comparison modes with URL state
-(previous period/year/custom), and final legacy-address consolidation. No migration.
+category bookmark keep their existing behavior. Second slice: the group view has a
+comparison mode "Vorperiode" (default, equally long window before) or "Vorjahr" (same days
+one year earlier; 29 February falls back to 28 February), kept in the address as
+`vergleich=vorjahr` (`basis=previous-year` on `GET /api/reports/spending/analysis`). Same
+calculation as before, only the window differs; the Empfänger view stays inside the same
+report (`darstellung=empfaenger`). Remaining: custom comparison window and final
+legacy-address consolidation. No migration.
 
 | ID | Report | Prototype calculation/view reference | Remaining status |
 | --- | --- | --- | --- |
