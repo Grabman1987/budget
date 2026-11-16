@@ -61,7 +61,10 @@ describe('Combobox', () => {
       });
       vi.stubGlobal('visualViewport', viewport);
       const listHeight = () =>
-        Math.min(264, Number.parseFloat(screen.queryByRole('listbox')?.style.maxHeight || '220'));
+        Math.min(
+          264,
+          Number.parseFloat(screen.queryByRole('listbox')?.parentElement?.style.maxHeight || '220'),
+        );
       vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockImplementation(function (
         this: HTMLElement,
       ) {
@@ -80,7 +83,7 @@ describe('Combobox', () => {
         if (this.classList.contains('combo-list'))
           return new DOMRect(16, Number.parseFloat(this.style.top), 358, listHeight());
         if (this.getAttribute('role') === 'option') {
-          const list = this.closest('ul')!;
+          const list = this.closest<HTMLElement>('.combo-list')!;
           const index = Number(this.id.split('-').at(-1));
           return new DOMRect(
             16,
@@ -102,7 +105,7 @@ describe('Combobox', () => {
       );
       const field = screen.getByRole('combobox');
       await user.click(field);
-      const list = screen.getByRole('listbox');
+      const list = screen.getByRole('listbox').parentElement!;
       expect(list.tabIndex).toBe(-1);
       expect(list.style.left).toBe('16px');
       expect(list.style.width).toBe('358px');
@@ -169,7 +172,7 @@ describe('Combobox', () => {
       viewport.dispatchEvent(new Event('resize'));
       viewport.dispatchEvent(new Event('scroll'));
     });
-    const list = screen.getByRole('listbox');
+    const list = screen.getByRole('listbox').parentElement!;
     expect(list.hidden).toBe(false);
     expect(field.getAttribute('aria-expanded')).toBe('true');
     expect(document.activeElement).toBe(field);
