@@ -287,6 +287,35 @@ test('Kontostand prüfen: doppelt, Ausgleich, geprüft sperrt, undo', async ({ p
     .getByRole('button', { name: /Betrag ändern/ })
     .click();
   const edit = page.getByRole('dialog', { name: 'Buchung bearbeiten' });
+  if (await redesignLoaded(page)) {
+    const release = page.getByRole('alertdialog', {
+      name: 'Geprüfte Buchung wirklich bearbeiten?',
+    });
+    await expect(edit).toBeHidden();
+    await expect(page.getByLabel('Betrag', { exact: true })).toHaveCount(0);
+    await expect(release.getByRole('button', { name: 'Abbrechen' })).toBeFocused();
+    await page.keyboard.press('Escape');
+    await expect(release).toBeHidden();
+    await expect(edit).toBeHidden();
+    await expect(balance(page)).toHaveText('475,00 €');
+    const trigger = page
+      .getByRole('row', { name: new RegExp(`Laden ${tag}`) })
+      .getByRole('button', { name: /Betrag ändern/ });
+    await expect(trigger).toBeFocused();
+    await trigger.press('Enter');
+    await expect(release).toBeVisible();
+    await page.keyboard.press('Tab');
+    await expect(release.getByRole('button', { name: 'Bearbeitung freigeben' })).toBeFocused();
+    await page.keyboard.press('Tab');
+    await expect(release.getByRole('button', { name: 'Abbrechen' })).toBeFocused();
+    await page.keyboard.press('Shift+Tab');
+    await page.keyboard.press('Enter');
+    await expect(edit).toBeVisible();
+    await expect(edit.getByLabel('Trotzdem ändern')).toBeChecked();
+    await expect(balance(page)).toHaveText('475,00 €');
+    // Revoking the release still exercises the existing locked-save and re-release guards below.
+    await edit.getByLabel('Trotzdem ändern').uncheck();
+  }
   await edit.getByLabel('Betrag', { exact: true }).fill('21,00');
   if ((await redesignLoaded(page)) && page.viewportSize()!.width < 768) {
     await expect(captureSaveControl(edit)).toBeDisabled();
@@ -346,7 +375,7 @@ test('Kontostand prüfen: doppelt, Ausgleich, geprüft sperrt, undo', async ({ p
   const second = page.getByRole('dialog', { name: `Kontostand prüfen · ${name}` });
   await second.getByLabel('Saldo laut Bank', { exact: true }).fill('470');
   await expect(second.getByText(/Es fehlt eine Ausgabe/)).toBeVisible();
-  await second.getByRole('button', { name: /Differenz ausgleichen/ }).click();
+  await second.getByRole('button', { name: /Ausgleich buchen und abschließen/ }).click();
   await expect(toast(page)).toContainText('Ausgleich');
   await expect(balance(page)).toHaveText('470,00 €');
   await expect(

@@ -81,10 +81,10 @@ test('adjusts today from an undated bank balance and retains historical API bank
   await expect(dialog).toBeVisible();
   await dialog.getByRole('button', { name: /Bankstand übernehmen/ }).click();
   await expect(dialog.getByLabel('Stichtag')).toHaveCount(0);
-  await expect(dialog.getByText('Stichtag und Ausgleich: heute, 02.10.2026.')).toBeVisible();
+  await expect(dialog.getByText('Stichtag: heute, 02.10.2026.')).toBeVisible();
   await expect(dialog.getByLabel('Saldo laut Bank', { exact: true })).toHaveValue('87,66');
   await expect(
-    dialog.getByRole('button', { name: 'Differenz ausgleichen', exact: true }),
+    dialog.getByRole('button', { name: 'Ausgleich buchen und abschließen', exact: true }),
   ).toBeVisible();
   await expect(dialog.getByRole('button', { name: 'Fehlende Buchung erfassen' })).toHaveCount(0);
   const getBookings = async () =>
@@ -107,7 +107,9 @@ test('adjusts today from an undated bank balance and retains historical API bank
     }
     await page.screenshot({ path: test.info().outputPath(`reconcile-${theme}.png`) });
   }
-  await dialog.getByRole('button', { name: 'Differenz ausgleichen', exact: true }).click();
+  await dialog
+    .getByRole('button', { name: 'Ausgleich buchen und abschließen', exact: true })
+    .click();
   await expect(dialog).not.toBeVisible();
   expect(await getBookings()).toMatchObject([
     {
@@ -183,9 +185,10 @@ test('today adjustment defaults to ready to assign and one Undo restores booking
   );
   await expect(dialog.getByRole('button', { name: 'Kontostand stimmt' })).toHaveCount(0);
   await dialog.getByLabel('Saldo laut Bank', { exact: true }).fill('99');
-  await expect(dialog.getByLabel('Ausgleichsdatum')).toHaveCount(0);
+  await expect(dialog.getByLabel('Ausgleichsdatum')).toBeHidden();
+  await expect(dialog.getByLabel('Grund für den Ausgleich')).toBeHidden();
   await expect(dialog.getByText(/Eine echte Buchung.*02.10.2026.*Zu verteilen/)).toBeVisible();
-  await dialog.getByRole('button', { name: /Differenz ausgleichen/ }).click();
+  await dialog.getByRole('button', { name: /Ausgleich buchen und abschließen/ }).click();
   await expect(dialog).not.toBeVisible();
   const rows = (await (await request.get(origin + '/api/bookings?accountId=' + account.id)).json())
     .items;
@@ -207,4 +210,16 @@ test('today adjustment defaults to ready to assign and one Undo restores booking
   );
   expect(restored.lastReconciledOn).toBeNull();
   expect(restored.balanceCents).toBe(10000);
+  await page.goto(`/konten/${account.id}?pruefen=reconcile`);
+  await dialog.getByLabel('Saldo laut Bank', { exact: true }).fill('99');
+  await dialog.getByText('Mehr', { exact: true }).click();
+  await dialog.getByLabel('Grund f\u00fcr den Ausgleich').fill('Synthetic reason');
+  await dialog
+    .getByRole('button', { name: 'Ausgleich buchen und abschlie\u00dfen', exact: true })
+    .click();
+  await expect(dialog).toBeHidden();
+  const checks = (
+    await (await request.get(origin + `/api/accounts/${account.id}/reconciliations`)).json()
+  ).reconciliations;
+  expect(checks).toMatchObject([{ note: 'Synthetic reason', statementBalanceCents: 9900 }]);
 });

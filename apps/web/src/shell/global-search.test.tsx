@@ -75,10 +75,12 @@ describe('command palette', () => {
     ['Baby', 'Plan · Prognose', '/plan/prognose'],
     ['Einkommenspause', 'Plan · Prognose', '/plan/prognose'],
     ['Liquidität', 'Plan · Prognose', '/plan/prognose'],
+    ['Liquiditätsprognose', 'Plan · Prognose', '/plan/prognose'],
+    ['Jahresvorschau Zahlungen', 'Plan · Zahlungen', '/plan/erwartet'],
+    ['Sparziele-Fortschritt', 'Plan · Ziele', '/plan/sparziele'],
     ['Notgroschen', 'Plan · Ziele', '/plan/sparziele'],
     ['Dispo', 'Vermögen · Schulden', '/vermoegen/schulden'],
     ['Gebühren', '2.6 Bank- und Zinskosten', '/reports/kosten'],
-    ['Prognosegenauigkeit', '1.11 Prognosegenauigkeit', '/reports/planungstreue'],
     ['Budgettreue', '2.2 Budgettreue', '/reports/budgettreue'],
   ])('opens the existing function for %s', (term, label, to) => {
     const input = mount();
