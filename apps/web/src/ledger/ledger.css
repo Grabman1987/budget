@@ -1235,6 +1235,13 @@
   max-height: 240px;
   overflow: auto;
 }
+.combo-options {
+  display: contents;
+}
+.combo-action {
+  width: 100%;
+  justify-content: flex-start;
+}
 .combo-option {
   display: flex;
   justify-content: space-between;

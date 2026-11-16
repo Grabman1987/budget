@@ -43,7 +43,7 @@ for (const theme of ['light', 'dark'] as const) {
       expect(
         await dialog.locator('.bk-body').evaluate((el) => el.scrollWidth === el.clientWidth),
       ).toBe(true);
-      const list = dialog.getByRole('listbox');
+      const list = dialog.getByRole('listbox').locator('..');
       await expect(list).toHaveCSS('position', 'fixed');
       const box = (await list.boundingBox())!;
       expect(box.x).toBeGreaterThanOrEqual(0);
@@ -105,7 +105,7 @@ for (const theme of ['light', 'dark'] as const) {
     await page.setViewportSize({ width: 900, height: 844 });
     await expect(dialog.locator('.is-capture-overlay')).toHaveCount(0);
     await category.focus();
-    await expect(dialog.getByRole('listbox')).toHaveCSS('position', 'fixed');
+    await expect(dialog.getByRole('listbox').locator('..')).toHaveCSS('position', 'fixed');
     await page.setViewportSize({ width: 390, height: 844 });
     await expect(dialog.locator('.is-capture-overlay')).toHaveCount(2);
     await category.focus();
@@ -113,7 +113,7 @@ for (const theme of ['light', 'dark'] as const) {
     // A reduced viewport models the space left by the keyboard; focus must keep results open.
     await page.setViewportSize({ width: 375, height: 430 });
     await bounded(true);
-    const listBox = (await dialog.getByRole('listbox').boundingBox())!;
+    const listBox = (await dialog.getByRole('listbox').locator('..').boundingBox())!;
     expect(listBox.y + listBox.height).toBeLessThanOrEqual(430);
     // iOS pans the visual viewport independently of layout when the keyboard opens.
     await page.evaluate(() => {
