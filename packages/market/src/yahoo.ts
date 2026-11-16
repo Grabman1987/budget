@@ -54,7 +54,10 @@ export function parseYahooChart(
   if (!result) throw new MarketError('empty');
   const { meta = {}, timestamp = [] } = result;
   if (meta.currency !== undefined && meta.currency !== ref.currency)
-    throw new MarketError('currency_mismatch', `${meta.currency} instead of ${ref.currency}`);
+    throw new MarketError('currency_mismatch', undefined, {
+      currency: meta.currency,
+      origin: 'response',
+    });
   if (timestamp.length === 0) return [];
   const raw = ref.adjusted
     ? rawNumbers(text, /"adjclose"\s*:\s*\[\s*\{\s*"adjclose"\s*:\s*\[([^\]]*)\]/)

@@ -47,6 +47,32 @@ const kindOf = async (run: () => unknown): Promise<string> => {
   return 'none';
 };
 
+describe('safe quote currency evidence', () => {
+  it('keeps native unit case and rejects free-form or malformed evidence', () => {
+    expect(
+      new MarketError('currency_mismatch', undefined, {
+        currency: 'GBp',
+        origin: 'response',
+      }).currencyEvidence,
+    ).toEqual({ currency: 'GBp', origin: 'response' });
+    for (const currency of ['USD https://synthetic.invalid', ' USD', 'US', 123, null, {}]) {
+      expect(
+        new MarketError('currency_mismatch', 'USD instead of EUR', {
+          currency,
+          origin: 'response',
+        }).currencyEvidence,
+      ).toBeNull();
+    }
+    expect(
+      new MarketError('http', undefined, {
+        currency: 'USD',
+        origin: 'response',
+      }).currencyEvidence,
+    ).toBeNull();
+    expect(new MarketError('currency_mismatch', 'USD instead of EUR').currencyEvidence).toBeNull();
+  });
+});
+
 describe('Yahoo chart parser', () => {
   it('reads unadjusted closes as decimal text into micro-units and skips null bars', () => {
     const quotes = parseYahooChart(data('yahoo-chart.json'), REF, '2024-01-01', '2024-01-31');
@@ -88,6 +114,19 @@ describe('Yahoo chart parser', () => {
     const run = () =>
       parseYahooChart(data('yahoo-chart-usd.json'), REF, '2024-01-01', '2024-01-31');
     expect(await kindOf(run)).toBe('currency_mismatch');
+    expect(run).toThrow(
+      expect.objectContaining({ currencyEvidence: { currency: 'USD', origin: 'response' } }),
+    );
+    const pence = () =>
+      parseYahooChart(
+        data('yahoo-chart-usd.json').replace('"USD"', '"GBp"'),
+        REF,
+        '2024-01-01',
+        '2024-01-31',
+      );
+    expect(pence).toThrow(
+      expect.objectContaining({ currencyEvidence: { currency: 'GBp', origin: 'response' } }),
+    );
   });
 
   it('classifies error answers', async () => {
@@ -153,6 +192,9 @@ describe('Ariva historic-quotes page', () => {
     const usd = () =>
       parseArivaHtml(data('ariva-historic-usd.html'), REF, '2024-01-01', '2024-01-31');
     expect(await kindOf(usd)).toBe('currency_mismatch');
+    expect(usd).toThrow(
+      expect.objectContaining({ currencyEvidence: { currency: 'USD', origin: 'response' } }),
+    );
     expect(
       parseArivaHtml(
         data('ariva-historic-usd.html'),
@@ -508,6 +550,9 @@ describe('cryptocalc fallback source', () => {
     const kind = (over: Partial<SecurityRef>) =>
       kindOf(() => source.history(ref(over), '2024-01-03', '2024-01-05'));
     expect(await kind({ currency: 'USD' })).toBe('currency_mismatch');
+    await expect(
+      source.history(ref({ currency: 'USD' }), '2024-01-03', '2024-01-05'),
+    ).rejects.toMatchObject({ currencyEvidence: { currency: 'EUR', origin: 'mapping' } });
     expect(await kind({ quoteUrl: null })).toBe('not_configured');
     const blocked = () =>
       parseCryptocalcHtml('<html>blocked</html>', '2024-01-01', '2024-01-31', '2024-02-01');
