@@ -881,39 +881,36 @@ function PlanBody({
     </section>
   );
   const distributeMenu = (
-    <>
-      {REDESIGN_ENABLED && coverPreview.dialog}
-      <VerteilenMenu
-        month={month}
-        multi={multi}
-        emptyIds={shownRows
-          .filter((r) => r.assignedCents === 0 && (r.quickAssign?.ghostCents ?? 0) > 0)
-          .map((r) => r.id)}
-        selectedIds={selectedIds}
-        distributeBlock={distributeBlock}
-        dock={phoneRedesign}
-        onDistribute={startDistribute}
-        onGuided={() => setGuided(true)}
-        onFillTargets={() => {
-          targetPreviewReturn.current = document.querySelector<HTMLElement>(
-            '.plan-menu-verteilen > summary',
-          );
-          setTargetPreviewError(false);
-          setTargetPreview(true);
-        }}
-        cover={
-          urgent.length > 0
-            ? {
-                count: urgent.length,
-                reason: !coverPool.length && tba <= 0 ? 'Kein freies Geld zum Decken' : undefined,
-                covering,
-                sourceLabel: coverLabel,
-                onCover: () => (REDESIGN_ENABLED ? coverPreview.show(source) : void coverMonth()),
-              }
-            : null
-        }
-      />
-    </>
+    <VerteilenMenu
+      month={month}
+      multi={multi}
+      emptyIds={shownRows
+        .filter((r) => r.assignedCents === 0 && (r.quickAssign?.ghostCents ?? 0) > 0)
+        .map((r) => r.id)}
+      selectedIds={selectedIds}
+      distributeBlock={distributeBlock}
+      dock={phoneRedesign}
+      onDistribute={startDistribute}
+      onGuided={() => setGuided(true)}
+      onFillTargets={() => {
+        targetPreviewReturn.current = document.querySelector<HTMLElement>(
+          '.plan-menu-verteilen > summary',
+        );
+        setTargetPreviewError(false);
+        setTargetPreview(true);
+      }}
+      cover={
+        urgent.length > 0
+          ? {
+              count: urgent.length,
+              reason: !coverPool.length && tba <= 0 ? 'Kein freies Geld zum Decken' : undefined,
+              covering,
+              sourceLabel: coverLabel,
+              onCover: () => (REDESIGN_ENABLED ? coverPreview.show(source) : void coverMonth()),
+            }
+          : null
+      }
+    />
   );
   const topbar = (
     <PlanTopBar
@@ -1675,6 +1672,7 @@ function PlanBody({
           />
         }
       />
+      {REDESIGN_ENABLED && coverPreview.dialog}
       <SettingsFormDialog
         open={targetPreview}
         onClose={closeTargetPreview}
