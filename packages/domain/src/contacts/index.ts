@@ -281,19 +281,49 @@ export function contactStatement<T extends ContactMovement>(
   };
 }
 
-/** Prototype report 5.4 chain. Derived balances stay outside income and net worth. */
+/**
+ * Prototype report 5.4 chain. Derived balances stay outside income and net worth. Contacts whose
+ * stored allocation is contradictory (`allocationNeedsReview`) are excluded from the receivable and
+ * credit sums and reported separately (count and plain balance), so the list totals never change
+ * silently.
+ */
 export function contactTotals(
-  contacts: readonly { balanceCents: number; receivableCents?: number; creditCents?: number }[],
+  contacts: readonly {
+    balanceCents: number;
+    receivableCents?: number;
+    creditCents?: number;
+    allocationNeedsReview?: boolean;
+  }[],
 ) {
   let receivableCents = 0;
   let payableCents = 0;
-  for (const { balanceCents, receivableCents: open, creditCents } of contacts) {
+  let reviewCount = 0;
+  let reviewBalanceCents = 0;
+  for (const {
+    balanceCents,
+    receivableCents: open,
+    creditCents,
+    allocationNeedsReview,
+  } of contacts) {
     if (!Number.isSafeInteger(balanceCents))
       throw new ContactInvariantError('Invalid contact balance');
+    if (allocationNeedsReview) {
+      reviewCount += 1;
+      reviewBalanceCents += balanceCents;
+      if (!Number.isSafeInteger(reviewBalanceCents))
+        throw new ContactInvariantError('Contact totals exceed integer range');
+      continue;
+    }
     receivableCents += open ?? Math.max(0, balanceCents);
     payableCents += creditCents ?? Math.max(0, -balanceCents);
     if (!Number.isSafeInteger(receivableCents) || !Number.isSafeInteger(payableCents))
       throw new ContactInvariantError('Contact totals exceed integer range');
   }
-  return { receivableCents, payableCents, balanceCents: receivableCents - payableCents };
+  return {
+    receivableCents,
+    payableCents,
+    balanceCents: receivableCents - payableCents,
+    reviewCount,
+    reviewBalanceCents,
+  };
 }

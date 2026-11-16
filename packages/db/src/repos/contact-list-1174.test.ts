@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, expect, it } from 'vitest';
 import { sql } from 'drizzle-orm';
-import { ContactAllocationError } from '@budget/domain';
+import { ContactAllocationError, contactTotals } from '@budget/domain';
 import { createTestDatabase, type OpenedDatabase } from '../client';
 import { contact } from '../schema';
 import { seedBasics, testCtx } from './test-helpers';
@@ -70,4 +70,66 @@ it('keeps overdue reminders for consistent contacts when one contact needs revie
   const result = readOverdueContactReminders(opened.db, today);
   expect(result.unavailableCount).toBe(1);
   expect(result.items.map((i) => [i.contactId, i.overdueCents])).toEqual([['k2', 700]]);
+});
+
+it('excludes the flagged contact from the totals and reports its plain balance (outlay + receipt)', () => {
+  outlay('k2', 700, '2026-08-02');
+  contradictoryK1();
+  const rows = listContactStatements(opened.db, today, true);
+  expect(contactTotals(rows)).toEqual({
+    receivableCents: 700,
+    payableCents: 0,
+    balanceCents: 700,
+    reviewCount: 1,
+    reviewBalanceCents: 400,
+  });
+});
+
+it('keeps a flagged contact with a negative plain balance out of the credit total', () => {
+  // Outlay 1000 plus an unallocated 1600 receipt: plain balance is -600 (credit).
+  outlay('k1', 1000, '2026-08-01');
+  settleContact(
+    opened.db,
+    'k1',
+    { accountId: 'giro', date: '2026-09-01', amountCents: 1000 },
+    testCtx,
+  );
+  createBooking(
+    opened.db,
+    {
+      accountId: 'giro',
+      date: '2026-09-02',
+      amountCents: 600,
+      splits: [{ categoryId: 'auslagen', contactId: 'k1', amountCents: 600 }],
+    },
+    testCtx,
+    { contactModel: true },
+  );
+  opened.db.run(sql`UPDATE contact_allocation SET amount_cents = amount_cents + 5000`);
+  const rows = listContactStatements(opened.db, today, true);
+  const k1 = rows.find((r) => r.id === 'k1')!;
+  expect(k1.allocationNeedsReview).toBe(true);
+  expect(k1.balanceCents).toBe(-600);
+  expect(contactTotals(rows)).toMatchObject({
+    receivableCents: 0,
+    payableCents: 0,
+    reviewCount: 1,
+    reviewBalanceCents: -600,
+  });
+});
+
+it('counts a merged identity once in the flagged plain balance', () => {
+  outlay('k2', 700, '2026-08-02');
+  contradictoryK1();
+  opened.db.run(sql`UPDATE contact SET merged_into_id = 'k1' WHERE id = 'k2'`);
+  const rows = listContactStatements(opened.db, today, true);
+  expect(rows.map((r) => r.id)).toEqual(['k1']);
+  expect(rows[0]!.allocationNeedsReview).toBe(true);
+  expect(rows[0]!.balanceCents).toBe(1100);
+  expect(contactTotals(rows)).toMatchObject({
+    receivableCents: 0,
+    payableCents: 0,
+    reviewCount: 1,
+    reviewBalanceCents: 1100,
+  });
 });

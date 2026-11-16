@@ -126,7 +126,9 @@ export function cryptocalcSource(options: CryptocalcOptions): QuoteSource {
       await wait();
       const html = await getText(`${base}${target.path}?${query}`, options, 'text/html');
       const quotes = parseCryptocalcHtml(html, from, to, today);
-      return foreign ? quotes.map((q) => ({ ...q, sourceCurrency: target.fiat })) : quotes;
+      return quotes.map((q) =>
+        foreign ? { ...q, sourceCurrency: target.fiat } : { ...q, currency: target.fiat },
+      );
     },
   };
 }

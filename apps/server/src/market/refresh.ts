@@ -43,6 +43,9 @@ import {
  * from the Portfolio Performance import.
  */
 export const BACKFILL_DAYS = 30;
+/** A skipped (no ECB rate) quote day is fetched again for this many days. */
+const FX_RETRY_DAYS = 10;
+const min = (a: string, b: string) => (a < b ? a : b);
 /** ECB history starts here (first published day of the euro reference rates). */
 export const FX_HISTORY_START = '1999-01-04';
 /** One ECB request covers at most this many days (three years). */
@@ -77,6 +80,8 @@ export interface PriceRefreshResult {
   failed: Array<{ securityId: string; errors: MarketErrorKind[] }>;
   /** Days of ECB-converted instruments skipped because no ECB rate was within `FX_MAX_AGE_DAYS`. */
   fxSkipped: Array<{ securityId: string; days: string[] }>;
+  /** Days of a security with a conversion currency whose quote did not state its currency. */
+  currencyUnverified: Array<{ securityId: string; days: string[] }>;
   /** Signal-series closes that disagree with the stored value (kept, see `storeSignalCloses`). */
   conflicts: number;
 }
@@ -182,6 +187,7 @@ export async function refreshPrices(
     protectedManual: 0,
     failed: [],
     fxSkipped: [],
+    currencyUnverified: [],
     conflicts: 0,
   };
   const signalActive = signalCaptureActive(db);
@@ -219,7 +225,11 @@ export async function refreshPrices(
     const from = signal
       ? (signalFrom ?? addDays(today, -SIGNAL_INDEX.backfillDays))
       : last
-        ? addDays(last, 1)
+        ? // A day skipped for a missing ECB rate is retried: re-read the last 10 days (only days
+          // without a stored price are written, see below).
+          row.quoteFxCurrency
+          ? min(addDays(last, 1), addDays(today, -FX_RETRY_DAYS))
+          : addDays(last, 1)
         : benchmark && firstAccountDay
           ? addDays(firstAccountDay, -3)
           : addDays(today, -BACKFILL_DAYS);
@@ -265,6 +275,7 @@ export async function refreshPrices(
         }
         let rows = 0;
         const skippedDays: string[] = [];
+        const unverifiedDays: string[] = [];
         db.transaction((tx) => {
           if (signal) {
             const stored = storeSignalCloses(
@@ -278,11 +289,30 @@ export async function refreshPrices(
             return;
           }
           for (const q of quotes) {
+            if (row.quoteFxCurrency && last && q.date <= last) {
+              // Retry window: never touch a stored day, only fill the days that were skipped.
+              const stored = tx
+                .select({ securityId: schema.price.securityId })
+                .from(schema.price)
+                .where(and(eq(schema.price.securityId, row.id), eq(schema.price.date, q.date)))
+                .get();
+              if (stored) continue;
+            }
             let priceMicro = q.priceMicro;
             let conversion: Pick<
               typeof schema.price.$inferInsert,
               'sourceCurrency' | 'sourcePriceMicro' | 'fxRateMicro'
             > = {};
+            if (
+              q.sourceCurrency === undefined &&
+              row.quoteFxCurrency &&
+              q.currency !== row.currency
+            ) {
+              // A plain number for a security with a conversion currency: the source did not say
+              // which currency it is, so it is not stored as the instrument currency.
+              unverifiedDays.push(q.date);
+              continue;
+            }
             if (q.sourceCurrency !== undefined) {
               // Never store a foreign-currency quote as instrument currency: convert or skip the day.
               const converted =
@@ -331,18 +361,22 @@ export async function refreshPrices(
             } else result.protectedManual++;
           }
         });
+        if (unverifiedDays.length > 0)
+          result.currencyUnverified.push({ securityId: row.id, days: unverifiedDays });
         if (skippedDays.length > 0) {
           result.fxSkipped.push({ securityId: row.id, days: skippedDays });
           log(`prices: ${skippedDays.length} day(s) of a security skipped, no ECB rate`);
         }
-        if (rows === 0 && skippedDays.length > 0) {
+        if (rows === 0 && (skippedDays.length > 0 || unverifiedDays.length > 0)) {
           // Nothing stored: not a success. Keep or open the warning, name the missing ECB days.
           errors.push('empty');
           attempt(
             source.id,
             'empty',
             undefined,
-            `keine Zeilen gespeichert, ${skippedDays.length} Tage ohne EZB-Kurs (${skippedDays[0]} bis ${skippedDays[skippedDays.length - 1]})`,
+            skippedDays.length > 0
+              ? `keine Zeilen gespeichert, ${skippedDays.length} Tage ohne EZB-Kurs (${skippedDays[0]} bis ${skippedDays[skippedDays.length - 1]})`
+              : `keine Zeilen gespeichert, ${unverifiedDays.length} Tage ohne Währungsangabe der Quelle`,
           );
           continue;
         }

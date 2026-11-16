@@ -459,7 +459,13 @@ describe('contacts API', () => {
     expect(statement.movements[0].memo).toBe('Anteil Haushalt');
     expect((await call('GET', '/contacts?history=1')).body).toMatchObject({
       currency: 'EUR',
-      totals: { receivableCents: 0, payableCents: 2000, balanceCents: -2000 },
+      totals: {
+        receivableCents: 0,
+        payableCents: 2000,
+        balanceCents: -2000,
+        reviewCount: 0,
+        reviewBalanceCents: 0,
+      },
     });
     expect((await call('GET', '/contacts/k1?asOf=2026-08-31')).body.movements).toEqual([]);
     const undone = await call('POST', '/undo', { groupId: receipt.body.groupId });

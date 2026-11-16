@@ -64,7 +64,13 @@ const overview: ContactOverview = {
   asOf: '2026-10-02',
   currency: 'EUR',
   contacts,
-  totals: { receivableCents: 5000, payableCents: 5000, balanceCents: 0 },
+  totals: {
+    receivableCents: 5000,
+    payableCents: 5000,
+    balanceCents: 0,
+    reviewCount: 0,
+    reviewBalanceCents: 0,
+  },
 };
 const note =
   'Gemeinsamer Beispieleinkauf mit einer langen Buchungsnotiz für die vollständige Anzeige bei Tastaturfokus.';

@@ -153,36 +153,48 @@ export function isBookedCreditCost(input: {
 }
 
 export interface CombinedCosts {
-  /** Bank and interest costs of the last twelve closed months, incl. trading fees (counted once). */
-  bankCents: number;
+  /** Household bank and interest costs without trade and depot fees (own block, no portfolio ratio). */
+  householdCents: number;
+  /** Trade fees and fees of depot-like accounts (counted once, from the bank reader). */
+  portfolioFeeCents: number;
   /** Fund costs (TER share); never booked, so never part of the bank costs. */
   terCents: number;
-  /** Everything the broker withheld as tax. */
+  /** Portfolio-related costs: fees plus TER. Taxes are not part of it. */
+  portfolioCostCents: number;
+  /** Tax the broker withheld (negative = refund); shown apart and not in the cost ratio. */
   taxCents: number;
+  /** Household costs, portfolio costs and taxes. */
   totalCents: number;
-  /** Total over portfolio value in basis points; `null` without a portfolio value. */
+  /** Portfolio costs over portfolio value in basis points; `null` without a portfolio value. */
   ratioBp: number | null;
 }
 
 /**
- * One annual cost figure over the existing readers (2.6 and 4.5). The portfolio reader's own
- * trading fees are left out on purpose: the bank reader already counts them as "Depot- /
- * Transaktionsgebühren", so adding both would count them twice. The two source windows
- * (closed months versus rolling days) stay different and are named by the caller.
+ * One annual cost figure over the existing readers (2.6 and 4.5). `bankCents` is the whole bank
+ * total, of which `portfolioFeeCents` (trade fees and fees of depot-like accounts) belongs to the
+ * portfolio; the rest is household cost and gets no portfolio ratio. The portfolio reader's own
+ * trading fees are left out on purpose: the bank reader already counts them, so adding both would
+ * count them twice. Withheld taxes may be negative (refund) and stay out of the ratio.
  */
 export function combinedCosts(input: {
   bankCents: number;
+  portfolioFeeCents: number;
   terCents: number;
   taxCents: number;
   valueCents: number;
 }): CombinedCosts {
   const totalCents = input.bankCents + input.terCents + input.taxCents;
-  if (!Number.isSafeInteger(totalCents)) throw new RangeError('Costs exceed safe integer cents');
+  const portfolioCostCents = input.portfolioFeeCents + input.terCents;
+  const householdCents = input.bankCents - input.portfolioFeeCents;
+  if (![totalCents, portfolioCostCents, householdCents].every(Number.isSafeInteger))
+    throw new RangeError('Costs exceed safe integer cents');
   return {
-    bankCents: input.bankCents,
+    householdCents,
+    portfolioFeeCents: input.portfolioFeeCents,
     terCents: input.terCents,
+    portfolioCostCents,
     taxCents: input.taxCents,
     totalCents,
-    ratioBp: input.valueCents > 0 ? Math.round((totalCents * 10_000) / input.valueCents) : null,
+    ratioBp: input.valueCents > 0 ? ratioBp(portfolioCostCents, input.valueCents) : null,
   };
 }

@@ -106,6 +106,11 @@ export interface BankCostsReport extends CostsOverview {
   skippedForeignTrades: number;
   /** Distinct source bookings omitted because their dated FX conversion is missing. */
   skippedForeignBookings: number;
+  /**
+   * Last-twelve-months account fees and foreign-currency fees booked on depot-like accounts
+   * (brokerage, crypto, P2P); part of `totalCents`, used by the portfolio cost ratio.
+   */
+  portfolioAccountFeeCents: number;
   /** Account/month estimates with nonzero native interest but no EUR rate at the valuation date. */
   modeledInterestMissingFxPeriods: number;
   sources: Array<{ id: string; name: string; kind: string; cents: number; derived: boolean }>;
@@ -139,6 +144,9 @@ export function bankCostsReport(db: Executor, today: string): BankCostsReport {
   const overdraft: Record<string, number> = {};
   const orders: Record<string, number> = {};
   const fx: Record<string, number> = {};
+  const portfolioFees: Record<string, number> = {};
+  const isPortfolioAccount = (id: string) =>
+    ['brokerage', 'crypto', 'p2p'].includes(accountById.get(id)?.type ?? '');
   const earnings: Record<string, number> = {};
   const interestByAccount = new Map<string, Record<string, number>>();
   const sourceMap = new Map<
@@ -185,6 +193,7 @@ export function bankCostsReport(db: Executor, today: string): BankCostsReport {
       continue;
     }
     add(fx, month, cost);
+    if (isPortfolioAccount(b.accountId)) add(portfolioFees, month, cost);
     addSource(b.accountId, accountById.get(b.accountId)!.name, 'fx', month, cost);
     if (last12.has(month)) foreignFeeBookings++;
   }
@@ -259,6 +268,7 @@ export function bankCostsReport(db: Executor, today: string): BankCostsReport {
           : 'account';
     const map = kind === 'interest' ? interest : kind === 'overdraft' ? overdraft : fees;
     add(map, month, value);
+    if (kind === 'account' && isPortfolioAccount(b.accountId)) add(portfolioFees, month, value);
     addSource(
       kind === 'interest' ? b.accountId : `${b.accountId}:${cat.id}`,
       kind === 'interest'
@@ -483,6 +493,7 @@ export function bankCostsReport(db: Executor, today: string): BankCostsReport {
     loan,
     loanCount: loans.length,
     foreignFeeBookings,
+    portfolioAccountFeeCents: overview.months.reduce((a, m) => a + (portfolioFees[m] ?? 0), 0),
     skippedForeignTrades,
     skippedForeignBookings: skippedBookings.size,
     modeledInterestMissingFxPeriods,

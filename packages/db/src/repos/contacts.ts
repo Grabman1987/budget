@@ -195,6 +195,8 @@ export function listContactStatements(db: Executor, asOf: string, history = fals
           (sum, m) => sum - m.amountCents,
           0,
         );
+        if (!Number.isSafeInteger(balanceCents))
+          throw new BookingInvariantError('Contact balance exceeds integer range');
         return {
           ...contactHeader(db, c.id, ids),
           updatedAt: c.updatedAt,

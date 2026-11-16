@@ -77,9 +77,9 @@ describe('Yahoo chart parser', () => {
   it('reads unadjusted closes as decimal text into micro-units and skips null bars', () => {
     const quotes = parseYahooChart(data('yahoo-chart.json'), REF, '2024-01-01', '2024-01-31');
     expect(quotes).toEqual([
-      { date: '2024-01-02', priceMicro: 85_120_003 },
-      { date: '2024-01-03', priceMicro: 85_500_000 },
-      { date: '2024-01-05', priceMicro: 86_000_001 },
+      { date: '2024-01-02', priceMicro: 85_120_003, currency: 'EUR' },
+      { date: '2024-01-03', priceMicro: 85_500_000, currency: 'EUR' },
+      { date: '2024-01-05', priceMicro: 86_000_001, currency: 'EUR' },
     ]);
   });
 
@@ -126,7 +126,7 @@ describe('Yahoo chart parser', () => {
       '2024-01-01',
       '2024-01-31',
     );
-    expect(quotes).toEqual([{ date: '2024-01-05', priceMicro: 86_000_000 }]);
+    expect(quotes).toEqual([{ date: '2024-01-05', priceMicro: 86_000_000, currency: 'EUR' }]);
   });
 
   it('refuses a quote currency that differs from the security', async () => {
@@ -190,10 +190,10 @@ describe('Ariva historic-quotes page', () => {
 
   it('reads German decimals and dates from the table and skips rows without a close', () => {
     expect(parseArivaHtml(data('ariva-historic.html'), REF, '2023-12-01', '2024-01-31')).toEqual([
-      { date: '2024-01-02', priceMicro: 84_950_000 },
-      { date: '2024-01-03', priceMicro: 1_234_500_000 },
-      { date: '2024-01-04', priceMicro: 85_470_000 },
-      { date: '2024-01-05', priceMicro: 86_010_000 },
+      { date: '2024-01-02', priceMicro: 84_950_000, currency: 'EUR' },
+      { date: '2024-01-03', priceMicro: 1_234_500_000, currency: 'EUR' },
+      { date: '2024-01-04', priceMicro: 85_470_000, currency: 'EUR' },
+      { date: '2024-01-05', priceMicro: 86_010_000, currency: 'EUR' },
     ]);
   });
 
@@ -350,8 +350,8 @@ describe('Ariva historic-quotes page', () => {
       },
     });
     expect(await on.history(ref({ quoteExchange: '4' }), '2024-01-04', '2024-01-05')).toEqual([
-      { date: '2024-01-04', priceMicro: 85_470_000 },
-      { date: '2024-01-05', priceMicro: 86_010_000 },
+      { date: '2024-01-04', priceMicro: 85_470_000, currency: 'EUR' },
+      { date: '2024-01-05', priceMicro: 86_010_000, currency: 'EUR' },
     ]);
     expect(requests).toEqual([
       { url: `${PAGE}?boerse_id=4`, cookie: 'ariva_exchange=4' },

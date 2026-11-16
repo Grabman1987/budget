@@ -54,6 +54,17 @@ interface ContactRow {
   /** The stored settlement of this contact contradicts its bookings (#1174). */
   allocationNeedsReview?: boolean;
 }
+interface ContactReviewTotals {
+  reviewCount?: number;
+  reviewBalanceCents?: number;
+}
+export function contactReviewNote(totals: ContactReviewTotals | undefined): string | null {
+  const count = totals?.reviewCount ?? 0;
+  if (!count) return null;
+  return `${count} ${count === 1 ? 'Kontakt' : 'Kontakte'} mit unklarer Verrechnung · Saldo ${eur(
+    totals?.reviewBalanceCents ?? 0,
+  )} nicht in den Summen enthalten`;
+}
 export interface Statement {
   contact: { id: string; name: string };
   asOf: string;
@@ -141,7 +152,10 @@ export function ContactsPage() {
   const contacts = useQuery({
     queryKey: [...LEDGER_KEY, 'contacts', history],
     queryFn: () =>
-      request<{ contacts: ContactRow[] }>('GET', `/api/contacts?history=${history ? '1' : '0'}`),
+      request<{ contacts: ContactRow[]; totals?: ContactReviewTotals }>(
+        'GET',
+        `/api/contacts?history=${history ? '1' : '0'}`,
+      ),
   });
   const currentWriteOff = contacts.data?.contacts.find((contact) => contact.id === writeOff?.id);
   return (
@@ -171,6 +185,21 @@ export function ContactsPage() {
             onRetry={() => void contacts.refetch()}
           />
         )}
+        {contacts.data && !contacts.isFetching && contactReviewNote(contacts.data.totals) && (
+          <p className="contact-review-note" role="status">
+            <button
+              type="button"
+              className="btn btn-ghost"
+              onClick={() =>
+                document
+                  .getElementById('contact-review-first')
+                  ?.scrollIntoView({ block: 'center', behavior: 'smooth' })
+              }
+            >
+              {maskMoneyText(contactReviewNote(contacts.data.totals) ?? '')}
+            </button>
+          </p>
+        )}
         {contacts.data &&
           !contacts.isFetching &&
           !contacts.isError &&
@@ -192,10 +221,13 @@ export function ContactsPage() {
                 </tr>
               </thead>
               <tbody>
-                {contacts.data.contacts.map((c) => {
+                {contacts.data.contacts.map((c, index, all) => {
                   const balance = contactBalanceWords(c.balanceCents);
+                  const firstReview =
+                    !!c.allocationNeedsReview &&
+                    all.findIndex((other) => other.allocationNeedsReview) === index;
                   return (
-                    <tr key={c.id}>
+                    <tr key={c.id} id={firstReview ? 'contact-review-first' : undefined}>
                       <td>
                         <AppLink
                           className="btn btn-ghost"

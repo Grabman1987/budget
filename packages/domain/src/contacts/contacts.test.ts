@@ -77,10 +77,44 @@ describe('actual contact statement', () => {
   it('keeps positive receivables and negative credit in the exact overview chain', () => {
     expect(
       contactTotals([{ balanceCents: 10000 }, { balanceCents: -2000 }, { balanceCents: 0 }]),
-    ).toEqual({ receivableCents: 10000, payableCents: 2000, balanceCents: 8000 });
-    expect(contactTotals([])).toEqual({ receivableCents: 0, payableCents: 0, balanceCents: 0 });
+    ).toEqual({
+      receivableCents: 10000,
+      payableCents: 2000,
+      balanceCents: 8000,
+      reviewCount: 0,
+      reviewBalanceCents: 0,
+    });
+    expect(contactTotals([])).toEqual({
+      receivableCents: 0,
+      payableCents: 0,
+      balanceCents: 0,
+      reviewCount: 0,
+      reviewBalanceCents: 0,
+    });
     expect(() =>
       contactTotals([{ balanceCents: Number.MAX_SAFE_INTEGER }, { balanceCents: 1 }]),
+    ).toThrow();
+  });
+  it('excludes contacts flagged for review from the sums and reports them separately', () => {
+    expect(
+      contactTotals([
+        { balanceCents: 1000, receivableCents: 1000, creditCents: 600 },
+        { balanceCents: 400, receivableCents: 400, creditCents: 0, allocationNeedsReview: true },
+        { balanceCents: -250, allocationNeedsReview: true },
+        { balanceCents: -300 },
+      ]),
+    ).toEqual({
+      receivableCents: 1000,
+      payableCents: 900,
+      balanceCents: 100,
+      reviewCount: 2,
+      reviewBalanceCents: 150,
+    });
+    expect(() =>
+      contactTotals([
+        { balanceCents: Number.MAX_SAFE_INTEGER, allocationNeedsReview: true },
+        { balanceCents: 1, allocationNeedsReview: true },
+      ]),
     ).toThrow();
   });
   it('allocates 40 to 30 then 70 oldest first and accepts an edited allocation', () => {

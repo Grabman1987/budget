@@ -8,7 +8,7 @@ Bereich: „Konten › Kontakte“ (`/konten/kontakte`, Kontoblatt je Person unt
 - **Ablauf:**
   1. Ich erfasse in „Buchung erfassen“ eine Ausgabe und tippe in der Teilzeile auf „Für Kontakt auslegen“; ich wähle „Kontakt wählen“ oder „Kontakt neu anlegen“. Alternativ lege ich in „Konten › Kontakte“ mit „Kontakt anlegen“ einen „Neuer Kontakt“ an („Kontakt angelegt.“).
   2. Ich öffne „Konten › Kontakte“; die „Kontaktübersicht“ zeigt je Kontakt den „Saldo“.
-     Widerspricht die gespeicherte Verrechnung eines Kontakts seinen Buchungen, bleibt die Liste benutzbar: dieser Kontakt zeigt seinen einfachen Saldo (Summe der Bewegungen) und den Hinweis „Verrechnung prüfen“ mit Link zur Detailseite; die Fälligkeitserinnerungen zählen ihn als nicht verfügbar (#1174).
+     Widerspricht die gespeicherte Verrechnung eines Kontakts seinen Buchungen, bleibt die Liste benutzbar: dieser Kontakt zeigt seinen einfachen Saldo (Summe der Bewegungen) und den Hinweis „Verrechnung prüfen“ mit Link zur Detailseite; der Kontakt bleibt aus den Summen „Forderungen/Guthaben“ heraus und steht darüber separat („n Kontakte mit unklarer Verrechnung · Saldo … nicht in den Summen enthalten“, mit Sprung zur Zeile); Heute und das Vermögen werfen dadurch keinen Fehler, die Fälligkeitserinnerungen zählen ihn als nicht verfügbar (#1174).
   3. Ich öffne einen Kontakt; der „Verlauf“ zeigt Auslagen, Rückzahlungen und Ausgleiche.
   4. Kommt Geld zurück, erfasse ich eine Buchung mit „Rückzahlung von Kontakt“ oder tippe im Kontakt auf „Rückzahlung buchen“.
   5. Ohne Rückzahlung bleibt die Auslage offen und mindert mein Vermögen.

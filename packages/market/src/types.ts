@@ -34,6 +34,12 @@ export interface DailyQuote {
   priceMicro: number;
   /** Set only when the source quoted in another currency the owner chose to convert. */
   sourceCurrency?: string;
+  /**
+   * The currency the source itself reported for this price, when it is the security's own. Absent
+   * when the source did not say (a plain number): such a quote is not trusted for a security that
+   * has a conversion currency chosen.
+   */
+  currency?: string;
 }
 
 /** ECB reference rate of one day: EUR per one unit of the currency, micro-units. */

@@ -149,3 +149,68 @@ describe('#1203 ECB conversion of quotes in another currency', () => {
     ).toHaveLength(1);
   });
 });
+
+describe('quote currency and retry of skipped days', () => {
+  it('does not store a plain quote for a security with a conversion currency, unless the source states the currency', async () => {
+    addSecurity({ quoteFxCurrency: 'USD' });
+    upsertFxRate(db, { date: '2026-09-29', currency: 'USD', rateMicro: 920_000, source: 'ecb' });
+    const plain: QuoteSource = {
+      id: 'yfinance',
+      history: async () => [
+        { date: '2026-09-28', priceMicro: 100_000_000 },
+        { date: '2026-09-29', priceMicro: 101_000_000, currency: 'EUR' },
+      ],
+    };
+    const result = await refreshPrices(db, sourcesOf(plain), { today: TODAY });
+    expect(priceSeries(db, 's1').map((r) => [r.date, r.priceMicro])).toEqual([
+      ['2026-09-29', 101_000_000],
+    ]);
+    expect(result.currencyUnverified).toEqual([{ securityId: 's1', days: ['2026-09-28'] }]);
+  });
+
+  it('retries a day skipped for a missing ECB rate: the next window starts at the skipped day, stored days stay', async () => {
+    addSecurity({ quoteFxCurrency: 'USD' });
+    upsertFxRate(db, { date: '2026-09-29', currency: 'USD', rateMicro: 920_000, source: 'ecb' });
+    const starts: string[] = [];
+    const quotes = [
+      { date: '2026-09-18', priceMicro: 100_000_000 }, // no rate within 5 days: skipped
+      { date: '2026-09-29', priceMicro: 110_000_000 },
+    ];
+    const source: QuoteSource = {
+      id: 'yfinance',
+      async history(_ref, from, to) {
+        starts.push(from);
+        return quotes
+          .filter((q) => q.date >= from && q.date <= to)
+          .map((q) => ({ ...q, sourceCurrency: 'USD' }));
+      },
+    };
+    await refreshPrices(db, sourcesOf(source), { today: TODAY });
+    expect(priceSeries(db, 's1').map((r) => r.date)).toEqual(['2026-09-29']);
+    upsertFxRate(db, { date: '2026-09-17', currency: 'USD', rateMicro: 880_000, source: 'ecb' });
+    const stored = priceSeries(db, 's1')[0]!;
+    await refreshPrices(db, sourcesOf(source), { today: TODAY });
+    // Newest stored day + 1 would be 2026-09-30; the retry reaches back 10 days to 2026-09-20.
+    expect(starts[1]).toBe('2026-09-20');
+    expect(priceSeries(db, 's1')[0]).toEqual(stored);
+  });
+
+  it('converts a quote into a non-EUR instrument currency in the right direction', async () => {
+    addSecurity({ currency: 'USD', quoteFxCurrency: 'GBP' });
+    upsertFxRate(db, { date: '2026-09-29', currency: 'GBP', rateMicro: 1_200_000, source: 'ecb' });
+    upsertFxRate(db, { date: '2026-09-29', currency: 'USD', rateMicro: 900_000, source: 'ecb' });
+    const gbp: QuoteSource = {
+      id: 'yfinance',
+      history: async () => [{ date: '2026-09-29', priceMicro: 100_000_000, sourceCurrency: 'GBP' }],
+    };
+    await refreshPrices(db, sourcesOf(gbp), { today: TODAY });
+    // 100 GBP = 120 EUR = 133,333333 USD (EUR per unit: 1,2 and 0,9).
+    expect(priceSeries(db, 's1')[0]).toMatchObject({
+      currency: 'USD',
+      priceMicro: 133_333_333,
+      sourceCurrency: 'GBP',
+      sourcePriceMicro: 100_000_000,
+      fxRateMicro: 1_333_333,
+    });
+  });
+});

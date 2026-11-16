@@ -107,6 +107,7 @@ export function parseArivaHtml(
   const close = (header as string[]).indexOf(closeHeader);
   const byDate = new Map<string, number>();
   const foreignDays = new Map<string, string>();
+  const ownDays = new Map<string, string>();
   for (const cells of rows) {
     const date = isoDay(cells[0] ?? '');
     if (!date) continue;
@@ -123,13 +124,20 @@ export function parseArivaHtml(
     if (priceMicro > 0) {
       byDate.set(date, priceMicro);
       if (foreign !== undefined) foreignDays.set(date, foreign);
+      else if (currency !== undefined) ownDays.set(date, currency);
     }
   }
   return [...byDate]
     .sort(([a], [b]) => (a < b ? -1 : 1))
     .map(([date, priceMicro]) => {
       const sourceCurrency = foreignDays.get(date);
-      return { date, priceMicro, ...(sourceCurrency === undefined ? {} : { sourceCurrency }) };
+      const own = ownDays.get(date);
+      return {
+        date,
+        priceMicro,
+        ...(sourceCurrency === undefined ? {} : { sourceCurrency }),
+        ...(own === undefined ? {} : { currency: own }),
+      };
     });
 }
 

@@ -93,7 +93,11 @@ export function parseYahooChart(
     .map(([date, priceMicro]) => ({
       date,
       priceMicro,
-      ...(foreign === undefined ? {} : { sourceCurrency: foreign }),
+      ...(foreign === undefined
+        ? meta.currency === undefined
+          ? {}
+          : { currency: meta.currency }
+        : { sourceCurrency: foreign }),
     }));
 }
 
