@@ -311,6 +311,9 @@ export function QuoteCause({
           Umrechnung aufheben
         </Button>
       )}
+      {data.quoteFxCurrency && (
+        <p>Bereits gespeicherte umgerechnete Kurse bleiben unverändert (keine Neubewertung).</p>
+      )}
       {convert.isError && (
         <ErrorNote what="Umrechnung" error={convert.error} onRetry={() => convert.reset()} />
       )}

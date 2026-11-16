@@ -51,7 +51,11 @@ export function upsertPrice(db: Executor, input: PriceInput): boolean {
       .run();
     if (
       existing &&
-      (existing.priceMicro !== input.priceMicro || existing.source !== input.source)
+      (existing.priceMicro !== input.priceMicro ||
+        existing.source !== input.source ||
+        existing.sourceCurrency !== (input.sourceCurrency ?? null) ||
+        existing.sourcePriceMicro !== (input.sourcePriceMicro ?? null) ||
+        existing.fxRateMicro !== (input.fxRateMicro ?? null))
     ) {
       tx.insert(priceAudit)
         .values({

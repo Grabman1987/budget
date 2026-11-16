@@ -335,6 +335,17 @@ export async function refreshPrices(
           result.fxSkipped.push({ securityId: row.id, days: skippedDays });
           log(`prices: ${skippedDays.length} day(s) of a security skipped, no ECB rate`);
         }
+        if (rows === 0 && skippedDays.length > 0) {
+          // Nothing stored: not a success. Keep or open the warning, name the missing ECB days.
+          errors.push('empty');
+          attempt(
+            source.id,
+            'empty',
+            undefined,
+            `keine Zeilen gespeichert, ${skippedDays.length} Tage ohne EZB-Kurs (${skippedDays[0]} bis ${skippedDays[skippedDays.length - 1]})`,
+          );
+          continue;
+        }
         result.bySource[source.id].securities++;
         result.bySource[source.id].rows += rows;
         written = source.id;

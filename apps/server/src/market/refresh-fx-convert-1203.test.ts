@@ -126,4 +126,26 @@ describe('#1203 ECB conversion of quotes in another currency', () => {
       detail: 'keine Zeilen',
     });
   });
+
+  it('is not a success when every day lacks an ECB rate: attempt empty, warning stays open', async () => {
+    addSecurity({ quoteFxCurrency: 'USD' });
+    const result = await refreshPrices(
+      db,
+      sourcesOf(usdSource([{ date: '2026-09-29', priceMicro: 100_000_000 }])),
+      { today: TODAY },
+    );
+    expect(priceSeries(db, 's1')).toEqual([]);
+    expect(result.bySource.yfinance.rows).toBe(0);
+    expect(result.failed).toEqual([{ securityId: 's1', errors: ['empty'] }]);
+    expect(marketAttempts(db, 's1')[0]).toMatchObject({ outcome: 'empty' });
+    expect(marketAttempts(db, 's1')[0]?.detail).toContain('1 Tage ohne EZB-Kurs');
+    expect(
+      db
+        .select()
+        .from(schema.inboxItem)
+        .where(eq(schema.inboxItem.kind, 'stale_value'))
+        .all()
+        .filter((i) => i.resolvedAt === null),
+    ).toHaveLength(1);
+  });
 });

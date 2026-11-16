@@ -1,6 +1,6 @@
 -- Disposable-copy rollback only. Caller wraps this complete script in a transaction.
 -- Refuse retained data: converted prices, attempt history and owner conversion choices would be lost.
--- 0055 only added three nullable price columns, one defaulted security column and one table.
+-- 0055 only added three nullable price columns, one nullable security column (no default) and one table.
 CREATE TEMP TABLE quote_fx_rollback_guard (n INTEGER CHECK (n = 0));
 -- An older rollback must never cross a later applied migration.
 INSERT INTO quote_fx_rollback_guard SELECT count(*) FROM __drizzle_migrations WHERE created_at > 1794866027438;
