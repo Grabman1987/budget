@@ -29,10 +29,11 @@ for (const path of [
     }
     const frame = page.locator('.redesign-report-frame').first();
     const verdict = frame.locator(':scope > .report-verdict');
+    await expect(verdict).toHaveCount(1);
     await expect(verdict).toBeVisible();
     await expect(frame.getByTestId('report-frame-basis')).not.toHaveText('wird geladen');
     await expect(verdict).not.toHaveText('');
-    expect(await verdict.evaluate((node) => node.previousElementSibling?.tagName)).toBe('HEADER');
+    await expect(frame.locator(':scope > header + .report-verdict')).toHaveCount(1);
     expect(await verdict.evaluate((node) => node.closest('details'))).toBeNull();
     await expect(frame.locator('.redesign-report-head .redesign-report-equation')).toHaveCount(0);
     const detail = frame.locator(':scope > .redesign-report-detail');
