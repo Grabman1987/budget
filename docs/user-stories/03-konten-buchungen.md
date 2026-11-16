@@ -84,7 +84,7 @@ Bereich: Konten (`/konten`, `/konten/$id`), Alle Buchungen (`/konten/buchungen`)
   10. A payee change preserves an explicitly chosen or carried account. Only an untouched default account may receive a history suggestion; without history it stays unchanged. Explicit category choices remain intact. Delayed responses from the previous draft are ignored.
   11. Fehlermeldungen zur Buchung erscheinen nach einem Speicherversuch; ungültiger Kategoriesuchtext wird nach Verlassen des Feldes erklärt. Ein frisches Formular zeigt keine Kategoriepflicht-Meldung während der Eingabe.
   12. The share unit survives closing and reloading on this device. Only the unit is remembered: new percentage shares start at 50 %, amount shares empty. Existing shares and saved bookings remain unchanged. Editing still works when device storage is blocked.
-- **Status:** Grundfunktion live; Kategorieanlage #1104 und Konsistenzkorrekturen #1145 implementiert, PR-/CI-Prüfung und Live-Abnahme offen — **Verweis:** Y03, #1104, #1145; Datumslayout #1142 implementiert, Ver?ffentlichung und Live-Abnahme offen; Vorschlagschips separat #1142
+- **Status:** Grundfunktion live; Kategorieanlage #1104 und Konsistenzkorrekturen #1145 implementiert, PR-/CI-Prüfung und Live-Abnahme offen — **Verweis:** Y03, #1104, #1145; Datumslayout #1142 implementiert, Veröffentlichung und Live-Abnahme offen; Vorschlagschips separat #1142
   Share-mode slice of #1146 implemented; PR review/CI and live acceptance pending. Fixed footer, register position and collapsed change log from #1146 remain open.
 
 ### K-05a – Splitbuchung
