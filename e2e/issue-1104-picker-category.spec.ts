@@ -27,12 +27,17 @@ async function create(page: Page, name: string, groupId: string) {
   return dialog;
 }
 
-async function openCreate(page: Page) {
+async function openCreate(page: Page, keyboard = false) {
   await page
     .getByRole('dialog', { name: /Buchung (erfassen|bearbeiten)/ })
     .getByRole('combobox', { name: 'Kategorie', exact: true })
     .fill('Fehlende Kategorie');
-  await page.getByRole('option', { name: 'Neue Kategorie …', exact: true }).click();
+  const action = page.getByRole('button', { name: 'Neue Kategorie …', exact: true });
+  if (keyboard) {
+    await page.keyboard.press('Tab');
+    await expect(action).toBeFocused();
+    await page.keyboard.press('Enter');
+  } else await action.click();
 }
 
 test('capture rejects duplicates and undoes an unused category without losing the draft', async ({
@@ -50,12 +55,13 @@ test('capture rejects duplicates and undoes an unused category without losing th
   await openAccountCapture(page);
   const capture = page.getByRole('dialog', { name: 'Buchung erfassen', exact: true });
   await capture.getByLabel('Betrag', { exact: true }).fill('12,34');
-  await openCreate(page);
+  await openCreate(page, true);
   const duplicate = await create(page, ' musterPOSTEN ', group.id);
   await expect(duplicate.getByRole('alert')).toHaveText('Dieser Name wird schon verwendet.');
   page.once('dialog', (dialog) => dialog.accept());
   await duplicate.getByRole('button', { name: 'Schließen', exact: true }).click();
   await expect(capture.getByLabel('Betrag', { exact: true })).toHaveValue('12,34');
+  await expect(capture.getByRole('combobox', { name: 'Kategorie', exact: true })).toBeFocused();
   await openCreate(page);
   await create(page, 'Unbenutzter Posten', group.id);
   await expect(capture.getByRole('combobox', { name: 'Kategorie', exact: true })).toHaveValue(
