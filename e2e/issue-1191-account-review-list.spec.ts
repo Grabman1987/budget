@@ -111,6 +111,21 @@ for (const theme of ['light', 'dark']) {
     const b = page.locator('.bank-account-header').filter({ hasText: 'Synthetic account B' });
     await expect(a.getByRole('button')).toHaveAttribute('aria-expanded', 'true');
     await expect(b.getByRole('button')).toHaveAttribute('aria-expanded', 'true');
+    if (page.viewportSize()!.width < 768) {
+      for (const header of [a, b]) {
+        const geometry = await header.evaluate((element) => {
+          const container = element.getBoundingClientRect();
+          const name = element.querySelector('strong')!.getBoundingClientRect();
+          return {
+            width: container.width,
+            nameWidth: name.width,
+            nameFits: name.top >= container.top && name.bottom <= container.bottom,
+          };
+        });
+        expect(geometry.nameWidth).toBeGreaterThan(geometry.width / 2);
+        expect(geometry.nameFits).toBe(true);
+      }
+    }
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
       true,
     );

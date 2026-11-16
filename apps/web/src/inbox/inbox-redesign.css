@@ -922,6 +922,7 @@
   }
   .kinbox-v1 .bank-v1-table .bank-account-header th {
     display: block;
+    width: auto;
     border: 0;
   }
   .bank-account-summary > :is(button, div) {
