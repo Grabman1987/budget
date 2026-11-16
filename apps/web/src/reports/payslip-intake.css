@@ -293,3 +293,16 @@ dialog.overlay .panel-body:has(.payslip-review-layout) {
 .payslip-upload .payslip-drop-hint-order {
   color: var(--ink-2);
 }
+
+.payslip-excluded ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.payslip-excluded li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 0;
+}

@@ -529,6 +529,19 @@ export function PayslipIntakeDetail({
     if (action === 'retry') setPassword('');
     setBusy(false);
   }
+  const [notePayslip, setNotePayslip] = useState('');
+  async function markNotAPayslip() {
+    if (busy) return;
+    setBusy(true);
+    await write(
+      () =>
+        request<{ groupId: string }>('POST', `${PATH}/${id}/not-a-payslip`, {
+          ...(notePayslip.trim() ? { note: notePayslip.trim() } : {}),
+        }),
+      () => 'Als „Kein Gehaltszettel“ ausgeschlossen. Die Datei bleibt erhalten.',
+    );
+    setBusy(false);
+  }
   async function saveMappings() {
     if (!data || busy) return;
     setBusy(true);
@@ -901,6 +914,24 @@ export function PayslipIntakeDetail({
             )}
           </div>
           <div className="payslip-review-actions-primary">
+            {pending && p?.documentType === 'unknown' && (
+              <>
+                <Field label="Notiz (optional)">
+                  {({ id: noteId }) => (
+                    <TextInput
+                      id={noteId}
+                      maxLength={200}
+                      value={notePayslip}
+                      disabled={busy}
+                      onChange={(e) => setNotePayslip(e.target.value)}
+                    />
+                  )}
+                </Field>
+                <Button variant="ghost" disabled={busy} onClick={() => void markNotAPayslip()}>
+                  Kein Gehaltszettel
+                </Button>
+              </>
+            )}
             <Button variant="ghost" disabled={busy || !pending} onClick={() => void act('reject')}>
               Ablehnen
             </Button>
@@ -1026,6 +1057,7 @@ export function PayslipSourceSection() {
               <dd>{query.data.errors}</dd>
             </div>
           </dl>
+          <ExcludedNonPayslips />
           <PayslipPasswordControls
             source={query.data.passwordSource}
             available={query.data.passwordRememberAvailable}
@@ -1039,6 +1071,49 @@ export function PayslipSourceSection() {
       )}
       <p>Dropbox wird nachts gelesen. PDFs erscheinen zur Bestätigung unter Prüfen.</p>
     </section>
+  );
+}
+type ExcludedDocument = {
+  id: string;
+  originalFilename: string | null;
+  note: string | null;
+  excludedAt: string;
+};
+/** PDFs the owner excluded with "Kein Gehaltszettel": kept, never imported, can be re-included. */
+function ExcludedNonPayslips() {
+  const query = useQuery({
+      queryKey: ['payslip-source', 'excluded'],
+      queryFn: () => request<{ items: ExcludedDocument[] }>('GET', PATH + '/excluded'),
+    }),
+    write = useBudgetWrite();
+  const items = query.data?.items ?? [];
+  if (!items.length) return null;
+  return (
+    <div className="payslip-excluded">
+      <h4>Kein Gehaltszettel (ausgeschlossen)</h4>
+      <ul>
+        {items.map((d) => (
+          <li key={d.id}>
+            <span>
+              {maskMoneyText(d.originalFilename ?? 'Dateiname nicht verfügbar')}
+              {d.note ? ` · ${d.note}` : ''} · {new Date(d.excludedAt).toLocaleDateString('de-AT')}
+            </span>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() =>
+                void write(
+                  () => request<{ groupId: string }>('POST', `${PATH}/${d.id}/reinclude`, {}),
+                  () => 'Wieder einbezogen: Die Aufgabe steht wieder unter Prüfen.',
+                )
+              }
+            >
+              Wieder einbeziehen
+            </Button>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
 function PayslipPasswordControls({

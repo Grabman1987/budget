@@ -30,6 +30,7 @@ export * from './budget';
 export * from './expected';
 export * from './expected-detail';
 export * from './market';
+export * from './quote-source-decision';
 export * from './goals';
 export * from './rule-inputs';
 export * from './financial-health';

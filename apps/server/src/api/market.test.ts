@@ -369,3 +369,53 @@ describe('GET /api/fx', () => {
     expect((await call('GET', '/fx?currency=usd')).status).toBe(400);
   });
 });
+
+describe('POST /api/securities/:id/quote-source-decision (#1203)', () => {
+  const warn = () =>
+    db
+      .insert(schema.inboxItem)
+      .values({
+        id: 'w1',
+        kind: 'stale_value',
+        title: 'Kurse nicht abrufbar: Synthetischer Welt-ETF',
+        detail: 'Fehlerklasse: empty',
+        refType: 'security',
+        refId: 's1',
+      })
+      .run();
+  it('needs a reason, switches the fetch off, closes the warning and stores no price', async () => {
+    warn();
+    const prices = db.select().from(schema.price).all();
+    expect(
+      (await call('POST', '/securities/s1/quote-source-decision', { mode: 'manual_only' })).status,
+    ).toBe(400);
+    expect(
+      (
+        await call('POST', '/securities/s1/quote-source-decision', {
+          mode: 'manual_only',
+          reason: 'x',
+        })
+      ).status,
+    ).toBe(400);
+    expect(
+      (
+        await call('POST', '/securities/nope/quote-source-decision', {
+          mode: 'manual_only',
+          reason: 'Kein Anbieter',
+        })
+      ).status,
+    ).toBe(404);
+    const res = await call('POST', '/securities/s1/quote-source-decision', {
+      mode: 'manual_only',
+      reason: 'Anbieter liefert USD',
+    });
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({ resolved: 1 });
+    const [item] = db.select().from(schema.inboxItem).all();
+    expect(item!.resolution).toBe('Nur manuelle Kurse: Anbieter liefert USD');
+    expect(db.select().from(schema.security).all()[0]!.pricesEnabled).toBe(false);
+    expect(db.select().from(schema.price).all()).toEqual(prices);
+    const diag = await call('GET', '/securities/s1/quote-diagnostics');
+    expect(diag.body).toMatchObject({ pricesEnabled: false, held: false });
+  });
+});

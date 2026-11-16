@@ -149,6 +149,53 @@ Bildschirm Prüfen: `/konten/pruefen` (Konten › Prüfen). Zähler: „Umsätze
   4. Das Archiv lässt sich nicht laden: „Mitteilungsarchiv konnte nicht geladen werden.“ statt leerer Liste.
 - **Status:** live — **Verweis:** #1077 (Archiv #1089)
 
+### I-05a – PDF als „Kein Gehaltszettel“ ausschließen
+- **Story:** Als Nutzer möchte ich ein PDF im Gehaltszettel-Ordner, das gar kein Gehaltszettel ist, ausschließen können, damit die Aufgabe nicht ewig offen bleibt und das Dokument nie wieder vorgeschlagen wird.
+- **Ausgangslage:** Eine Aufgabe in Prüfen nennt „Dokumenttyp nicht erkannt“.
+- **Ablauf:**
+  1. Nutzer öffnet die Aufgabe und trägt optional eine Notiz ein.
+  2. Nutzer klickt „Kein Gehaltszettel“. Die Aufgabe ist erledigt („Kein Gehaltszettel: <Notiz>“); die Datei bleibt erhalten.
+  3. Unter Einstellungen › Datenquellen › Gehaltszettel steht das Dokument in „Kein Gehaltszettel (ausgeschlossen)“ mit „Wieder einbeziehen“.
+  4. „Wieder einbeziehen“ öffnet die Aufgabe wieder.
+- **Ergebnis:** Kein Vorschlag, keine Buchung; der Ausschluss gilt über den Inhalts-Hash, auch für eine umbenannte Kopie.
+- **Abnahmekriterien:**
+  1. Der Knopf erscheint nur bei nicht erkanntem, offenem Dokument.
+  2. Ein späterer Scan oder Upload derselben Datei legt keine neue Aufgabe an.
+  3. „Rückgängig“ und „Wieder einbeziehen“ stellen die offene Aufgabe her.
+- **Status:** in Arbeit (Entwurfs-PR) — **Verweis:** #1203 (Teil C)
+
+### I-05b – Warum stimmt der Kontoabgleich nicht mehr?
+- **Story:** Als Nutzer möchte ich bei „Kontoprüfung stimmt nicht mehr“ sehen, welche Buchungen nach dem Abgleich im geprüften Zeitraum angelegt, geändert oder gelöscht wurden, damit ich die Differenz auf den Cent erklären kann.
+- **Ausgangslage:** Ein Konto wurde geprüft; danach änderte sich der gebuchte Saldo des Prüftags.
+- **Ablauf:**
+  1. Nutzer klickt in der Aufgabe auf „Was hat sich geändert?“.
+  2. Die App zeigt „Bei Erstellung“ (Kontoauszug), „Aktuell gebucht“ und die Differenz.
+  3. Darunter stehen die Änderungen mit Datum, Empfänger, Art (angelegt, geändert, gelöscht, wiederhergestellt), Betrag und Wirkung auf den Saldo.
+  4. Zum Neu-Abgleichen öffnet „Kontostand prüfen“ den normalen Ablauf.
+- **Ergebnis:** Die Differenz ist erklärt; es wird nichts automatisch gebucht oder angepasst.
+- **Abnahmekriterien:**
+  1. Die Summe der Wirkungen entspricht der Differenz; bleibt ein Rest, nennt die App ihn als „nicht durch Buchungsänderungen erklärt“.
+  2. Buchungen nach dem Prüftag oder auf anderen Konten erscheinen nicht.
+  3. Die Aufgabe verschwindet von selbst, sobald der Saldo wieder stimmt.
+- **Status:** in Arbeit (Entwurfs-PR) — **Verweis:** #1203 (Teil B)
+
+### I-05c – Kursquellen-Warnung nachvollziehen und bewusst abschalten
+- **Story:** Als Nutzer möchte ich bei „Kurse nicht abrufbar“ sehen, was die Quelle liefert, sie jetzt testen und notfalls mit Grund auf „nur manuelle Kurse“ stellen, damit die Warnung nicht ohne Ursache offen bleibt oder wegen eines manuellen Kurses nur scheinbar erledigt ist.
+- **Ausgangslage:** Eine Warnung nennt eine Fehlerklasse (`currency_mismatch`, `empty`, `http`).
+- **Ablauf:**
+  1. Nutzer öffnet „Warnung erklären“. Die Ansicht zeigt Symbol, Börse, erwartete und gelieferte Kurswährung, letzten gespeicherten Kurs und den letzten (erfolgreichen) automatischen Lauf.
+  2. „Quelle erneut testen (Vorschau)“ ruft die Quellen jetzt ab und zeigt Ergebnis und Testzeit; es wird nichts gespeichert.
+  3. Die Quelle lässt sich über „Instrument öffnen“ ändern (Symbol, Börse, Ariva-Link).
+  4. Ist sie nicht reparierbar, trägt der Nutzer einen Grund ein und klickt „Nur manuelle Kurse“. Ohne aktuellen Bestand gibt es zusätzlich „Abruf abschalten (historischer Bestand)“.
+  5. Der automatische Abruf ist aus, die Warnung ist mit dem Grund erledigt, „Rückgängig“ stellt beides wieder her.
+- **Ergebnis:** Kein Kurs wird gespeichert oder umgerechnet; ein Fremdwährungskurs wird nie als EUR abgelegt.
+- **Abnahmekriterien:**
+  1. Ein manueller Kurs schließt die Quellwarnung nicht.
+  2. Ohne Grund sind die Knöpfe gesperrt.
+  3. Der erste erfolgreiche automatische Abruf schließt Abruf-Warnungen weiter von selbst (#1101).
+  4. „Abruf abschalten“ wird bei vorhandenem Bestand vom Server abgelehnt.
+- **Status:** teilweise — Test, Quellanzeige und Abschalten mit Grund umgesetzt (Entwurfs-PR); offen: Umrechnung mit EZB-Kurs (braucht Schema), Zeitpunkt des letzten Abrufs je Instrument, Gruppe „historische Bestände“ in der Liste. — **Verweis:** #1203 (Teil A), #1081, #1101
+
 ### I-06 – Gehaltszettel automatisch lesen und bestätigen
 - **Story:** Als Nutzer möchte ich Gehaltszettel automatisch auslesen lassen und die Vorschläge nur noch bestätigen, damit ich Brutto, Abzüge und Auszahlung nicht abtippen muss.
 - **Ausgangslage:** Ein neuer Gehaltszettel liegt als PDF vor (Upload oder nächtlicher Dropbox-Abruf, wenn eingerichtet).

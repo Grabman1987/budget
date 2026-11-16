@@ -2,6 +2,9 @@ import {
   account,
   listEntities,
   decidePayslipIntake,
+  listExcludedNonPayslips,
+  markIntakeNotAPayslip,
+  reincludeNonPayslip,
   getPayslipIntake,
   getReceipt,
   payslipDocumentMetadata,
@@ -204,6 +207,20 @@ export function payslipIntakeRoutes(
       201,
     );
   });
+  api.get('/excluded', (c) => c.json({ items: listExcludedNonPayslips(db) }));
+  api.post('/:id/not-a-payslip', async (c) =>
+    c.json(
+      markIntakeNotAPayslip(
+        db,
+        z.string().uuid().parse(c.req.param('id')),
+        (await readBody(c, z.strictObject({ note: z.string().max(200).optional() }))).note,
+        { actor: ACTOR },
+      ),
+    ),
+  );
+  api.post('/:id/reinclude', (c) =>
+    c.json(reincludeNonPayslip(db, z.string().uuid().parse(c.req.param('id')), { actor: ACTOR })),
+  );
   api.get('/:id', (c) => {
     const row = getPayslipIntake(db, z.string().uuid().parse(c.req.param('id')));
     const query = z
