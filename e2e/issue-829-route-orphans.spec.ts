@@ -472,7 +472,7 @@ for (const [row, url, body] of direct)
       ? on
         ? '/einstellungen/profil'
         : '/einstellungen/konten'
-      : on && [23, 28, 32].includes(row)
+      : on && [23, 28].includes(row)
         ? row === 23
           ? '/vermoegen'
           : '/reports/vermoegen-schulden'
