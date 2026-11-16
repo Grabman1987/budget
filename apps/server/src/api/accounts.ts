@@ -678,7 +678,11 @@ export function accountRoutes(db: Db, today: () => string): Hono {
     const input = await readBody(c, reconcileBody);
     assertReconcileAdjustmentCategory(db, input.categoryId);
     const ctx = audit();
-    const result = reconcileAccount(db, defined({ ...input, accountId: id, today: today() }), ctx);
+    const result = reconcileAccount(
+      db,
+      defined({ ...input, accountId: id, today: today(), note: input.note?.trim() || null }),
+      ctx,
+    );
     return c.json({ result, account: summary(id) }, 201);
   });
 

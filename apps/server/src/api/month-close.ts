@@ -94,18 +94,6 @@ export function monthCloseRoutes(db: Db, today: () => string): Hono {
         defined({ ...input, accountId: id, today: currentToday, note: input.note?.trim() || null }),
         ctx,
       );
-      // Enforce the actual residual difference, after the existing explicit duplicate/pending
-      // actions. Missing reason rolls this whole request back; this is not a preview dry-run.
-      if (
-        checked.adjustmentBookingId !== null &&
-        checked.differenceCents !== 0 &&
-        !input.note?.trim()
-      )
-        throw new ApiError(
-          400,
-          'reconciliation_reason_required',
-          'Gib einen Grund für den verbleibenden Ausgleich an.',
-        );
       return checked;
     });
     return c.json({ result }, 201);
