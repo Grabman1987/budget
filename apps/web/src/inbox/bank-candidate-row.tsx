@@ -1,7 +1,7 @@
 import { Button, Select, useAmountPrivacy, useIsPhone } from '@budget/ui';
 import { useQuery } from '@tanstack/react-query';
 import { Check, CircleHelp, MoreHorizontal, Pencil, X } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import { request } from '../api/http';
 import { candidateAssignmentQuery } from '../assignment/api';
 import { useBudgetWrite } from '../budget/use-category-writes';
@@ -31,7 +31,7 @@ type Draft = {
 };
 
 /** Local choices only: confirmation and rejection retain the audited writers and grouped Undo. */
-export function BankCandidateRow({
+export const BankCandidateRow = memo(function BankCandidateRow({
   item,
   selected,
   onSelect,
@@ -52,16 +52,17 @@ export function BankCandidateRow({
   const isPhone = useIsPhone();
   const id = item.refId!;
   const [active, setActive] = useState(false);
-  const review = useQuery({ ...candidateAssignmentQuery(id), enabled: active });
+  const review = useQuery({ ...candidateAssignmentQuery(id), enabled: active, subscribed: active });
   const matches = useQuery({
     queryKey: [...LEDGER_KEY, 'bank-matches', id],
     queryFn: () =>
       request<Matches>('GET', `/api/bank-sync/candidates/${encodeURIComponent(id)}/matches`),
     enabled: active,
+    subscribed: active,
   });
-  const lookups = useQuery({ ...lookupsQuery(), enabled: active });
-  const payees = useQuery({ ...payeesQuery(), enabled: active });
-  const accounts = useQuery({ ...accountsQuery(), enabled: active });
+  const lookups = useQuery({ ...lookupsQuery(), enabled: active, subscribed: active });
+  const payees = useQuery({ ...payeesQuery(), enabled: active, subscribed: active });
+  const accounts = useQuery({ ...accountsQuery(), enabled: active, subscribed: active });
   const [draft, setDraft] = useState<Draft>();
   const [editing, setEditing] = useState<'payee' | 'suggestion' | 'category'>();
   const [saving, setSaving] = useState(false);
@@ -99,6 +100,7 @@ export function BankCandidateRow({
   const history = useQuery({
     ...bookingsQuery({ payeeId, sort: 'date', direction: 'desc' }, undefined, 1),
     enabled: needsHistory,
+    subscribed: active,
   });
   const latestSplits = history.data?.items[0]?.splits;
   const categoryId =
@@ -543,4 +545,4 @@ export function BankCandidateRow({
       </td>
     </tr>
   );
-}
+});

@@ -41,7 +41,15 @@ import {
   useIsPhone,
 } from '@budget/ui';
 import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useCallback, useEffect, useId, useRef, useState, type ComponentProps } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type ComponentProps,
+} from 'react';
 import { request } from '../api/http';
 import { useBudgetWrite } from '../budget/use-category-writes';
 import { BookingPanel } from '../ledger/booking-panel';
@@ -1580,6 +1588,13 @@ function BankInboxRow({
   const [candidate, setCandidate] = useState<PreparedBankSuggestion>();
   const [merge, setMerge] = useState<PreparedBankSuggestion>();
   const [rule, setRule] = useState<PreparedBankSuggestion>();
+  // Bulk preparation skips untouched candidate renders, while handlers use the latest actions.
+  const rowActions = useRef({ onSelect, onResolve });
+  useLayoutEffect(() => {
+    rowActions.current = { onSelect, onResolve };
+  }, [onSelect, onResolve]);
+  const selectRow = useCallback((checked: boolean) => rowActions.current.onSelect?.(checked), []);
+  const resolveRow = useCallback(() => rowActions.current.onResolve(), []);
   const prepared = merge ?? rule;
   const prepareCandidate = useCallback(
     (suggestion: PreparedBankSuggestion | undefined) => {
@@ -1619,10 +1634,10 @@ function BankInboxRow({
       <BankCandidateRow
         item={item}
         selected={selected}
-        onSelect={onSelect}
+        onSelect={onSelect ? selectRow : undefined}
         onPrepared={onPrepared}
         onConfirmed={onConfirmed}
-        onResolve={onResolve}
+        onResolve={resolveRow}
         busy={busy}
       />
     );
