@@ -114,3 +114,4 @@ export {
   isReconcileAdjustCategoryKind,
 } from './adjustment-categories';
 export * from './networth-composition';
+export { bankTransferTransitCents } from './bank-transfer-transit';

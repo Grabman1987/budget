@@ -259,9 +259,10 @@ export function bookingRoutes(db: Db, today = () => todayInVienna()): Hono {
       if (body.type === 'transfer') {
         requireOpen(body.fromAccountId);
         requireOpen(body.toAccountId);
-        const { bankStatus, ...input } = withoutType(body);
+        const { bankStatus, bankLegs, ...input } = withoutType(body);
         const transfer = createTransfer(tx, defined(input), ctx, {
           manualCashBank: bankStatus === undefined ? {} : { bankStatus },
+          ...(bankLegs ? { bankLegs } : {}),
         });
         result = {
           ...transfer,

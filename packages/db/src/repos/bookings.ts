@@ -584,7 +584,14 @@ export function createTransfer(
   db: Executor,
   input: TransferInput,
   ctx: AuditContext,
-  options: { manualCashBank?: { bankStatus?: ManualBankStatus } } = {},
+  options: {
+    manualCashBank?: { bankStatus?: ManualBankStatus };
+    /** Explicit bank-side facts, including a pending receipt while the debit is confirmed. */
+    bankLegs?: {
+      from: { date: string; status: ManualBankStatus };
+      to: { date: string; status: ManualBankStatus };
+    };
+  } = {},
 ): TransferResult {
   const grouped = withGroup(ctx);
   if (!isCents(input.amountCents)) {
@@ -605,6 +612,18 @@ export function createTransfer(
       throw new BookingInvariantError(
         `Transfers between different currencies (${from.currency}, ${to.currency}) are not supported`,
       );
+    }
+    const bankLegs = options.bankLegs;
+    if (bankLegs) {
+      const bank = (type: string) => type === 'checking' || type === 'savings';
+      if (!bank(from.type) || !bank(to.type) || options.manualCashBank?.bankStatus !== undefined)
+        throw new BookingInvariantError(
+          'Independent bank legs require two bank accounts and no bankStatus',
+        );
+      if (bankLegs.from.date < to.openingDate)
+        throw new BookingInvariantError(
+          'Der Abgang darf nicht vor dem Eröffnungsdatum des Zielkontos liegen.',
+        );
     }
     // Only the manual whole-transfer API opts in. Import/operator callers retain their policy.
     const manual = options.manualCashBank
@@ -631,6 +650,7 @@ export function createTransfer(
       {
         ...common,
         ...(manual ? { status: manual.fromStatus } : {}),
+        ...(bankLegs ? bankLegs.from : {}),
         accountId: input.fromAccountId,
         amountCents: -input.amountCents,
         importKey: input.importKey ?? null,
@@ -644,6 +664,7 @@ export function createTransfer(
       {
         ...common,
         ...(manual ? { status: manual.toStatus } : {}),
+        ...(bankLegs ? bankLegs.to : {}),
         accountId: input.toAccountId,
         amountCents: input.amountCents,
         importKey: input.toImportKey ?? input.importKey ?? null,
@@ -805,8 +826,9 @@ function syncSplits(
 /**
  * Patch a booking and optionally replace its splits. The split sum is re-validated. Without
  * `splits`, an amount change moves a single split along and is refused for several splits. On a
- * transfer leg, `amountCents` and `date` are mirrored to the partner leg (opposite amount);
- * flipping the sign or moving a leg to another account is refused.
+ * transfer leg, `amountCents` is mirrored to the partner leg (opposite amount). Date edits
+ * move both legs unless the bank pair already has different dates. Flipping the sign or
+ * moving a leg to another account is refused.
  */
 function updateBookingImpl(
   db: Executor,
@@ -945,6 +967,27 @@ function updateBookingImpl(
         .get();
       if (!partner)
         throw new BookingInvariantError(`Transfer ${cur.transferId} has no second live leg`);
+      // Equal-date transfers move together; independently dated bank legs keep their own date.
+      const partnerAccount = tx
+        .select()
+        .from(account)
+        .where(eq(account.id, partner.accountId))
+        .get();
+      const bank = (type: string | undefined) => type === 'checking' || type === 'savings';
+      const independentDates =
+        cur.date !== partner.date && bank(target.type) && bank(partnerAccount?.type);
+      if (patch.date !== undefined && independentDates) {
+        const debitDate = cur.amountCents < 0 ? patch.date : partner.date;
+        const receiptDate = cur.amountCents > 0 ? patch.date : partner.date;
+        const debitAccount = cur.amountCents < 0 ? target : partnerAccount!;
+        const receiptAccount = cur.amountCents > 0 ? target : partnerAccount!;
+        if (debitDate < debitAccount.openingDate || debitDate < receiptAccount.openingDate)
+          throw new BookingInvariantError(
+            'Der Abgang darf nicht vor dem Er\u00f6ffnungsdatum eines beteiligten Kontos liegen.',
+          );
+        if (debitDate > receiptDate)
+          throw new BookingInvariantError('Der Abgang darf nicht nach dem Eingang liegen.');
+      }
       if (!tradeNative)
         assertTradeSettlementBookingWrite(
           tx,
@@ -952,10 +995,10 @@ function updateBookingImpl(
           'update',
           Object.keys(patch).filter((key) => key === 'date' || key === 'amountCents'),
         );
-      // The other leg follows date and amount, so it must not be reconciled either.
+      // Preserve the existing pair lock for date and amount edits.
       if (patch.date !== undefined || amountChanged) assertUnlocked([partner], options);
       const partnerPatch: Record<string, unknown> = {};
-      if (patch.date !== undefined) partnerPatch['date'] = patch.date;
+      if (patch.date !== undefined && !independentDates) partnerPatch['date'] = patch.date;
       if (amountChanged) {
         if (amount === 0 || Math.sign(amount) !== Math.sign(cur.amountCents)) {
           throw new BookingInvariantError(
