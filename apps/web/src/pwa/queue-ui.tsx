@@ -15,17 +15,16 @@ import { eur } from '../ledger/format';
 import { useLedgerWrites } from '../ledger/mutations';
 import { queueReason, sendQueue } from './queue';
 import {
+  pruneAcknowledgements,
   readQueueState,
   queuedStatus,
   removeQueued,
   subscribeQueue,
-  type BookingAcknowledgement,
   type QueuedBooking,
 } from './queue-store';
 
 interface QueueState {
   items: QueuedBooking[];
-  acknowledgements: BookingAcknowledgement[];
   sending: boolean;
   error: string;
   send: () => void;
@@ -33,7 +32,6 @@ interface QueueState {
 }
 const QueueContext = createContext<QueueState>({
   items: [],
-  acknowledgements: [],
   sending: false,
   error: '',
   send: () => undefined,
@@ -43,7 +41,6 @@ export const useBookingQueue = () => useContext(QueueContext);
 
 export function QueueProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<QueuedBooking[]>([]);
-  const [acknowledgements, setAcknowledgements] = useState<BookingAcknowledgement[]>([]);
   const sendingRef = useRef(false);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState('');
@@ -79,10 +76,9 @@ export function QueueProvider({ children }: { children: ReactNode }) {
     const refresh = () => {
       const current = ++generation;
       void readQueueState()
-        .then(({ items: rows, acknowledgements: confirmations }) => {
+        .then(({ items: rows }) => {
           if (active && current === generation) {
             setItems(rows);
-            setAcknowledgements(confirmations);
             setError('');
           }
         })
@@ -90,6 +86,7 @@ export function QueueProvider({ children }: { children: ReactNode }) {
           if (active && current === generation) setError(queueReason(e));
         });
     };
+    void pruneAcknowledgements().catch(() => undefined);
     refresh();
     const unsubscribe = subscribeQueue(refresh);
     return () => {
@@ -116,7 +113,6 @@ export function QueueProvider({ children }: { children: ReactNode }) {
     <QueueContext.Provider
       value={{
         items,
-        acknowledgements,
         sending,
         error,
         send,
@@ -171,9 +167,9 @@ export function QueueCapture({ item, onClose }: { item?: QueuedBooking; onClose:
 
 export function QueueList() {
   useAmountPrivacy();
-  const { items, acknowledgements, sending, error, send, edit } = useBookingQueue();
+  const { items, sending, error, send, edit } = useBookingQueue();
   const [localError, setLocalError] = useState('');
-  if (!items.length && !error && !acknowledgements.length) return null;
+  if (!items.length && !error) return null;
   return (
     <>
       {(items.length > 0 || error) && (
@@ -243,26 +239,6 @@ export function QueueList() {
                   >
                     Löschen
                   </Button>
-                </div>
-              </li>
-            ))}
-          </ol>
-        </section>
-      )}
-      {acknowledgements.length > 0 && (
-        <section className="booking-queue" aria-label="Buchungsstatus">
-          <h2>Gespeicherte Änderungen</h2>
-          <ol className="queue-items">
-            {acknowledgements.map((ack) => (
-              <li key={ack.id}>
-                <div className="queue-detail" style={{ overflowWrap: 'anywhere' }}>
-                  <strong>Auf dem Server gespeichert</strong>
-                  {ack.bookingIds.map((id) => (
-                    <span key={id}>Buchungs-ID: {id}</span>
-                  ))}
-                  <time dateTime={ack.savedAt}>
-                    {new Date(ack.savedAt).toLocaleString('de-AT')}
-                  </time>
                 </div>
               </li>
             ))}

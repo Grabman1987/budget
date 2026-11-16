@@ -147,38 +147,33 @@ export async function removeQueued(id: string) {
   });
 }
 
+/** Delivery receipt handed over by the sender. It is never stored or shown (#1200). */
 export interface BookingAcknowledgement {
   id: string;
   bookingIds: string[];
   savedAt: string;
 }
 
-/** One readonly transaction prevents a pending intent and its confirmation appearing together. */
+/** One readonly transaction over the pending intents. */
 export async function readQueueState() {
   const db = await database();
   try {
-    const snapshot = await new Promise<{
-      items: QueuedBooking[];
-      acknowledgements: BookingAcknowledgement[];
-    }>((resolve, reject) => {
-      const tx = db.transaction(['bookings', 'choices'], 'readonly');
-      const items = tx.objectStore('bookings').getAll();
-      const acknowledgements = tx.objectStore('choices').get('acknowledgements');
+    const items = await new Promise<QueuedBooking[]>((resolve, reject) => {
+      const tx = db.transaction(['bookings'], 'readonly');
+      const rows = tx.objectStore('bookings').getAll();
       tx.oncomplete = () =>
-        resolve({
-          items: (items.result as QueuedBooking[]).sort(
+        resolve(
+          (rows.result as QueuedBooking[]).sort(
             (a, b) => a.createdAt - b.createdAt || a.id.localeCompare(b.id),
           ),
-          acknowledgements: acknowledgements.result ?? [],
-        });
+        );
       tx.onerror = tx.onabort = () =>
         reject(new Error('Speicherstatus konnte nicht gelesen werden.'));
     });
     const locks = await navigator.locks?.query();
     const held = locks?.held?.some((lock) => lock.name === 'budget-capture') ?? false;
     return {
-      ...snapshot,
-      items: snapshot.items.map((item) => ({
+      items: items.map((item) => ({
         ...item,
         sending: Boolean(item.sending && held),
       })),
@@ -188,22 +183,29 @@ export async function readQueueState() {
   }
 }
 
-/** Remove the pending intent and retain its small confirmation in the same device transaction. */
+/** Drop acknowledgement lists stored by older versions so the device store does not grow. */
+export async function pruneAcknowledgements() {
+  const db = await database();
+  try {
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction(['choices'], 'readwrite');
+      tx.objectStore('choices').delete('acknowledgements');
+      tx.oncomplete = () => resolve();
+      tx.onerror = tx.onabort = () => reject(new Error('Altdaten konnten nicht bereinigt werden.'));
+    });
+  } finally {
+    db.close();
+  }
+}
+
+/** Remove the delivered intent and any acknowledgement list left by older versions. */
 export async function completeQueued(ack: BookingAcknowledgement) {
   const db = await database();
   try {
     await new Promise<void>((resolve, reject) => {
       const tx = db.transaction(['bookings', 'choices'], 'readwrite');
-      const choices = tx.objectStore('choices');
-      const previous = choices.get('acknowledgements');
-      previous.onsuccess = () => {
-        const rows = (previous.result ?? []) as BookingAcknowledgement[];
-        choices.put(
-          [ack, ...rows.filter((row) => row.id !== ack.id)].slice(0, 20),
-          'acknowledgements',
-        );
-        tx.objectStore('bookings').delete(ack.id);
-      };
+      tx.objectStore('choices').delete('acknowledgements');
+      tx.objectStore('bookings').delete(ack.id);
       tx.oncomplete = () => resolve();
       tx.onerror = tx.onabort = () =>
         reject(new Error('Speicherbestätigung konnte nicht auf dem Gerät gesichert werden.'));

@@ -217,12 +217,12 @@ Bereich: Konten (`/konten`, `/konten/$id`), Alle Buchungen (`/konten/buchungen`)
 - **Ablauf:** (geplant)
   1. Ich speichere eine Buchung („Buchung speichern“).
   2. Die App zeigt „lokal gespeichert“, dann „wird gesendet“.
-  3. Nach Antwort steht „auf dem Server gespeichert“ mit Buchungs-ID und Uhrzeit; sonst „fehlgeschlagen“.
+  3. Nach Antwort erscheint kurz eine Bestätigung („Buchung gesendet.“), die von selbst verschwindet; es bleibt keine Liste „Gespeicherte Änderungen“ und keine Buchungs-ID sichtbar (#1200). Sonst bleibt „Fehlgeschlagen“ bzw. „Wartet auf Verbindung“ mit „Jetzt senden“ stehen. Alte, auf dem Gerät gespeicherte Bestätigungen werden beim Start entfernt.
   4. Bei unklarem Empfang prüft die App zuerst den Serverstand, bevor sie erneut sendet; „Jetzt senden“ bleibt als Ausweg mit Warnung.
   5. Ich muss nicht neu laden, um den Stand zu erfahren.
 - **Ergebnis:** Jede Änderung hat genau einen Zustand; derselbe Versuch erzeugt höchstens eine Buchung.
 - **Abnahmekriterien:**
-  1. Vier Zustände sind sichtbar: lokal, wird gesendet, gespeichert, fehlgeschlagen.
+  1. Drei Zustände bleiben sichtbar (lokal, wird gesendet, fehlgeschlagen); „gespeichert“ zeigt nur die kurze Bestätigung, keine Liste (#1200).
   2. Doppeltes Senden (Doppelklick, Wiederholen) erzeugt genau eine Buchung.
   3. Verbindungsabbruch vor oder nach dem Speichern verliert und verdoppelt nichts.
   4. Der Warnhinweis bei unklarem Empfang bleibt erhalten.

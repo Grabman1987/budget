@@ -129,21 +129,12 @@ test('lost POST response retries the same key with no duplicate booking', async 
   await expect(waiting(page)).toHaveCount(0);
   expect(checks).toBeGreaterThanOrEqual(1);
   expect(keys).toHaveLength(1);
-  const confirmed = page.getByRole('region', { name: 'Buchungsstatus', exact: true });
-  await expect(confirmed).toContainText('Auf dem Server gespeichert');
-  await expect(confirmed).toContainText('Buchungs-ID:');
-  await expect(confirmed.locator('time')).toHaveAttribute('datetime', /T/);
-  expect(
-    (await new AxeBuilder({ page }).include('[aria-label="Buchungsstatus"]').analyze()).violations,
-  ).toEqual([]);
-  await confirmed.screenshot({ path: `test-results/save-status-${info.project.name}-light.png` });
-  await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
-  expect(
-    (await new AxeBuilder({ page }).include('[aria-label="Buchungsstatus"]').analyze()).violations,
-  ).toEqual([]);
-  await confirmed.screenshot({ path: `test-results/save-status-${info.project.name}-dark.png` });
+  // #1200: no acknowledgement list and no technical ids; the brief toast confirms the send.
+  await expect(page.getByRole('region', { name: 'Buchungsstatus', exact: true })).toHaveCount(0);
+  await expect(page.getByText('Buchungs-ID')).toHaveCount(0);
   await page.reload();
-  await expect(confirmed).toContainText('Buchungs-ID:');
+  await expect(waiting(page)).toHaveCount(0);
+  await expect(page.getByText(/Buchungs-ID|Gespeicherte Änderungen/)).toHaveCount(0);
   expect(new Set(keys).size).toBe(1);
   expect(await bookings(page, accountId)).toHaveLength(1);
 });
@@ -189,13 +180,11 @@ test('a connection drop before commit retains one intent through reload and conf
   recovered = true;
   // Reload is itself a supported retry trigger; do not race its automatic sender with a click.
   await page.reload();
-  const confirmed = page.getByRole('region', { name: 'Buchungsstatus', exact: true });
-  await expect(confirmed).toContainText('Auf dem Server gespeichert');
   await expect(waiting(page)).toHaveCount(0);
+  await expect(page.getByRole('region', { name: 'Buchungsstatus', exact: true })).toHaveCount(0);
+  await expect(page.getByText(/Buchungs-ID|Gespeicherte Änderungen/)).toHaveCount(0);
   const rows = await bookings(page, accountId);
   expect(rows.map((row: { amountCents: number }) => row.amountCents)).toEqual([-1250]);
-  await expect(confirmed).toContainText(rows[0].id);
-  await expect(confirmed.locator('time')).toHaveAttribute('datetime', /T/);
   expect(checks).toBeGreaterThanOrEqual(1);
   expect(keys).toHaveLength(2);
   expect(new Set(keys).size).toBe(1);

@@ -1,20 +1,19 @@
 // @vitest-environment jsdom
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { act, cleanup, render, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
 import { emptyDraft } from '../ledger/booking-model';
 import { QueueList, QueueProvider } from './queue-ui';
-import { queuedStatus, type BookingAcknowledgement, type QueuedBooking } from './queue-store';
+import { queuedStatus, type QueuedBooking } from './queue-store';
 
 const device = vi.hoisted(() => ({
   items: [] as QueuedBooking[],
-  acknowledgements: [] as BookingAcknowledgement[],
   refresh: () => {},
 }));
 vi.mock('./queue-store', async (original) => ({
   ...(await original<object>()),
-  readQueueState: async () =>
-    structuredClone({ items: device.items, acknowledgements: device.acknowledgements }),
+  readQueueState: async () => structuredClone({ items: device.items }),
+  pruneAcknowledgements: async () => {},
   subscribeQueue: (fn: () => void) => {
     device.refresh = fn;
     return () => {};
@@ -48,7 +47,6 @@ const pending: QueuedBooking = {
 
 it('shows exactly one status per change as local, sending, failed and acknowledged', async () => {
   device.items = [pending];
-  device.acknowledgements = [];
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(
     <QueryClientProvider client={client}>
@@ -66,17 +64,12 @@ it('shows exactly one status per change as local, sending, failed and acknowledg
   await waitFor(() => expect(screen.getByRole('status').textContent).toBe('Fehlgeschlagen'));
   expect(screen.getByText(/Serverempfang unklar/)).toBeTruthy();
   device.items = [];
-  device.acknowledgements = [
-    { id: pending.id, bookingIds: ['synthetic-booking'], savedAt: '2026-11-01T10:00:00.000Z' },
-  ];
   act(device.refresh);
   await waitFor(() =>
     expect(screen.queryByRole('region', { name: 'Wartet auf Verbindung' })).toBeNull(),
   );
-  const saved = screen.getByRole('region', { name: 'Buchungsstatus' });
-  expect(within(saved).getByText('Auf dem Server gespeichert')).toBeTruthy();
-  expect(within(saved).getByText('Buchungs-ID: synthetic-booking')).toBeTruthy();
-  expect(saved.querySelector('time')?.dateTime).toBe('2026-11-01T10:00:00.000Z');
+  expect(screen.queryByRole('region', { name: 'Buchungsstatus' })).toBeNull();
+  expect(document.body.textContent).not.toMatch(/Buchungs-ID|Gespeicherte Änderungen/);
   client.clear();
 });
 
