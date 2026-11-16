@@ -342,14 +342,19 @@ for (const profile of ['configured', 'desktop1440'] as const) {
               .fill('Synthetischer Scrolltest.\n'.repeat(18));
           await field.click();
           const list = dialog.locator('.is-capture-category .combo-list');
-          await expect(list.getByRole('option')).toHaveCount(64);
+          // Category creation is an explicit action outside the selectable keyboard cycle.
+          await expect(list.getByRole('option')).toHaveCount(63);
+          const createCategory = list.getByRole('button', {
+            name: 'Neue Kategorie …',
+            exact: true,
+          });
+          await expect(createCategory).toBeVisible();
           const names = await list
             .getByRole('option')
             .locator(':scope > span:first-child')
             .allTextContents();
-          expect(names.at(-3)).toBe('Für Kontakt auslegen → Kontakt Alpha 734');
-          expect(names.at(-2)).toBe('Kontakt neu anlegen');
-          expect(names.at(-1)).toBe('Neue Kategorie …');
+          expect(names.at(-2)).toBe('Für Kontakt auslegen → Kontakt Alpha 734');
+          expect(names.at(-1)).toBe('Kontakt neu anlegen');
           const initialBounds = await bounded(list);
           if (!actual.coarse)
             expect(initialBounds.height).toBeGreaterThan(
@@ -543,14 +548,11 @@ for (const profile of ['configured', 'desktop1440'] as const) {
             ),
           );
           await field.fill('für');
-          await expect(list.getByRole('option')).toHaveCount(3);
+          await expect(list.getByRole('option')).toHaveCount(2);
           expect(
             await list.getByRole('option').locator(':scope > span:first-child').allTextContents(),
-          ).toEqual([
-            'Muster für Wege',
-            'Für Kontakt auslegen → Kontakt Alpha 734',
-            'Neue Kategorie …',
-          ]);
+          ).toEqual(['Muster für Wege', 'Für Kontakt auslegen → Kontakt Alpha 734']);
+          await expect(createCategory).toBeVisible();
           await field.press('Enter');
           await expect(field).toHaveValue('Muster für Wege');
           if (redesign) await dialog.getByLabel('Notiz', { exact: true }).fill('');
