@@ -119,11 +119,14 @@ for (const theme of ['light', 'dark']) {
           return {
             width: container.width,
             nameWidth: name.width,
-            nameFits: name.top >= container.top && name.bottom <= container.bottom,
+            contentFits: [...element.querySelectorAll('strong, .text-muted')].every((child) => {
+              const box = child.getBoundingClientRect();
+              return box.top >= container.top && box.bottom <= container.bottom;
+            }),
           };
         });
         expect(geometry.nameWidth).toBeGreaterThan(geometry.width / 2);
-        expect(geometry.nameFits).toBe(true);
+        expect(geometry.contentFits).toBe(true);
       }
     }
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(

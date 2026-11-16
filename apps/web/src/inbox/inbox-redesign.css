@@ -923,6 +923,7 @@
   .kinbox-v1 .bank-v1-table .bank-account-header th {
     display: block;
     width: auto;
+    height: auto;
     border: 0;
   }
   .bank-account-summary > :is(button, div) {
@@ -931,7 +932,8 @@
     white-space: normal;
     overflow-wrap: anywhere;
   }
-  .bank-account-summary > button {
+  .konten-frame-inbox .bank-account-summary > button.btn {
+    height: auto;
     grid-template-columns: 16px minmax(0, 1fr);
   }
   .bank-account-summary > button svg {
