@@ -162,3 +162,47 @@ it.each([false, true])(
     expect(requests[1]).toEqual({ path: '/api/undo', body: { groupId: 'group-1' } });
   },
 );
+
+it.each(['dismiss', 'confirm', 'safe'] as const)(
+  'invalidates the %s preview when visible rows change',
+  async (action) => {
+    flags.REDESIGN_ENABLED = true;
+    const fetch = vi.fn();
+    vi.stubGlobal('fetch', fetch);
+    const a = candidate('a'),
+      b = candidate('b');
+    const view = (rows: InboxStored[]) => (
+      <QueryClientProvider client={client}>
+        <ToastProvider>
+          <BankBulkActions
+            rows={rows}
+            selected={new Set(['a', 'b'])}
+            onSelect={vi.fn()}
+            prepared={() => safe}
+            sourceId="source-1"
+          />
+        </ToastProvider>
+      </QueryClientProvider>
+    );
+    const { rerender } = render(view([a, b]));
+    const user = userEvent.setup();
+    if (action !== 'safe') await user.click(screen.getByLabelText('Auswahl (2)'));
+    const name =
+      action === 'safe'
+        ? 'Alle sicheren bestätigen (2)'
+        : action === 'dismiss'
+          ? 'Auswahl nicht übernehmen'
+          : 'Auswahl mit vorbereitetem Vorschlag bestätigen';
+    await user.click(screen.getByRole('button', { name }));
+    rerender(view([b]));
+    const dialog = screen.getByRole('dialog', { name: 'Bankauswahl prüfen' });
+    expect(within(dialog).getByRole('alert').textContent).toContain(
+      'Die Auswahl ist nicht mehr aktuell',
+    );
+    expect(dialog.textContent).toContain('1 ausgewählt');
+    const execute = within(dialog).getByRole('button', { name: 'Auswahl jetzt ausführen' });
+    expect((execute as HTMLButtonElement).disabled).toBe(true);
+    await user.click(execute);
+    expect(fetch).not.toHaveBeenCalled();
+  },
+);

@@ -76,7 +76,7 @@ test('bank merge, mirror transfer, selected pair and balance lock with undo', as
   }
   await page.goto('/konten/posteingang');
   await (await bankPreviewControl(page)).click();
-  await expect(page.getByRole('button', { name: /Mit Buchung .* zusammenführen/ })).toBeVisible();
+  await expect(page.getByRole('button', { name: /^Mit Buchung .* zusammenführen$/ })).toBeVisible();
   expect((await new AxeBuilder({ page }).include('.kinbox').analyze()).violations).toEqual([]);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.screenshot({
@@ -94,7 +94,7 @@ test('bank merge, mirror transfer, selected pair and balance lock with undo', as
   await page.evaluate(() => {
     document.documentElement.dataset['theme'] = 'light';
   });
-  await page.getByRole('button', { name: /Mit Buchung .* zusammenführen/ }).focus();
+  await page.getByRole('button', { name: /^Mit Buchung .* zusammenführen$/ }).focus();
   await page.keyboard.press('Enter');
   await expect(
     page.getByText('Bankumsatz mit Buchung zusammengeführt.', { exact: true }),
@@ -108,8 +108,8 @@ test('bank merge, mirror transfer, selected pair and balance lock with undo', as
   });
   await page.getByRole('button', { name: 'Rückgängig', exact: true }).click();
   await (await bankPreviewControl(page)).click();
-  await expect(page.getByRole('button', { name: /Mit Buchung .* zusammenführen/ })).toBeVisible();
-  await page.getByRole('button', { name: /Mit Buchung .* zusammenführen/ }).click();
+  await expect(page.getByRole('button', { name: /^Mit Buchung .* zusammenführen$/ })).toBeVisible();
+  await page.getByRole('button', { name: /^Mit Buchung .* zusammenführen$/ }).click();
   await expect(
     page.getByText('Bankumsatz mit Buchung zusammengeführt.', { exact: true }),
   ).toBeVisible();

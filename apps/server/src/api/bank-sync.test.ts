@@ -115,6 +115,8 @@ describe('bank API security boundary', () => {
       accounts: [
         {
           sourceId,
+          accountId: 'giro',
+          openTotal: 0,
           name: 'Giro',
           sourceName: 'Synthetic source',
           syncedAt: null,

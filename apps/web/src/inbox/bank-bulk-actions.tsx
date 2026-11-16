@@ -17,6 +17,16 @@ export function isBankInboxRow(item: InboxEntry) {
     : item.type === 'booking' && item.source === 'bank' && item.status !== 'reconciled';
 }
 
+/** Prune an existing selection, or select at most 100 currently rendered bank rows. */
+export function bankSelectionIds(rows: InboxEntry[], selected?: Set<string>) {
+  return new Set(
+    rows
+      .filter((row) => isBankInboxRow(row) && (!selected || selected.has(row.id)))
+      .slice(0, 100)
+      .map((row) => row.id),
+  );
+}
+
 type BulkRow = {
   type: 'candidate' | 'booking';
   id: string;
@@ -34,7 +44,7 @@ type Preview = {
   sharedTargets: number;
   selectedCount: number;
   safeOnly?: boolean;
-  safeSnapshot?: string;
+  contextSnapshot?: string;
   invalidated?: boolean;
 };
 const withoutLabel = (suggestion: PreparedBankSuggestion) => {
@@ -129,19 +139,29 @@ export function BankBulkActions({
   const write = useBudgetWrite();
   const chosen = rows.filter((row) => selected.has(row.id));
   const safe = safeBankRows(rows, prepared).slice(0, 100);
-  const safeSnapshot = JSON.stringify([sourceId, safe.map((row) => [row, prepared(row.id)])]);
+  const contextSnapshot = JSON.stringify([
+    sourceId,
+    chosen.map((row) => row.id),
+    rows.map((row) => [row, prepared(row.id)]),
+  ]);
   // Latch a changed context before committing the render with its confirm action.
-  if (!busy && preview?.safeOnly && !preview.invalidated && preview.safeSnapshot !== safeSnapshot)
-    setPreview({ ...preview, invalidated: true });
+  if (!busy && preview && preview.contextSnapshot !== contextSnapshot)
+    setPreview({
+      ...preview,
+      ...planBulk(preview.action, preview.safeOnly ? safe : chosen, prepared),
+      contextSnapshot,
+      invalidated: true,
+    });
   const invalidatePreview = () =>
     setPreview((current) => current && { ...current, invalidated: true });
-  const prepare = (action: 'dismiss' | 'confirm') => setPreview(planBulk(action, chosen, prepared));
+  const prepare = (action: 'dismiss' | 'confirm') =>
+    setPreview({ ...planBulk(action, chosen, prepared), contextSnapshot });
   const safeAction = (
     <Button
       className="inbox-safe-action"
       disabled={busy || !safe.length}
       onClick={() =>
-        setPreview({ ...planBulk('confirm', safe, prepared), safeOnly: true, safeSnapshot })
+        setPreview({ ...planBulk('confirm', safe, prepared), safeOnly: true, contextSnapshot })
       }
     >
       <CheckCheck size={16} aria-hidden="true" />
@@ -155,12 +175,8 @@ export function BankBulkActions({
         <input
           type="checkbox"
           disabled={busy}
-          checked={rows.every((row) => selected.has(row.id))}
-          onChange={(event) =>
-            onSelect(
-              event.target.checked ? new Set(rows.slice(0, 100).map((row) => row.id)) : new Set(),
-            )
-          }
+          checked={rows.slice(0, 100).every((row) => selected.has(row.id))}
+          onChange={(event) => onSelect(event.target.checked ? bankSelectionIds(rows) : new Set())}
         />
         Alle auswählen
       </label>
@@ -216,14 +232,14 @@ export function BankBulkActions({
               Vorschläge zu prüfen.
             </p>
           )}
+          {preview?.invalidated && (
+            <p role="alert">
+              Die Auswahl ist nicht mehr aktuell. Schließe diese Vorschau, prüfe die Zeilen erneut
+              und bestätige eine neue Vorschau.
+            </p>
+          )}
           {preview?.safeOnly && (
             <>
-              {preview.invalidated && (
-                <p role="alert">
-                  Die sichere Auswahl ist nicht mehr aktuell. Schließe diese Vorschau, prüfe die
-                  Zeilen erneut und bestätige eine neue Vorschau.
-                </p>
-              )}
               <p>
                 Sicher für diese Sammelaktion sind offene Quellumsätze mit einer bereits
                 vorbereiteten, eindeutig automatisch anwendbaren Regel und abgeschlossener
@@ -279,14 +295,10 @@ export function BankBulkActions({
               // than trusting the old candidate/selected-rule revisions alone.
               const currentSnapshot = JSON.stringify([
                 sourceId,
-                safeBankRows(rows, prepared)
-                  .slice(0, 100)
-                  .map((row) => [row, prepared(row.id)]),
+                chosen.map((row) => row.id),
+                rows.map((row) => [row, prepared(row.id)]),
               ]);
-              if (
-                preview.safeOnly &&
-                (preview.invalidated || preview.safeSnapshot !== currentSnapshot)
-              ) {
+              if (preview.invalidated || preview.contextSnapshot !== currentSnapshot) {
                 invalidatePreview();
                 return;
               }

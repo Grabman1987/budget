@@ -54,10 +54,12 @@ export function bankRecapEntryIds(db: Db, sourceId: string, syncedAt: string): s
 }
 
 export function readBankSyncRecap(db: Db, today: string) {
-  const openIds = new Set(readInbox(db, today).entries.map((entry) => entry.id));
+  const entries = readInbox(db, today).entries;
+  const openIds = new Set(entries.map((entry) => entry.id));
   const accounts = db
     .select({
       sourceId: schema.bankSyncAccount.id,
+      accountId: schema.bankSyncAccount.accountId,
       name: schema.account.name,
       sourceName: schema.bankSyncAccount.label,
       syncedAt: schema.bankSyncAccount.lastSyncAt,
@@ -76,6 +78,13 @@ export function readBankSyncRecap(db: Db, today: string) {
       const ids = row.syncedAt ? bankRecapEntryIds(db, row.sourceId, row.syncedAt) : null;
       return {
         ...row,
+        openTotal: entries.filter((entry) =>
+          entry.type === 'booking'
+            ? entry.source === 'bank' &&
+              entry.status !== 'reconciled' &&
+              entry.accountId === row.accountId
+            : entry.type === 'stored' && entry.bankCandidate?.accountId === row.accountId,
+        ).length,
         name: row.name ?? row.sourceName,
         open: ids === null ? null : ids.filter((id) => openIds.has(id)).length,
         running: Boolean(running && running > new Date().toISOString()),

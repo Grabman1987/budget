@@ -166,6 +166,13 @@ export const transferCreate = z.object({
   status: writableStatus.default('confirmed'),
   projectId: id.nullable().optional(),
   bankStatus: writableStatus.optional(),
+  // Explicit per-side bank facts; absent fields must not change legacy request hashes.
+  bankLegs: z
+    .object({
+      from: z.object({ date: day, status: writableStatus }),
+      to: z.object({ date: day, status: writableStatus }),
+    })
+    .optional(),
 });
 export const createBody = z.discriminatedUnion('type', [bookingCreate, transferCreate]);
 

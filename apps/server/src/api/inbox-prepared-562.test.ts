@@ -89,12 +89,22 @@ it('prepares only the source-filtered, dated response page while retaining full 
     bankProgress: { reviewed: number; total: number };
     totalEntries: number;
     entries: Array<{
-      bankCandidate: { suggestion: { label: string; needsReview: boolean } };
+      bankCandidate: {
+        suggestion: { label: string; needsReview: boolean };
+        preparation: {
+          assignment: { candidateRevision: string; suggestions: unknown[] };
+          matches: { merge: unknown[]; link: unknown[]; transfers: unknown[] };
+        };
+      };
     }>;
   };
   expect(body.bankProgress).toEqual({ reviewed: 0, total: 80 });
   expect(body.totalEntries).toBe(1);
   expect(body.entries).toHaveLength(1);
+  expect(body.entries[0]!.bankCandidate.preparation).toMatchObject({
+    assignment: { candidateRevision: expect.any(String), suggestions: [] },
+    matches: { merge: [], link: [], transfers: [] },
+  });
   expect(body.entries[0]!.bankCandidate.suggestion).toEqual({
     label: 'Kategorie prüfen · Zu verteilen',
     needsReview: true,

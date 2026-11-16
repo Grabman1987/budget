@@ -1,5 +1,16 @@
 # Budget feature coverage: YNAB and Portfolio Performance replacement
 
+Train 3 (#1187/#1191): redesign Prüfen presents one initially expanded bank-row
+list per stable account, with fetch metadata in the group header and device-local
+collapse memory. Upload/guided review live in the toolbar; counter help is an info
+popover. Canonical current-month overspending appears below with the existing
+cover form and stays outside the task counters. Candidate inline choices, guarded
+tick/X, full review and Undo come from #1189; booked unchecked rows retain their
+assignment dialogs. #1135 adds the reviewed independently dated transfer API and
+single-counted same-currency bank transit valuation; combined transfer/purchase UI
+and the other remaining #1080 scope are not claimed. No migration or automatic
+acceptance. Integration CI, publication and owner acceptance are separate gates.
+
 Report verdict visibility (#1155): the redesign report frame shows its existing
 domain-generated verdict directly after the header, before report content. The
 calculation chain remains available in “Berechnung und Einordnung”. Views without

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useSyncExternalStore } from 'react';
+import type { BankCandidatePreparation } from '@budget/db';
 import {
   infiniteQueryOptions,
   notifyManager,
@@ -32,6 +33,7 @@ export interface InboxBooking {
   kind: 'uncategorized';
   urgent: false;
   date: string;
+  accountId?: string;
   accountName: string;
   payeeName: string | null;
   memo: string | null;
@@ -59,8 +61,10 @@ export interface InboxStored {
         currency: string;
         memo: string;
         payeeName: string | null;
+        accountId?: string;
         accountName: string;
         suggestion?: { label: string; needsReview: boolean };
+        preparation?: BankCandidatePreparation;
       }
     | undefined;
 }
