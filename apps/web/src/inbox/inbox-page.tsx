@@ -1012,11 +1012,23 @@ function InboxBodyContent({
       : (Object.keys(LABELS) as Exclude<InboxKind, 'overspent'>[]);
   const displayGroups: InboxDisplayGroup[] = groupAccounts
     ? accountGroups.map((account) => ({ kind: null, account, all: account.entries }))
-    : groups.map((kind) => ({
-        kind,
-        account: undefined,
-        all: kind ? entries.filter((item) => item.kind === kind) : entries,
-      }));
+    : groups.flatMap((kind): InboxDisplayGroup[] => {
+        const isHistorical = (item: (typeof entries)[number]) =>
+          item.type === 'stored' && item.historical === true;
+        if (kind !== 'stale_value')
+          return [
+            {
+              kind,
+              account: undefined,
+              all: kind ? entries.filter((item) => item.kind === kind) : entries,
+            },
+          ];
+        const stale = entries.filter((item) => item.kind === kind);
+        return [
+          { kind, account: undefined, all: stale.filter((item) => !isHistorical(item)) },
+          { kind, account: undefined, historical: true, all: stale.filter(isHistorical) },
+        ];
+      });
   const visibleGroups = visibleInboxGroups(displayGroups, collapsed, serverPaginated, shown);
   const visibleBankRows = visibleGroups.flatMap(({ items }) =>
     items.filter((item) => {
@@ -1213,7 +1225,7 @@ function InboxBodyContent({
               </thead>
             )}
             <tbody>
-              {visibleGroups.flatMap(({ kind, account, all, items }) => {
+              {visibleGroups.flatMap(({ kind, account, all, items, historical }) => {
                 if (!account && !items.length) return [];
                 return [
                   <tr
@@ -1221,7 +1233,9 @@ function InboxBodyContent({
                       account ? 'bank-account-header' : `kgroup${bankLayout ? ' sr-only' : ''}`
                     }
                     data-account-id={account?.id}
-                    key={account?.id ?? kind ?? 'bank-source'}
+                    key={
+                      account?.id ?? `${kind ?? 'bank-source'}${historical ? '-historical' : ''}`
+                    }
                   >
                     {!account && <td className="rev-mark" />}
                     <th scope="rowgroup" colSpan={account ? 8 : bankLayout ? 7 : 2}>
@@ -1236,7 +1250,9 @@ function InboxBodyContent({
                       ) : (
                         <>
                           {kind
-                            ? LABELS[kind]
+                            ? historical
+                              ? 'Historische Bestände'
+                              : LABELS[kind]
                             : accountScoped
                               ? 'Bankumsätze dieses Kontos'
                               : groupByTitle
@@ -1244,7 +1260,9 @@ function InboxBodyContent({
                                 : 'Aufgaben dieser Bankquelle'}{' '}
                           <span className="kgcount">
                             {kind
-                              ? (countsByKind?.[kind] ?? all.length)
+                              ? ((countsByKind as Record<string, number | undefined> | undefined)?.[
+                                  historical ? 'stale_value_historical' : kind
+                                ] ?? all.length)
                               : (totalEntries ?? all.length)}
                           </span>
                         </>

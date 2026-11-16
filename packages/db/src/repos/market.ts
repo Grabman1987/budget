@@ -135,6 +135,14 @@ export function foreignCurrencies(db: Executor): string[] {
       .where(isNull(security.deletedAt))
       .all(),
   );
+  // Instruments the owner converts with the ECB rate need the rates of the source currency too.
+  add(
+    db
+      .selectDistinct({ currency: security.quoteFxCurrency })
+      .from(security)
+      .where(and(isNull(security.deletedAt), isNotNull(security.quoteFxCurrency)))
+      .all() as Array<{ currency: string }>,
+  );
   add(
     db
       .selectDistinct({ currency: expectedPaymentVersion.currency })

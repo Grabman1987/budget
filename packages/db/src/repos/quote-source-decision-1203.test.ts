@@ -4,8 +4,11 @@ import { inboxItem } from '../schema';
 import { undo } from './audit';
 import { createSecurity, getSecurity } from './securities';
 import { openStaleValueItem, resolveStaleValueItems } from './market';
+import { readInbox } from './inbox';
+import { foreignCurrencies } from './market';
 import {
   decideQuoteSource,
+  setQuoteFxCurrency,
   FETCH_OFF_RESOLUTION,
   MANUAL_ONLY_RESOLUTION,
 } from './quote-source-decision';
@@ -62,4 +65,21 @@ it('allows "Abruf aus" only without holding and requires a reason', () => {
 it('a later successful fetch still closes a fetch-failure warning by itself (#1101)', () => {
   expect(resolveStaleValueItems(opened.db, 'security', 's1', 'Kursabruf erfolgreich.')).toBe(1);
   expect(items()[0]!.resolution).toMatch(/^Automatisch geschlossen: /);
+});
+
+it('stores the owner choice "mit EZB-Kurs umrechnen", asks for its ECB rates, and is undoable (#1203)', () => {
+  expect(() => setQuoteFxCurrency(opened.db, 's1', 'EUR', ctx())).toThrow();
+  expect(() => setQuoteFxCurrency(opened.db, 's1', 'usd', ctx())).toThrow();
+  const { groupId } = setQuoteFxCurrency(opened.db, 's1', 'USD', ctx());
+  expect(getSecurity(opened.db, 's1')?.quoteFxCurrency).toBe('USD');
+  expect(foreignCurrencies(opened.db)).toContain('USD');
+  // The warning stays open until a fetch succeeds.
+  expect(items().filter((i) => i.resolvedAt === null)).toHaveLength(1);
+  undo(opened.db, { groupId }, ctx());
+  expect(getSecurity(opened.db, 's1')?.quoteFxCurrency).toBeNull();
+});
+
+it('flags a price-source warning of an instrument without holding as historical (#1203)', () => {
+  const entry = readInbox(opened.db, '2026-11-16').entries.find((e) => e.type === 'stored');
+  expect(entry).toMatchObject({ kind: 'stale_value', historical: true });
 });

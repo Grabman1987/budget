@@ -149,3 +149,42 @@ it('#1203 records a reasoned "Nur manuelle Kurse" decision and offers the abort 
   );
   expect(screen.getByRole('button', { name: /Abruf abschalten/ })).toBeTruthy();
 });
+
+it('shows the attempt history and offers the ECB conversion for a foreign quote currency (#1203)', async () => {
+  vi.mocked(request)
+    .mockResolvedValueOnce({
+      ...diagnostics,
+      attempts: [
+        {
+          source: 'ariva',
+          attemptedAt: '2026-09-17T01:00:00Z',
+          outcome: 'http',
+          httpStatus: 503,
+          detail: null,
+        },
+        {
+          source: 'ariva',
+          attemptedAt: '2026-09-16T01:00:00Z',
+          outcome: 'ok',
+          httpStatus: null,
+          detail: '3 Zeilen',
+        },
+      ],
+    })
+    .mockResolvedValueOnce(preview)
+    .mockResolvedValueOnce({ quoteFxCurrency: 'USD' })
+    .mockResolvedValue(diagnostics);
+  mount();
+  expect((await screen.findAllByText(/HTTP 503/)).length).toBeGreaterThan(0);
+  expect(screen.getByText('Letzter Erfolg')).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: 'Quelle erneut testen (Vorschau)' }));
+  fireEvent.click(
+    await screen.findByRole('button', { name: /Mit EZB-Kurs umrechnen \(USD → EUR\)/ }),
+  );
+  await screen.findByText(/Umrechnung mit EZB-Kurs gespeichert \(USD\)/);
+  expect(vi.mocked(request).mock.calls[2]).toEqual([
+    'POST',
+    '/api/securities/synthetic-coin/quote-fx-currency',
+    { currency: 'USD' },
+  ]);
+});

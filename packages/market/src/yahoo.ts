@@ -37,7 +37,7 @@ interface ChartBody {
  */
 export function parseYahooChart(
   text: string,
-  ref: Pick<SecurityRef, 'currency' | 'adjusted'>,
+  ref: Pick<SecurityRef, 'currency' | 'adjusted' | 'convertFrom'>,
   from: string,
   to: string,
 ): DailyQuote[] {
@@ -53,7 +53,9 @@ export function parseYahooChart(
   const result = chart.result?.[0];
   if (!result) throw new MarketError('empty');
   const { meta = {}, timestamp = [] } = result;
-  if (meta.currency !== undefined && meta.currency !== ref.currency)
+  const foreign =
+    meta.currency !== undefined && meta.currency !== ref.currency ? meta.currency : undefined;
+  if (foreign !== undefined && foreign !== ref.convertFrom)
     throw new MarketError('currency_mismatch', undefined, {
       currency: meta.currency,
       origin: 'response',
@@ -88,7 +90,11 @@ export function parseYahooChart(
   });
   return [...byDate]
     .sort(([a], [b]) => (a < b ? -1 : 1))
-    .map(([date, priceMicro]) => ({ date, priceMicro }));
+    .map(([date, priceMicro]) => ({
+      date,
+      priceMicro,
+      ...(foreign === undefined ? {} : { sourceCurrency: foreign }),
+    }));
 }
 
 /**

@@ -145,7 +145,10 @@ export function inboxRoutes(db: Db, today: () => string): Hono {
     const countsByKind: Record<string, number> = {};
     const countsByCause: Record<string, number> = {};
     for (const entry of filtered) {
-      countsByKind[entry.kind] = (countsByKind[entry.kind] ?? 0) + 1;
+      // Warnings of instruments without a holding are their own group ("Historische Bestände").
+      const key =
+        entry.type === 'stored' && entry.historical ? 'stale_value_historical' : entry.kind;
+      countsByKind[key] = (countsByKind[key] ?? 0) + 1;
       const cause = inboxCause(entry);
       if (cause) countsByCause[cause] = (countsByCause[cause] ?? 0) + 1;
     }

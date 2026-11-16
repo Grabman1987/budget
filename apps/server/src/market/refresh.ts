@@ -9,8 +9,10 @@ import {
   cpiFetchedAt,
   foreignCurrencies,
   lastFxDay,
+  fxRateOnOrBefore,
   lastQuotedDay,
   openStaleValueItem,
+  recordMarketAttempt,
   resolveStaleValueItems,
   schema,
   storeCpi,
@@ -18,6 +20,7 @@ import {
   upsertFxRate,
   upsertPrice,
   type Db,
+  type Executor,
   type SecurityRow,
 } from '@budget/db';
 import { and, eq } from 'drizzle-orm';
@@ -49,6 +52,8 @@ export const FX_CHUNK_DAYS = 3 * 365;
  * failure only once this many weekdays passed without a single quote.
  */
 export const STALE_AFTER_WEEKDAYS = 5;
+/** A converted quote uses the ECB rate of its day, else the last earlier one at most this many days back. */
+export const FX_MAX_AGE_DAYS = 5;
 
 export interface RefreshOptions {
   /** Today in Vienna (`todayInVienna()`); tests pass a fixed day. */
@@ -70,6 +75,8 @@ export interface PriceRefreshResult {
   protectedManual: number;
   /** Securities for which every source failed (an inbox item is open for each). */
   failed: Array<{ securityId: string; errors: MarketErrorKind[] }>;
+  /** Days of ECB-converted instruments skipped because no ECB rate was within `FX_MAX_AGE_DAYS`. */
+  fxSkipped: Array<{ securityId: string; days: string[] }>;
   /** Signal-series closes that disagree with the stored value (kept, see `storeSignalCloses`). */
   conflicts: number;
 }
@@ -103,7 +110,39 @@ function refOf(row: SecurityRow): SecurityRef {
     kind: row.kind,
     currency: row.currency,
     adjusted: row.quoteAdjusted,
+    convertFrom: row.quoteFxCurrency,
   };
+}
+
+const RATE_ONE = 1_000_000n;
+const roundDiv = (a: bigint, b: bigint): bigint => (2n * a + b) / (2n * b);
+
+/**
+ * Convert a quote the source delivered in `quote.sourceCurrency` into the instrument currency with
+ * the ECB rate of its day (the last earlier rate when the day has none, at most `FX_MAX_AGE_DAYS`
+ * back). Null: no usable rate, the day must be skipped, never stored unconverted. `fxRateMicro` is
+ * the instrument currency per one unit of the source currency.
+ */
+export function convertQuote(
+  db: Executor,
+  quote: DailyQuote & { sourceCurrency: string },
+  currency: string,
+): { priceMicro: number; fxRateMicro: number } | null {
+  const rateOf = (code: string): bigint | null => {
+    if (code === 'EUR') return RATE_ONE;
+    const rate = fxRateOnOrBefore(db, code, quote.date);
+    return rate && rate.date >= addDays(quote.date, -FX_MAX_AGE_DAYS)
+      ? BigInt(rate.rateMicro)
+      : null;
+  };
+  const from = rateOf(quote.sourceCurrency);
+  const to = rateOf(currency);
+  if (from === null || to === null) return null;
+  const priceMicro = Number(roundDiv(BigInt(quote.priceMicro) * from, to));
+  const fxRateMicro = Number(roundDiv(from * RATE_ONE, to));
+  return priceMicro > 0 && fxRateMicro > 0 && Number.isSafeInteger(priceMicro)
+    ? { priceMicro, fxRateMicro }
+    : null;
 }
 
 /** Sources in the order they are tried: primary, the more specific ones, the last resort. */
@@ -142,6 +181,7 @@ export async function refreshPrices(
     },
     protectedManual: 0,
     failed: [],
+    fxSkipped: [],
     conflicts: 0,
   };
   const signalActive = signalCaptureActive(db);
@@ -191,6 +231,21 @@ export async function refreshPrices(
     const attempts = quoteChain(sources).filter((source) => source.supports?.(ref) ?? true);
     // No source knows how to look this security up: surfaced like any other failure.
     const errors: MarketErrorKind[] = attempts.length === 0 ? ['not_configured'] : [];
+    const attempt = (
+      source: string,
+      outcome: MarketErrorKind | 'ok',
+      httpStatus?: number,
+      detail?: string,
+    ) =>
+      recordMarketAttempt(db, {
+        securityId: row.id,
+        source,
+        attemptedAt: now.toISOString(),
+        outcome,
+        httpStatus: httpStatus ?? null,
+        detail: detail ?? null,
+      });
+    if (attempts.length === 0) attempt('none', 'not_configured');
     let written: QuoteSourceId | undefined;
     let gotNothing = false;
     for (const source of attempts) {
@@ -205,14 +260,16 @@ export async function refreshPrices(
         }
         if (quotes.length === 0) {
           gotNothing = true;
+          attempt(source.id, 'empty', undefined, 'keine Zeilen');
           continue;
         }
         let rows = 0;
+        const skippedDays: string[] = [];
         db.transaction((tx) => {
           if (signal) {
             const stored = storeSignalCloses(
               tx,
-              quotes,
+              quotes.filter((q) => q.sourceCurrency === undefined),
               source.id as 'ariva' | 'yfinance',
               now.toISOString(),
             );
@@ -221,6 +278,28 @@ export async function refreshPrices(
             return;
           }
           for (const q of quotes) {
+            let priceMicro = q.priceMicro;
+            let conversion: Pick<
+              typeof schema.price.$inferInsert,
+              'sourceCurrency' | 'sourcePriceMicro' | 'fxRateMicro'
+            > = {};
+            if (q.sourceCurrency !== undefined) {
+              // Never store a foreign-currency quote as instrument currency: convert or skip the day.
+              const converted =
+                row.quoteFxCurrency === q.sourceCurrency
+                  ? convertQuote(tx, { ...q, sourceCurrency: q.sourceCurrency }, row.currency)
+                  : null;
+              if (!converted) {
+                skippedDays.push(q.date);
+                continue;
+              }
+              priceMicro = converted.priceMicro;
+              conversion = {
+                sourceCurrency: q.sourceCurrency,
+                sourcePriceMicro: q.priceMicro,
+                fxRateMicro: converted.fxRateMicro,
+              };
+            }
             const existing = tx
               .select({ securityId: schema.price.securityId })
               .from(schema.price)
@@ -229,9 +308,10 @@ export async function refreshPrices(
             const stored = upsertPrice(tx, {
               securityId: row.id,
               date: q.date,
-              priceMicro: q.priceMicro,
+              priceMicro,
               currency: row.currency,
               source: source.id,
+              ...conversion,
             });
             if (stored) {
               rows++;
@@ -242,7 +322,7 @@ export async function refreshPrices(
                     securityId: row.id,
                     date: q.date,
                     oldPriceMicro: null,
-                    newPriceMicro: q.priceMicro,
+                    newPriceMicro: priceMicro,
                     oldSource: null,
                     newSource: source.id,
                   })
@@ -251,13 +331,37 @@ export async function refreshPrices(
             } else result.protectedManual++;
           }
         });
+        if (skippedDays.length > 0) {
+          result.fxSkipped.push({ securityId: row.id, days: skippedDays });
+          log(`prices: ${skippedDays.length} day(s) of a security skipped, no ECB rate`);
+        }
+        if (rows === 0 && skippedDays.length > 0) {
+          // Nothing stored: not a success. Keep or open the warning, name the missing ECB days.
+          errors.push('empty');
+          attempt(
+            source.id,
+            'empty',
+            undefined,
+            `keine Zeilen gespeichert, ${skippedDays.length} Tage ohne EZB-Kurs (${skippedDays[0]} bis ${skippedDays[skippedDays.length - 1]})`,
+          );
+          continue;
+        }
         result.bySource[source.id].securities++;
         result.bySource[source.id].rows += rows;
         written = source.id;
+        attempt(
+          source.id,
+          'ok',
+          undefined,
+          skippedDays.length > 0
+            ? `${rows} Zeilen, ${skippedDays.length} Tage ohne EZB-Kurs übersprungen`
+            : `${rows} Zeilen`,
+        );
         break;
       } catch (error) {
         const kind = errorKind(error);
         errors.push(kind);
+        attempt(source.id, kind, error instanceof MarketError ? error.httpStatus : undefined);
         log(`prices: ${source.id} failed for a security (${kind})`);
       }
     }

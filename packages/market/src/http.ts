@@ -44,11 +44,12 @@ export async function getText(url: string, options: HttpOptions, accept = '*/*')
     try {
       const res = await options.fetch(url, { headers, signal: AbortSignal.timeout(timeoutMs) });
       if (res.status === 429) {
-        last = new MarketError('rate_limited');
+        last = new MarketError('rate_limited', undefined, undefined, 429);
         asked = retryAfterMs(res);
-      } else if (res.status >= 500) last = new MarketError('http', String(res.status));
-      else if (res.status === 404) throw new MarketError('not_found');
-      else if (!res.ok) throw new MarketError('http', String(res.status));
+      } else if (res.status >= 500)
+        last = new MarketError('http', String(res.status), undefined, res.status);
+      else if (res.status === 404) throw new MarketError('not_found', undefined, undefined, 404);
+      else if (!res.ok) throw new MarketError('http', String(res.status), undefined, res.status);
       else {
         const text = await res.text();
         if (text.length > MAX_BODY_CHARS) throw new MarketError('parse', 'response too large');
