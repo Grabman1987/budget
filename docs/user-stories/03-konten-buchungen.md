@@ -85,9 +85,9 @@ Bereich: Konten (`/konten`, `/konten/$id`), Alle Buchungen (`/konten/buchungen`)
   10. Fehlermeldungen zur Buchung erscheinen nach einem Speicherversuch; ungültiger Kategoriesuchtext wird nach Verlassen des Feldes erklärt. Ein frisches Formular zeigt keine Kategoriepflicht-Meldung während der Eingabe.
   11. Das Datum wird beim Erfassen und Bearbeiten von Ausgabe, Einnahme und Umbuchung in beiden Themes vollständig angezeigt, auch bei 390 px. Der Dialog hat keinen horizontalen Überlauf; Datumswert und Tastaturreihenfolge bleiben erhalten.
   12. The share unit survives closing and reloading on this device. Only the unit is remembered: new percentage shares start at 50 %, amount shares empty. Existing shares and saved bookings remain unchanged. Editing still works when device storage is blocked.
-- **Status:** Grundfunktion live; Kategorieanlage #1104 und Konsistenzkorrekturen #1145 implementiert, PR-/CI-Prüfung und Live-Abnahme offen — **Verweis:** Y03, #1104, #1145; Layout und Vorschlagschips separat #1142
+- **Status:** Grundfunktion live; Kategorieanlage #1104 und Konsistenzkorrekturen #1145 implementiert, PR-/CI-Prüfung und Live-Abnahme offen — **Verweis:** Y03, #1104, #1145; Layout #1142 (Kategorie-Vorschlagschips entfernt, Kategorie nur über das Suchfeld bzw. Empfänger-Vorbelegung)
 
-  Share-mode slice of #1146 implemented; PR review/CI and live acceptance pending. Fixed footer, register position and collapsed change log from #1146 remain open.
+  Share-mode slice and layout slices of #1146 implemented; PR review/CI and live acceptance pending. The desktop dialog has a fixed height, so Abbrechen, Speichern und neu and Speichern keep their position while shares or splits expand and only the body scrolls. Save and new and adding a split keep the body's scroll position. The list „Gespeicherte Änderungen“ no longer exists (#1200); a short confirmation never shifts the register.
 
 ### K-05a – Splitbuchung
 - **Story:** Als Nutzer möchte ich eine Buchung auf mehrere Kategorien aufteilen, damit ein Einkauf mit gemischtem Inhalt in den richtigen Envelopes landet.
