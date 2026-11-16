@@ -126,10 +126,16 @@ beforeEach(() => {
   create.mockResolvedValue({ bookings: [], groupId: 'synthetic-group' });
 });
 
-it.each([false, true])(
-  'uses explicit confirmation for a reconciled edit (opening release: %s)',
-  async (initialUnlockReconciled) => {
+it.each([
+  [false, false],
+  [false, true],
+  [true, false],
+  [true, true],
+] as const)(
+  'uses explicit confirmation for a reconciled edit (phone: %s, opening release: %s)',
+  async (phone, initialUnlockReconciled) => {
     flags.REDESIGN_ENABLED = true;
+    flags.phone = phone;
     const booking: ListedBooking = {
       id: 'synthetic-checked',
       accountId: 'giro',
@@ -184,6 +190,15 @@ it.each([false, true])(
     expect(release.checked).toBe(initialUnlockReconciled);
     expect(patch).not.toHaveBeenCalled();
     if (!initialUnlockReconciled) {
+      fireEvent.change(screen.getByLabelText('Betrag', { exact: true }), {
+        target: { value: '15,00' },
+      });
+      if (phone) {
+        const save = screen.getByRole('button', { name: 'Speichern' }) as HTMLButtonElement;
+        expect(save.disabled).toBe(true);
+        expect(save.getAttribute('aria-describedby')).toBe('booking-save-reason');
+        expect(document.getElementById('booking-save-reason')?.textContent).toContain('geprüft');
+      }
       await user.click(release);
       expect(release.checked).toBe(false);
       const body = document.querySelector<HTMLElement>('.bk-body')!;

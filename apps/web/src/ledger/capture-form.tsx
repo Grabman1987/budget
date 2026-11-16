@@ -1169,7 +1169,9 @@ export function CaptureForm({
   })();
   const saveBlocked = mobileRedesign ? Boolean(phoneProblem) : blocked;
   const saveReason = mobileRedesign ? phoneProblem : lineProblem;
-  const showSaveReason = mobileRedesign ? saveAttempted && Boolean(phoneProblem) : showLineProblem;
+  const showSaveReason = mobileRedesign
+    ? Boolean(phoneProblem) && (Boolean(editing) || saveAttempted)
+    : showLineProblem;
 
   const saveButton = (
     <Button
