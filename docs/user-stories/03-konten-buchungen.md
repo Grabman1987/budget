@@ -64,10 +64,12 @@ Bereich: Konten (`/konten`, `/konten/$id`), Alle Buchungen (`/konten/buchungen`)
      Das Datum bleibt vollständig als TT.MM.JJJJ lesbar; bei schmalem Dialog stehen Datum und Konto untereinander.
   3. Ich wähle „Empfänger“ (Suchen oder neu anlegen) und Kategorie; optional „Projekt“, Notiz, „Belege“.
      Fehlt die Kategorie, wähle ich „Neue Kategorie …“, fülle Name und Gruppe im bestehenden Formular aus und speichere. Die Kategorie wird ausgewählt; der Buchungsentwurf bleibt erhalten.
+     A category can be clicked, selected with the keyboard, or entered as a unique full label. Blur and save accept a unique case-insensitive match. Searching keeps the last valid selection; unmatched or ambiguous text restores its label on blur. Only deliberately emptying the field clears the selection. Without a valid selection, unresolved search text blocks saving.
      Under “Bezahlt für”, I add a contact share. First use starts in “Betrag” mode with an empty amount; subsequent new shares use the last unit (% or Betrag) chosen on this device.
   4. Bei einem Bargeld-Konto steht „Bargeldbuchungen sind sofort bestätigt“, sonst startet die Buchung „Vorgemerkt“.
   5. Optional wähle ich bei „Wiederholen“ Wöchentlich, Monatlich, Vierteljährlich oder Jährlich; die App legt eine wiederkehrende Zahlung an.
   6. Ich tippe „Buchung speichern“.
+     After "Speichern und neu", the next booking keeps the date, account, payee and category. The kept account counts as chosen. Payee history may replace only an untouched default account; a payee without history never changes the account. Automatic category suggestions follow the new payee's latest booking; no history or a latest split booking leaves the category empty. The register account and explicit choices remain authoritative.
 - **Ergebnis:** Die Buchung steht im Konto und in „Alle Buchungen“; mit „Wiederholen“ zusätzlich in Plan › Wiederkehrende Zahlungen.
 - **Abnahmekriterien:**
   1. Eine neue Bankbuchung startet „vorgemerkt“, eine Bargeldbuchung „bestätigt“.
@@ -78,8 +80,11 @@ Bereich: Konten (`/konten`, `/konten/$id`), Alle Buchungen (`/konten/buchungen`)
   6. Neue Kategorien lassen sich auch bei der Inline-Kategorieänderung und beim Bearbeiten unter Prüfen anlegen und auswählen. Doppelte Namen zeigen „Dieser Name wird schon verwendet.“; Abbrechen erhält den Entwurf und gibt den Fokus zurück.
   7. Die Kategorieanlage ist separat rückgängig machbar, solange die Kategorie unbenutzt ist. Erst das explizite Speichern der Buchung ordnet ihr Geld zu.
   8. Das Datum wird beim Erfassen und Bearbeiten von Ausgabe, Einnahme und Umbuchung in beiden Themes vollständig angezeigt, auch bei 390 px. Der Dialog hat keinen horizontalen Überlauf; Datumswert und Tastaturreihenfolge bleiben erhalten.
-  9. The share unit survives closing and reloading on this device. Only the unit is remembered: new percentage shares start at 50 %, amount shares empty. Existing shares and saved bookings remain unchanged. Editing still works when device storage is blocked.
-- **Status:** Grundfunktion live; Kategorieanlage im Wähler #1104 implementiert, PR-/CI-Prüfung und Live-Abnahme offen. Datumslayout als erster Teil von #1142 implementiert; Veröffentlichung und Live-Abnahme offen. Entfernung der Kategoriechips und die neuen Empfänger-Vorbelegungsregeln aus #1142 bleiben offen. — **Verweis:** Y03, #1104, #1142
+  9. Displayed and saved categories agree for typed, clicked and keyboard selection, including after "Speichern und neu". Unmatched or ambiguous search text restores the valid selection on blur; deliberate clearing removes it. A unique full label is accepted on blur and save.
+  10. A payee change preserves an explicitly chosen or carried account. Only an untouched default account may receive a history suggestion; without history it stays unchanged. Explicit category choices remain intact. Delayed responses from the previous draft are ignored.
+  11. Fehlermeldungen zur Buchung erscheinen nach einem Speicherversuch; ungültiger Kategoriesuchtext wird nach Verlassen des Feldes erklärt. Ein frisches Formular zeigt keine Kategoriepflicht-Meldung während der Eingabe.
+  12. The share unit survives closing and reloading on this device. Only the unit is remembered: new percentage shares start at 50 %, amount shares empty. Existing shares and saved bookings remain unchanged. Editing still works when device storage is blocked.
+- **Status:** Grundfunktion live; Kategorieanlage #1104 und Konsistenzkorrekturen #1145 implementiert, PR-/CI-Prüfung und Live-Abnahme offen — **Verweis:** Y03, #1104, #1145; Datumslayout #1142 implementiert, Ver?ffentlichung und Live-Abnahme offen; Vorschlagschips separat #1142
   Share-mode slice of #1146 implemented; PR review/CI and live acceptance pending. Fixed footer, register position and collapsed change log from #1146 remain open.
 
 ### K-05a – Splitbuchung
