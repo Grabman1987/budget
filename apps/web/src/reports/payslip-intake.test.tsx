@@ -664,3 +664,70 @@ it('renders every parsed line exactly once, unknown sections under "Weitere Zeil
     within(screen.getByRole('table', { name: 'Weitere Zeilen' })).getByText('Zeile Unbekannt'),
   ).toBeTruthy();
 });
+
+it('#1203 offers "Kein Gehaltszettel" only for an unrecognised, pending document', async () => {
+  const unknown = intakeWith({
+    parsed: {
+      documentType: 'unknown',
+      periodSource: null,
+      differenceCents: null,
+      warnings: ['Dokumenttyp nicht erkannt.'],
+      draft: null,
+    },
+  });
+  renderIntake(unknown);
+  expect(await screen.findByRole('button', { name: 'Kein Gehaltszettel' })).toBeTruthy();
+  cleanup();
+  renderIntake(intakeWith({}));
+  await screen.findByRole('region', { name: 'Zusammenfassung' });
+  expect(screen.queryByRole('button', { name: 'Kein Gehaltszettel' })).toBeNull();
+});
+
+it('#1203 lists excluded documents under the payslip source and re-includes one', async () => {
+  const calls: string[] = [];
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async (url: string, init?: RequestInit) => {
+      calls.push(`${init?.method ?? 'GET'} ${url}`);
+      if (String(url).endsWith('/excluded'))
+        return Response.json({
+          items: [
+            {
+              id: 'x1',
+              originalFilename: 'Synthetische-Broschuere.pdf',
+              note: 'Prospekt',
+              excludedAt: '2026-11-01T10:00:00.000Z',
+            },
+          ],
+        });
+      if (init?.method === 'POST') return Response.json({ groupId: 'g1' });
+      return Response.json({
+        passwordSet: false,
+        passwordSource: null,
+        passwordRememberAvailable: false,
+        dropboxConnected: false,
+        dropboxConfigured: false,
+        dropboxWrite: false,
+        lastScanAt: null,
+        filesFound: 0,
+        errors: 0,
+        errorCode: null,
+        accounts: [],
+        payees: [],
+        config: { salaryAccountId: null, wageTypes: {} },
+      });
+    }),
+  );
+  render(
+    <QueryClientProvider
+      client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
+    >
+      <ToastProvider>
+        <PayslipSourceSection />
+      </ToastProvider>
+    </QueryClientProvider>,
+  );
+  expect(await screen.findByText(/Synthetische-Broschuere\.pdf/)).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: 'Wieder einbeziehen' }));
+  await waitFor(() => expect(calls).toContain('POST /api/payslip-intake/x1/reinclude'));
+});

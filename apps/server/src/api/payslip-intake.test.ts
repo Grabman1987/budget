@@ -2,7 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { createTestDatabase, schema, type OpenedDatabase } from '@budget/db';
+import { createTestDatabase, schema, stagePayslip, type OpenedDatabase } from '@budget/db';
+import { PAYSLIP_PARSER_VERSION } from '@budget/domain';
 import { createApp } from '../app';
 import { createAuth } from '../auth/routes';
 import { AuthStore } from '../auth/store';
@@ -335,5 +336,47 @@ describe('authenticated payslip intake HTTP boundary', () => {
     expect(await dry.json()).toEqual({ dryRun: true, groupId: null, items: [] });
     const run = await call({ dryRun: false });
     expect(await run.json()).toEqual({ dryRun: false, groupId: null, items: [] });
+  });
+  it('#1203 excludes a non-payslip PDF with a note, lists it and re-includes it', async () => {
+    const jsonHeaders = { ...headers, 'content-type': 'application/json' };
+    const { id } = stagePayslip(
+      opened.db,
+      {
+        sha256: 'e'.repeat(64),
+        contentHash: 'synthetic-hash-1203',
+        source: 'dropbox',
+        sizeBytes: 10,
+        filename: 'Synthetische-Broschuere.pdf',
+        parsed: {
+          documentType: 'unknown',
+          periodSource: null,
+          parserVersion: PAYSLIP_PARSER_VERSION,
+          payoutDate: null,
+          differenceCents: null,
+          warnings: ['Dokumenttyp nicht erkannt.'],
+          draft: null,
+        },
+      },
+      { actor: 'test' },
+    );
+    const call = (path: string, body: unknown, h = jsonHeaders) =>
+      app.request(`/api/payslip-intake/${path}`, {
+        method: 'POST',
+        headers: h,
+        body: JSON.stringify(body),
+      });
+    expect((await call(`${id}/not-a-payslip`, {}, { ...jsonHeaders, cookie: '' })).status).toBe(
+      401,
+    );
+    expect((await call(`${id}/not-a-payslip`, { note: 'x', extra: 1 })).status).toBe(400);
+    expect((await call(`${id}/not-a-payslip`, { note: 'Prospekt' })).status).toBe(200);
+    const listed = await app.request('/api/payslip-intake/excluded', { headers });
+    expect(await listed.json()).toMatchObject({
+      items: [{ id, note: 'Prospekt', originalFilename: 'Synthetische-Broschuere.pdf' }],
+    });
+    expect((await call(`${id}/not-a-payslip`, {})).status).toBe(409);
+    expect((await call(`${id}/reinclude`, {})).status).toBe(200);
+    const again = await app.request('/api/payslip-intake/excluded', { headers });
+    expect(await again.json()).toEqual({ items: [] });
   });
 });

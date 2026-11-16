@@ -149,6 +149,21 @@ Bildschirm Prüfen: `/konten/pruefen` (Konten › Prüfen). Zähler: „Umsätze
   4. Das Archiv lässt sich nicht laden: „Mitteilungsarchiv konnte nicht geladen werden.“ statt leerer Liste.
 - **Status:** live — **Verweis:** #1077 (Archiv #1089)
 
+### I-05a – PDF als „Kein Gehaltszettel“ ausschließen
+- **Story:** Als Nutzer möchte ich ein PDF im Gehaltszettel-Ordner, das gar kein Gehaltszettel ist, ausschließen können, damit die Aufgabe nicht ewig offen bleibt und das Dokument nie wieder vorgeschlagen wird.
+- **Ausgangslage:** Eine Aufgabe in Prüfen nennt „Dokumenttyp nicht erkannt“.
+- **Ablauf:**
+  1. Nutzer öffnet die Aufgabe und trägt optional eine Notiz ein.
+  2. Nutzer klickt „Kein Gehaltszettel“. Die Aufgabe ist erledigt („Kein Gehaltszettel: <Notiz>“); die Datei bleibt erhalten.
+  3. Unter Einstellungen › Datenquellen › Gehaltszettel steht das Dokument in „Kein Gehaltszettel (ausgeschlossen)“ mit „Wieder einbeziehen“.
+  4. „Wieder einbeziehen“ öffnet die Aufgabe wieder.
+- **Ergebnis:** Kein Vorschlag, keine Buchung; der Ausschluss gilt über den Inhalts-Hash, auch für eine umbenannte Kopie.
+- **Abnahmekriterien:**
+  1. Der Knopf erscheint nur bei nicht erkanntem, offenem Dokument.
+  2. Ein späterer Scan oder Upload derselben Datei legt keine neue Aufgabe an.
+  3. „Rückgängig“ und „Wieder einbeziehen“ stellen die offene Aufgabe her.
+- **Status:** in Arbeit (Entwurfs-PR) — **Verweis:** #1203 (Teil C)
+
 ### I-06 – Gehaltszettel automatisch lesen und bestätigen
 - **Story:** Als Nutzer möchte ich Gehaltszettel automatisch auslesen lassen und die Vorschläge nur noch bestätigen, damit ich Brutto, Abzüge und Auszahlung nicht abtippen muss.
 - **Ausgangslage:** Ein neuer Gehaltszettel liegt als PDF vor (Upload oder nächtlicher Dropbox-Abruf, wenn eingerichtet).
