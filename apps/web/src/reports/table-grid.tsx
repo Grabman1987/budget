@@ -8,6 +8,7 @@ import {
 } from '@budget/domain';
 import { forwardRef, type ReactNode, type CSSProperties } from 'react';
 import { chartPercent } from '../charts/tooltip-data';
+import { ReportTable } from './report-table';
 import { Term } from './term';
 import { eur } from '../ledger/format';
 import { AppLink } from '../shell/app-link';
@@ -166,151 +167,145 @@ export const RowsGrid = forwardRef<HTMLDivElement, RowsGridProps>(function RowsG
   );
   return (
     <ChartValues label={caption} points={points}>
-      <div
+      <ReportTable
         ref={ref}
-        className="rscroll rsticky"
-        role="region"
-        aria-label={regionLabel}
-        // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- Keyboard users must be able to scroll the complete table.
-        tabIndex={0}
+        caption={caption}
+        regionLabel={regionLabel}
+        className={`rtable rgrid ${className ?? ''}`}
       >
-        <p className="table-scroll-hint">Seitlich wischen für weitere Spalten</p>
-        <table className={`rtable rgrid ${className ?? ''}`}>
-          <caption className="sr-only">{caption}</caption>
-          <thead>
-            <tr>
-              <th scope="col" className="tech rg-first">
-                Position
+        <thead>
+          <tr>
+            <th scope="col" className="tech rg-first">
+              Position
+            </th>
+            {columns.map((c) => (
+              <th key={c.key} scope="col" className="tech n" title={c.title}>
+                {c.label}
               </th>
-              {columns.map((c) => (
-                <th key={c.key} scope="col" className="tech n" title={c.title}>
-                  {c.label}
-                </th>
-              ))}
-              {total && (
+            ))}
+            {total && (
+              <th scope="col" className="tech n rg-sum">
+                Summe
+              </th>
+            )}
+            {average && (
+              <th scope="col" className="tech n">
+                Ø Monat
+              </th>
+            )}
+            {previous && (
+              <>
                 <th scope="col" className="tech n rg-sum">
-                  Summe
+                  {previous.label}
                 </th>
-              )}
-              {average && (
                 <th scope="col" className="tech n">
-                  Ø Monat
+                  Veränderung
                 </th>
-              )}
-              {previous && (
-                <>
-                  <th scope="col" className="tech n rg-sum">
-                    {previous.label}
-                  </th>
-                  <th scope="col" className="tech n">
-                    Veränderung
-                  </th>
-                </>
-              )}
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((row, rowIndex) => {
-              const stats = tableHeatStats(row.vals);
-              const sum = tableRowTotal(row);
-              const avg = tableRowAverage(row);
-              const prev = previous?.totals.get(row.key);
-              return (
-                <tr
-                  key={row.key}
-                  className={`rk-${ROW_CLASS[row.kind]}${row.level ? ` lv-${row.level}` : ''}`}
-                >
-                  <th scope="row" className="rg-first">
-                    {row.swatch && (
-                      <ClassSwatch kind={row.swatch === 'income' ? 'open' : row.swatch} />
-                    )}
-                    {renderLabel ? renderLabel(row) : <Term>{row.label}</Term>}
-                  </th>
-                  {row.vals.map((value, i) => (
-                    <Cell
-                      key={columns[i]?.key ?? i}
-                      link={cellLink?.(row, i)}
-                      onClick={onCell ? () => onCell(row, i) : undefined}
-                      row={row}
-                      value={value}
-                      stats={stats}
-                      point={rows.slice(0, rowIndex).reduce((n, r) => n + r.vals.length, 0) + i}
-                    />
-                  ))}
-                  {total && (
-                    <td className="n rg-sum">
-                      {sum === null ? (
-                        '–'
-                      ) : (
-                        <strong>
-                          {cellLink ? (
-                            <AppLink
-                              className="table-cell-open"
-                              {...cellLink(row, null)}
-                              state={{ reportDetailOpenedInApp: true }}
-                            >
-                              {eur(sum)}
-                            </AppLink>
-                          ) : onCell ? (
-                            <button
-                              type="button"
-                              className="table-cell-open"
-                              onClick={() => onCell(row, null)}
-                            >
-                              {eur(sum)}
-                            </button>
-                          ) : row.signed ? (
-                            eur(sum, { cents: false, sign: true })
-                          ) : (
-                            euroNumber(sum)
-                          )}
-                        </strong>
-                      )}
-                    </td>
+              </>
+            )}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row, rowIndex) => {
+            const stats = tableHeatStats(row.vals);
+            const sum = tableRowTotal(row);
+            const avg = tableRowAverage(row);
+            const prev = previous?.totals.get(row.key);
+            return (
+              <tr
+                key={row.key}
+                className={`rk-${ROW_CLASS[row.kind]}${row.level ? ` lv-${row.level}` : ''}`}
+              >
+                <th scope="row" className="rg-first">
+                  {row.swatch && (
+                    <ClassSwatch kind={row.swatch === 'income' ? 'open' : row.swatch} />
                   )}
-                  {average && (
-                    <td className="n">
-                      {avg === null ? (
-                        '–'
-                      ) : cellLink ? (
-                        <AppLink
-                          className="table-cell-open"
-                          {...cellLink(row, null)}
-                          state={{ reportDetailOpenedInApp: true }}
-                        >
-                          {eur(avg)}
-                        </AppLink>
-                      ) : onCell ? (
-                        <button
-                          type="button"
-                          className="table-cell-open"
-                          onClick={() => onCell(row, null)}
-                        >
-                          {eur(avg)}
-                        </button>
-                      ) : (
-                        euroNumber(avg)
-                      )}
-                    </td>
-                  )}
-                  {previous &&
-                    (sum === null || prev === undefined ? (
-                      <>
-                        <td className="n rg-sum muted">–</td>
-                        <td className="n muted">–</td>
-                      </>
+                  {renderLabel ? renderLabel(row) : <Term>{row.label}</Term>}
+                </th>
+                {row.vals.map((value, i) => (
+                  <Cell
+                    key={columns[i]?.key ?? i}
+                    link={cellLink?.(row, i)}
+                    onClick={onCell ? () => onCell(row, i) : undefined}
+                    row={row}
+                    value={value}
+                    stats={stats}
+                    point={rows.slice(0, rowIndex).reduce((n, r) => n + r.vals.length, 0) + i}
+                  />
+                ))}
+                {total && (
+                  <td className="n rg-sum">
+                    {sum === null ? (
+                      '–'
                     ) : (
-                      <>
-                        <td className="n rg-sum">{euroNumber(prev)}</td>
-                        <Change row={row} total={sum} previous={prev} />
-                      </>
-                    ))}
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
+                      <strong>
+                        {cellLink ? (
+                          <AppLink
+                            className="table-cell-open"
+                            {...cellLink(row, null)}
+                            state={{ reportDetailOpenedInApp: true }}
+                          >
+                            {eur(sum)}
+                          </AppLink>
+                        ) : onCell ? (
+                          <button
+                            type="button"
+                            className="table-cell-open"
+                            onClick={() => onCell(row, null)}
+                          >
+                            {eur(sum)}
+                          </button>
+                        ) : row.signed ? (
+                          eur(sum, { cents: false, sign: true })
+                        ) : (
+                          euroNumber(sum)
+                        )}
+                      </strong>
+                    )}
+                  </td>
+                )}
+                {average && (
+                  <td className="n">
+                    {avg === null ? (
+                      '–'
+                    ) : cellLink ? (
+                      <AppLink
+                        className="table-cell-open"
+                        {...cellLink(row, null)}
+                        state={{ reportDetailOpenedInApp: true }}
+                      >
+                        {eur(avg)}
+                      </AppLink>
+                    ) : onCell ? (
+                      <button
+                        type="button"
+                        className="table-cell-open"
+                        onClick={() => onCell(row, null)}
+                      >
+                        {eur(avg)}
+                      </button>
+                    ) : (
+                      euroNumber(avg)
+                    )}
+                  </td>
+                )}
+                {previous &&
+                  (sum === null || prev === undefined ? (
+                    <>
+                      <td className="n rg-sum muted">–</td>
+                      <td className="n muted">–</td>
+                    </>
+                  ) : (
+                    <>
+                      <td className="n rg-sum">{euroNumber(prev)}</td>
+                      <Change row={row} total={sum} previous={prev} />
+                    </>
+                  ))}
+              </tr>
+            );
+          })}
+        </tbody>
+      </ReportTable>
     </ChartValues>
   );
 });

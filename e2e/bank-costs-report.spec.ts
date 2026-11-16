@@ -3,6 +3,7 @@ import { retainBudgetCostInflationReaders } from './budget-cost-inflation-contro
 import { test as isolatedTest } from './isolated-ledger';
 import { expect, sampleTest as test } from './sample';
 import { inspectReport } from './spending-helpers';
+import { openShellControls } from './shell-actions';
 
 // 2.6 Bank- und Zinskosten on the seeded sample ledger (today 17.09.2026).
 
@@ -23,6 +24,42 @@ test('shows monthly cost stacks, sources and separate earnings', async ({ page }
     page.getByRole('group', { name: 'Maßkette erfasste Bank- und Zinskosten' }),
   ).toContainText('Haben- und Dividenden-Erträge');
   await expect(page.getByText(/Größte Kostenquelle:/)).toBeVisible();
+  const tables = page.locator('[data-testid="bank-costs-report"] table.report-table');
+  await expect(tables).toHaveCount(4);
+  await expect(page.getByRole('columnheader', { name: 'Erträge separat', exact: true })).toHaveCSS(
+    'text-align',
+    'right',
+  );
+  await expect(
+    page.getByRole('columnheader', { name: 'Zinsen pro Monat (geschätzt)', exact: true }),
+  ).toHaveCSS('text-align', 'right');
+  for (const table of await tables.all()) {
+    const region = table.locator('..');
+    await expect(region).toHaveAttribute('tabindex', '0');
+    await expect(table.locator('thead th').first()).toHaveCSS('position', 'sticky');
+    for (const cell of await table.locator('.n').all()) {
+      await expect(cell).toHaveCSS('text-align', 'right');
+    }
+    expect(await table.innerText()).not.toMatch(/\+\d/);
+    await region.focus();
+    if ((info.project.use.viewport?.width ?? 1440) === 390) {
+      if (await region.evaluate((el) => el.scrollWidth > el.clientWidth)) {
+        await page.keyboard.press('ArrowRight');
+        await expect.poll(() => region.evaluate((el) => el.scrollLeft)).toBeGreaterThan(0);
+        await region.evaluate((el) => el.scrollTo({ left: 0, top: 0, behavior: 'instant' }));
+      }
+    }
+  }
+  await expect(tables.last().locator('tbody th small').first()).toHaveCSS('white-space', 'nowrap');
+  const controls = await openShellControls(page);
+  await controls.privacy.click();
+  await controls.close();
+  for (const table of await tables.all()) {
+    expect(await table.innerText()).not.toMatch(/\d[\d.,]*\s€|USD\s[\d.,]+/);
+  }
+  const restore = await openShellControls(page);
+  await restore.privacy.click();
+  await restore.close();
   await inspectReport(page, info, 'bank-costs');
 });
 
