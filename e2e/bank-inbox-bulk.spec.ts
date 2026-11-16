@@ -351,3 +351,144 @@ test('65 compact bank rows, prepared bulk confirmation, one undo, date controls 
     });
   }
 });
+
+test('collapsing an account prunes bulk selection and safe rows; visible dismiss has one Undo', async ({
+  page,
+  request,
+  isolatedLedger,
+}) => {
+  const { origin, databasePath } = isolatedLedger;
+  const post = async (path: string, data: unknown) => {
+    const response = await request.post(origin + '/api' + path, { headers: { origin }, data });
+    expect(response.ok(), await response.text()).toBe(true);
+    return response.json();
+  };
+  const accounts = [];
+  for (const name of ['Synthetic account A', 'Synthetic account B'])
+    accounts.push(
+      (await post('/accounts', { name, type: 'checking', openingDate: '2026-09-01' })).account,
+    );
+  const { group } = await post('/categories/groups', { name: 'Synthetic group' });
+  const { category } = await post('/categories', {
+    name: 'Synthetic category',
+    class: 'need',
+    groupId: group.id,
+  });
+  await post('/assignment-rules', {
+    name: 'Synthetic visible rule',
+    enabled: true,
+    automatic: true,
+    match: { mode: 'all', conditions: [{ type: 'contains', text: 'Synthetic shop' }] },
+    actions: { categoryId: category.id },
+  });
+  const consentId = randomUUID(),
+    sourceId = randomUUID();
+  const ids = Array.from({ length: 4 }, () => randomUUID());
+  const staged = openDatabase(databasePath);
+  try {
+    staged.db
+      .insert(schema.bankSyncConsent)
+      .values({
+        id: consentId,
+        initiator: 'synthetic',
+        stateHash: randomUUID(),
+        label: 'Synthetic source',
+        expiresAt: '2027-01-01T00:00:00Z',
+        nextRunAt: '2027-01-01T00:00:00Z',
+      })
+      .run();
+    staged.db
+      .insert(schema.bankSyncAccount)
+      .values({
+        id: sourceId,
+        consentId,
+        secret: 'synthetic-unused',
+        label: 'Synthetic account A',
+        currency: 'EUR',
+        accountId: accounts[0].id,
+      })
+      .run();
+    for (const [index, id] of ids.entries()) {
+      // One source queue can retain candidates with distinct stored account identities.
+      staged.db
+        .insert(schema.bankSyncCandidate)
+        .values({
+          id,
+          sourceId,
+          accountId: accounts[index < 3 ? 0 : 1].id,
+          dedupeKey: id,
+          date: '2026-10-01',
+          amountCents: -1201,
+          currency: 'EUR',
+          memo: `Synthetic shop ${index}`,
+        })
+        .run();
+      staged.db
+        .insert(schema.inboxItem)
+        .values({
+          id,
+          kind: 'import',
+          title: 'Bankumsatz prüfen',
+          refType: 'bank-sync-candidate',
+          refId: id,
+          createdAt: '2026-10-02T00:00:00Z',
+        })
+        .run();
+    }
+  } finally {
+    staged.close();
+  }
+  const bulkCalls: unknown[] = [];
+  page.on('request', (req) => {
+    if (new URL(req.url()).pathname === '/api/bank-sync/inbox/bulk')
+      bulkCalls.push(req.postDataJSON());
+  });
+  await page.goto('/konten/pruefen?teil=umsaetze&bankSource=' + sourceId);
+  test.skip(!(await redesignLoaded(page)), 'Account disclosure requires the redesign.');
+  await expect(page.locator('.bank-editable-row')).toHaveCount(4);
+  for (const id of ids)
+    await expect(page.locator(`[data-bank-candidate-id="${id}"]`)).toHaveCount(1);
+  await expect(
+    page.getByRole('button', { name: 'Alle sicheren bestätigen (4)', exact: true }),
+  ).toBeEnabled();
+  await bankSelection(page);
+  await page.getByLabel('Alle auswählen', { exact: true }).check();
+  await expect(page.locator('.bank-selection-menu > summary')).toHaveAttribute(
+    'aria-label',
+    'Auswahl (4)',
+  );
+  await page.keyboard.press('Escape');
+  const a = page.locator('.bank-account-header').filter({ hasText: 'Synthetic account A' });
+  await a.getByRole('button').click();
+  await expect(page.locator('.bank-editable-row')).toHaveCount(1);
+  await expect(page.locator('.bank-selection-menu > summary')).toHaveAttribute(
+    'aria-label',
+    'Auswahl (1)',
+  );
+  await expect(
+    page.getByRole('button', { name: 'Alle sicheren bestätigen (1)', exact: true }),
+  ).toBeEnabled();
+  // Reopening must not restore the previous selection.
+  await a.getByRole('button').click();
+  await expect(page.locator('.bank-selection-menu > summary')).toHaveAttribute(
+    'aria-label',
+    'Auswahl (1)',
+  );
+  await a.getByRole('button').click();
+  await bankSelection(page);
+  await page.getByLabel('Alle auswählen', { exact: true }).uncheck();
+  await page.getByLabel('Alle auswählen', { exact: true }).check();
+  await page.getByRole('button', { name: 'Auswahl nicht übernehmen', exact: true }).click();
+  const preview = page.getByRole('dialog', { name: 'Bankauswahl prüfen' });
+  await expect(preview).toContainText('1 ausgewählt · 1 nicht übernehmen · 0 übersprungen');
+  await preview.getByRole('button', { name: 'Auswahl jetzt ausführen' }).click();
+  await expect(page.locator('.bank-editable-row')).toHaveCount(0);
+  expect(bulkCalls).toEqual([
+    { action: 'dismiss', sourceId, expectedChanged: 1, rows: [{ type: 'candidate', id: ids[3] }] },
+  ]);
+  await page.getByRole('button', { name: 'Rückgängig', exact: true }).click();
+  await expect(page.locator('.bank-editable-row')).toHaveCount(1);
+  await a.getByRole('button').click();
+  for (const id of ids)
+    await expect(page.locator(`[data-bank-candidate-id="${id}"]`)).toHaveCount(1);
+});

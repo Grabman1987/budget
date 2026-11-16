@@ -1,4 +1,4 @@
-import type { InboxEntry, InboxEnvelope } from './api';
+import type { InboxEntry, InboxEnvelope, InboxKind } from './api';
 import type { BankSyncRecapData } from './bank-sync-recap';
 import { isBankInboxRow } from './bank-bulk-actions';
 
@@ -58,4 +58,27 @@ export function readCollapsedAccounts(): Set<string> {
   } catch {
     return new Set();
   }
+}
+
+/** Use the same page boundary and account disclosure for rendering and bulk scope. */
+export type InboxDisplayGroup = {
+  kind: Exclude<InboxKind, 'overspent'> | null;
+  account: BankAccountGroup | undefined;
+  all: Exclude<InboxEntry, InboxEnvelope>[];
+};
+export function visibleInboxGroups(
+  groups: InboxDisplayGroup[],
+  collapsed: Set<string>,
+  serverPaginated: boolean,
+  shown: number,
+) {
+  let offset = 0;
+  return groups.map((group) => {
+    const room = serverPaginated ? group.all.length : Math.max(0, shown - offset);
+    offset += group.all.length;
+    return {
+      ...group,
+      items: group.account && collapsed.has(group.account.id) ? [] : group.all.slice(0, room),
+    };
+  });
 }

@@ -1,6 +1,12 @@
+import { bankSelectionIds } from './bank-bulk-actions';
 // @vitest-environment jsdom
 import { afterEach, expect, it } from 'vitest';
-import { bankAccountGroups, BANK_COLLAPSE_KEY, readCollapsedAccounts } from './bank-account-groups';
+import {
+  bankAccountGroups,
+  BANK_COLLAPSE_KEY,
+  readCollapsedAccounts,
+  visibleInboxGroups,
+} from './bank-account-groups';
 import type { InboxEntry } from './api';
 import type { BankSyncRecapData } from './bank-sync-recap';
 const candidate = (id: string, accountId: string): InboxEntry => ({
@@ -70,4 +76,29 @@ it('defaults to expanded and accepts only valid device collapse identifiers', ()
   expect([...readCollapsedAccounts()]).toEqual(['account-a']);
   localStorage.setItem(BANK_COLLAPSE_KEY, 'broken');
   expect([...readCollapsedAccounts()]).toEqual([]);
+});
+
+it('prunes collapsed selections and selects only expanded rows on the loaded page', () => {
+  const a = candidate('row-a', 'account-a');
+  const b = candidate('row-b', 'account-b');
+  const c = candidate('row-c', 'account-b');
+  const groups = bankAccountGroups([a, b, c], []).map((account) => ({
+    kind: null,
+    account,
+    all: account.entries,
+  }));
+  const visible = visibleInboxGroups(groups, new Set(['account-a']), false, 2).flatMap(
+    (group) => group.items,
+  );
+  expect(visible.map((row) => row.id)).toEqual(['row-b']);
+  expect([...bankSelectionIds(visible, new Set(['row-a', 'row-b', 'row-c']))]).toEqual(['row-b']);
+  expect([...bankSelectionIds(visible)]).toEqual(['row-b']);
+  expect(
+    visibleInboxGroups(groups, new Set(['account-a']), true, 2)
+      .flatMap((group) => group.items)
+      .map((row) => row.id),
+  ).toEqual(['row-b', 'row-c']);
+  expect(
+    bankSelectionIds(Array.from({ length: 101 }, (_, i) => candidate(String(i), 'account-a'))).size,
+  ).toBe(100);
 });

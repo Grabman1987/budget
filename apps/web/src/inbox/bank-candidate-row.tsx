@@ -306,6 +306,7 @@ export const BankCandidateRow = memo(function BankCandidateRow({
       tabIndex={0}
       className="rev-row bank-inbox-row bank-v1-row bank-editable-row"
       data-testid="inbox-row"
+      data-bank-candidate-id={item.refId}
       onFocus={() => {
         if (!preparation) setActive(true);
       }}

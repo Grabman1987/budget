@@ -11,10 +11,16 @@ import {
   BankReview,
   type PreparedBankSuggestion,
 } from './bank-candidate';
-import { BankBulkActions, isBankInboxRow } from './bank-bulk-actions';
+import { BankBulkActions, isBankInboxRow, bankSelectionIds } from './bank-bulk-actions';
 import { BankCandidateRow } from './bank-candidate-row';
 import type { BankSyncRecapData } from './bank-sync-recap';
-import { bankAccountGroups, BANK_COLLAPSE_KEY, readCollapsedAccounts } from './bank-account-groups';
+import {
+  bankAccountGroups,
+  BANK_COLLAPSE_KEY,
+  readCollapsedAccounts,
+  visibleInboxGroups,
+  type InboxDisplayGroup,
+} from './bank-account-groups';
 import { OverspentCategories } from './overspent-categories';
 import { GuidedReview } from './guided-review';
 import { AssignmentLearnOffer, BookingAssignmentReview } from '../assignment/review';
@@ -972,6 +978,12 @@ function InboxBodyContent({
   });
   const [collapsed, setCollapsed] = useState(readCollapsedAccounts);
   const toggleAccount = (id: string) => {
+    if (!collapsed.has(id)) {
+      const ids = new Set(
+        accountGroups.find((account) => account.id === id)?.entries.map((row) => row.id),
+      );
+      setPreparedBank((previous) => new Map([...previous].filter(([rowId]) => !ids.has(rowId))));
+    }
     setCollapsed((previous) => {
       const next = new Set(previous);
       if (next.has(id)) next.delete(id);
@@ -997,13 +1009,41 @@ function InboxBodyContent({
     bankLayout || accountScoped || search.bankSource || groupByTitle
       ? [null]
       : (Object.keys(LABELS) as Exclude<InboxKind, 'overspent'>[]);
-  const displayGroups = groupAccounts
+  const displayGroups: InboxDisplayGroup[] = groupAccounts
     ? accountGroups.map((account) => ({ kind: null, account, all: account.entries }))
     : groups.map((kind) => ({
         kind,
         account: undefined,
         all: kind ? entries.filter((item) => item.kind === kind) : entries,
       }));
+  const visibleGroups = visibleInboxGroups(displayGroups, collapsed, serverPaginated, shown);
+  const visibleBankRows = visibleGroups.flatMap(({ items }) =>
+    items.filter((item) => {
+      if (!isBankInboxRow(item)) return false;
+      const cause =
+        groupAccounts || !serverPaginated || detailView
+          ? null
+          : groupByTitle && item.type === 'stored'
+            ? item.title
+            : inboxCause(item);
+      const total = cause
+        ? (countsByCause?.[cause] ??
+          items.filter(
+            (member) =>
+              (groupByTitle && member.type === 'stored' ? member.title : inboxCause(member)) ===
+              cause,
+          ).length)
+        : 1;
+      return (
+        !(total > 1 || groupByTitle) ||
+        (groupByTitle || accountScoped
+          ? expandedTitle === cause
+          : search.gruppe === items.find((member) => inboxCause(member) === cause)?.id)
+      );
+    }),
+  );
+  const visibleSelection = bankSelectionIds(visibleBankRows, selectedBank);
+  if (visibleSelection.size !== selectedBank.size) setSelectedBank(visibleSelection);
   const canLoadMore = serverPaginated ? Boolean(hasMore) : entries.length > shown;
   const remaining = serverPaginated
     ? Math.max((totalEntries ?? entries.length) - entries.length, 0)
@@ -1120,8 +1160,8 @@ function InboxBodyContent({
         <>
           {search.bankSource && (
             <BankBulkActions
-              rows={entries.filter(isBankInboxRow)}
-              selected={selectedBank}
+              rows={visibleBankRows}
+              selected={visibleSelection}
               onSelect={setSelectedBank}
               prepared={(id) => preparedBank.get(id)}
               sourceId={search.bankSource}
@@ -1172,18 +1212,8 @@ function InboxBodyContent({
               </thead>
             )}
             <tbody>
-              {displayGroups.flatMap(({ kind, account, all }, index) => {
-                const room = serverPaginated
-                  ? all.length
-                  : Math.max(
-                      0,
-                      shown -
-                        displayGroups
-                          .slice(0, index)
-                          .reduce((sum, group) => sum + group.all.length, 0),
-                    );
-                if (!account && (!all.length || room <= 0)) return [];
-                const items = all.slice(0, room);
+              {visibleGroups.flatMap(({ kind, account, all, items }) => {
+                if (!account && !items.length) return [];
                 return [
                   <tr
                     className={

@@ -46,6 +46,7 @@ for (const theme of ['light', 'dark']) {
       status: 'confirmed',
       splits: [{ categoryId: category.id, amountCents: -1234 }],
     });
+    const candidateIds: string[] = [];
     const opened = openDatabase(databasePath);
     try {
       const consentId = randomUUID();
@@ -74,6 +75,7 @@ for (const theme of ['light', 'dark']) {
             accountId: account.id,
           })
           .run();
+        candidateIds.push(id);
         opened.db
           .insert(schema.bankSyncCandidate)
           .values({
@@ -134,6 +136,10 @@ for (const theme of ['light', 'dark']) {
     );
     const row = page.locator('.bank-editable-row').filter({ hasText: 'Synthetic candidate 0' });
     await expect(page.locator('.bank-editable-row')).toHaveCount(2);
+    for (const id of candidateIds) {
+      await expect(page.locator(`[data-bank-candidate-id="${id}"]`)).toHaveCount(1);
+    }
+    await expect(page.getByRole('region', { name: 'Rückblick nach Bankabruf' })).toHaveCount(0);
     await expect(row).toBeVisible();
     await row.getByRole('button', { name: /^Empfänger bearbeiten/ }).click();
     await row.getByRole('combobox', { name: 'Empfänger', exact: true }).selectOption(payee.id);
