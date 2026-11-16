@@ -154,16 +154,13 @@ it('preserves the default payee combobox cap and prefix matching', async () => {
   ]);
 });
 
-it('rejects an exact category name shared by two options instead of keeping the old selection', async () => {
+it('rejects an exact category name shared by two options without a valid selection', async () => {
   const user = mount([
     category('cat-a', 'Gleicher Name', 'Gruppe A'),
     category('cat-b', 'Gleicher Name', 'Gruppe B'),
   ]);
   const field = screen.getByRole('combobox', { name: 'Kategorie' });
   await user.click(field);
-  await user.click(screen.getAllByRole('option', { name: 'Gleicher Name' })[0]!);
-  await user.click(field);
-  await user.clear(field);
   await user.type(field, 'Gleicher Name');
   await user.tab();
   expect(field.getAttribute('aria-invalid')).toBe('true');
@@ -208,6 +205,7 @@ it('keeps the valid category while searching and restores its label on blur', as
   await user.click(field);
   await user.click(screen.getByRole('option', { name: 'Kategorie A' }));
   await user.click(field);
+  await user.clear(field);
   await user.paste('Suchtext ohne Treffer');
   expect(JSON.parse(screen.getByTestId('payload').textContent ?? '')).toMatchObject({
     ok: true,

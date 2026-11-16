@@ -195,11 +195,11 @@ it('matches the same printed non-ASCII reference without relying on SQLite Unico
   expect(amendment.proposal.warnings).toContain('possible_amendment');
 });
 
-it.each(['2026-10-01', '2026-11-01'])(
-  'flags separate identifier-less sources on the same card on %s without merging them (#1079)',
+it.each(['2026-10-01', '2026-11-01', null])(
+  'compares printed issue dates for separate identifier-less sources on %s without merging them (#1079)',
   (issueDate) => {
     const before = state();
-    const make = (sha256: string, day: string) =>
+    const make = (sha256: string, day: string | null) =>
       stageStatementIntake(
         opened.db,
         {
@@ -208,7 +208,7 @@ it.each(['2026-10-01', '2026-11-01'])(
           sizeBytes: 50,
           filename: 'synthetic-card.pdf',
           proposal: parseStatementText(
-            `Rechnungsdatum ${day}\nAbrechnungsbetrag 120,00 EUR\nKartennummer ****1234`,
+            `${day ? `Rechnungsdatum ${day}\n` : ''}Abrechnungsbetrag 120,00 EUR\nKartennummer ****1234`,
             sha256,
           ),
         },
@@ -245,8 +245,12 @@ it.each(['2026-10-01', '2026-11-01'])(
     expect(second.intake.id).not.toBe(first.id);
     expect(second.intake.receiptId).not.toBe(first.receiptId);
     expect(second.intake.status).toBe('pending');
-    expect(second.intake.proposal.relatedIntakeIds).toEqual([first.id]);
-    expect(second.intake.proposal.warnings).toContain('possible_amendment');
+    expect(second.intake.proposal.relatedIntakeIds).toEqual(
+      issueDate === '2026-11-01' ? [] : [first.id],
+    );
+    expect(second.intake.proposal.warnings.includes('possible_amendment')).toBe(
+      issueDate !== '2026-11-01',
+    );
     expect(findStatementIntake(opened.db, first.sha256)).toEqual(reviewed);
     expect(findStatementIntake(opened.db, second.intake.sha256)).toEqual(second.intake);
     expect(getStatementIntake(opened.db, first.id)).toEqual(reviewed);

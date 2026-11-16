@@ -126,10 +126,16 @@ beforeEach(() => {
   create.mockResolvedValue({ bookings: [], groupId: 'synthetic-group' });
 });
 
-it.each([false, true])(
-  'uses explicit confirmation for a reconciled edit (opening release: %s)',
-  async (initialUnlockReconciled) => {
+it.each([
+  [false, false],
+  [false, true],
+  [true, false],
+  [true, true],
+] as const)(
+  'uses explicit confirmation for a reconciled edit (phone: %s, opening release: %s)',
+  async (phone, initialUnlockReconciled) => {
     flags.REDESIGN_ENABLED = true;
+    flags.phone = phone;
     const booking: ListedBooking = {
       id: 'synthetic-checked',
       accountId: 'giro',
@@ -184,6 +190,15 @@ it.each([false, true])(
     expect(release.checked).toBe(initialUnlockReconciled);
     expect(patch).not.toHaveBeenCalled();
     if (!initialUnlockReconciled) {
+      fireEvent.change(screen.getByLabelText('Betrag', { exact: true }), {
+        target: { value: '15,00' },
+      });
+      if (phone) {
+        const save = screen.getByRole('button', { name: 'Speichern' }) as HTMLButtonElement;
+        expect(save.disabled).toBe(true);
+        expect(save.getAttribute('aria-describedby')).toBe('booking-save-reason');
+        expect(document.getElementById('booking-save-reason')?.textContent).toContain('geprüft');
+      }
       await user.click(release);
       expect(release.checked).toBe(false);
       const body = document.querySelector<HTMLElement>('.bk-body')!;
@@ -444,7 +459,7 @@ it('places status by account, repeat by date and sharing by category, and expose
   );
 });
 
-it('Ctrl+Enter refuses unresolved category text without taking its highlighted option', async () => {
+it('Ctrl+Enter keeps the valid income category while resolving an unmatched search', async () => {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(
     <QueryClientProvider client={client}>
@@ -460,20 +475,20 @@ it('Ctrl+Enter refuses unresolved category text without taking its highlighted o
     </QueryClientProvider>,
   );
   await waitFor(() => expect(screen.getByRole('option', { name: 'Bargeld Muster' })).toBeTruthy());
-  fireEvent.click(screen.getByRole('button', { name: 'Einnahme' }));
-  fireEvent.change(screen.getByLabelText('Betrag', { exact: true }), {
-    target: { value: '12,34' },
-  });
-  const category = screen.getByLabelText('Kategorie', { exact: true });
-  fireEvent.focus(category);
-  fireEvent.change(category, { target: { value: 'Zu' } });
-  fireEvent.keyDown(category, { key: 'Enter', ctrlKey: true });
-  expect(create).not.toHaveBeenCalled();
-  expect(category.getAttribute('aria-invalid')).toBe('true');
-  fireEvent.change(category, { target: { value: 'Zu verteilen' } });
-  fireEvent.blur(category);
-  fireEvent.keyDown(category, { key: 'Enter', ctrlKey: true });
+  const user = userEvent.setup();
+  await user.click(screen.getByRole('button', { name: 'Einnahme' }));
+  await user.type(screen.getByLabelText('Betrag', { exact: true }), '12,34');
+  const category = screen.getByLabelText<HTMLInputElement>('Kategorie', { exact: true });
+  await user.click(category);
+  await user.paste('Zu');
+  expect(document.activeElement).toBe(category);
+  await user.keyboard('{Control>}{Enter}{/Control}');
   await waitFor(() => expect(create).toHaveBeenCalledTimes(1));
+  expect(category.value).toBe('Zu verteilen');
+  expect(create.mock.lastCall?.[0].input).toMatchObject({
+    amountCents: 1234,
+    splits: [{ categoryId: null, amountCents: 1234 }],
+  });
 });
 it.each([false, true])(
   'bank capture retains pending, repetition and source semantics with redesign %s (#841)',
@@ -954,6 +969,8 @@ it.each([false, true])(
     }
     await user.click(category());
     await user.clear(category());
+    await user.click(amount());
+    expect(category().value).toBe('');
     await user.type(category(), 'Unbekannte Kategorie');
     await user.click(amount());
     expect(category().value).toBe('Unbekannte Kategorie');
@@ -964,7 +981,7 @@ it.each([false, true])(
   },
 );
 
-it('keeps the carried account for a new payee after save-and-new and preserves manual choices', async () => {
+it('keeps the carried account and category for a new payee after save-and-new and preserves manual choices', async () => {
   const lookup = vi.spyOn(ledgerApi, 'fetchBookings').mockResolvedValue(payeeHistory);
   try {
     renderPayeeSuggestions(false, false);
@@ -981,7 +998,7 @@ it('keeps the carried account for a new payee after save-and-new and preserves m
     await user.clear(payee);
     await user.type(payee, 'Neuer Musterladen');
     await user.tab();
-    await waitFor(() => expect(category().value).toBe(''));
+    await waitFor(() => expect(category().value).toBe('Essen Muster'));
     expect(account.value).toBe('giro');
     await user.selectOptions(account, 'wallet');
     await user.click(category());
@@ -1364,7 +1381,7 @@ it('holds Save back while an upload runs and ignores a result from the previous 
   expect(http.request).not.toHaveBeenCalled();
 });
 
-it('keeps the saved account when the next payee has history on another account', async () => {
+it('keeps the saved account and category when the next payee has history on another account', async () => {
   const lookup = vi.spyOn(ledgerApi, 'fetchBookings').mockResolvedValue(payeeHistory);
   try {
     renderPayeeSuggestions(false, false);
@@ -1383,14 +1400,11 @@ it('keeps the saved account when the next payee has history on another account',
     );
     await user.type(screen.getByLabelText('Empfänger'), 'Laden Bei');
     await user.click(await screen.findByRole('option', { name: 'Laden Beispiel' }));
-    await waitFor(() =>
-      expect(lookup).toHaveBeenCalledWith(
-        { payeeId: 'shop', to: expect.any(String) },
-        undefined,
-        1,
-      ),
-    );
     expect(account.value).toBe('wallet');
+    expect(screen.getByRole<HTMLInputElement>('combobox', { name: 'Kategorie' }).value).toBe(
+      'Essen Muster',
+    );
+    expect(lookup).not.toHaveBeenCalled();
   } finally {
     lookup.mockRestore();
   }

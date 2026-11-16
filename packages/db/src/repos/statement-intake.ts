@@ -144,9 +144,12 @@ export function stageStatementIntake(
       periodFrom: proposal.fields.periodFrom.value,
       periodTo: proposal.fields.periodTo.value,
     };
-    // Without a number or period, dates, amounts and card hints cannot prove distinctness.
-    // Conservatively flag other identifier-less originals in this account; never merge them.
+    // Preserve the existing issued-date automation identity for distinct printed dates.
+    // Missing/ambiguous dates still need review; amounts and card hints prove nothing.
     const unidentified = !identifiers.reference && !identifiers.periodFrom && !identifiers.periodTo;
+    const issueDate =
+      proposal.fields.issueDate.origin === 'printed' ? proposal.fields.issueDate.value : null;
+    const priorIssueDate = sql`CASE WHEN json_extract(${statementIntake.proposalJson},'$.fields.issueDate.origin')='printed' THEN json_extract(${statementIntake.proposalJson},'$.fields.issueDate.value') END`;
     const related = tx
       .select({ id: statementIntake.id })
       .from(statementIntake)
@@ -154,7 +157,7 @@ export function stageStatementIntake(
         and(
           eq(statementIntake.accountId, input.accountId),
           isNull(statementIntake.deletedAt),
-          sql`(${fact('reference')}=${identifiers.reference} OR lower(${fact('reference')})=${identifiers.reference?.toLowerCase() ?? null} OR (${fact('periodFrom')}=${identifiers.periodFrom} AND ${fact('periodTo')}=${identifiers.periodTo}) OR (${unidentified ? 1 : 0}=1 AND ${fact('reference')} IS NULL AND ${fact('periodFrom')} IS NULL AND ${fact('periodTo')} IS NULL))`,
+          sql`(${fact('reference')}=${identifiers.reference} OR lower(${fact('reference')})=${identifiers.reference?.toLowerCase() ?? null} OR (${fact('periodFrom')}=${identifiers.periodFrom} AND ${fact('periodTo')}=${identifiers.periodTo}) OR (${unidentified ? 1 : 0}=1 AND ${fact('reference')} IS NULL AND ${fact('periodFrom')} IS NULL AND ${fact('periodTo')} IS NULL AND (${issueDate} IS NULL OR ${priorIssueDate} IS NULL OR ${priorIssueDate}=${issueDate})))`,
         ),
       )
       .orderBy(desc(statementIntake.createdAt), statementIntake.id)

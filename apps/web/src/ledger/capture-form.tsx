@@ -777,7 +777,7 @@ export function CaptureForm({
       appliedPayee.current = draft.payee.trim().toLowerCase();
       setSaveAttempted(false);
       categoryRequest.current++;
-      categoryChosen.current = false;
+      categoryChosen.current = !draft.splitOn && Boolean(draft.categoryId);
       appliedByPayee.current = draft.splitOn ? null : draft.categoryId;
       setKeptPayee(draft.payee);
       setDraft((d) => ({
@@ -1169,7 +1169,9 @@ export function CaptureForm({
   })();
   const saveBlocked = mobileRedesign ? Boolean(phoneProblem) : blocked;
   const saveReason = mobileRedesign ? phoneProblem : lineProblem;
-  const showSaveReason = mobileRedesign ? saveAttempted && Boolean(phoneProblem) : showLineProblem;
+  const showSaveReason = mobileRedesign
+    ? Boolean(phoneProblem) && (Boolean(editing) || saveAttempted)
+    : showLineProblem;
 
   const saveButton = (
     <Button

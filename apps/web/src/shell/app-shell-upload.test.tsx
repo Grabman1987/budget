@@ -8,6 +8,7 @@ import {
   createRouter,
 } from '@tanstack/react-router';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import type { ReactNode } from 'react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { AppShell } from './app-shell';
 import type * as MobileChrome from './mobile-chrome';
@@ -53,7 +54,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-async function mount(path: string, area: string, phone: boolean) {
+async function mount(path: string, area: string, phone: boolean, children?: ReactNode) {
   vi.stubGlobal('matchMedia', (query: string) => ({
     matches: phone && query.includes('max-width: 767px'),
     media: query,
@@ -63,7 +64,9 @@ async function mount(path: string, area: string, phone: boolean) {
   active.page = { area, title: area, path, register: undefined };
   const root = createRootRoute({ component: AppShell });
   const router = createRouter({
-    routeTree: root.addChildren([createRoute({ getParentRoute: () => root, path })]),
+    routeTree: root.addChildren([
+      createRoute({ getParentRoute: () => root, path, component: () => children }),
+    ]),
     history: createMemoryHistory({ initialEntries: [path] }),
   });
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -83,6 +86,12 @@ const pages = [
   ['/reports', 'reports'],
   ['/einstellungen/profil', 'einstellungen'],
 ] as const;
+
+it.each([false, true])('report detail owns the only h1 (phone: %s)', async (phone) => {
+  await mount('/reports/onepager', 'reports', phone, <h1>Monatsbericht</h1>);
+  expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+  expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Monatsbericht');
+});
 
 it.each(pages)(
   'redesign ON desktop: exactly one upload action, in the header, on %s (%s)',

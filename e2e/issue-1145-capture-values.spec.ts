@@ -55,7 +55,8 @@ test('capture keeps visible categories and payee defaults consistent across cons
   for (const index of [0, 1]) {
     await payee.fill(payees[index].name);
     await dialog.getByRole('option', { name: payees[index].name, exact: true }).click();
-    await expect(category).toHaveValue(categories[index].name);
+    // Saving and keeping the category makes it authoritative for the next booking.
+    await expect(category).toHaveValue(categories[0].name);
     await expect(account).toHaveValue(accounts[0].id);
     await amount.fill('10,00');
     const saved = page.waitForResponse(
@@ -68,14 +69,14 @@ test('capture keeps visible categories and payee defaults consistent across cons
     expect(response.status()).toBe(201);
     const sent = response.request().postDataJSON();
     expect(sent.accountId).toBe(accounts[0].id);
-    expect(sent.splits[0].categoryId).toBe(categories[index].id);
+    expect(sent.splits[0].categoryId).toBe(categories[0].id);
     const result = await response.json();
-    expect(result.bookings[0].splits[0].categoryId).toBe(categories[index].id);
+    expect(result.bookings[0].splits[0].categoryId).toBe(categories[0].id);
     await expect(amount).toHaveValue('');
   }
   await payee.fill('Neuer Musterladen');
   await amount.focus();
-  await expect(category).toHaveValue('');
+  await expect(category).toHaveValue(categories[0].name);
   await expect(account).toHaveValue(accounts[0].id);
   for (const method of ['typed', 'clicked', 'keyboard']) {
     await amount.fill('10,00');
