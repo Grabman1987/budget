@@ -21,11 +21,11 @@ afterEach(() => {
 });
 
 it.each([
-  [10_001, 12_502, '+25,01 € · +25,0 %'],
+  [10_001, 12_502, '25,01 € · 25,0 %'],
   [10_001, 7_500, '−25,01 € · −25,0 %'],
   [10_001, 10_001, '0,00 € · 0,0 %'],
-  [0, 2_501, '+25,01 € · Prozent nicht ermittelbar (Anfangsvermögen nicht positiv)'],
-  [-10_001, 2_501, '+125,02 € · Prozent nicht ermittelbar (Anfangsvermögen nicht positiv)'],
+  [0, 2_501, '25,01 € · Prozent nicht ermittelbar (Anfangsvermögen nicht positiv)'],
+  [-10_001, 2_501, '125,02 € · Prozent nicht ermittelbar (Anfangsvermögen nicht positiv)'],
 ])(
   'shows exact wealth change from %i to %i without inventing a percentage basis',
   (startCents, endCents, text) => {
@@ -73,7 +73,7 @@ it('shows the source net worth cents and change on the partial-year summary, wit
     const view = render(<YearSummary data={data} />);
     expect(screen.getByText('Anfangsvermögen').nextElementSibling?.textContent).toBe('100,01 €');
     expect(screen.getByText('Vermögensänderung').nextElementSibling?.textContent).toBe(
-      '+25,01 € · +25,0 %',
+      '25,01 € · 25,0 %',
     );
     expect(data.report.partial).toBe(true);
     act(() => setAmountsHidden(true));
