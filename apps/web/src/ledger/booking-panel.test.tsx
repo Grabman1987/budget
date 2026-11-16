@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
-import { act, cleanup, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { BookingPanel } from './booking-panel';
+import type { ListedBooking } from './types';
 
 const mode = vi.hoisted(() => ({ redesign: true, phone: true }));
 vi.mock('../shell/redesign-flag', () => ({
@@ -10,8 +11,8 @@ vi.mock('../shell/redesign-flag', () => ({
   },
 }));
 vi.mock('./capture-form', () => ({
-  CaptureForm: () => (
-    <div className="bkform">
+  CaptureForm: ({ initialUnlockReconciled }: { initialUnlockReconciled?: boolean }) => (
+    <div className="bkform" data-released={String(Boolean(initialUnlockReconciled))}>
       <div className="bk-body">
         <input aria-label="Kategorie" defaultValue="Synthetische Kategorie" />
       </div>
@@ -131,4 +132,68 @@ it('does not move the body when focus is outside it and cancels pending work on 
   act(() => viewport.dispatchEvent(new Event('resize')));
   unmount();
   expect(frames.size).toBe(0);
+});
+
+const checked = {
+  id: 'synthetic-checked',
+  status: 'reconciled',
+} as ListedBooking;
+
+it('mounts the editor only after confirmation and scopes release to that opening', () => {
+  const onClose = vi.fn();
+  const view = render(
+    <BookingPanel state={{ mode: 'edit', booking: checked }} onClose={onClose} />,
+  );
+  const question = screen.getByRole('alertdialog', {
+    name: 'Geprüfte Buchung wirklich bearbeiten?',
+  });
+  expect(question.textContent).toContain('geprüften Kontostand');
+  expect(screen.queryByLabelText('Kategorie')).toBeNull();
+  expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Abbrechen' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Bearbeitung freigeben' }));
+  expect(screen.queryByRole('alertdialog')).toBeNull();
+  expect(screen.getByLabelText('Kategorie').closest('.bkform')?.getAttribute('data-released')).toBe(
+    'true',
+  );
+  expect(onClose).not.toHaveBeenCalled();
+
+  view.rerender(<BookingPanel state={null} onClose={onClose} />);
+  view.rerender(<BookingPanel state={{ mode: 'edit', booking: checked }} onClose={onClose} />);
+  expect(screen.getByRole('alertdialog')).toBeTruthy();
+  expect(screen.queryByLabelText('Kategorie')).toBeNull();
+  fireEvent.click(screen.getByRole('button', { name: 'Bearbeitung freigeben' }));
+  view.rerender(
+    <BookingPanel
+      state={{ mode: 'edit', booking: { ...checked, id: 'synthetic-other' } }}
+      onClose={onClose}
+    />,
+  );
+  expect(screen.getByRole('alertdialog')).toBeTruthy();
+  expect(screen.queryByLabelText('Kategorie')).toBeNull();
+});
+
+it.each(['cancel', 'escape'] as const)('closes without mounting an editor on %s', (answer) => {
+  const onClose = vi.fn();
+  render(<BookingPanel state={{ mode: 'edit', booking: checked }} onClose={onClose} />);
+  if (answer === 'cancel') fireEvent.click(screen.getByRole('button', { name: 'Abbrechen' }));
+  else fireEvent.keyDown(screen.getByRole('alertdialog'), { key: 'Escape' });
+  expect(onClose).toHaveBeenCalledOnce();
+  expect(screen.queryByLabelText('Kategorie')).toBeNull();
+});
+
+it.each(['unprotected', 'rollback'] as const)('opens %s editing without a new gate', (variant) => {
+  mode.redesign = variant !== 'rollback';
+  render(
+    <BookingPanel
+      state={{
+        mode: 'edit',
+        booking: variant === 'rollback' ? checked : { ...checked, status: 'confirmed' },
+      }}
+      onClose={vi.fn()}
+    />,
+  );
+  expect(screen.queryByRole('alertdialog')).toBeNull();
+  expect(screen.getByLabelText('Kategorie').closest('.bkform')?.getAttribute('data-released')).toBe(
+    'false',
+  );
 });

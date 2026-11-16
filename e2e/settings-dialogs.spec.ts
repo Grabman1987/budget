@@ -90,7 +90,7 @@ test('account forms cancel in their context; reconciliation writes only on confi
   await expect(page.getByTestId('account-balance')).toHaveText('100,00 €');
   await opener.click();
   await dialog.getByLabel('Saldo laut Bank', { exact: true }).fill('99');
-  await dialog.getByRole('button', { name: /Differenz ausgleichen/ }).click();
+  await dialog.getByRole('button', { name: /Ausgleich buchen und abschließen/ }).click();
   await expect(page.getByTestId('account-balance')).toHaveText('99,00 €');
   await page.locator('.toast.is-open').getByRole('button', { name: 'Rückgängig' }).click();
   await expect(page.getByTestId('account-balance')).toHaveText('100,00 €');

@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ToastProvider, setAmountsHidden } from '@budget/ui';
-import { act, cleanup, render, screen, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { ContactReportPage } from './contact-report';
 import type { ContactOverview, ContactReportStatement } from './contact-api';
@@ -195,7 +195,7 @@ it.each(['2026-10-01', '2026-09-01'])(
     disclosure.setAttribute('open', '');
     const row = screen.getByRole('button', { name: /Ursprungsbuchung öffnen/ });
     expect(row.textContent).toContain('Beispielempfänger');
-    expect(row.textContent).toContain('Kategorie: Beispielauslagen');
+    expect(row.getAttribute('aria-label')).toContain('Kategorie: Beispielauslagen');
     expect(row.getAttribute('aria-label')).toContain(note);
     expect(row.getAttribute('aria-label')).toBe(
       `Ursprungsbuchung öffnen · Vorauszahlung ${date === '2026-10-01' ? '01.10.2026' : '01.09.2026'} · Rückzahlung Beispielempfänger ${note} Kategorie: Beispielauslagen · Kontaktanteil −50,00 €`,
@@ -208,10 +208,11 @@ it.each(['2026-10-01', '2026-09-01'])(
 );
 
 it('includes the visible fallback and category in the source name without repeating a booking note', () => {
-  show(overview, {
+  const { container } = show(overview, {
     ...statement,
     movements: [{ ...movement, memo: null, bookingMemo: null, payeeName: null }],
   });
+  container.querySelector('details[data-r8-detail="contact-history"]')!.setAttribute('open', '');
   expect(
     screen.getByRole('button', {
       name: 'Ursprungsbuchung öffnen · Rückzahlung 01.10.2026 · Rückzahlung Kategorie: Beispielauslagen · Kontaktanteil −50,00 €',
@@ -220,7 +221,11 @@ it('includes the visible fallback and category in the source name without repeat
 });
 
 it('does not repeat matching booking and split notes in the accessible name', () => {
-  show(overview, { ...statement, movements: [{ ...movement, bookingMemo: movement.memo }] });
+  const { container } = show(overview, {
+    ...statement,
+    movements: [{ ...movement, bookingMemo: movement.memo }],
+  });
+  container.querySelector('details[data-r8-detail="contact-history"]')!.setAttribute('open', '');
   expect(
     screen.getByRole('button', {
       name: 'Ursprungsbuchung öffnen · Vorauszahlung 01.10.2026 · Rückzahlung Beispielempfänger Kategorie: Beispielauslagen · Kontaktanteil −50,00 €',
@@ -238,4 +243,65 @@ it('masks money in added context, titles and accessible names', () => {
   });
   act(() => setAmountsHidden(true));
   expect(container.innerHTML).not.toContain('50,00');
+});
+
+it('puts only outstanding shares above the chart and keeps completed rows in closed, paged history', () => {
+  const open = {
+    ...movement,
+    splitId: 'open',
+    amountCents: -10001,
+    memo: 'Noch offen',
+    balanceCents: 3001,
+  };
+  const settled = { ...movement, splitId: 'settled', amountCents: -7000, memo: 'Beglichen' };
+  const past = Array.from({ length: 22 }, (_, index) => ({ ...movement, splitId: `old-${index}` }));
+  const { container } = show(
+    { ...overview, contacts: [{ ...contacts[1]!, balanceCents: 3001, receivableCents: 3001 }] },
+    {
+      ...statement,
+      contact: { ...statement.contact, id: 'owed', name: contacts[1]!.name },
+      balanceCents: 3001,
+      creditCents: 0,
+      credits: [],
+      creditChoices: [
+        {
+          ...statement.creditChoices![0]!,
+          remainingCents: 0,
+          availableCents: 5000,
+          automaticallyUsedCents: 5000,
+        },
+      ],
+      movements: [settled, ...past, open],
+      outlays: [
+        { ...settled, remainingCents: 0 },
+        { ...open, remainingCents: 3001 },
+      ],
+    },
+  );
+  const table = screen.getByRole('table', { name: /Offene Forderungen/ });
+  expect(
+    within(table)
+      .getAllByRole('columnheader')
+      .map((cell) => cell.textContent),
+  ).toEqual(['Datum', 'Empfänger', 'Betrag', 'Offen']);
+  expect(table.textContent).toContain('100,01 €');
+  expect(table.textContent).toContain('30,01 €');
+  expect(table.textContent).not.toContain('+');
+  expect(table.textContent).not.toContain('Beglichen');
+  const history = container.querySelector<HTMLDetailsElement>(
+    '[data-r8-detail="contact-history"]',
+  )!;
+  expect(history.open).toBe(false);
+  expect(history.querySelector('summary')!.textContent).toContain('23 Buchungen');
+  expect(history.querySelector('summary')!.textContent).toContain('70,00 €');
+  expect(screen.queryByText('Guthaben verwenden')).toBeNull();
+  expect(screen.queryByRole('link', { name: 'Guthaben ändern' })).toBeNull();
+  history.open = true;
+  const pastTable = within(history).getByRole('table');
+  expect(pastTable.querySelectorAll('tbody tr')).toHaveLength(20);
+  fireEvent.click(within(history).getByRole('button', { name: 'Weiter' }));
+  expect(pastTable.querySelectorAll('tbody tr')).toHaveLength(3);
+  expect(within(history).getByText('Seite 2 von 2')).toBeTruthy();
+  act(() => setAmountsHidden(true));
+  expect(container.innerHTML).not.toMatch(/100,01|30,01|70,00/);
 });
