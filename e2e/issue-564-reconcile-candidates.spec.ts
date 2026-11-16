@@ -63,7 +63,9 @@ test('564 partial pending and duplicate candidates precede corrections, retain e
   await open(partial.id, '960');
   const pendingRow = check.getByTestId(`candidate-pending-${pending.id}`);
   await expect(pendingRow).toContainText('−30,00 €');
-  await expect(check.getByRole('button', { name: /Differenz ausgleichen/ })).toHaveCount(0);
+  await expect(check.getByRole('button', { name: /Ausgleich buchen und abschließen/ })).toHaveCount(
+    0,
+  );
   await expect.poll(() => read(partial.id)).toEqual(beforePartial);
   expect(postedChecks).toBe(0);
   for (const theme of ['light', 'dark']) {
@@ -119,22 +121,30 @@ test('564 partial pending and duplicate candidates precede corrections, retain e
   await open(partial.id, '960');
   await expect(pendingRow).toContainText('−30,00 €');
   await expect(check.locator('.kv-list').getByText('−40,00 €', { exact: true })).toBeVisible();
-  await expect(check.getByRole('button', { name: /Differenz ausgleichen/ })).toHaveCount(0);
+  await expect(check.getByRole('button', { name: /Ausgleich buchen und abschließen/ })).toHaveCount(
+    0,
+  );
   expect(postedChecks).toBe(0);
   await open(duplicates.id, '987,66');
   const candidate = check.locator('[data-testid^="candidate-duplicate-"]').first();
   await expect(candidate).toContainText('−12,34 €');
-  await expect(check.getByRole('button', { name: /Differenz ausgleichen/ })).toHaveCount(0);
+  await expect(check.getByRole('button', { name: /Ausgleich buchen und abschließen/ })).toHaveCount(
+    0,
+  );
   await candidate.getByRole('button', { name: 'Ignorieren', exact: true }).click();
   await expect(
     check.locator('.text-muted').filter({ hasText: 'Eine echte Buchung' }),
   ).toContainText('+12,34 €');
   expect(await read(duplicates.id)).toEqual(beforeTwins);
   await candidate.getByRole('button', { name: 'Ignorieren rückgängig', exact: true }).click();
-  await expect(check.getByRole('button', { name: /Differenz ausgleichen/ })).toHaveCount(0);
+  await expect(check.getByRole('button', { name: /Ausgleich buchen und abschließen/ })).toHaveCount(
+    0,
+  );
   await candidate.getByRole('button', { name: 'Doppelte Buchung entfernen', exact: true }).click();
   await expect(check.getByRole('button', { name: 'Kontostand stimmt', exact: true })).toBeVisible();
-  await expect(check.getByRole('button', { name: /Differenz ausgleichen/ })).toHaveCount(0);
+  await expect(check.getByRole('button', { name: /Ausgleich buchen und abschließen/ })).toHaveCount(
+    0,
+  );
   expect(postedChecks).toBe(0);
   await check.getByRole('button', { name: 'Schließen', exact: true }).click();
   await page.getByRole('button', { name: 'Rückgängig', exact: true }).click();
@@ -242,10 +252,10 @@ test('canonical uncategorised correction ignores old preferences and retains exa
     );
     if (info.project.name !== 'desktop') {
       await check
-        .getByRole('button', { name: 'Differenz ausgleichen', exact: true })
+        .getByRole('button', { name: 'Ausgleich buchen und abschließen', exact: true })
         .evaluate((element) => element.scrollIntoView({ block: 'center' }));
       const r = await check
-        .getByRole('button', { name: 'Differenz ausgleichen', exact: true })
+        .getByRole('button', { name: 'Ausgleich buchen und abschließen', exact: true })
         .boundingBox();
       expect(r!.height).toBeGreaterThanOrEqual(44);
       expect(r!.width).toBeGreaterThanOrEqual(44);
@@ -253,7 +263,7 @@ test('canonical uncategorised correction ignores old preferences and retains exa
       expect(r!.x + r!.width).toBeLessThanOrEqual(page.viewportSize()!.width);
       expect(
         await check
-          .getByRole('button', { name: 'Differenz ausgleichen', exact: true })
+          .getByRole('button', { name: 'Ausgleich buchen und abschließen', exact: true })
           .evaluate((element) => {
             const r = element.getBoundingClientRect();
             return element.contains(
@@ -263,7 +273,7 @@ test('canonical uncategorised correction ignores old preferences and retains exa
       ).toBe(true);
     }
   }
-  await check.getByRole('button', { name: /Differenz ausgleichen/ }).click();
+  await check.getByRole('button', { name: /Ausgleich buchen und abschließen/ }).click();
   await expect(check).not.toBeVisible();
   const read = async () =>
     (

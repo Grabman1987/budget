@@ -287,6 +287,35 @@ test('Kontostand prüfen: doppelt, Ausgleich, geprüft sperrt, undo', async ({ p
     .getByRole('button', { name: /Betrag ändern/ })
     .click();
   const edit = page.getByRole('dialog', { name: 'Buchung bearbeiten' });
+  if (await redesignLoaded(page)) {
+    const release = page.getByRole('alertdialog', {
+      name: 'Geprüfte Buchung wirklich bearbeiten?',
+    });
+    await expect(edit).toBeHidden();
+    await expect(page.getByLabel('Betrag', { exact: true })).toHaveCount(0);
+    await expect(release.getByRole('button', { name: 'Abbrechen' })).toBeFocused();
+    await page.keyboard.press('Escape');
+    await expect(release).toBeHidden();
+    await expect(edit).toBeHidden();
+    await expect(balance(page)).toHaveText('475,00 €');
+    const trigger = page
+      .getByRole('row', { name: new RegExp(`Laden ${tag}`) })
+      .getByRole('button', { name: /Betrag ändern/ });
+    await expect(trigger).toBeFocused();
+    await trigger.press('Enter');
+    await expect(release).toBeVisible();
+    await page.keyboard.press('Tab');
+    await expect(release.getByRole('button', { name: 'Bearbeitung freigeben' })).toBeFocused();
+    await page.keyboard.press('Tab');
+    await expect(release.getByRole('button', { name: 'Abbrechen' })).toBeFocused();
+    await page.keyboard.press('Shift+Tab');
+    await page.keyboard.press('Enter');
+    await expect(edit).toBeVisible();
+    await expect(edit.getByLabel('Trotzdem ändern')).toBeChecked();
+    await expect(balance(page)).toHaveText('475,00 €');
+    // Revoking the release still exercises the existing locked-save and re-release guards below.
+    await edit.getByLabel('Trotzdem ändern').uncheck();
+  }
   await edit.getByLabel('Betrag', { exact: true }).fill('21,00');
   if ((await redesignLoaded(page)) && page.viewportSize()!.width < 768) {
     await expect(captureSaveControl(edit)).toBeDisabled();
@@ -322,12 +351,31 @@ test('Kontostand prüfen: doppelt, Ausgleich, geprüft sperrt, undo', async ({ p
   await captureSaveControl(edit).click();
   await expect(balance(page)).toHaveText('474,00 €');
 
+  // The retained statement is not rewritten by the override; its mismatch stays actionable.
+  const accountUrl = page.url();
+  await page.goto('/konten/pruefen?teil=aufgaben');
+  const finding = page
+    .getByRole('row')
+    .filter({ hasText: `Kontoprüfung stimmt nicht mehr · ${name}` });
+  if (!(await finding.isVisible()))
+    await page
+      .getByRole('button', { name: /(?:Prüfen · Weitere Aufgaben|Weitere Aufgaben öffnen)/ })
+      .click();
+  await expect(finding).toContainText('bestätigt 475,00 €');
+  await expect(finding).toContainText('jetzt gebucht 474,00 €');
+  await expect(finding.getByRole('button', { name: 'Als erledigt markieren' })).toHaveCount(0);
+  const repair = finding.getByRole('link', { name: 'Kontostand prüfen' });
+  await expect(repair).toHaveAttribute('href', /pruefen=reconcile/);
+  await repair.click();
+  await expect(page.getByRole('dialog', { name: `Kontostand prüfen · ${name}` })).toBeVisible();
+  await page.goto(accountUrl);
+
   // The bank says 470: 4,00 missing; Ausgleich books it and stamps everything, undo reverts it.
   await page.getByRole('button', { name: 'Kontostand prüfen' }).click();
   const second = page.getByRole('dialog', { name: `Kontostand prüfen · ${name}` });
   await second.getByLabel('Saldo laut Bank', { exact: true }).fill('470');
   await expect(second.getByText(/Es fehlt eine Ausgabe/)).toBeVisible();
-  await second.getByRole('button', { name: /Differenz ausgleichen/ }).click();
+  await second.getByRole('button', { name: /Ausgleich buchen und abschließen/ }).click();
   await expect(toast(page)).toContainText('Ausgleich');
   await expect(balance(page)).toHaveText('470,00 €');
   await expect(

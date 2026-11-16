@@ -7,6 +7,7 @@ import type { ListedBooking } from './types';
 import { AssignmentLearnOffer } from '../assignment/review';
 import type { BookingDraft } from './booking-model';
 import { REDESIGN_ENABLED } from '../shell/redesign-flag';
+import { BOOKING_RELEASE_TITLE, BookingReleaseQuestion } from './booking-release-question';
 
 export type BookingPanelState =
   | { mode: 'create'; accountId?: string | undefined; prefill?: Partial<BookingDraft> }
@@ -119,6 +120,7 @@ export function BookingPanel({
     state: NonNullable<BookingPanelState>;
     key: string;
     n: number;
+    released?: boolean;
   } | null>(null);
   const [seenKey, setSeenKey] = useState<string | null>(null);
   if (key !== seenKey || (state !== null && key !== null && shown === null)) {
@@ -138,15 +140,29 @@ export function BookingPanel({
   }, [state]);
 
   const current = state ?? shown?.state ?? null;
+  const needsRelease =
+    REDESIGN_ENABLED &&
+    current?.mode === 'edit' &&
+    current.booking.status === 'reconciled' &&
+    !shown?.released;
+  useEffect(() => {
+    if (needsRelease && state !== null)
+      focusScope.current?.querySelector<HTMLElement>('[role="alertdialog"] button')?.focus();
+  }, [needsRelease, shown?.n, state]);
   const [lastMode, setLastMode] = useState<'create' | 'edit' | null>(state?.mode ?? null);
   if (state !== null && lastMode !== state.mode) setLastMode(state.mode);
-  const title = current?.mode === 'edit' ? 'Buchung bearbeiten' : 'Buchung erfassen';
+  const title = needsRelease
+    ? BOOKING_RELEASE_TITLE
+    : current?.mode === 'edit'
+      ? 'Buchung bearbeiten'
+      : 'Buchung erfassen';
   const close = () => {
     setAsking(false);
     dirty.current = false;
     onClose();
   };
   const beforeClose = () => {
+    if (needsRelease) return true;
     if (!dirty.current) return true;
     if (!asking) resumeFocus.current = document.activeElement as HTMLElement | null;
     setAsking(true);
@@ -160,17 +176,30 @@ export function BookingPanel({
       onKeyDown={wrapFocus}
     >
       <FormDialog open={state !== null} onClose={close} title={title} beforeClose={beforeClose}>
-        {current && shown && (
-          <CaptureForm
-            key={`${shown.n}-${shown.key}`}
-            state={current}
-            onDone={close}
-            onBankCategorized={setLearnBookingId}
-            dirtyRef={dirty}
-            requestClose={() => beforeClose() && close()}
-            discard={{ asking, keep: keepEditing, discard: close }}
-          />
-        )}
+        {current &&
+          shown &&
+          (needsRelease ? (
+            <div className="bkform">
+              <div className="bk-body">
+                <BookingReleaseQuestion
+                  className="kdiff kdelete-question bk-release-opening"
+                  onCancel={close}
+                  onConfirm={() => setShown({ ...shown, released: true })}
+                />
+              </div>
+            </div>
+          ) : (
+            <CaptureForm
+              key={`${shown.n}-${shown.key}`}
+              state={current}
+              initialUnlockReconciled={REDESIGN_ENABLED && Boolean(shown.released)}
+              onDone={close}
+              onBankCategorized={setLearnBookingId}
+              dirtyRef={dirty}
+              requestClose={() => beforeClose() && close()}
+              discard={{ asking, keep: keepEditing, discard: close }}
+            />
+          ))}
       </FormDialog>
     </div>
   );

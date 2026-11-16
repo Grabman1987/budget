@@ -18,8 +18,6 @@ export interface ComboOption {
   hint?: ReactNode;
   /** Heading the option is listed under; consecutive options with the same group share it. */
   group?: string | undefined;
-  /** Creation actions remain available after filtering and the result cap. */
-  alwaysVisible?: boolean;
 }
 
 export interface ComboboxProps {
@@ -50,6 +48,8 @@ export interface ComboboxProps {
   captureCategory?: boolean;
   /** Mobile capture suggestions overlay following rows at the card's full width. */
   captureOverlay?: boolean;
+  /** Explicit action outside the selectable suggestions and their keyboard cycle. */
+  action?: { label: string; onSelect: () => void } | undefined;
 }
 
 const fold = (text: string) => text.toLocaleLowerCase('de-AT').trim();
@@ -93,6 +93,7 @@ export function Combobox({
   hintHeading,
   captureCategory = false,
   captureOverlay = false,
+  action,
 }: ComboboxProps) {
   const [isPhone, setIsPhone] = useState(
     () => window.matchMedia?.('(max-width: 767px)').matches ?? false,
@@ -120,23 +121,21 @@ export function Combobox({
   const shown = useMemo(() => {
     const q = fold(filter ?? value);
     if (q === '' && !listWhenEmpty) return [];
-    const choices = options.filter((option) => !option.alwaysVisible);
-    const hits = q === '' ? choices : choices.filter((o) => fold(o.label).includes(q));
+    const hits = q === '' ? [...options] : options.filter((o) => fold(o.label).includes(q));
     // Prefix matches first, the order of the caller otherwise.
     if (q !== '' && !captureCategory)
       hits.sort(
         (a, b) => Number(!fold(a.label).startsWith(q)) - Number(!fold(b.label).startsWith(q)),
       );
-    return [
-      ...(captureCategory ? hits : hits.slice(0, MAX_OPTIONS)),
-      ...options.filter((option) => option.alwaysVisible),
-    ];
+    return captureCategory ? hits : hits.slice(0, MAX_OPTIONS);
   }, [options, value, filter, listWhenEmpty, captureCategory]);
 
   const open =
     focused &&
     !dismissed &&
-    (shown.length > 0 || (emptyText !== undefined && (filter ?? value).trim() !== ''));
+    (shown.length > 0 ||
+      action !== undefined ||
+      (emptyText !== undefined && (filter ?? value).trim() !== ''));
   // On the phone the list opens inside a scrolling sheet: bring it into view.
   useEffect(() => {
     if (
@@ -259,6 +258,11 @@ export function Combobox({
             captureCategory && 'is-capture-category',
             overlayCapture && 'is-capture-overlay',
           )}
+          onBlur={(e) => {
+            if (e.currentTarget.contains(e.relatedTarget)) return;
+            setFocused(false);
+            onFocusChange?.(false);
+          }}
         >
           <TextInput
             id={id}
@@ -266,7 +270,7 @@ export function Combobox({
             type={type}
             role="combobox"
             aria-expanded={open}
-            aria-controls={listId}
+            aria-controls={`${listId}-options`}
             aria-autocomplete="list"
             aria-activedescendant={open && activeIndex >= 0 ? optionId(activeIndex) : undefined}
             aria-invalid={invalid}
@@ -285,10 +289,6 @@ export function Combobox({
               e.currentTarget.select();
               selectAfterRender.current = e.currentTarget;
             }}
-            onBlur={() => {
-              setFocused(false);
-              onFocusChange?.(false);
-            }}
             onChange={(e) => {
               onChange(e.target.value);
               setActive(-1);
@@ -304,6 +304,7 @@ export function Combobox({
               if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
                 e.preventDefault();
                 const n = shown.length;
+                if (n === 0) return;
                 setActive(
                   e.key === 'ArrowDown' ? (activeIndex + 1) % n : (activeIndex - 1 + n) % n,
                 );
@@ -322,45 +323,73 @@ export function Combobox({
             }}
           />
           {open && (
-            <ul
-              className="combo-list"
-              id={listId}
-              role="listbox"
-              tabIndex={overlayCapture ? -1 : undefined}
-              aria-label={`${label}, Vorschläge`}
-            >
-              {hintHeading !== undefined && shown.length > 0 && (
-                <li className="combo-head" role="presentation">
-                  <span>{hintHeading}</span>
-                </li>
-              )}
-              {shown.length === 0 && emptyText !== undefined && (
-                <li className="combo-empty" role="presentation">
-                  {emptyText}
-                </li>
-              )}
-              {shown.map((option, index) => (
-                <GroupHeading
-                  key={option.id}
-                  heading={option.group !== shown[index - 1]?.group ? option.group : undefined}
-                >
-                  {/* Keyboard picking happens in the input (arrows, Enter); the click is for the mouse. */}
-                  {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events */}
-                  <li
-                    id={optionId(index)}
-                    role="option"
-                    aria-selected={index === activeIndex}
-                    className={cx('combo-option', index === activeIndex && 'is-active')}
-                    // Keep the focus in the field: a click must not blur (and close) the list first.
-                    onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => pick(option)}
-                  >
-                    <span>{option.label}</span>
-                    {option.hint && <span className="combo-hint">{option.hint}</span>}
+            <div className="combo-list" id={listId} tabIndex={overlayCapture ? -1 : undefined}>
+              <ul
+                className="combo-options"
+                id={`${listId}-options`}
+                role="listbox"
+                aria-label={`${label}, Vorschläge`}
+              >
+                {hintHeading !== undefined && shown.length > 0 && (
+                  <li className="combo-head" role="presentation">
+                    <span>{hintHeading}</span>
                   </li>
-                </GroupHeading>
-              ))}
-            </ul>
+                )}
+                {shown.length === 0 && emptyText !== undefined && (
+                  <li className="combo-empty" role="presentation">
+                    {emptyText}
+                  </li>
+                )}
+                {shown.map((option, index) => (
+                  <GroupHeading
+                    key={option.id}
+                    heading={option.group !== shown[index - 1]?.group ? option.group : undefined}
+                  >
+                    {/* Keyboard picking happens in the input (arrows, Enter); the click is for the mouse. */}
+                    {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events */}
+                    <li
+                      id={optionId(index)}
+                      role="option"
+                      aria-selected={index === activeIndex}
+                      className={cx('combo-option', index === activeIndex && 'is-active')}
+                      // Keep the focus in the field: a click must not blur (and close) the list first.
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => pick(option)}
+                    >
+                      <span>{option.label}</span>
+                      {option.hint && <span className="combo-hint">{option.hint}</span>}
+                    </li>
+                  </GroupHeading>
+                ))}
+              </ul>
+              {action && (
+                <button
+                  type="button"
+                  className="btn btn-ghost combo-action"
+                  // Matching categories keep the form's Tab order; an unmatched search exposes creation.
+                  tabIndex={shown.length > 0 ? -1 : 0}
+                  onMouseDown={(e) => e.preventDefault()}
+                  onKeyDown={(e) => {
+                    if (e.ctrlKey || e.metaKey || e.altKey) return;
+                    if (e.key === 'Enter') e.stopPropagation();
+                    if (e.key === 'Escape') {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      e.currentTarget.closest('.combo')?.querySelector('input')?.focus();
+                      setDismissed(true);
+                    }
+                  }}
+                  onClick={(e) => {
+                    // The dialog must restore the input, since this button disappears on close.
+                    e.currentTarget.closest('.combo')?.querySelector('input')?.focus();
+                    setDismissed(true);
+                    action.onSelect();
+                  }}
+                >
+                  {action.label}
+                </button>
+              )}
+            </div>
           )}
         </div>
       )}

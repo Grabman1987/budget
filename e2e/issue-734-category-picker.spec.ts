@@ -342,7 +342,13 @@ for (const profile of ['configured', 'desktop1440'] as const) {
               .fill('Synthetischer Scrolltest.\n'.repeat(18));
           await field.click();
           const list = dialog.locator('.is-capture-category .combo-list');
+          // Category creation is an explicit action outside the selectable keyboard cycle.
           await expect(list.getByRole('option')).toHaveCount(63);
+          const createCategory = list.getByRole('button', {
+            name: 'Neue Kategorie …',
+            exact: true,
+          });
+          await expect(createCategory).toBeVisible();
           const names = await list
             .getByRole('option')
             .locator(':scope > span:first-child')
@@ -546,12 +552,17 @@ for (const profile of ['configured', 'desktop1440'] as const) {
           expect(
             await list.getByRole('option').locator(':scope > span:first-child').allTextContents(),
           ).toEqual(['Muster für Wege', 'Für Kontakt auslegen → Kontakt Alpha 734']);
+          await expect(createCategory).toBeVisible();
           await field.press('Enter');
           await expect(field).toHaveValue('Muster für Wege');
           if (redesign) await dialog.getByLabel('Notiz', { exact: true }).fill('');
           await dialog.getByLabel('Betrag', { exact: true }).fill('10,00');
           await (await contactShareControl(dialog)).click();
           await dialog.getByLabel('Kontakt 1.1', { exact: true }).selectOption(contact.id);
+          await dialog
+            .getByRole('group', { name: 'Anteilart 1.1', exact: true })
+            .getByRole('button', { name: '%', exact: true })
+            .click();
           await expect(dialog.getByLabel('Anteil 1.1 (%)')).toHaveValue('50');
           const saved = page.waitForResponse(
             (r) => r.request().method() === 'POST' && new URL(r.url()).pathname === '/api/bookings',

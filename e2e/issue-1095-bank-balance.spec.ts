@@ -112,13 +112,40 @@ test('bank balances prefill checks, expose differences and confirm with grouped 
   await difference.getByRole('button', { name: 'Kontostand prüfen', exact: true }).click();
   await expect(difference.getByLabel('Saldo laut Bank', { exact: true })).toHaveValue('98,00');
   await expect(
-    difference.getByRole('button', { name: 'Differenz ausgleichen', exact: true }),
-  ).toBeDisabled();
+    difference.getByRole('button', { name: 'Ausgleich buchen und abschließen', exact: true }),
+  ).toBeEnabled();
+  await expect(difference.getByLabel('Grund f\u00fcr den Ausgleich')).toBeHidden();
   expect((await readAccounts()).find((a: { id: string }) => a.id === ids[1])).toMatchObject({
     balanceCents: 9900,
     lastReconciledOn: null,
   });
-  await difference.getByRole('button', { name: 'Einklappen', exact: true }).click();
+  await difference
+    .getByRole('button', { name: 'Ausgleich buchen und abschlie\u00dfen', exact: true })
+    .click();
+  await expect(difference.getByText('erledigt', { exact: true })).toBeVisible();
+  const adjustments = (
+    await (await page.request.get(origin + '/api/bookings?accountId=' + ids[1])).json()
+  ).items;
+  expect(
+    adjustments.filter(
+      (row: { payeeSystemKind: string | null }) =>
+        row.payeeSystemKind === 'reconciliation_adjustment',
+    ),
+  ).toMatchObject([
+    { amountCents: -100, status: 'reconciled', payeeSystemKind: 'reconciliation_adjustment' },
+  ]);
+  expect((await readAccounts()).find((a: { id: string }) => a.id === ids[1]).lastReconciledOn).toBe(
+    '2026-09-30',
+  );
+  await page.getByRole('button', { name: 'R\u00fcckg\u00e4ngig', exact: true }).click();
+  await expect(difference.getByText('offen', { exact: true })).toBeVisible();
+  expect(
+    (await (await page.request.get(origin + '/api/bookings?accountId=' + ids[1])).json()).items,
+  ).toMatchObject([{ amountCents: -100, status: 'confirmed' }]);
+  expect(
+    (await readAccounts()).find((a: { id: string }) => a.id === ids[1]).lastReconciledOn,
+  ).toBeNull();
+
   const manual = row('Giro Manuell');
   await manual.getByRole('button', { name: 'Kontostand prüfen', exact: true }).click();
   await expect(manual.getByLabel('Saldo laut Bank', { exact: true })).toHaveValue('');

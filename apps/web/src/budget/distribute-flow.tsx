@@ -5,6 +5,7 @@ import {
   distributionFill,
   distributionGaps,
   distributionPass,
+  freedomSumCents,
   passTotals,
   pendingApplied,
   takeBackPlan,
@@ -30,6 +31,7 @@ import { planHistory, usePlanHistory } from './plan-history';
 import { useBudgetWrite } from './use-category-writes';
 import '../month-close/month-close.css';
 import './distribute-flow.css';
+import { DistributionTemplates } from './distribution-templates';
 
 /**
  * Guided "Geld verteilen" (#1055, routine PR04): Eingang prüfen → Lücken → Zuweisen → Rest.
@@ -62,6 +64,7 @@ interface Saved {
 }
 
 type Action =
+  | { kind: 'template'; items: IntendedAssignment[]; basis: string | undefined }
   | { kind: 'fill'; id: string }
   | { kind: 'fillAll' }
   | { kind: 'take'; id: string }
@@ -306,6 +309,23 @@ export function DistributeFlow({
   /** Builds the existing write from the current read model, so a retry never reuses stale sums. */
   const operation = (action: Exclude<Action, { kind: 'undo' }>): Plan | null => {
     switch (action.kind) {
+      case 'template': {
+        if (action.basis !== data.previewBasis) return null;
+        const cents = freedomSumCents(
+          action.items.flatMap((item) => [
+            item.assignedCents,
+            -(rows.find((row) => row.id === item.categoryId)?.assignedCents ?? 0),
+          ]),
+        );
+        if (cents === null) return null;
+        return {
+          kind: 'assign',
+          cents,
+          items: action.items,
+          text: `${eur(cents)} nach Vorlage zugewiesen`,
+          run: () => assign(action.items),
+        };
+      }
       case 'fill':
       case 'fillAll': {
         const items = fill.items.filter((i) => action.kind === 'fillAll' || i.row.id === action.id);
@@ -626,6 +646,15 @@ export function DistributeFlow({
 
         {step === 3 && (
           <div aria-busy={busy}>
+            <DistributionTemplates
+              key={data.previewBasis ?? s.assignedCents}
+              rows={rows}
+              tba={tba}
+              busy={busy}
+              onApply={(items) =>
+                void perform({ kind: 'template', items, basis: data.previewBasis })
+              }
+            />
             {tba < 0 ? (
               <>
                 <p className="distribute-alert" role="note">
