@@ -71,10 +71,7 @@ test('an expense by keyboard: arithmetic, Enter moves on, Ctrl+Enter saves, Avai
   const categoryField = panel.getByLabel('Kategorie', { exact: true });
   await expect(categoryField).toBeFocused();
   await page.keyboard.type(category);
-  await expect(panel.getByRole('option', { name: new RegExp(`^${category}`) })).toHaveAttribute(
-    'aria-selected',
-    'true',
-  );
+  await page.keyboard.press('ArrowDown');
   await page.keyboard.press('Enter');
   await expect(categoryField).toHaveValue(category);
   // Nothing is assigned to the test category, so its Available starts at 0.
@@ -149,7 +146,7 @@ test('a transfer between accounts; to a tracking account it needs a category', a
   await panel.getByLabel('Betrag', { exact: true }).fill('100');
   if ((await redesignLoaded(page)) && page.viewportSize()!.width < 768) {
     await expect(captureSaveControl(panel)).toBeDisabled();
-    await expect(captureSaveControl(panel)).not.toHaveAttribute('aria-describedby');
+    await expect(captureSaveControl(panel)).toHaveAccessibleDescription(/brauchen eine Kategorie/);
     await panel.getByLabel('Betrag', { exact: true }).press('Control+Enter');
   } else await captureSaveControl(panel).click();
   await expect(panel.getByRole('alert')).toContainText('brauchen eine Kategorie');
@@ -209,13 +206,14 @@ test('discard question, Speichern und neu keeps the context, the payee brings it
   await expect(
     panel.getByLabel('Bezahlt von', { exact: true }).locator('option:checked'),
   ).toHaveText(account);
-  // Validation stays quiet until the first save attempt (#1145).
+  // Phone redesign explains disabled save quietly; desktop and OFF keep after-input timing.
   // Invalid dates remain refused while payee suggestions are open.
   await expect(panel.getByRole('button', { name: 'Speichern und neu' })).toBeDisabled();
   const phoneRedesign = (page.viewportSize()?.width ?? 1440) < 768 && (await redesignLoaded(page));
-  await expect(panel.locator('#booking-save-reason')).toHaveCount(0);
+  if (phoneRedesign)
+    await expect(panel.locator('.bk-save-hint')).toHaveText('Jede Zeile braucht einen Betrag.');
+  else await expect(panel.locator('.bk-save-reason')).toHaveCount(0);
   await panel.getByLabel('Betrag', { exact: true }).fill('0');
-  await panel.getByLabel('Betrag', { exact: true }).press('Control+Enter');
   await expect(panel.locator('#booking-save-reason')).toContainText(
     'Jede Zeile braucht einen Betrag.',
   );

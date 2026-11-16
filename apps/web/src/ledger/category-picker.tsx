@@ -64,7 +64,6 @@ export function CategoryCombobox({
   const hidden = useAmountPrivacy();
   // What is being typed to search; `null` shows the chosen name and the whole list.
   const [typing, setTyping] = useState<string | null>(null);
-  const [invalid, setInvalid] = useState(false);
   const [creating, setCreating] = useState(false);
   const input = useRef<HTMLInputElement>(null);
   const created = useRef<{ id: string; seen: boolean } | null>(null);
@@ -83,16 +82,6 @@ export function CategoryCombobox({
     [leading, categories, hidden, trailing],
   );
   const showsAvailable = categories.some((c) => c.availableCents !== null);
-  const typedOption =
-    typing === null
-      ? undefined
-      : options.filter(
-          (option) =>
-            option.label.trim().toLocaleLowerCase('de-AT') ===
-            typing.trim().toLocaleLowerCase('de-AT'),
-        );
-  const unresolved = capturePicker && typing !== null;
-  const invalidMessage = 'Bitte eine Kategorie aus der Liste wählen.';
   return (
     <>
       <Combobox
@@ -101,9 +90,7 @@ export function CategoryCombobox({
         value={typing ?? selectedName}
         filter={typing ?? ''}
         placeholder={placeholder}
-        error={invalid && unresolved ? invalidMessage : error}
-        inputValidity={capturePicker && typing !== null ? invalidMessage : ''}
-        onInvalid={() => setInvalid(true)}
+        error={error}
         listWhenEmpty
         captureCategory={capturePicker}
         pickFirst={pickFirst}
@@ -113,28 +100,12 @@ export function CategoryCombobox({
           allowCreate ? { label: 'Neue Kategorie …', onSelect: () => setCreating(true) } : undefined
         }
         {...(showsAvailable ? { hintHeading: 'Verfügbar' } : {})}
-        onChange={(text) => {
-          setTyping(text);
-          if (capturePicker && text.trim() === '') onSelect('');
-        }}
-        onFocusChange={(focused) => {
-          if (focused) return;
-          if (capturePicker && typing !== null) {
-            if (typedOption?.length === 1) {
-              onSelect(typedOption[0]!.id);
-              setTyping(null);
-              setInvalid(false);
-            } else if (selectedName) {
-              setTyping(null);
-              setInvalid(false);
-            } else setInvalid(typing.trim() !== '');
-          } else setTyping(null);
-        }}
+        onChange={setTyping}
+        onFocusChange={(focused) => !focused && setTyping(null)}
         onSelect={(o) => {
           created.current = null;
           onSelect(o.id);
           setTyping(null);
-          setInvalid(false);
         }}
       />
       {creating && (
