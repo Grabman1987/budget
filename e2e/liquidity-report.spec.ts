@@ -226,7 +226,7 @@ test('horizon and levers change the forecast like the API says', async ({ page }
   await expect(page.getByTestId('liq-low')).toHaveText(eur(plain.low!.cents));
   const gain = plain.levers.find((l) => l.id === 'trim-variable')!.gainCents;
   await expect(page.getByTestId('lever-gain-trim-variable')).toContainText(
-    eur(gain, { cents: false, sign: true }),
+    eur(gain, { cents: false }),
   );
   await page.getByRole('checkbox', { name: /Variable Ausgaben um 10 % senken/ }).check();
   await expect(page.getByTestId('lever-gain-trim-variable')).toHaveText('aktiv');

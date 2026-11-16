@@ -281,20 +281,20 @@ export function ProjectsReport({
                               data-chart-point={i}
                               className={`n ${v > 0 ? 'pp-profit' : v < 0 ? 'pp-loss' : ''}`}
                             >
-                              {eur(v, { sign: true })}
+                              {eur(v)}
                             </td>
                           ))}
-                          <td className="n">{eur(p.resultCents, { sign: true })}</td>
+                          <td className="n">{eur(p.resultCents)}</td>
                         </tr>
                       ))}
                       <tr className="is-total">
                         <th>Zusammen</th>
                         {data.total.perMonth.map((v, i) => (
                           <td key={i} className="n">
-                            {eur(v, { sign: true })}
+                            {eur(v)}
                           </td>
                         ))}
-                        <td className="n">{eur(data.total.resultCents, { sign: true })}</td>
+                        <td className="n">{eur(data.total.resultCents)}</td>
                       </tr>
                     </tbody>
                   </ReportTable>

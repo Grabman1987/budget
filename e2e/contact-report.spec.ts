@@ -123,7 +123,7 @@ test('fixed EUR report preserves credit, running history, source links and recei
     has: page.getByRole('button', { name: /Ursprungsbuchung öffnen · Anteil Haushalt/ }),
   });
   const receipt = movements.filter({ hasText: '−120,00 €' });
-  await expect(outlay.locator('td').nth(on ? 2 : 1)).toHaveText('100,00 €');
+  await expect(outlay.locator('td').nth(on ? 2 : 1)).toHaveText(on ? '100,00 €' : '+100,00 €');
   await expect(outlay).toContainText('01.09.2026');
   await expect(receipt.locator('td').nth(on ? 2 : 1)).toHaveText('−120,00 €');
   if (!on)

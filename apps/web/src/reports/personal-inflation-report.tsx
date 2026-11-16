@@ -475,7 +475,7 @@ export function BasketBody({
                     </span>
                   </th>
                   <td className="n">{bpText(c.shareBp)}</td>
-                  <td className="n">{bpText(c.changeBp, { sign: true })}</td>
+                  <td className="n">{bpText(c.changeBp)}</td>
                   <td>
                     <span className="sr-pp" aria-hidden="true">
                       <i
@@ -633,7 +633,7 @@ function InflationIndexSummary({ data }: { data: InflationReport }) {
               .map((row) => (
                 <tr key={row.id}>
                   <th scope="row">{row.name}</th>
-                  <td>{privateAmount(bpText(row.changeBp, { sign: true }))}</td>
+                  <td>{privateAmount(bpText(row.changeBp))}</td>
                   <td>{privateAmount(pp(row.contributionBp))} Pp</td>
                 </tr>
               ))}
@@ -941,7 +941,7 @@ function BasketCategory({
                 {basketPrice(b, b.nowCents)}
                 <small>{basketPeriod(b, b.history.at(-1)!.month)}</small>
               </td>
-              <td>{bpText(b.changeBp, { sign: true })}</td>
+              <td>{bpText(b.changeBp)}</td>
               <td>{pp(b.contributionBp)}</td>
             </>
           )}
