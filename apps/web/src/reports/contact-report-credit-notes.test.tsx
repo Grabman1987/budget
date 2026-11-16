@@ -29,6 +29,7 @@ const contacts: ContactOverview['contacts'] = [
     balanceCents: -5000,
     creditCents: 5000,
     receivableCents: 0,
+    allocationNeedsReview: false,
   },
   {
     id: 'owed',
@@ -42,6 +43,7 @@ const contacts: ContactOverview['contacts'] = [
     balanceCents: 5000,
     creditCents: 0,
     receivableCents: 5000,
+    allocationNeedsReview: false,
   },
   {
     id: 'settled',
@@ -55,6 +57,7 @@ const contacts: ContactOverview['contacts'] = [
     balanceCents: 0,
     creditCents: 0,
     receivableCents: 0,
+    allocationNeedsReview: false,
   },
 ];
 const overview: ContactOverview = {

@@ -51,6 +51,8 @@ interface ContactRow {
   name: string;
   balanceCents: number;
   creditCents: number;
+  /** The stored settlement of this contact contradicts its bookings (#1174). */
+  allocationNeedsReview?: boolean;
 }
 export interface Statement {
   contact: { id: string; name: string };
@@ -202,6 +204,15 @@ export function ContactsPage() {
                         >
                           {c.name}
                         </AppLink>
+                        {c.allocationNeedsReview && (
+                          <AppLink
+                            className="contact-review-hint"
+                            to={`/konten/kontakte/${encodeURIComponent(c.id)}`}
+                            search={history ? { verlauf: 1 } : {}}
+                          >
+                            Verrechnung prüfen
+                          </AppLink>
+                        )}
                         <ContactRename contact={c} onOpen={() => setRenaming(c)} />
                       </td>
                       <td className="num">

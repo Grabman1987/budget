@@ -211,3 +211,20 @@ it('detail history is in the receivable view: Auslage plus, Rückzahlung minus',
   expect(rows[0]?.querySelector('.num')?.textContent).toBe('+30,00 €');
   expect(rows[1]?.querySelector('.num')?.textContent).toBe('−10,00 €');
 });
+
+it('marks a contact whose settlement needs review with a link to its detail (#1174)', async () => {
+  stubContacts([
+    ...MIXED,
+    {
+      id: 'review',
+      name: 'Kontakt Prüfen',
+      balanceCents: 400,
+      creditCents: 0,
+      allocationNeedsReview: true,
+    },
+  ]);
+  render(wrap(<ContactsPage />));
+  const hint = await screen.findByRole('link', { name: 'Verrechnung prüfen' }, { timeout: 10000 });
+  expect(hint.getAttribute('href')).toBe('/konten/kontakte/review?verlauf=1');
+  expect(screen.getAllByRole('link', { name: 'Verrechnung prüfen' })).toHaveLength(1);
+});
