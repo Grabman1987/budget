@@ -22,7 +22,7 @@ for (const [name, path, chain] of reports)
       return;
     }
     const head = page.getByTestId('redesign-report-head');
-    await expect(head.getByRole('group', { name: chain, exact: true })).toBeVisible();
+    await expect(head.getByRole('group', { name: chain, exact: true })).toHaveCount(0);
     await expect(page.getByTestId('report-frame-result')).not.toHaveText('—');
     await expect(page.getByTestId('report-frame-source')).toContainText('Stand');
     if (name === 'month') {
@@ -42,6 +42,7 @@ for (const [name, path, chain] of reports)
     await detail.locator('summary').focus();
     await page.keyboard.press('Enter');
     await expect(detail).toHaveAttribute('open', '');
+    await expect(detail.getByRole('group', { name: chain, exact: true })).toBeVisible();
     await expect(detail.locator('dl')).toBeVisible();
     await page.keyboard.press('Enter');
     await expect(detail.locator('summary')).toBeFocused();

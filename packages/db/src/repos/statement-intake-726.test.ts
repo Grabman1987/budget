@@ -3,6 +3,7 @@ import { createTestDatabase, type OpenedDatabase } from '../client';
 import { parseStatementText } from '@budget/domain';
 import { seedBasics } from './test-helpers';
 import {
+  findStatementIntake,
   getStatementIntake,
   mutateStatementIntake,
   stageStatementIntake,
@@ -193,3 +194,119 @@ it('matches the same printed non-ASCII reference without relying on SQLite Unico
   expect(amendment.proposal.relatedIntakeIds).toEqual([first.id]);
   expect(amendment.proposal.warnings).toContain('possible_amendment');
 });
+
+it.each(['2026-10-01', '2026-11-01', null])(
+  'compares printed issue dates for separate identifier-less sources on %s without merging them (#1079)',
+  (issueDate) => {
+    const before = state();
+    const make = (sha256: string, day: string | null) =>
+      stageStatementIntake(
+        opened.db,
+        {
+          accountId: 'giro',
+          sha256,
+          sizeBytes: 50,
+          filename: 'synthetic-card.pdf',
+          proposal: parseStatementText(
+            `${day ? `Rechnungsdatum ${day}\n` : ''}Abrechnungsbetrag 120,00 EUR\nKartennummer ****1234`,
+            sha256,
+          ),
+        },
+        ctx,
+      );
+    const first = make('b'.repeat(64), '2026-10-01').intake;
+    const facts = {
+      reference: null,
+      periodFrom: null,
+      periodTo: null,
+      issueDate: '2026-10-01',
+      debitDate: '2026-10-10',
+      payableCents: 12000,
+      currency: 'EUR',
+      accountHint: '****1234',
+    };
+    const reviewNotes = {
+      numberNotPrinted: true,
+      periodNotPrinted: true,
+      cardReference: 'SYNTHETIC-CARD',
+    };
+    const reviewed = mutateStatementIntake(
+      opened.db,
+      first.id,
+      first,
+      'review',
+      { facts, reviewNotes },
+      ctx,
+    ).intake;
+    // A different hash is a separate original even when every fact agrees.
+    expect(findStatementIntake(opened.db, 'c'.repeat(64))).toBeUndefined();
+    const second = make('c'.repeat(64), issueDate);
+    expect(second.duplicate).not.toBe(true);
+    expect(second.intake.id).not.toBe(first.id);
+    expect(second.intake.receiptId).not.toBe(first.receiptId);
+    expect(second.intake.status).toBe('pending');
+    expect(second.intake.proposal.relatedIntakeIds).toEqual(
+      issueDate === '2026-11-01' ? [] : [first.id],
+    );
+    expect(second.intake.proposal.warnings.includes('possible_amendment')).toBe(
+      issueDate !== '2026-11-01',
+    );
+    expect(findStatementIntake(opened.db, first.sha256)).toEqual(reviewed);
+    expect(findStatementIntake(opened.db, second.intake.sha256)).toEqual(second.intake);
+    expect(getStatementIntake(opened.db, first.id)).toEqual(reviewed);
+    const replay = make('c'.repeat(64), issueDate);
+    expect(replay.duplicate).toBe(true);
+    expect(replay.groupId).toBeNull();
+    expect(replay.intake).toEqual(second.intake);
+    expect(opened.db.select().from(statementIntake).all()).toHaveLength(2);
+    expect(state()).toBe(before);
+  },
+);
+
+it.each([true, false])(
+  'preserves every reviewed value when reopening (missing identifiers: %s)',
+  (missing) => {
+    const before = state();
+    const first = stage().intake;
+    const facts = {
+      reference: missing ? null : 'SYNTHETIC-REVIEWED',
+      issueDate: '2026-10-02',
+      periodFrom: missing ? null : '2026-09-01',
+      periodTo: missing ? null : '2026-09-30',
+      payableCents: 12345,
+      currency: 'CHF',
+      debitDate: '2026-10-12',
+      accountHint: '****5678',
+    };
+    const reviewNotes = {
+      numberNotPrinted: missing,
+      periodNotPrinted: missing,
+      cardReference: 'SYNTHETIC-REVIEWED-CARD',
+    };
+    const reviewed = mutateStatementIntake(
+      opened.db,
+      first.id,
+      first,
+      'review',
+      { facts, reviewNotes },
+      ctx,
+    ).intake;
+    const pending = mutateStatementIntake(opened.db, first.id, reviewed, 'reopen', {}, ctx).intake;
+    expect(pending.status).toBe('pending');
+    expect(pending.reviewed).toBeNull();
+    expect(pending.proposal).toEqual({ ...first.proposal, draft: facts, reviewNotes });
+    expect(getStatementIntake(opened.db, first.id)).toEqual(pending);
+    const saved = mutateStatementIntake(
+      opened.db,
+      first.id,
+      pending,
+      'review',
+      { facts: pending.proposal.draft, reviewNotes: pending.proposal.reviewNotes },
+      ctx,
+    ).intake;
+    expect(saved.reviewed).toEqual(reviewed.reviewed);
+    expect(saved.sha256).toBe(first.sha256);
+    expect(saved.receiptId).toBe(first.receiptId);
+    expect(state()).toBe(before);
+  },
+);

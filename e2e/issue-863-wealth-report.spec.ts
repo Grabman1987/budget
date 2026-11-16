@@ -3,7 +3,7 @@ import { expect } from '@playwright/test';
 import { mkdirSync } from 'node:fs';
 import type { AssetsDebtsHistory, NetWorthHistory, WholePicture } from '@budget/db';
 import { eur } from '../apps/web/src/ledger/format';
-import { redesignReportsOn } from './report-frame';
+import { redesignReportsOn, revealReportDetail } from './report-frame';
 import { sampleTest as test } from './sample';
 
 test('wealth views keep canonical cents, sources, month selection and accessible detail', async ({
@@ -45,7 +45,8 @@ test('wealth views keep canonical cents, sources, month selection and accessible
     if (view === 'schulden')
       await expect(page.getByTestId('debt-account-comparison')).toBeVisible();
     await expect(page.getByTestId('report-frame-result')).toHaveText(eur(amount));
-    await expect(page.getByTestId('report-calculation').getByRole('group')).toBeVisible();
+    await revealReportDetail(page);
+    await expect(page.locator('.redesign-report-equation').getByRole('group')).toBeVisible();
     expect(new URL(page.url()).searchParams.get('monat')).toBe('2026-08');
     expect(new URL(page.url()).searchParams.get('zeitraum')).toBe('YTD');
     await page.reload();

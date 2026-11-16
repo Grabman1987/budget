@@ -5,6 +5,8 @@ import {
   statementFactsSchema,
   statementProposalSchema,
   statementFieldsSchema,
+  statementReviewNotesSchema,
+  type StatementReviewNotes,
   type StatementCas,
   type StatementIntakeView,
   type StatementProposal,
@@ -69,6 +71,13 @@ export function getStatementIntake(db: Executor, id: string): StatementIntakeVie
           fields: statementFieldsSchema.parse(
             (JSON.parse(r.reviewedJson) as { fields: unknown }).fields,
           ),
+          ...((JSON.parse(r.reviewedJson) as { reviewNotes?: unknown }).reviewNotes === undefined
+            ? {}
+            : {
+                reviewNotes: statementReviewNotesSchema.parse(
+                  JSON.parse(r.reviewedJson).reviewNotes,
+                ),
+              }),
         }
       : null,
   };
@@ -130,6 +139,17 @@ export function stageStatementIntake(
       throw new ConflictError('Abrechnungsquelle stimmt nicht überein.');
     const fact = (key: 'reference' | 'periodFrom' | 'periodTo') =>
       sql`CASE WHEN ${statementIntake.reviewedJson} IS NOT NULL THEN json_extract(${statementIntake.reviewedJson},${'$.fields.' + key + '.value'}) WHEN json_type(${statementIntake.proposalJson},'$.draft')='object' THEN json_extract(${statementIntake.proposalJson},${'$.draft.' + key}) ELSE json_extract(${statementIntake.proposalJson},${'$.fields.' + key + '.value'}) END`;
+    const identifiers = proposal.draft ?? {
+      reference: proposal.fields.reference.value,
+      periodFrom: proposal.fields.periodFrom.value,
+      periodTo: proposal.fields.periodTo.value,
+    };
+    // Preserve the existing issued-date automation identity for distinct printed dates.
+    // Missing/ambiguous dates still need review; amounts and card hints prove nothing.
+    const unidentified = !identifiers.reference && !identifiers.periodFrom && !identifiers.periodTo;
+    const issueDate =
+      proposal.fields.issueDate.origin === 'printed' ? proposal.fields.issueDate.value : null;
+    const priorIssueDate = sql`CASE WHEN json_extract(${statementIntake.proposalJson},'$.fields.issueDate.origin')='printed' THEN json_extract(${statementIntake.proposalJson},'$.fields.issueDate.value') END`;
     const related = tx
       .select({ id: statementIntake.id })
       .from(statementIntake)
@@ -137,7 +157,7 @@ export function stageStatementIntake(
         and(
           eq(statementIntake.accountId, input.accountId),
           isNull(statementIntake.deletedAt),
-          sql`(${fact('reference')}=${proposal.fields.reference.value} OR lower(${fact('reference')})=${proposal.fields.reference.value?.toLowerCase() ?? null} OR (${fact('periodFrom')}=${proposal.fields.periodFrom.value} AND ${fact('periodTo')}=${proposal.fields.periodTo.value}))`,
+          sql`(${fact('reference')}=${identifiers.reference} OR lower(${fact('reference')})=${identifiers.reference?.toLowerCase() ?? null} OR (${fact('periodFrom')}=${identifiers.periodFrom} AND ${fact('periodTo')}=${identifiers.periodTo}) OR (${unidentified ? 1 : 0}=1 AND ${fact('reference')} IS NULL AND ${fact('periodFrom')} IS NULL AND ${fact('periodTo')} IS NULL AND (${issueDate} IS NULL OR ${priorIssueDate} IS NULL OR ${priorIssueDate}=${issueDate})))`,
         ),
       )
       .orderBy(desc(statementIntake.createdAt), statementIntake.id)
@@ -188,6 +208,7 @@ export function mutateStatementIntake(
   input: {
     proposal?: StatementProposal;
     facts?: unknown;
+    reviewNotes?: StatementReviewNotes | undefined;
     savePending?: boolean | undefined;
     targetAccountId?: string | undefined;
   },
@@ -220,6 +241,19 @@ export function mutateStatementIntake(
         'delete',
       );
     } else if (action === 'reopen') {
+      if (current.reviewed) {
+        patch.proposalJson = JSON.stringify(
+          boundedProposal({
+            ...current.proposal,
+            draft: statementFactsSchema.parse(
+              Object.fromEntries(
+                Object.entries(current.reviewed.fields).map(([key, field]) => [key, field.value]),
+              ),
+            ),
+            ...(current.reviewed.reviewNotes ? { reviewNotes: current.reviewed.reviewNotes } : {}),
+          }),
+        );
+      }
       patch.status = 'pending';
       patch.reviewedJson = null;
     } else if (action === 'reject') {
@@ -232,7 +266,7 @@ export function mutateStatementIntake(
         !input.savePending &&
         (!input.targetAccountId || input.targetAccountId === current.accountId)
       ) {
-        const same = reviewStatement(current.proposal, input.facts, false);
+        const same = reviewStatement(current.proposal, input.facts, false, input.reviewNotes);
         if (JSON.stringify(same) === JSON.stringify(current.reviewed))
           return { intake: current, groupId: null };
       }
@@ -253,7 +287,12 @@ export function mutateStatementIntake(
         const facts = statementFactsSchema.parse(input.facts);
         let reviewed;
         try {
-          reviewed = reviewStatement(current.proposal, facts, !input.savePending);
+          reviewed = reviewStatement(
+            current.proposal,
+            facts,
+            !input.savePending,
+            input.reviewNotes,
+          );
         } catch {
           throw new ConflictError(
             'Bitte die Abrechnungsdaten einschließlich Einzugsdatum vervollständigen.',
@@ -265,7 +304,11 @@ export function mutateStatementIntake(
         }
         if (input.savePending)
           patch.proposalJson = JSON.stringify(
-            boundedProposal({ ...current.proposal, draft: facts }),
+            boundedProposal({
+              ...current.proposal,
+              draft: facts,
+              ...(input.reviewNotes ? { reviewNotes: input.reviewNotes } : {}),
+            }),
           );
         else {
           patch.status = 'reviewed';
