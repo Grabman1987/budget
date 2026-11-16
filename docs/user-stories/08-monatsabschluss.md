@@ -9,7 +9,7 @@ Bildschirm: `/monatsabschluss/<Monat>` (z. B. 2026-10). Einstieg: Plan › Kopfz
 - **Ablauf:**
   1. Nutzer öffnet Plan und klickt „Monat abschließen“. Die App zeigt oben die Fortschrittsleiste „n von 5 Schritten mit Aufgaben bearbeitet“ und den Stichtag.
   2. Schritt 1: Er ordnet offene Buchungen zu und prüft Vorschläge im eingebetteten Prüfen-Block („n offene Aufgaben im Monat“).
-  3. Schritt 2: Er vergleicht die Kontostände zum Stichtag. Je Konto klickt er „Kontostand prüfen“ (bei manuellen Anlagen „Wert aktualisieren“) oder bestätigt unveränderte Konten gemeinsam mit „Gemeinsam bestätigen“.
+  3. Schritt 2: Er vergleicht die Kontostände zum Stichtag. Liegt ein passender Bankstand vor, sieht er Datum, Betrag und Differenz; bei Übereinstimmung bestätigt er mit „Abgleich sperren bis heute“ in einem Klick. Bei Differenz öffnet „Kontostand prüfen“ die bestehende Prüfung mit vorbelegtem Bankstand. Ohne passenden Bankstand bleibt die manuelle Eingabe erhalten. Manuelle Anlagen nutzen „Wert aktualisieren“; unveränderte Konten lassen sich mit „Gemeinsam bestätigen“ prüfen.
   4. Schritt 3: Für jede überzogene Kategorie klickt er „Geld verschieben“ oder wählt „Übertrag akzeptieren · Grund angeben“.
   5. Mit „Weiter“ geht er zum nächsten Schritt; „Verlassen“ geht zurück zum Plan. „Weiter“ bleibt gesperrt, solange der Schritt offen ist.
   6. Jeder Schritt zeigt „Warum“ und „Danach“; „nichts offen“ erscheint bei Schritten ohne Aufgaben.
@@ -20,7 +20,8 @@ Bildschirm: `/monatsabschluss/<Monat>` (z. B. 2026-10). Einstieg: Plan › Kopfz
   3. Kommt nach dem Erledigen eine neue oder geänderte Aufgabe dazu, öffnet sich der Schritt wieder.
   4. Liegt der Stichtag noch in der Zukunft, steht „Der Monatsletzte steht noch bevor. Du kannst vorbereiten und später fortsetzen.“
   5. Lädt der Schritt nicht, zeigt die App eine Fehlermeldung mit Wiederholen statt eines leeren Schritts.
-- **Status:** teilweise — **Verweis:** Y24
+  6. Bankstände werden nur für den passenden Stichtag vorbelegt. Jede Bestätigung prüft die Abschlussrevision und bleibt gemeinsam rückgängig; Differenzen erzeugen keinen automatischen Ausgleich.
+- **Status:** teilweise; Bankstand-Vorbelegung und Einzelbestätigung lokal implementiert (#1095), Veröffentlichung und Nutzerabnahme ausständig. — **Verweis:** Y24, #1095
   Fehlt noch: Einbindung der Hintergrundaufgabe „Job E“ und die Abnahme im Parallelbetrieb durch den Nutzer (Gate 4); die anderen Routinen siehe M-03.
 
 ### M-01a – Offene Arbeit mit Grund aufschieben

@@ -26,7 +26,7 @@ import { ConflictError, EntityNotFoundError } from './errors';
 import { riskOf } from './portfolio-summary';
 import { runInTransaction, type Executor } from './types';
 import { memoizedShared } from './request-memo';
-import { createTrade, listTrades, type TradeInput } from './trades';
+import { createTrade, createTradeWithCashTransfer, listTrades, type TradeInput } from './trades';
 
 export type SavingsPlanRecord = typeof savingsPlan.$inferSelect;
 
@@ -366,6 +366,10 @@ export function confirmSavingsExecution(
     plannedAmountCents: number;
     plannedDate: string;
     plannedCurrency: string;
+    /** Broker confirmation reference (#1099): makes a repeated confirmation a no-op. */
+    importKey?: string | null | undefined;
+    /** Owner-chosen Verrechnungskonto: the trade then comes with its counter booking. */
+    settlementAccountId?: string | null | undefined;
   },
   ctx: AuditContext,
 ) {
@@ -390,22 +394,22 @@ export function confirmSavingsExecution(
       throw new RangeError(
         'Ausführungsdatum muss innerhalb von drei Tagen des Vorschlags liegen und darf nicht in der Zukunft liegen.',
       );
-    const result = createTrade(
-      tx,
-      {
-        securityId: proposal.securityId,
-        accountId: proposal.accountId,
-        kind: 'buy',
-        date: input.date,
-        unitsE8: input.unitsE8 ?? 0,
-        amountCents: input.amountCents,
-        feeCents: input.feeCents ?? 0,
-        note: input.note ?? null,
-        savingsPlanId: planId,
-        savingsMonth: month,
-      },
-      grouped,
-    );
+    const trade: TradeInput = {
+      securityId: proposal.securityId,
+      accountId: proposal.accountId,
+      kind: 'buy',
+      date: input.date,
+      unitsE8: input.unitsE8 ?? 0,
+      amountCents: input.amountCents,
+      feeCents: input.feeCents ?? 0,
+      importKey: input.importKey ?? null,
+      note: input.note ?? null,
+      savingsPlanId: planId,
+      savingsMonth: month,
+    };
+    const result = input.settlementAccountId
+      ? createTradeWithCashTransfer(tx, trade, input.settlementAccountId, grouped)
+      : { ...createTrade(tx, trade, grouped), transferId: null };
     return { ...result, groupId: grouped.groupId };
   });
 }

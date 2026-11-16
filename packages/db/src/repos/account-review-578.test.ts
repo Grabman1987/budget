@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createTestDatabase, type OpenedDatabase } from '../client';
 import {
   account,
@@ -17,6 +17,8 @@ import { undo } from './audit';
 import { accountReminders, accountReviewSummaries } from './account-reminders';
 import { accountSummaries } from './ledger-queries';
 import { ReconciledLockedError } from './errors';
+import { accountReviewChronology } from './account-review-chronology';
+import type { Executor } from './types';
 
 let opened: OpenedDatabase;
 let ordinal = 0;
@@ -96,6 +98,26 @@ function sameClock() {
 }
 
 describe('read-only account review chronology (#578)', () => {
+  it('reads projected audit primitives without per-field ORM decoding, also in a transaction', () => {
+    make();
+    book();
+    const read = (db: Executor) => {
+      const raw = vi.spyOn(db, 'all');
+      try {
+        expect(accountReviewChronology(db, '2026-10-19', new Map()).get('a')).toEqual({
+          bookingCount: 1,
+          lastBookingOn: '2026-08-20',
+          activityAfterCheck: false,
+        });
+        expect(raw).toHaveBeenCalledTimes(1);
+      } finally {
+        raw.mockRestore();
+      }
+    };
+    read(opened.db);
+    opened.db.transaction(read);
+  });
+
   it('keeps old confirmed and pending rows quiet and ignores later memo/flag-only changes', () => {
     make();
     const confirmed = book();

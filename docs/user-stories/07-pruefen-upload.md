@@ -99,13 +99,14 @@ Bildschirm Prüfen: `/konten/pruefen` (Konten › Prüfen). Zähler: „Umsätze
 
 ### I-04 – Dokument zentral hochladen
 - **Story:** Als Nutzer möchte ich jedes Dokument an einer Stelle hochladen und von der App erkennen lassen, was es ist, damit ich nicht erst überlegen muss, welcher Import für Kontoauszug, Gehaltszettel oder Beleg zuständig ist.
-- **Ausgangslage:** Der Nutzer hat ein PDF oder Foto (Kreditkartenabrechnung, Kontoauszug, Gehaltszettel, Bonus-/Pensionsmitteilung, Beleg). Der Knopf „Neues Dokument hochladen“ steht in der Kopfzeile, „Dokument hochladen“ in Prüfen und Buchung erfassen, am Konto der Upload dieses Kontos.
+- **Ausgangslage:** Der Nutzer hat ein PDF oder Foto (Kreditkartenabrechnung, Kontoauszug, Gehaltszettel, Bonus-/Pensionsmitteilung, Wertpapierabrechnung, Beleg). Der Knopf „Neues Dokument hochladen“ steht in der Kopfzeile, „Dokument hochladen“ in Prüfen und Buchung erfassen, am Konto der Upload dieses Kontos.
 - **Ablauf:**
   1. Nutzer klickt „Neues Dokument hochladen“. Der Dialog zeigt „Dokument ablegen“ und „Datei auswählen“ (Foto oder PDF, höchstens 15 MB).
   2. Er legt mehrere Dateien ab oder wählt sie gemeinsam. Jede Datei erhält einen eigenen Eintrag mit Dateinamen, Typ und Prüfstatus. Ein Fehler hält die anderen Dateien nicht auf; „Erneut versuchen“ prüft nur die betroffene Datei.
   3. Bei einem geschützten PDF gibt er unter „PDF-Passwort“ das Passwort ein und klickt „Mit Passwort prüfen“.
   4. Er prüft oder ändert je Datei den „Dokumenttyp“ und bei Abrechnungen den Konto-Vorschlag: Konto-Kontext, letzte bestätigte Auswahl desselben Typs im geöffneten Dialog oder einziges passendes offenes Konto. Bei mehreren passenden Konten ohne Kontext bleibt die Auswahl leer. Die Auswahl lässt sich vor „Weiter“ ändern; eine maskierte Kartennummer bleibt ein Hinweis, keine bewiesene Zuordnung.
   5. Ein Hinweistext sagt, was „Weiter“ tut. Gespeichert wird erst nach „Weiter“. Danach öffnet sich der passende Ablauf (Abrechnungsprüfung, Gehaltszettel-Vorschau, Beleg).
+  5a. Bei einer Wertpapierabrechnung zeigt der Eintrag „Gelesene Angaben“; „Weiter“ öffnet „Handel erfassen“ als Vorschlag, gespeichert wird erst dort (V-15). Die PDF selbst wird dabei nicht abgelegt. Nach dem Speichern zeigt der Eintrag „Handel aus der Abrechnung erfasst.“; schließt man das Formular ohne Speichern, bleibt der Eintrag zur Bestätigung stehen.
   6. Der Abschluss zeigt, was passiert ist („nichts gebucht“, „n Zeilen warten unter Prüfen“), mit „Fertig“ oder „Weiteres Dokument“. Nach einer Einzelprüfung bleibt die Liste mit den übrigen Dateien erhalten. Gehaltskonto und Belegzuordnung bleiben im bestehenden Einzelprüfablauf.
 - **Ergebnis:** Das Dokument ist gespeichert und im passenden Ablauf; gebucht wird nur, was eindeutig belegt ist, alles andere wartet unter Prüfen.
 - **Abnahmekriterien:**
@@ -114,7 +115,8 @@ Bildschirm Prüfen: `/konten/pruefen` (Konten › Prüfen). Zähler: „Umsätze
   3. Eine Datei über 15 MB oder ein falsches Passwort ergibt eine Meldung („Bitte eine Datei bis 15 MB auswählen.“, „Passwort falsch. Bitte erneut eingeben.“) und es wird nichts gespeichert.
   4. Dasselbe Dokument ein zweites Mal ergibt „Diese Datei war schon vorhanden. Es wurde nichts wiederholt.“
   5. Ein nicht lesbares Dokument lässt sich als Beleg ablegen; „Andere Datei“ setzt zurück.
-- **Status:** teilweise — Mehrfachauswahl, getrennte Ergebnisse und Konto-Vorschläge für Abrechnungen implementiert; Review und Live-Abnahme offen. Konto-Vorschläge für Gehaltszettel stehen weiterhin in der Einzelprüfung; dauerhafte Vorschläge aus früheren Uploads und Kartennummern-Zuordnung bleiben offen. — **Verweis:** #1039, #1053 (zentral #1060), #1103
+  6. Der Typ „Wertpapierabrechnung“ steht nur zur Wahl, wenn die App das Layout erkannt hat. Ist die Abrechnung schon als Handel erfasst, meldet der Eintrag das und „Weiter“ ist gesperrt (V-15).
+- **Status:** teilweise — Mehrfachauswahl, getrennte Ergebnisse und Konto-Vorschläge für Abrechnungen implementiert; Review und Live-Abnahme offen. Konto-Vorschläge für Gehaltszettel stehen weiterhin in der Einzelprüfung; dauerhafte Vorschläge aus früheren Uploads und Kartennummern-Zuordnung bleiben offen. — **Verweis:** #1039, #1053 (zentral #1060), #1103, #1099
 
 ### I-05 – Bonus- und Pensionskassenmitteilung archivieren
 - **Story:** Als Nutzer möchte ich Mitteilungen ohne Gehaltsbezug im Mitteilungsarchiv ablegen, damit sie weder als Gehaltszettel-Vorschlag offen bleiben noch verloren gehen.

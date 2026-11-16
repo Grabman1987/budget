@@ -142,6 +142,32 @@ function mount(path: string, global = false) {
   return { router, client };
 }
 
+it('keeps a derived reconciliation mismatch actionable without offering stored acknowledgement', async () => {
+  const item: InboxStored = {
+    type: 'stored',
+    id: 'reconciliation-mismatch:synthetic',
+    kind: 'reconciliation',
+    title: 'Kontoprüfung stimmt nicht mehr · Synthetic',
+    detail: 'Abgleich vom 19.10.2026: bestätigt 100,00 €, jetzt gebucht 99,99 €.',
+    refType: 'account-reconciliation',
+    refId: a,
+    urgent: true,
+    createdAt: '2026-10-19T08:00:00Z',
+  };
+  fetchFixture((url) =>
+    url.pathname === '/api/bank-sync'
+      ? json({ configured: false, connections: [], accounts: [] })
+      : json(page([item])),
+  );
+  mount('/konten/pruefen?teil=aufgaben', true);
+  await screen.findByText(item.title);
+  expect(screen.queryByRole('button', { name: 'Als erledigt markieren' })).toBeNull();
+  expect(screen.getByRole('link', { name: 'Kontostand prüfen' }).getAttribute('href')).toBe(
+    `/konten/${a}?pruefen=reconcile`,
+  );
+  expect(screen.getByText(item.detail!)).toBeTruthy();
+});
+
 it('requests each actual account ID despite equal names and ignores global source/period/task filters without changing the URL', async () => {
   const calls = fetchFixture((url) =>
     json(

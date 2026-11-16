@@ -376,6 +376,8 @@ export function SplitEditor({
                 />
               )}
               <CategoryCombobox
+                allowCreate
+                excludeIncome={draft.kind === 'expense'}
                 label={multiple ? `Kategorie ${n}` : 'Kategorie'}
                 categories={categories}
                 leading={leading}
@@ -460,6 +462,8 @@ export function SplitEditor({
             {line.type === 'transfer' &&
               accounts.some((a) => a.id === line.toAccountId && !a.onBudget) && (
                 <CategoryCombobox
+                  allowCreate
+                  excludeIncome={draft.kind === 'expense'}
                   label={`Kategorie für Umbuchung ${n}`}
                   capturePicker
                   categories={categories}
