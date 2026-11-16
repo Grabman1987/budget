@@ -94,6 +94,9 @@ export function BankCandidate({
   description,
   disabled,
   triggerLabel,
+  renderTrigger,
+  initialDraft,
+  openRequest = 0,
 }: {
   id: string;
   onConfirmed?: ((id: string) => void) | undefined;
@@ -101,44 +104,64 @@ export function BankCandidate({
   description?: string | undefined;
   disabled?: boolean | undefined;
   triggerLabel?: string | undefined;
+  renderTrigger?: ((open: () => void) => ReactNode) | undefined;
+  initialDraft?: { payeeId: string; categoryId: string; ruleId: string | null } | undefined;
+  openRequest?: number;
 }) {
   useAmountPrivacy();
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [visited, setVisited] = useState(false);
+  const [closedRequest, setClosedRequest] = useState(0);
+  // Row keyboard/double-click activation must not synthesize a pointer click: the dialog
+  // should return focus to the actual row opener, just like the regular button path.
+  const expanded = open || openRequest > closedRequest;
+  const close = () => {
+    setOpen(false);
+    setClosedRequest(openRequest);
+  };
   const prepare = useCallback<PreparedCallback>(
     (suggestion) => onPrepared?.(suggestion),
     [onPrepared],
   );
   return (
     <>
-      <Button
-        size="sm"
-        {...(triggerLabel ? { variant: 'ghost' as const } : {})}
-        disabled={disabled}
-        onClick={() => {
+      {renderTrigger ? (
+        renderTrigger(() => {
           setVisited(true);
           setOpen(true);
-        }}
-      >
-        {triggerLabel ?? 'Übernehmen'}
-      </Button>
-      {visited && (
+        })
+      ) : (
+        <Button
+          size="sm"
+          {...(triggerLabel ? { variant: 'ghost' as const } : {})}
+          disabled={disabled}
+          onClick={() => {
+            setVisited(true);
+            setOpen(true);
+          }}
+        >
+          {triggerLabel ?? 'Übernehmen'}
+        </Button>
+      )}
+      {(visited || openRequest > 0) && (
         <FormDialog
-          open={open}
-          onClose={() => setOpen(false)}
+          open={expanded}
+          onClose={close}
           title="Buchung übernehmen"
           beforeClose={() => !busy}
         >
           {/* Retain choices and prepared bulk suggestions when the popup is closed. Opening only reads. */}
           <BankCandidateForm
+            key={JSON.stringify(initialDraft)}
+            initialDraft={initialDraft}
             id={id}
             onConfirmed={onConfirmed}
             onPrepared={prepare}
             description={description}
-            onClose={() => setOpen(false)}
+            onClose={close}
             onBusy={setBusy}
-            open={open}
+            open={expanded}
           />
         </FormDialog>
       )}
@@ -157,6 +180,7 @@ function BankCandidateForm({
   onClose,
   onBusy,
   open = true,
+  initialDraft,
 }: {
   id: string;
   onConfirmed?: ((bookingId: string) => void) | undefined;
@@ -165,6 +189,7 @@ function BankCandidateForm({
   onClose: () => void;
   onBusy: (busy: boolean) => void;
   open?: boolean;
+  initialDraft?: { payeeId: string; categoryId: string; ruleId: string | null } | undefined;
 }) {
   useAmountPrivacy();
   const lookups = useQuery(lookupsQuery()),
@@ -188,9 +213,9 @@ function BankCandidateForm({
     return grouped.filter((g) => g.categories.length > 0);
   }, [lookups.data]);
   const review = useQuery(candidateAssignmentQuery(id));
-  const [categoryId, setCategory] = useState(''),
-    [payeeId, setPayee] = useState<string | undefined>();
-  const [selected, setSelected] = useState<string | null | undefined>(),
+  const [categoryId, setCategory] = useState(initialDraft?.categoryId ?? ''),
+    [payeeId, setPayee] = useState<string | undefined>(initialDraft?.payeeId);
+  const [selected, setSelected] = useState<string | null | undefined>(initialDraft?.ruleId),
     [busy, setBusy] = useState(false);
   const [mergeId, setMerge] = useState(''),
     [transferId, setTransfer] = useState('');

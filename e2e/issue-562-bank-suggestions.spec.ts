@@ -143,7 +143,7 @@ test('three prepared bank rows are explicitly reviewed with progress and individ
   );
   const categoryRow = page.getByTestId('inbox-row').filter({ hasText: 'Category 562' });
   if (await redesignLoaded(page)) {
-    await expect(categoryRow.getByTitle(/^Kategorie prüfen(?: · .*)?$/)).toHaveText('Unbekannt');
+    await expect(categoryRow.locator('.bank-v1-category')).toContainText('Kategorie fehlt');
   } else await expect(categoryRow).toContainText('Kategorie prüfen');
   expect(writes).toEqual([]);
   expect(
@@ -247,9 +247,9 @@ test('three prepared bank rows are explicitly reviewed with progress and individ
   await page.reload();
   const ambiguousRow = page.getByTestId('inbox-row').filter({ hasText: 'Ambiguous 562' });
   if (await redesignLoaded(page))
-    await expect(
-      ambiguousRow.getByTitle('Vorschlag prüfen · mehrere mögliche Buchungen', { exact: true }),
-    ).toHaveText('Unbekannt');
+    await expect(ambiguousRow.locator('.bank-v1-suggestion')).toContainText(
+      'Vorschlag prüfen · mehrere mögliche Buchungen',
+    );
   else await expect(ambiguousRow).toContainText('Vorschlag prüfen · mehrere mögliche Buchungen');
   const writesBeforeAmbiguous = writes.length;
   await (await bankPreviewControl(ambiguousRow)).click();

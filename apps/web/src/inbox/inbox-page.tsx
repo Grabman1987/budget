@@ -12,6 +12,7 @@ import {
   type PreparedBankSuggestion,
 } from './bank-candidate';
 import { BankBulkActions, isBankInboxRow } from './bank-bulk-actions';
+import { BankCandidateRow } from './bank-candidate-row';
 import { BankSyncRecap } from './bank-sync-recap';
 import { GuidedReview } from './guided-review';
 import { AssignmentLearnOffer, BookingAssignmentReview } from '../assignment/review';
@@ -1081,6 +1082,7 @@ function InboxBodyContent({
                   <th scope="col">Empfänger</th>
                   <th scope="col">Konto · Quelle</th>
                   <th scope="col">Vorschlag</th>
+                  <th scope="col">Kategorie</th>
                   <th scope="col" className="num">
                     Betrag
                   </th>
@@ -1114,7 +1116,7 @@ function InboxBodyContent({
                     key={kind ?? 'bank-source'}
                   >
                     <td className="rev-mark" />
-                    <th scope="rowgroup" colSpan={bankLayout ? 6 : 2}>
+                    <th scope="rowgroup" colSpan={bankLayout ? 7 : 2}>
                       {kind
                         ? LABELS[kind]
                         : accountScoped
@@ -1144,7 +1146,7 @@ function InboxBodyContent({
                       total > 1 || groupByTitle ? (
                         <tr className="inbox-cause" key={`cause-${item.id}`}>
                           <td />
-                          <td colSpan={bankLayout ? 6 : 2}>
+                          <td colSpan={bankLayout ? 7 : 2}>
                             <Button
                               variant="ghost"
                               aria-expanded={expanded}
@@ -1293,7 +1295,7 @@ function InboxRow({
         <td className="rev-mark">
           <InboxTypeIcon entry={item} />
         </td>
-        <td className="rev-what" colSpan={bankLayout ? 4 : undefined}>
+        <td className="rev-what" colSpan={bankLayout ? 5 : undefined}>
           <strong>{item.title}</strong>
           {detailView ? <SpritmonitorReview rowKey={item.refId} /> : <span>{item.detail}</span>}
         </td>
@@ -1342,7 +1344,7 @@ function InboxRow({
           <InboxTypeIcon entry={item} />
         </div>
       </td>
-      <td className="rev-what" colSpan={bankLayout ? 4 : undefined}>
+      <td className="rev-what" colSpan={bankLayout ? 5 : undefined}>
         <strong>
           {item.type === 'booking'
             ? `${item.payeeName ?? 'Buchung ohne Empfänger'} · ${nativeCurrency(item.amountCents, item.currency)}`
@@ -1523,6 +1525,18 @@ function BankInboxRow({
     item.type === 'booking' ? item : item.type === 'stored' ? item.bankCandidate : undefined;
   const suggestion = item.type === 'stored' ? item.bankCandidate?.suggestion : undefined;
   const rowPrepared = item.type === 'booking' ? prepared : candidate;
+  if (bankLayout && item.type === 'stored' && item.refId)
+    return (
+      <BankCandidateRow
+        item={item}
+        selected={selected}
+        onSelect={onSelect}
+        onPrepared={onPrepared}
+        onConfirmed={onConfirmed}
+        onResolve={onResolve}
+        busy={busy}
+      />
+    );
   const actions = (
     <div className="inbox-row-actions">
       {item.type === 'stored' && item.refId ? (
@@ -1613,6 +1627,7 @@ function BankInboxRow({
               'Unbekannt'}
           </span>
         </td>
+        <td className="bank-v1-category">Im Formular prüfen</td>
         <td className="bank-v1-amount num">
           {data ? nativeCurrency(data.amountCents, data.currency) : '—'}
         </td>

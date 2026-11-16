@@ -373,14 +373,17 @@ test('bank inbox suggestion requires an explicit posting decision', async ({ pag
         bottom: node.getBoundingClientRect().bottom,
       })),
     );
-    expect(cells).toHaveLength((await redesignLoaded(page)) ? 7 : 3);
+    expect(cells).toHaveLength((await redesignLoaded(page)) ? 8 : 3);
     expect(cells.every((cell) => cell.display === 'table-cell')).toBe(true);
     expect(new Set(cells.map((cell) => cell.top)).size).toBe(1);
     expect(new Set(cells.map((cell) => cell.bottom)).size).toBe(1);
   }
   if (await redesignLoaded(page)) {
     await expect(row.getByRole('button', { name: 'Prüfen', exact: true })).toBeVisible();
-    await expect(row.locator('.bank-v1-more > .konten-menu')).toHaveAttribute('open', '');
+    await expect(row.getByRole('button', { name: 'Übernehmen', exact: true })).toBeDisabled();
+    await expect(row.getByRole('button', { name: 'Nicht übernehmen', exact: true })).toBeVisible();
+    if ((page.viewportSize()?.width ?? 0) >= 768)
+      await expect(row.locator('.bank-v1-more > .konten-menu')).toHaveCount(0);
   } else {
     const actionCenters = await row.locator('.inbox-row-actions > .btn').evaluateAll((buttons) =>
       buttons.map((button) => {

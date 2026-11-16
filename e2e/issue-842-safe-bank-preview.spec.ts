@@ -209,7 +209,7 @@ test('K5: safe source-backed rule preview is read-only until confirmation and us
   await expect(shortcut).toHaveText('Alle sicheren bestätigen (1)');
   for (const width of [390, 768, 871, 1024, 1280]) {
     await page.setViewportSize({ width, height: 900 });
-    const suggestion = safe.locator('.bank-suggestion-pill');
+    const suggestion = safe.locator('.bank-v1-suggestion .bank-suggestion-pill');
     await expect(suggestion).toContainText(longRule);
     const bounds = await suggestion.evaluate((element) => {
       const pill = element.getBoundingClientRect();
