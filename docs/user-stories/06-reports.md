@@ -94,8 +94,8 @@ Historical references follow `docs/FEATURES.md` (positions 1.1–5.6). The hub r
 - **Ausgangslage:** Einnahmen sind gebucht, wiederkehrende Zahlungen unter Plan › Zahlungen gepflegt.
 - **Ablauf:**
   1. Reports › Einnahmen öffnen, „Monat“ wählen.
-  2. „Einnahmen nach Art und Monat“ (12 Monate gestapelt) und die Tabelle mit Anteil ansehen.
-  3. „Erwartet gegen eingegangen“: Spalten Zahlung, Erwartet, Eingegangen, Status prüfen.
+  2. In the redesign, inspect open expectations first, above the income chart. Expand received and unplanned income when needed; the disclosure remembers its state.
+  3. „Einnahmen nach Art und Monat“ (12 Monate gestapelt) und die Tabelle mit Anteil ansehen.
   4. Kapitalerträge („Kapitalerträge, kein Einkommen“) und „Sonstige Einnahmen · Ausgleich Kontakt“ getrennt ablesen.
 - **Ergebnis:** Ich erkenne fehlende erwartete Einnahmen und die Verteilung nach Art.
 - **Abnahmekriterien:**
@@ -103,6 +103,8 @@ Historical references follow `docs/FEATURES.md` (positions 1.1–5.6). The hub r
   - Eine nicht eingegangene erwartete Zahlung zeigt den Status offen.
   - Randfall: Keine Einnahmen im Zeitraum: „Keine Einnahmen im Zeitraum.“; ohne erwartete Einnahmen: „Für diesen Monat sind keine Einnahmen erwartet.“
   - Randfall: Noch nicht zugeordnete Vorkommen zeigen „nicht zugeordnet“.
+- **#1159 first slice criteria:** Pending, missing, overdue, unlinked and deviating expectations remain visible at the top. Received and unplanned entries remain available in a collapsed disclosure. Empty, fully received and unavailable project expectations are distinct. Existing domain amounts, privacy masking and the OFF reader are preserved.
+- **#1159 status:** First slice ready for review, not live-accepted. Report consolidation, previous-year comparison and indented project navigation remain open; RP-05b and RP-15b retain their current readers until that continuation.
 - **Acknowledgment continuation (#1109, P-09a):** In Plan's income detail, “Bereits erhalten” removes an unlinked occurrence from open expectations without displaying a shortfall or reducing the booked monthly result. The retained amount is a “Planwert”; no extra received income is invented. Undo restores the open expectation. Expected totals remain received household income plus genuinely open remainders.
 - **Continuation status:** Acknowledgment wording and presentation ready for review after local verification; optional receipt linking, combined/payslip settlement and contact compensation expectations remain open. The existing report body is unchanged and this continuation is not live-accepted.
 - **Status:** live · **Verweis:** 1.3
