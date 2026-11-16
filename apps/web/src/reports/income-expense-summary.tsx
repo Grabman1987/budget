@@ -46,7 +46,7 @@ export function incomeOverviewModel(data: IncomeExpenseReportData, months: strin
             { label: 'Haushaltseinnahmen', value: cents(income) },
             { op: '-', label: 'Ausgaben inkl. Zukunft', value: cents(expenses) },
           ],
-          result: { label: 'Netto nach Zukunft · Buchungsdatum', value: net, unit: 'money' },
+          result: { label: 'Cashflow · Buchungsdatum', value: net, unit: 'money' },
         }
       : undefined;
   return { selected, income, expenses, net, calculation };
@@ -114,14 +114,14 @@ export function IncomeExpenseSummary({
             width={width}
             height={height}
             testId="income-expense-chart"
-            label="Haushaltseinnahmen und Ausgaben einschließlich Zukunft, Netto nach Buchungsdatum"
+            label="Haushaltseinnahmen und Ausgaben einschließlich Zukunft, Cashflow nach Buchungsdatum"
             points={chartPoints(
               m.selected.map((r) => r.month),
               x,
               [
                 { name: 'Haushaltseinnahmen', values: income },
                 { name: 'Ausgaben inkl. Zukunft', values: expenses, color: 'var(--ink-3)' },
-                { name: 'Netto nach Zukunft', values: net, color: 'var(--ink)' },
+                { name: 'Cashflow', values: net, color: 'var(--ink)' },
               ],
             )}
           >
@@ -157,7 +157,7 @@ export function IncomeExpenseSummary({
           </ChartSvg>
         )}
       </div>
-      <LineLegend items={[{ kind: 'actual', label: 'Netto nach Zukunft' }]} />
+      <LineLegend items={[{ kind: 'actual', label: 'Cashflow' }]} />
       <p className="r8-scope">
         Säulen: Haushaltseinnahmen und Ausgaben inkl. Zukunft. Tatsächliches Buchungsdatum;
         Kapitalerträge und Erstattungen ohne Kategorie sind keine Haushaltseinnahmen.
@@ -165,7 +165,7 @@ export function IncomeExpenseSummary({
       <div
         className="r8-month-table"
         role="region"
-        aria-label="Monatliche Einnahmen, Ausgaben und Netto, horizontal verschiebbar"
+        aria-label="Monatliche Einnahmen, Ausgaben und Cashflow, horizontal verschiebbar"
         // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- Keyboard users can scroll the exact-value table.
         tabIndex={0}
       >
@@ -178,7 +178,7 @@ export function IncomeExpenseSummary({
               <th>Monat</th>
               <th>Einnahmen</th>
               <th>Ausgaben inkl. Zukunft</th>
-              <th>Netto</th>
+              <th>Cashflow</th>
             </tr>
           </thead>
           <tbody>

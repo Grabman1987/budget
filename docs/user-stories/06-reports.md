@@ -153,13 +153,14 @@ Historical references follow `docs/FEATURES.md` (positions 1.1–5.6). The hub r
 - **Ausgangslage:** Mindestens ein geschlossener Monat mit Buchungen.
 - **Ablauf:**
   1. Reports › Einnahmen und Cashflow öffnen, „Zeitraum“ wählen.
-  2. Monatstabelle und Diagramm lesen: Einnahmen oben, Ausgaben unten, Netto als Linie; Gruppen sind aufklappbar.
+  2. Monatstabelle und Diagramm lesen: Einnahmen oben, Ausgaben unten, Cashflow als Linie; Gruppen sind aufklappbar.
+  2a. Abschnitt „Cashflow“ lesen: Aussagezeile (Cashflow des Zeitraums, Durchschnitt je Monat, Veränderung gegenüber Vorjahreszeitraum bzw. Vorperiode, wenn Daten vorliegen), Säulen je Monat um die Nulllinie (positiv gefüllt, negativ gestrichelt) mit der kumulierten Linie sowie Tabelle Monat · Einnahmen · Ausgaben · Cashflow · kumuliert.
   3. Eine Zelle anklicken: „Buchungen“ listet die dahinterliegenden Buchungen.
   4. „CSV“ exportiert genau die angezeigten Zeilen und Spalten.
 - **Ergebnis:** Ich sehe das Monatsergebnis und kann jede Zahl bis zur Buchung verfolgen.
 - **Abnahmekriterien:**
   - Die Summe der Buchungen einer Zelle entspricht dem Zellwert.
-  - Netto je Monat stimmt mit dem Cashflow-Verlauf überein.
+  - Cashflow je Monat stimmt mit dem Cashflow-Verlauf überein; „kumuliert“ ist die laufende Summe des monatlichen Cashflows (keine zweite Formel). Die alten Adressen /reports/cashflow führen hierher.
   - Die CSV enthält dieselben Zeilen und Spalten wie die Tabelle.
   - Randfall: Eine Zelle außerhalb des Zeitraums meldet „Diese Zelle ist im Reportzeitraum nicht verfügbar.“; eine leere Zelle „Keine Buchungen in dieser Zelle.“
 - **Status:** live · **Verweis:** 1.10
