@@ -1,4 +1,5 @@
 import { checkedReportPeriod, reportPeriodSchema } from './report-period';
+import { salaryDevelopmentRoutes } from './salary-development';
 import {
   createEntity,
   deletePayslip,
@@ -23,6 +24,7 @@ import { ACTOR, ApiError, defined, readBody, readQuery } from './http';
 
 export function payrollRoutes(db: Db, today: () => string) {
   const app = new Hono();
+  app.route('/development', salaryDevelopmentRoutes(db, today));
   const audit = () => ({ actor: ACTOR, groupId: randomUUID() });
   app.get('/', (c) => {
     const { month } = readQuery(
