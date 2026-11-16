@@ -1,5 +1,6 @@
 import { useId } from 'react';
-import { BankCostsReportPage } from '../reports/bank-costs-report';
+import { BankCostsReportPage, bankCostsQuery } from '../reports/bank-costs-report';
+import { CombinedCostsView } from '../reports/combined-costs-view';
 import { useNavigate, useSearch } from '@tanstack/react-router';
 import { Select } from '@budget/ui';
 import { REDESIGN_ENABLED } from '../shell/redesign-flag';
@@ -47,10 +48,11 @@ export function PortfolioCostsReport({ report, meta }: { report: ReportEntry; me
   const navigate = useNavigate();
   const view =
     REDESIGN_ENABLED &&
-    ['ertraege', 'kostenverlauf', 'bankkosten'].includes(search.darstellung ?? '')
+    ['ertraege', 'kostenverlauf', 'bankkosten', 'gesamt'].includes(search.darstellung ?? '')
       ? search.darstellung
       : 'gebuehren';
   const query = useQuery({ ...costsQuery, enabled: view !== 'bankkosten' });
+  const bankQuery = useQuery({ ...bankCostsQuery, enabled: view === 'gesamt' });
   const data = query.data?.costs;
   const control = REDESIGN_ENABLED ? (
     <label className="wealth-report-view-select" htmlFor={viewId}>
@@ -69,6 +71,7 @@ export function PortfolioCostsReport({ report, meta }: { report: ReportEntry; me
           })
         }
       >
+        <option value="gesamt">Kosten gesamt</option>
         <option value="bankkosten">Bank- und Zinskosten</option>
         <option value="gebuehren">Gebühren und Steuern</option>
         <option value="ertraege">Erträge</option>
@@ -82,7 +85,7 @@ export function PortfolioCostsReport({ report, meta }: { report: ReportEntry; me
     <PageFrame
       sourceDate={data?.to}
       calculation={
-        data && !query.isFetching && !query.isError
+        view !== 'gesamt' && data && !query.isFetching && !query.isError
           ? {
               label:
                 view === 'kostenverlauf'
@@ -130,7 +133,7 @@ export function PortfolioCostsReport({ report, meta }: { report: ReportEntry; me
       }
       reportControls={control}
       verdict={
-        data && !query.isFetching && !query.isError
+        view !== 'gesamt' && data && !query.isFetching && !query.isError
           ? {
               reportId: report.id,
               period: `${data.from}..${data.to}`,
@@ -167,7 +170,19 @@ export function PortfolioCostsReport({ report, meta }: { report: ReportEntry; me
         )}
         {data &&
           !query.isError &&
-          (view === 'kostenverlauf' ? (
+          (view === 'gesamt' ? (
+            bankQuery.data ? (
+              <CombinedCostsView bank={bankQuery.data} portfolio={data} />
+            ) : bankQuery.isError ? (
+              <ReportUnavailable
+                what="Die Bankkosten"
+                error={bankQuery.error}
+                onRetry={() => void bankQuery.refetch()}
+              />
+            ) : (
+              <LoadingNote what="Bank- und Zinskosten" />
+            )
+          ) : view === 'kostenverlauf' ? (
             <PortfolioRecordedCostHistory from={data.from} to={data.to} />
           ) : view === 'ertraege' ? (
             <PortfolioIncomeDepth from={data.from} to={data.to} />

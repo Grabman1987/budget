@@ -68,6 +68,24 @@ describe('2.1 Ausgabenanalyse on a small ledger', () => {
     );
   }
 
+  it('compares with the same days of the previous year when asked', async () => {
+    spend('2026-08-10', 'essen', 20_000);
+    spend('2025-08-10', 'essen', 12_000);
+    const { status, body } = await get(
+      app,
+      '/reports/spending/analysis?period=1M&basis=previous-year',
+    );
+    expect(status).toBe(200);
+    expect(body.answerComparison).toMatchObject({
+      previousFrom: '2025-08-01',
+      previousTo: '2025-08-31',
+      previousCents: 12_000,
+    });
+    expect(body.consumptionCents).toBe(20_000);
+    const { status: bad } = await get(app, '/reports/spending/analysis?period=1M&basis=nope');
+    expect(bad).toBe(400);
+  });
+
   it('sums Bedarf and Wunsch as consumption, keeps Zukunft apart and nets refunds', async () => {
     spend('2026-08-03', 'miete', 60_000);
     spend('2026-08-10', 'essen', 20_000);

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { costsOverview } from './costs';
+import { combinedCosts, costsOverview } from './costs';
 
 const months = (count: number, from = '2023-10') => {
   const out: string[] = [];
@@ -88,5 +88,24 @@ describe('costsOverview', () => {
         incomeCents: 0,
       }),
     ).toThrow(RangeError);
+  });
+});
+
+describe('combinedCosts', () => {
+  it('adds bank costs, TER and taxes once and relates them to the portfolio value', () => {
+    expect(
+      combinedCosts({ bankCents: 12_000, terCents: 3_000, taxCents: 5_000, valueCents: 1_000_000 }),
+    ).toEqual({
+      bankCents: 12_000,
+      terCents: 3_000,
+      taxCents: 5_000,
+      totalCents: 20_000,
+      ratioBp: 200,
+    });
+  });
+  it('has no ratio without a portfolio value', () => {
+    expect(
+      combinedCosts({ bankCents: 1, terCents: 0, taxCents: 0, valueCents: 0 }).ratioBp,
+    ).toBeNull();
   });
 });

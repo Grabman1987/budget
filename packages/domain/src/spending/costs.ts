@@ -151,3 +151,38 @@ export function isBookedCreditCost(input: {
     !['debt', 'invest', 'card_payment', 'advance', 'income'].includes(input.categoryKind)
   );
 }
+
+export interface CombinedCosts {
+  /** Bank and interest costs of the last twelve closed months, incl. trading fees (counted once). */
+  bankCents: number;
+  /** Fund costs (TER share); never booked, so never part of the bank costs. */
+  terCents: number;
+  /** Everything the broker withheld as tax. */
+  taxCents: number;
+  totalCents: number;
+  /** Total over portfolio value in basis points; `null` without a portfolio value. */
+  ratioBp: number | null;
+}
+
+/**
+ * One annual cost figure over the existing readers (2.6 and 4.5). The portfolio reader's own
+ * trading fees are left out on purpose: the bank reader already counts them as "Depot- /
+ * Transaktionsgebühren", so adding both would count them twice. The two source windows
+ * (closed months versus rolling days) stay different and are named by the caller.
+ */
+export function combinedCosts(input: {
+  bankCents: number;
+  terCents: number;
+  taxCents: number;
+  valueCents: number;
+}): CombinedCosts {
+  const totalCents = input.bankCents + input.terCents + input.taxCents;
+  if (!Number.isSafeInteger(totalCents)) throw new RangeError('Costs exceed safe integer cents');
+  return {
+    bankCents: input.bankCents,
+    terCents: input.terCents,
+    taxCents: input.taxCents,
+    totalCents,
+    ratioBp: input.valueCents > 0 ? Math.round((totalCents * 10_000) / input.valueCents) : null,
+  };
+}

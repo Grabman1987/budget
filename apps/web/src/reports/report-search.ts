@@ -37,6 +37,7 @@ export const validateReportSearch = (search: Record<string, unknown>) => ({
   ...(REDESIGN_ENABLED
     ? {
         kontakteansicht: search['kontakteansicht'] === 'offen' ? 'offen' : undefined,
+        vergleich: search['vergleich'] === 'vorjahr' ? 'vorjahr' : undefined,
         verlauf: search['verlauf'] === 1 || search['verlauf'] === '1' ? 1 : undefined,
         inflationsansicht:
           search['inflationsansicht'] === 'basket' || search['inflationsansicht'] === 'explorer'

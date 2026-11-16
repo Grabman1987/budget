@@ -299,8 +299,8 @@ Historical references follow `docs/FEATURES.md` (positions 1.1–5.6). The hub r
   - Die Summe der Gruppen entspricht der „Maßkette Konsum“ und der Kategorieübersicht im selben Zeitraum.
   - Erstattungen sind gegen ihre Kategorie gerechnet; Zukunft steht getrennt und ist kein Konsum.
   - Randfall: Für „Alles“ gibt es keinen gleich langen Vorzeitraum („Kein gleich langer Vorzeitraum verfügbar.“); ohne Monatsdaten „Noch keine Monatsdaten“.
-- **Continuation criteria (#1158):** In ON, `darstellung=kategorien` reopens the category reader after reload; selected categories and period survive switching among all three views. Existing group/payee figures and the OFF view set remain unchanged.
-- **Status:** existing body live; first consolidation slice implemented for review (#1158). Remaining: unified title/menu hierarchy, group-level trend/change ordering, comparison modes (previous period/year/custom) with URL state and calculation chain, and final legacy-address consolidation. **Verweis:** 2.1
+- **Continuation criteria (#1158):** In ON, `vergleich=vorjahr` compares with the same days one year earlier and survives reload and period changes; the default is the equally long previous period. In ON, `darstellung=kategorien` reopens the category reader after reload; selected categories and period survive switching among all three views. Existing group/payee figures and the OFF view set remain unchanged.
+- **Status:** existing body live; first consolidation slice implemented for review (#1158). Comparison mode Vorperiode/Vorjahr is delivered (address `vergleich=vorjahr`, same figures, only the comparison window differs; Empfänger is a view of the same report). Remaining: custom comparison window and final legacy-address consolidation. **Verweis:** 2.1
 
 ### RP-12b – Empfänger-Analyse
 - **Story:** Als Nutzer möchte ich sehen, bei wem ich das meiste Geld lasse und wie oft ich dort zahle, damit ich Gewohnheiten und Verträge mit Händlern prüfe.
@@ -368,7 +368,7 @@ Historical references follow `docs/FEATURES.md` (positions 1.1–5.6). The hub r
 - **Status:** implementation in review (#1160 navigation slice); owner acceptance pending · **Verweis:** 2.6
 
 - **Navigation acceptance (#1160):** Bank costs share the Portfolio report and selector. `/reports/kosten` and former contract bank-cost bookmarks retain the bank reader; source amounts, estimates, privacy, reload and Back remain intact.
-- **Remaining (#1160):** One deduplicated annual total across bank costs, broker taxes and TER, and a cost ratio against portfolio value. Current bank and portfolio readers retain their distinct source-defined periods; their subtotals must not be added together.
+- **Total view (#1160):** `darstellung=gesamt` ("Kosten gesamt") shows one annual figure: bank and interest costs (12 closed months, trading fees counted once there) plus TER share plus taxes withheld by the broker (rolling 12 months), with the cost ratio against the portfolio value. The portfolio reader's own trading fees are not added (they are the bank reader's "Depot- / Transaktionsgebühren"). Both source windows are named in the table; TER and modelled interest stay marked as estimates. Remaining: calendar-year split of the total, the hub rename check and custody/income-fee bookings that exist only in the portfolio reader.
 
 ### RP-15a – Liquiditätsprognose
 - **Story:** Als Nutzer möchte ich sehen, ob das Geld auf den Budget-Konten bis zu 12 Monate reicht, auch mit geplanten Ereignissen, damit ich rechtzeitig umschichte oder Zahlungen verschiebe.
@@ -539,7 +539,7 @@ Historical references follow `docs/FEATURES.md` (positions 1.1–5.6). The hub r
 - **Status:** implementation in review (#1160 navigation slice); owner acceptance pending · **Verweis:** 4.5
 
 - **Navigation acceptance (#1160):** Bank costs share the Portfolio report and selector. `/reports/kosten` and former contract bank-cost bookmarks retain the bank reader; source amounts, estimates, privacy, reload and Back remain intact.
-- **Remaining (#1160):** One deduplicated annual total across bank costs, broker taxes and TER, and a cost ratio against portfolio value. Current bank and portfolio readers retain their distinct source-defined periods; their subtotals must not be added together.
+- **Total view (#1160):** `darstellung=gesamt` ("Kosten gesamt") shows one annual figure: bank and interest costs (12 closed months, trading fees counted once there) plus TER share plus taxes withheld by the broker (rolling 12 months), with the cost ratio against the portfolio value. The portfolio reader's own trading fees are not added (they are the bank reader's "Depot- / Transaktionsgebühren"). Both source windows are named in the table; TER and modelled interest stay marked as estimates. Remaining: calendar-year split of the total, the hub rename check and custody/income-fee bookings that exist only in the portfolio reader.
 
 ### RP-20 – Jahresreport
 - **Extension:** Owner decision #1118 extends this report; delivery scope and remaining acceptance are tracked in RP-20a below.
@@ -607,7 +607,7 @@ Historical references follow `docs/FEATURES.md` (positions 1.1–5.6). The hub r
   - Keine Pluspräfixe in den Zeilen. Forderungen und Guthaben haben ausgeschriebene Richtungen; der Nettosaldo stammt unverändert aus derselben Kontaktabrechnung wie Konten › Kontakte. Die Tabellensumme ist die Bruttoforderung; vorhandenes Guthaben bleibt separat sichtbar.
   - Datenschutz blendet Beträge auch in Summen, Kopiertext und zugänglichen Beschriftungen aus; Desktop 1440 und Telefon 390 in Hell/Dunkel bleiben bedienbar.
   - Plan-Prüfung (#1149, ohne Verhaltensänderung): Neue Kategorie-Einkäufe mit Kontaktanteilen belasten die ursprüngliche Einkaufskategorie brutto bis zur Rückzahlung. Zugeordnete Rückzahlungen fließen in diese Kategorie zurück. Der Anteil wird nicht zusätzlich als eigene Auslagen-Kategorie belastet und nicht zusätzlich im Nettovermögen gezählt. Historische/alleinstehende Auslagen ohne belegte Ursprungskategorie behalten ihre gespeicherte Kategorie. Grundlage: `docs/shared-expenses.md`, `SPEC.md` (#963/#978); keine Neuberechnung oder Datenänderung in diesem Teil.
-- **Status:** teilweise · **Verweis:** 5.4, #1149. Erster Teil: offene Tabelle, gesamter Saldoverlauf und geschlossene, paginierte Vergangenheit für den gewählten Kontakt. Offen: alle Kontakte untereinander statt der bisherigen Auswahl, ausgeglichene Kontakte ausschließlich in der gemeinsamen Vergangenheit sowie vollständige Wiederverwendung des Buchungsregister-Bauteils. Private Abnahme ausständig.
+- **Status:** teilweise · **Verweis:** 5.4, #1149. Erster Teil: offene Tabelle, gesamter Saldoverlauf und geschlossene, paginierte Vergangenheit für den gewählten Kontakt. Zweiter Teil (Redesign): alle Kontakte mit offenem Betrag stehen untereinander mit je einem Kontoblatt (jede Liste lädt ihr eigenes Blatt; ein Link der linken Liste markiert und fokussiert das gewählte Blatt); ausgeglichene Kontakte erscheinen nur nach „Auch ausgeglichene Kontakte“ und eingeklappt unter „Ausgeglichene Kontakte (n)“, ein gewählter ausgeglichener Kontakt klappt sie auf. Offen: vollständige Wiederverwendung des Buchungsregister-Bauteils. Private Abnahme ausständig.
 
 ### RP-22 – Explorer
 - **Story:** Als Nutzer möchte ich eigene Fragen als Pivot über Buchungen stellen, damit ich Auswertungen bekomme, die kein fester Bericht bietet.

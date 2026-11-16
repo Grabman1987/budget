@@ -136,6 +136,9 @@ export interface SpendingReport extends SpendingAnalysis {
   };
 }
 
+/** Which window the answer comparison uses: the equally long period before, or the same days a year earlier. */
+export type SpendingComparisonBasis = 'previous-period' | 'previous-year';
+
 const firstDay = (month: string) => `${month}-01`;
 const lastDay = lastDayOfMonth;
 
@@ -144,10 +147,32 @@ function answerComparison(
   from: string | null,
   to: string | null,
   categories: SpendCategory[],
+  basis: SpendingComparisonBasis = 'previous-period',
 ): SpendingReport['answerComparison'] {
   const days = from && to && to >= from ? daysBetween(from, to) + 1 : 0;
-  const before = from && days ? addDays(from, -1) : null;
-  const start = before ? addDays(before, 1 - days) : null;
+  // Previous year: the same calendar days one year earlier (29 February falls back to 28 February).
+  const yearEarlier = (day: string) => {
+    const shifted = `${Number(day.slice(0, 4)) - 1}${day.slice(4)}`;
+    return Number.isNaN(Date.parse(shifted)) || addDays(shifted, 0) !== shifted
+      ? `${Number(day.slice(0, 4)) - 1}-02-28`
+      : shifted;
+  };
+  const before =
+    basis === 'previous-year'
+      ? to && days
+        ? yearEarlier(to)
+        : null
+      : from && days
+        ? addDays(from, -1)
+        : null;
+  const start =
+    basis === 'previous-year'
+      ? from && days
+        ? yearEarlier(from)
+        : null
+      : before
+        ? addDays(before, 1 - days)
+        : null;
   const first = db
     .select({ day: account.openingDate, onBudget: account.onBudget })
     .from(account)
@@ -196,6 +221,7 @@ export function spendingReport(
   db: Executor,
   today: string,
   period: SpendingPeriod,
+  basis: SpendingComparisonBasis = 'previous-period',
 ): SpendingReport {
   const available = reportMonths(
     db,
@@ -220,7 +246,7 @@ export function spendingReport(
     period,
     from,
     to,
-    answerComparison: answerComparison(db, from, to, categories),
+    answerComparison: answerComparison(db, from, to, categories, basis),
     previousFrom: firstOf(previousMonths) ? firstDay(firstOf(previousMonths) as string) : null,
     previousTo: lastOf(previousMonths) ? lastDay(lastOf(previousMonths) as string) : null,
     availableFrom: firstOf(available) ? firstDay(firstOf(available) as string) : null,

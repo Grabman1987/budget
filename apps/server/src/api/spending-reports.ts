@@ -21,6 +21,7 @@ import { ApiError, readQuery } from './http';
 
 const periodQuery = z.object({
   period: reportPeriodSchema.default('1J'),
+  basis: z.enum(['previous-period', 'previous-year']).default('previous-period'),
 });
 
 const monthQuery = z.object({
@@ -50,10 +51,12 @@ export function spendingReportRoutes(db: Db, today: () => string): Hono {
 
   // 2.1 Ausgabenanalyse
   app.get('/analysis', (c) => {
-    const { period: rawPeriod } = readQuery(c, periodQuery);
+    const { period: rawPeriod, basis } = readQuery(c, periodQuery);
     const period = checkedReportPeriod(rawPeriod, today());
     return c.json(
-      guarded(() => spendingReport(db, today(), period as (typeof SPENDING_PERIODS)[number])),
+      guarded(() =>
+        spendingReport(db, today(), period as (typeof SPENDING_PERIODS)[number], basis),
+      ),
     );
   });
 
