@@ -9,7 +9,7 @@ import {
   SPEND_CLASS_LABEL,
   type CategoryOverviewRow,
 } from '@budget/domain';
-import { useId, useMemo } from 'react';
+import { useId, useMemo, type ReactNode } from 'react';
 import { useNavigate, useSearch } from '@tanstack/react-router';
 import { ZEITRAUM_VALUES, useZeitraum } from '../wealth/zeitraum';
 import { eur } from '../ledger/format';
@@ -31,16 +31,52 @@ const KIND_LABEL: Record<string, string> = {
 };
 
 /** 1.6 Kategorieübersicht: every category with its course, against the period before. */
-export function CategoryReport({ report, meta }: { report: ReportEntry; meta: PageMeta }) {
+export function CategoryReport({
+  report,
+  meta,
+  viewControl,
+  defaultPeriod,
+  sortByChange = false,
+}: {
+  report: ReportEntry;
+  meta: PageMeta;
+  viewControl?: ReactNode;
+  defaultPeriod?: (typeof ZEITRAUM_VALUES)[number];
+  sortByChange?: boolean;
+}) {
   useAmountPrivacy();
-  const [period, setPeriod] = useZeitraum();
+  const [period, setPeriod] = useZeitraum(defaultPeriod);
   const query = useReportTables();
+  const overview = useMemo(
+    () =>
+      query.data && !query.isFetching && !query.isError
+        ? categoryPeriodOverview(query.data, period)
+        : undefined,
+    [query.data, query.isFetching, query.isError, period],
+  );
   return (
     <TableReportFrame
       report={report}
+      reportControls={viewControl}
       meta={meta}
       through="full"
       verdictPeriod={period}
+      verdictOverride={
+        sortByChange && overview
+          ? {
+              reportId: report.id,
+              period: overview.window.length
+                ? `${overview.window[0]}..${overview.window.at(-1)}`
+                : 'kein Zeitraum',
+              unavailable: overview.window.length === 0,
+              metric: {
+                label: 'Konsum · Kategorien im Zeitraum',
+                value: overview.consumptionCents,
+                unit: 'money',
+              },
+            }
+          : undefined
+      }
       currentAllowed={period.includes('..')}
       query={query}
       className="category-report"
@@ -59,9 +95,19 @@ export function CategoryReport({ report, meta }: { report: ReportEntry; meta: Pa
         },
       ]}
     >
-      {(data) => <CategoryBody data={data} period={period} />}
+      {(data) => <CategoryBody data={data} period={period} sortByChange={sortByChange} />}
     </TableReportFrame>
   );
+}
+
+/** Use the existing monthly reader for both the category table and its period result. */
+export function categoryPeriodOverview(
+  data: ReportTables,
+  period: (typeof ZEITRAUM_VALUES)[number],
+) {
+  const end = period.includes('..') ? data.currentMonth : data.lastFullMonth;
+  const window = data.firstMonth && end ? reportPeriodMonths(period, end, data.firstMonth) : [];
+  return categoryOverview(data.months, data, window, end);
 }
 
 function Sparkline({
@@ -95,12 +141,14 @@ function Sparkline({
   );
 }
 
-function CategoryBody({
+export function CategoryBody({
   data,
   period,
+  sortByChange = false,
 }: {
   data: ReportTables;
   period: (typeof ZEITRAUM_VALUES)[number];
+  sortByChange?: boolean;
 }) {
   useAmountPrivacy();
   const search = useSearch({ strict: false }) as { kategorien?: string[]; vorjahr?: boolean };
@@ -111,28 +159,15 @@ function CategoryBody({
       search: ((prev: Record<string, unknown>) => ({ ...prev, ...patch })) as never,
       replace: true,
     });
-  const window = useMemo(
-    () =>
-      data.firstMonth && (data.lastFullMonth || period.includes('..'))
-        ? reportPeriodMonths(
-            period,
-            period.includes('..') ? data.currentMonth : data.lastFullMonth!,
-            data.firstMonth,
-          )
-        : [],
-    [data.firstMonth, data.lastFullMonth, data.currentMonth, period],
-  );
-  const overview = useMemo(
-    () =>
-      categoryOverview(
-        data.months,
-        data,
-        window,
-        period.includes('..') ? data.currentMonth : data.lastFullMonth,
-      ),
-    [data, window, period],
-  );
-  const rows = overview.rows;
+  const overview = useMemo(() => categoryPeriodOverview(data, period), [data, period]);
+  const window = overview.window;
+  const rows = sortByChange
+    ? [...overview.rows].sort((a, b) => {
+        const aChange = a.previousCents === null ? null : Math.abs(a.sumCents - a.previousCents);
+        const bChange = b.previousCents === null ? null : Math.abs(b.sumCents - b.previousCents);
+        return (bChange ?? -1) - (aChange ?? -1) || a.category.id.localeCompare(b.category.id);
+      })
+    : overview.rows;
   const selectedIds = search.kategorien ?? (rows[0] ? [rows[0].category.id] : []);
   const selected = data.categories.filter((c) => selectedIds.includes(c.id));
   const prefix = useId();
@@ -144,10 +179,18 @@ function CategoryBody({
           {rows.length} Kategorien · {periodName(period, window)}
         </h2>
         <span className="tbd-state">
-          <span className="ink">Konsum {eur(overview.consumptionCents, { cents: false })}</span>
+          <span className="ink">
+            Konsum {eur(overview.consumptionCents, { cents: sortByChange })}
+          </span>
         </span>
       </div>
       <div className="category-trend-detail">
+        {sortByChange && (
+          <p className="vnote">
+            Monatswerte · größte Änderung zur Vorperiode zuerst; ohne Vergleich zuletzt. Zukunft
+            bleibt getrennt vom Konsum.
+          </p>
+        )}
         <h3>Kategorietrend</h3>
         <details className="category-trend-picker">
           <summary>Kategorien wählen · {selected.length} ausgewählt</summary>

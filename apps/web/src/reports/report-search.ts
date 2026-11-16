@@ -76,6 +76,7 @@ export const validateReportSearch = (search: Record<string, unknown>) => ({
     ...(REDESIGN_ENABLED
       ? [
           'eigene',
+          'kategorien',
           'finanzcheck',
           'druckblatt',
           'schulden',
@@ -105,6 +106,7 @@ export const validateReportSearch = (search: Record<string, unknown>) => ({
         | 'vertraege'
         | 'bankkosten'
         | 'eigene'
+        | 'kategorien'
         | 'finanzcheck'
         | 'druckblatt'
         | 'schulden'

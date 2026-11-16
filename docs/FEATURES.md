@@ -194,6 +194,15 @@ related working pages and prototype charts do not make these reports finished.
 Each needs connected data, period controls, the specified chart, booking drill-down,
 consistent totals, desktop/mobile checks and printing where required.
 
+Issue #1158, first consolidation slice (review pending): the redesign spending report
+adds `darstellung=kategorien`, reusing the existing monthly category table and trend.
+It defaults to the largest absolute category change, with stable ID ordering for ties
+and unavailable comparisons last. Period and category selections survive view changes
+and reload; amount privacy and the OFF view set remain intact. The Explorer and old
+category bookmark keep their existing behavior. Remaining scope: unified Ausgaben
+title/menu hierarchy, group trends/change ordering, comparison modes with URL state
+(previous period/year/custom), and final legacy-address consolidation. No migration.
+
 | ID | Report | Prototype calculation/view reference | Remaining status |
 | --- | --- | --- | --- |
 | R07 | Kontoprognose (section of 5.2) | Shared Heute balance read | Connected: same period preference, 14-day actual lookback, payday/month-end + 2 boundary, short payday extension, identical horizon/low to the cent, payment labels and daily tooltip. Background rule-status history retains its configured 35-day window; owner acceptance remains |
