@@ -4,14 +4,13 @@ import { Button, useAmountPrivacy } from '@budget/ui';
 import { cents } from '@budget/domain';
 import { useRef, useState, type MouseEvent, type RefObject } from 'react';
 import type { UseQueryResult } from '@tanstack/react-query';
-import { ContactBody, ContactWriteOffDialog } from '../contacts/contacts-page';
+import { ContactWriteOffDialog } from '../contacts/contacts-page';
 import { eur, longDay } from '../ledger/format';
 import { EmptyNote, LoadingNote } from '../ledger/states';
 import { AppLink } from '../shell/app-link';
 import { ReportFrame } from './report-frame';
 import { ReportViewControl } from './report-view-control';
-import { ReportBodyDisclosure } from './report-body-disclosure';
-import { ContactBalanceChart } from './contact-chart';
+import { ContactReportRows } from './contact-report-rows';
 import type { ContactOverview, ContactReportStatement } from './contact-api';
 import { ContactReportError } from './contact-report';
 import './contact-report-redesign.css';
@@ -19,7 +18,7 @@ import './contact-report-redesign.css';
 export function contactCalculation(view: ContactOverview) {
   return {
     label: 'Maßkette Kontakte',
-    signed: true,
+    signed: false,
     terms: [
       { label: 'Wir bekommen', value: cents(view.totals.receivableCents) },
       { label: 'Wir schulden', value: cents(view.totals.payableCents), op: '-' as const },
@@ -293,33 +292,6 @@ export function ContactReportRedesign({
                             void overview.refetch();
                           }}
                         />
-                        {mode === 'salden' && person.movements.length > 0 && (
-                          <ContactBalanceChart statement={person} height={160} days={35} />
-                        )}
-                        {mode === 'offen' && (
-                          <section className="r4-open-items" aria-labelledby="r4-open-items-title">
-                            <h3 id="r4-open-items-title">Offene Posten</h3>
-                            <ul>
-                              {person.outlays
-                                .filter((outlay) => outlay.remainingCents > 0)
-                                .map((outlay) => (
-                                  <li key={outlay.splitId}>
-                                    <AppLink
-                                      to="/konten/buchungen"
-                                      search={{ buchung: outlay.bookingId }}
-                                    >
-                                      <span>{longDay(outlay.date)} · Auslage öffnen</span>
-                                      <b>{eur(outlay.remainingCents)}</b>
-                                    </AppLink>
-                                  </li>
-                                ))}
-                            </ul>
-                            {!person.outlays.some((outlay) => outlay.remainingCents > 0) && (
-                              <p>Keine offenen Auslagen.</p>
-                            )}
-                            <p>Guthaben des Kontakts: {eur(person.creditCents)}</p>
-                          </section>
-                        )}
                       </>
                     )}
                     {!detailReady && (
@@ -327,18 +299,11 @@ export function ContactReportRedesign({
                         Kontoblatt derzeit nicht bestätigt. Die Eingaben bleiben erhalten.
                       </p>
                     )}
-                    <ReportBodyDisclosure
-                      id="contact-history"
-                      label="Alle Bewegungen und Zuordnungen"
-                      defaultOpen={false}
-                    >
-                      <ContactBody
-                        key={retainedPerson.contact.id}
-                        statement={retainedPerson}
-                        ready={detailReady && !!person}
-                        reportReader
-                      />
-                    </ReportBodyDisclosure>
+                    <ContactReportRows
+                      key={retainedPerson.contact.id}
+                      statement={retainedPerson}
+                      ready={detailReady && !!person}
+                    />
                     {person && !person.movements.length && (
                       <EmptyNote>
                         Noch keine Kontaktbuchungen. Der Saldo ist ausgeglichen.
@@ -350,9 +315,10 @@ export function ContactReportRedesign({
             </div>
             {view && (
               <p className="r4-source">
-                Plus: Kontakt schuldet dir · Minus: du schuldest dem Kontakt. Kontaktbeträge zählen
-                nicht zusätzlich zum Nettovermögen. Rückzahlungen werden bei der normalen Buchung
-                zugeordnet und sind keine Einnahmen. Erfasste unbestätigte Buchungen sind enthalten.
+                Offen: Kontakt schuldet dir · Guthaben: du schuldest dem Kontakt. Kontaktbeträge
+                zählen nicht zusätzlich zum Nettovermögen. Rückzahlungen werden bei der normalen
+                Buchung zugeordnet und sind keine Einnahmen. Erfasste unbestätigte Buchungen sind
+                enthalten.
               </p>
             )}
           </>

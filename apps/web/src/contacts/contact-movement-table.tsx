@@ -32,7 +32,11 @@ export function ContactMovementTable({
   onOpen,
   onGift,
   onAllocate,
+  register = false,
+  totalCents,
 }: {
+  register?: boolean;
+  totalCents?: number;
   statement: Statement;
   movements: ContactMovement[];
   title: string;
@@ -58,7 +62,7 @@ export function ContactMovementTable({
           longDay(movement.date),
           lineText(description(movement)),
           movementKind(movement),
-          eur(receivableDelta(movement.amountCents), { sign: true }),
+          eur(receivableDelta(movement.amountCents), { sign: !register }),
           ...(outlay && outlay.remainingCents > 0 ? [`offen ${eur(outlay.remainingCents)}`] : []),
         ].join(' · ');
       }),
@@ -108,11 +112,14 @@ export function ContactMovementTable({
           />
         </div>
       )}
-      <table className="contacts-table contact-movements">
+      <table
+        className={`contacts-table contact-movements${register ? ' ktx ktx-redesign contact-report-register' : ''}`}
+      >
         <caption className="sr-only">{caption}</caption>
         <thead>
           <tr>
-            <th scope="col">Datum / Buchung</th>
+            {register && <th scope="col">Datum</th>}
+            <th scope="col">{register ? 'Empfänger' : 'Datum / Buchung'}</th>
             <th scope="col">Betrag</th>
             <th scope="col">Offen</th>
           </tr>
@@ -137,12 +144,13 @@ export function ContactMovementTable({
               .join(' ');
             return (
               <tr key={movement.splitId}>
+                {register && <td>{longDay(movement.date)}</td>}
                 <td>
                   <button
                     type="button"
                     className="contact-source"
                     data-contact-source={movement.splitId}
-                    aria-label={`Ursprungsbuchung öffnen · ${sourceLabel} · Kontaktanteil ${eur(receivableDelta(movement.amountCents), { sign: true })}`}
+                    aria-label={`Ursprungsbuchung öffnen · ${sourceLabel} · Kontaktanteil ${eur(receivableDelta(movement.amountCents), { sign: !register })}`}
                     onClick={() => onOpen(movement)}
                   >
                     <span className="contact-movement-note" title={description(movement)}>
@@ -163,7 +171,7 @@ export function ContactMovementTable({
                         {maskMoneyText(bookingNote)}
                       </span>
                     )}
-                    {movement.categoryName && (
+                    {!register && movement.categoryName && (
                       <span className="contact-movement-context">
                         {' '}
                         Kategorie: {maskMoneyText(movement.categoryName)}
@@ -209,13 +217,23 @@ export function ContactMovementTable({
                   )}
                 </td>
                 <td className="num">
-                  {eur(receivableDelta(movement.amountCents), { sign: true })}
+                  {eur(receivableDelta(movement.amountCents), { sign: !register })}
                 </td>
                 <td className="contact-open-amount">{outlay ? eur(outlay.remainingCents) : '—'}</td>
               </tr>
             );
           })}
         </tbody>
+        {totalCents !== undefined && (
+          <tfoot>
+            <tr>
+              <th scope="row" colSpan={3}>
+                Offen von {maskMoneyText(statement.contact.name)}
+              </th>
+              <td className="contact-open-amount">{eur(totalCents)}</td>
+            </tr>
+          </tfoot>
+        )}
       </table>
     </div>
   );
