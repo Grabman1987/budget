@@ -1,3 +1,4 @@
+import { useCoverAllPreview } from './cover-all-preview';
 import { usePlanGroupOrder } from './plan-group-order';
 import { PlanContactAdvances } from './plan-contact-advances';
 import { AllocationBar } from '../reports/allocation-bar';
@@ -514,6 +515,7 @@ function PlanBody({
   });
   const [bulkSource, setBulkSource] = useState('suggested');
   const [covering, setCovering] = useState(false);
+  const coverPreview = useCoverAllPreview(month, data);
 
   useEffect(() => {
     const keydown = (event: KeyboardEvent) => {
@@ -879,36 +881,39 @@ function PlanBody({
     </section>
   );
   const distributeMenu = (
-    <VerteilenMenu
-      month={month}
-      multi={multi}
-      emptyIds={shownRows
-        .filter((r) => r.assignedCents === 0 && (r.quickAssign?.ghostCents ?? 0) > 0)
-        .map((r) => r.id)}
-      selectedIds={selectedIds}
-      distributeBlock={distributeBlock}
-      dock={phoneRedesign}
-      onDistribute={startDistribute}
-      onGuided={() => setGuided(true)}
-      onFillTargets={() => {
-        targetPreviewReturn.current = document.querySelector<HTMLElement>(
-          '.plan-menu-verteilen > summary',
-        );
-        setTargetPreviewError(false);
-        setTargetPreview(true);
-      }}
-      cover={
-        urgent.length > 0
-          ? {
-              count: urgent.length,
-              reason: !coverPool.length && tba <= 0 ? 'Kein freies Geld zum Decken' : undefined,
-              covering,
-              sourceLabel: coverLabel,
-              onCover: () => void coverMonth(),
-            }
-          : null
-      }
-    />
+    <>
+      {REDESIGN_ENABLED && coverPreview.dialog}
+      <VerteilenMenu
+        month={month}
+        multi={multi}
+        emptyIds={shownRows
+          .filter((r) => r.assignedCents === 0 && (r.quickAssign?.ghostCents ?? 0) > 0)
+          .map((r) => r.id)}
+        selectedIds={selectedIds}
+        distributeBlock={distributeBlock}
+        dock={phoneRedesign}
+        onDistribute={startDistribute}
+        onGuided={() => setGuided(true)}
+        onFillTargets={() => {
+          targetPreviewReturn.current = document.querySelector<HTMLElement>(
+            '.plan-menu-verteilen > summary',
+          );
+          setTargetPreviewError(false);
+          setTargetPreview(true);
+        }}
+        cover={
+          urgent.length > 0
+            ? {
+                count: urgent.length,
+                reason: !coverPool.length && tba <= 0 ? 'Kein freies Geld zum Decken' : undefined,
+                covering,
+                sourceLabel: coverLabel,
+                onCover: () => (REDESIGN_ENABLED ? coverPreview.show(source) : void coverMonth()),
+              }
+            : null
+        }
+      />
+    </>
   );
   const topbar = (
     <PlanTopBar
