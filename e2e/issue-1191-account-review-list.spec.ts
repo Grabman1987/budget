@@ -102,6 +102,7 @@ for (const theme of ['light', 'dark']) {
     } finally {
       opened.close();
     }
+    await page.addInitScript((value) => localStorage.setItem('budget-theme', value), theme);
     await page.goto('/konten/pruefen?teil=umsaetze');
     await page.evaluate((value) => {
       document.documentElement.dataset['theme'] = value;
@@ -110,6 +111,9 @@ for (const theme of ['light', 'dark']) {
     const b = page.locator('.bank-account-header').filter({ hasText: 'Synthetic account B' });
     await expect(a.getByRole('button')).toHaveAttribute('aria-expanded', 'true');
     await expect(b.getByRole('button')).toHaveAttribute('aria-expanded', 'true');
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
+      true,
+    );
     const row = page.locator('.bank-editable-row').filter({ hasText: 'Synthetic candidate 0' });
     await expect(page.locator('.bank-editable-row')).toHaveCount(2);
     await expect(row).toBeVisible();

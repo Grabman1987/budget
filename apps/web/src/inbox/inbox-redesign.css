@@ -882,9 +882,32 @@
   font-size: var(--fs-meta);
 }
 @media (max-width: 767px) {
+  .konten-frame-inbox .konten-view-bar {
+    grid-template-columns: minmax(0, 1fr) 44px 44px;
+  }
+  .konten-inbox-segments-slot {
+    grid-column: 1;
+    grid-row: 2;
+  }
+  .konten-frame-inbox [data-konten-slot='inbox-info'] {
+    grid-column: 2;
+    grid-row: 2;
+  }
+  .konten-frame-inbox .konten-inbox-filters-slot {
+    grid-column: 3;
+  }
+  .konten-frame-inbox .konten-view-bar:has(.inbox-back) [data-konten-slot='inbox-info'] {
+    grid-row: 3;
+  }
   .konten-inbox-actions-slot {
+    grid-column: 1 / -1;
+    grid-row: 3;
+    min-width: 0;
     margin-inline-start: 0;
     flex-wrap: wrap;
+  }
+  .konten-frame-inbox .konten-view-bar:has(.inbox-back) .konten-inbox-actions-slot {
+    grid-row: 4;
   }
   .kinbox-v1 .bank-v1-table .bank-account-header {
     display: block;
@@ -897,6 +920,18 @@
   }
   .bank-account-summary > :is(button, div) {
     display: grid;
+    height: auto;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+  .bank-account-summary > button {
+    grid-template-columns: 16px minmax(0, 1fr);
+  }
+  .bank-account-summary > button svg {
+    grid-row: 1 / 3;
+  }
+  .bank-account-summary > button :is(strong, span) {
+    grid-column: 2;
   }
 }
 

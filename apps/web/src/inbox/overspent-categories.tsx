@@ -38,7 +38,7 @@ export function OverspentCategories({ month }: { month: string }) {
                 {data.groups.find((group) => group.id === row.groupId)?.name}
               </span>
             </div>
-            <span className="is-negative">{eur(-row.overspentCents)}</span>
+            <span className="text-alert">{eur(-row.overspentCents)}</span>
             <Button variant="ghost" onClick={() => setSelected(row.id)}>
               Decken
             </Button>
