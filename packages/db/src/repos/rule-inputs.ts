@@ -37,7 +37,7 @@ import {
   type SinkingFund,
   type Rhythm,
 } from '@budget/domain';
-import { and, asc, eq, inArray, isNull } from 'drizzle-orm';
+import { and, asc, eq, inArray, isNull, lte } from 'drizzle-orm';
 import {
   account,
   assetClass,
@@ -471,6 +471,26 @@ export function forecastInputs(
     (a) => a.openingDate <= asOf && a.onBudget && a.role === 'budget',
   );
   const to = addDays(asOf, 365);
+  // A settled income already in the starting balance must not arrive a second time.
+  const receivedIncome = new Set(
+    f.db
+      .select({
+        paymentId: expectedOccurrence.expectedPaymentId,
+        dueDate: expectedOccurrence.dueDate,
+      })
+      .from(expectedOccurrence)
+      .innerJoin(booking, eq(booking.id, expectedOccurrence.bookingId))
+      .where(
+        and(
+          isNull(expectedOccurrence.deletedAt),
+          isNull(booking.deletedAt),
+          eq(expectedOccurrence.status, 'received'),
+          lte(booking.date, asOf),
+        ),
+      )
+      .all()
+      .map((o) => `${o.paymentId}|${o.dueDate}`),
+  );
   const items: ForecastItem[] = [
     ...statementForecastLegs(
       f.db,
@@ -484,7 +504,11 @@ export function forecastInputs(
       label: l.kind === 'settlement' ? 'Abrechnungsausgleich' : 'Ausgabengutschrift',
     })),
     ...scheduled(f, addDays(asOf, 1), to, asOf, { applyIncomePauses: true })
-      .filter((o) => o.onBudget)
+      .filter(
+        (o) =>
+          o.onBudget &&
+          (o.payment.kind !== 'inflow' || !receivedIncome.has(`${o.payment.id}|${o.dueDate}`)),
+      )
       .map((o) => ({
         day: o.dueDate,
         cents: o.cents,

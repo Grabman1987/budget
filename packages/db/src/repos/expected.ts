@@ -1,5 +1,6 @@
 import {
   addDays,
+  amountGap,
   addMonths,
   assignMatches,
   candidateFits,
@@ -1324,4 +1325,84 @@ export function versionSuggestions(db: Executor, from: string, to: string): Vers
   return upcoming(db, from, to)
     .map((r) => r.suggestion)
     .filter((s): s is VersionSuggestion => s !== null);
+}
+/** Explicit receipt suggestions retain the existing one-booking/one-occurrence contract. */
+export function incomeReceiptCandidates(
+  db: Executor,
+  paymentId: string,
+  dueDate: string,
+  today: string,
+): Array<{ bookingId: string; date: string; amountCents: number; currency: string }> {
+  const payment = livePayment(db, paymentId);
+  const occurrence = upcoming(db, dueDate, dueDate).find((o) => o.paymentId === paymentId);
+  if (
+    payment.kind !== 'inflow' ||
+    !payment.accountId ||
+    !payment.payeeId ||
+    !payment.incomeTypeId ||
+    !occurrence ||
+    occurrence.bookingId !== null ||
+    occurrence.currency !== 'EUR'
+  )
+    return [];
+  const claimed = liveClaimedBookings(db);
+  const version = versionOn(liveVersions(db, paymentId), dueDate);
+  return loadBookings(
+    db,
+    [payment.accountId],
+    addDays(dueDate, -payment.dateWindowDays),
+    addDays(dueDate, payment.dateWindowDays),
+  )
+    .filter((b) => {
+      if (
+        claimed.has(b.id) ||
+        b.date > today ||
+        monthOf(b.date) !== monthOf(dueDate) ||
+        b.currency !== 'EUR' ||
+        b.facts.payeeId !== payment.payeeId ||
+        b.amountCents <= 0 ||
+        amountGap(
+          { ...occurrence, amountMaxCents: version?.amountMaxCents ?? null },
+          b.amountCents,
+        ) > payment.amountToleranceCents
+      )
+        return false;
+      const splits = db.select().from(bookingSplit).where(eq(bookingSplit.bookingId, b.id)).all();
+      return (
+        splits.length > 0 &&
+        splits.every(
+          (s) =>
+            s.incomeTypeId === payment.incomeTypeId &&
+            s.categoryId === null &&
+            s.contactId === null,
+        )
+      );
+    })
+    .sort((a, b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id))
+    .map((b) => ({
+      bookingId: b.id,
+      date: b.date,
+      amountCents: b.amountCents,
+      currency: b.currency,
+    }));
+}
+
+/** Revalidate the proposal and reuse the audited occurrence writers in one transaction/group. */
+export function acknowledgeIncomeReceipt(
+  db: Executor,
+  paymentId: string,
+  dueDate: string,
+  bookingId: string,
+  ctx: AuditContext,
+  today: string,
+): { occurrence: OccurrenceRow; groupId: string } {
+  const grouped = withGroup(ctx);
+  return runInTransaction(db, (tx) => {
+    if (
+      !incomeReceiptCandidates(tx, paymentId, dueDate, today).some((b) => b.bookingId === bookingId)
+    )
+      throw new ConflictError('Diese Zahlung passt nicht mehr zu diesem Termin. Bitte neu laden.');
+    const { occurrence } = skipOccurrence(tx, paymentId, dueDate, grouped, today);
+    return linkOccurrence(tx, occurrence.id, bookingId, grouped);
+  });
 }
