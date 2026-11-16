@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { MonthSummary } from './period-report-summary';
-import { usePaperView } from './period-presentation';
+import { PeriodPresentation, usePaperView } from './period-presentation';
 import { REDESIGN_ENABLED } from '../shell/redesign-flag';
 import { AllocationBar } from './allocation-bar';
 import { AppLink } from '../shell/app-link';
@@ -86,6 +86,9 @@ export function OnePagerReport({ report, meta }: { report: ReportEntry; meta: Pa
       print
       printDisabled={
         REDESIGN_ENABLED && (query.isPending || query.isError || !!data?.beforeRecords)
+      }
+      extraFields={
+        REDESIGN_ENABLED ? [{ label: 'Darstellung', value: <PeriodPresentation monthly /> }] : []
       }
     >
       <div

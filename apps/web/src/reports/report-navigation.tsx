@@ -1,19 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
-import { useLocation, useSearch, useNavigate } from '@tanstack/react-router';
+import { useNavigate } from '@tanstack/react-router';
 import { ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
 import { AppLink } from '../shell/app-link';
 import { HUB_REPORTS, hubReport, matchingHubReports } from './report-hub-model';
-import { REDESIGN_ENABLED } from '../shell/redesign-flag';
-import { isPaperPresentation } from './report-search';
 import './report-navigation.css';
-
-const periodViews: Record<string, readonly { value: string; label: string }[]> = {
-  onepager: [
-    { value: 'finanzcheck', label: 'Finanz-Check-Verlauf' },
-    { value: 'druckblatt', label: 'A4 Druckblatt · Monat' },
-  ],
-  jahresreport: [{ value: 'druckblatt', label: 'A4 Druckblatt · Jahr' }],
-};
 
 export function adjacentReports(id: string) {
   const current = hubReport(id);
@@ -27,22 +17,20 @@ export function adjacentReports(id: string) {
 /** Catalog order also crosses group boundaries. Alt+Shift avoids browser history shortcuts. */
 export function ReportNavigation({ id }: { id: string }) {
   const navigate = useNavigate();
-  const presentation = useSearch({ strict: false }) as { darstellung?: string };
-  const location = useLocation();
   const [search, setSearch] = useState('');
   const switcher = useRef<HTMLDetailsElement>(null);
-  const query = search.trim().toLocaleLowerCase('de-AT');
-  const parents = matchingHubReports(search);
-  const matches = HUB_REPORTS.filter(
-    (report) =>
-      parents.includes(report) ||
-      (REDESIGN_ENABLED &&
-        periodViews[report.id]?.some((view) =>
-          view.label.toLocaleLowerCase('de-AT').includes(query),
-        )),
-  );
+  const matches = matchingHubReports(search);
   const current = hubReport(id);
   const { previous, next } = adjacentReports(id);
+  const go = (reportId: string) =>
+    void navigate({
+      to: `/reports/${reportId}`,
+      search: (prev: Record<string, unknown>) => ({
+        zeitraum: prev['zeitraum'],
+        trend: prev['trend'],
+        monat: prev['monat'],
+      }),
+    } as never);
   useEffect(() => {
     const key = (e: KeyboardEvent) => {
       if (
@@ -84,21 +72,11 @@ export function ReportNavigation({ id }: { id: string }) {
     document.addEventListener('keydown', key);
     return () => document.removeEventListener('keydown', key);
   }, [navigate, previous, next]);
-  const go = (reportId: string) =>
-    void navigate({
-      to: `/reports/${reportId}`,
-      search: (prev: Record<string, unknown>) => ({
-        zeitraum: prev['zeitraum'],
-        trend: prev['trend'],
-        monat: prev['monat'],
-      }),
-    } as never);
   return (
     <nav className="report-navigation" aria-label="Weitere Berichte">
       <details className="report-switcher" ref={switcher}>
         <summary aria-label="Bericht wechseln">
-          <span className="report-switcher-label">Bericht wechseln</span>{' '}
-          <ChevronDown size={16} strokeWidth={1.75} aria-hidden="true" />
+          Bericht wechseln <ChevronDown size={16} strokeWidth={1.75} aria-hidden="true" />
         </summary>
         <div className="report-switcher-menu">
           <label>
@@ -117,27 +95,12 @@ export function ReportNavigation({ id }: { id: string }) {
               <li key={report.id}>
                 <AppLink
                   to={`/reports/${report.id}`}
-                  aria-current={
-                    current?.id === report.id &&
-                    !(
-                      REDESIGN_ENABLED &&
-                      ['onepager', 'jahresreport'].includes(report.id) &&
-                      (presentation.darstellung === 'finanzcheck' ||
-                        isPaperPresentation(presentation.darstellung, location.hash))
-                    )
-                      ? 'page'
-                      : undefined
-                  }
+                  aria-current={current?.id === report.id ? 'page' : undefined}
                   search={(prev) => ({
-                    ...(REDESIGN_ENABLED && current?.id === report.id && periodViews[report.id]
-                      ? prev
-                      : {}),
                     zeitraum: prev['zeitraum'],
                     trend: prev['trend'],
                     monat: prev['monat'],
-                    darstellung: undefined,
                   })}
-                  hash=""
                   onClick={() => {
                     if (switcher.current) switcher.current.open = false;
                     setSearch('');
@@ -145,75 +108,34 @@ export function ReportNavigation({ id }: { id: string }) {
                 >
                   {report.no}. {report.name}
                 </AppLink>
-                {REDESIGN_ENABLED && ['onepager', 'jahresreport'].includes(report.id) && (
-                  <ul
-                    className="report-switcher-children"
-                    aria-label={`Unterberichte von ${report.name}`}
-                  >
-                    {periodViews[report.id]?.map((view) => (
-                      <li key={view.value}>
-                        <AppLink
-                          to={`/reports/${report.id}`}
-                          search={(prev) => ({
-                            ...(current?.id === report.id ? prev : {}),
-                            zeitraum: prev['zeitraum'],
-                            trend: prev['trend'],
-                            monat: prev['monat'],
-                            period: prev['period'],
-                            darstellung: view.value,
-                          })}
-                          hash=""
-                          aria-current={
-                            current?.id === report.id &&
-                            (view.value === 'druckblatt'
-                              ? isPaperPresentation(presentation.darstellung, location.hash)
-                              : presentation.darstellung === view.value)
-                              ? 'page'
-                              : undefined
-                          }
-                          onClick={() => {
-                            if (switcher.current) switcher.current.open = false;
-                            setSearch('');
-                          }}
-                        >
-                          {view.label}
-                        </AppLink>
-                      </li>
-                    ))}
-                  </ul>
-                )}
               </li>
             ))}
           </ul>
           {matches.length === 0 && <p role="status">Kein passender Bericht.</p>}
         </div>
       </details>
-      {!REDESIGN_ENABLED && (
-        <>
-          <button
-            type="button"
-            className="icon-btn"
-            disabled={!previous}
-            aria-label={previous ? `Vorheriger Bericht: ${previous.name}` : 'Vorheriger Bericht'}
-            aria-keyshortcuts="Alt+Shift+ArrowLeft"
-            title={previous ? `${previous.no} ${previous.name} · Alt+Umschalt+←` : 'Erster Bericht'}
-            onClick={() => previous && go(previous.id)}
-          >
-            <ChevronLeft size={16} strokeWidth={1.75} aria-hidden="true" />
-          </button>
-          <button
-            type="button"
-            className="icon-btn"
-            disabled={!next}
-            aria-label={next ? `Nächster Bericht: ${next.name}` : 'Nächster Bericht'}
-            aria-keyshortcuts="Alt+Shift+ArrowRight"
-            title={next ? `${next.no} ${next.name} · Alt+Umschalt+→` : 'Letzter Bericht'}
-            onClick={() => next && go(next.id)}
-          >
-            <ChevronRight size={16} strokeWidth={1.75} aria-hidden="true" />
-          </button>
-        </>
-      )}
+      <button
+        type="button"
+        className="icon-btn"
+        disabled={!previous}
+        aria-label={previous ? `Vorheriger Bericht: ${previous.name}` : 'Vorheriger Bericht'}
+        aria-keyshortcuts="Alt+Shift+ArrowLeft"
+        title={previous ? `${previous.no} ${previous.name} · Alt+Umschalt+←` : 'Erster Bericht'}
+        onClick={() => previous && go(previous.id)}
+      >
+        <ChevronLeft size={16} strokeWidth={1.75} aria-hidden="true" />
+      </button>
+      <button
+        type="button"
+        className="icon-btn"
+        disabled={!next}
+        aria-label={next ? `Nächster Bericht: ${next.name}` : 'Nächster Bericht'}
+        aria-keyshortcuts="Alt+Shift+ArrowRight"
+        title={next ? `${next.no} ${next.name} · Alt+Umschalt+→` : 'Letzter Bericht'}
+        onClick={() => next && go(next.id)}
+      >
+        <ChevronRight size={16} strokeWidth={1.75} aria-hidden="true" />
+      </button>
     </nav>
   );
 }

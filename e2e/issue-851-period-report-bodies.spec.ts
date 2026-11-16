@@ -128,8 +128,9 @@ test('851 monthly presentation retains the historical finance view and source/mo
     return;
   }
   await expect(page.getByTestId('r5-month-saved')).toBeVisible();
-  await page.getByLabel('Bericht wechseln', { exact: true }).click();
-  await page.getByRole('link', { name: 'Finanz-Check-Verlauf', exact: true }).click();
+  await page
+    .getByRole('combobox', { name: 'Darstellung', exact: true })
+    .selectOption('finanzcheck');
   await expect(page.getByTestId('fc-ok-count')).toBeVisible();
   expect(new URL(page.url()).searchParams.get('monat')).toBe('2026-08');
   expect(new URL(page.url()).searchParams.get('zeitraum')).toBe('2026-07..2026-08');
@@ -138,11 +139,9 @@ test('851 monthly presentation retains the historical finance view and source/mo
   expect(new URL(page.url()).hash).toBe('#details');
   await page.goto('/reports/onepager?monat=2026-08#ps-b');
   await expect(page.locator('#ps-b')).toBeVisible();
-  await page.getByLabel('Bericht wechseln', { exact: true }).click();
-  await expect(
-    page.getByRole('link', { name: 'A4 Druckblatt · Monat', exact: true }),
-  ).toHaveAttribute('aria-current', 'page');
-  await page.keyboard.press('Escape');
+  await expect(page.getByRole('combobox', { name: 'Darstellung', exact: true })).toHaveValue(
+    'druckblatt',
+  );
   expect(new URL(page.url()).hash).toBe('#ps-b');
   await page.reload();
   await expect(page.locator('#ps-b')).toBeVisible();
