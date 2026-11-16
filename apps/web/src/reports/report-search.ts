@@ -140,3 +140,11 @@ export const validateReportSearch = (search: Record<string, unknown>) => ({
       ? search['kontakt']
       : undefined,
 });
+
+/** Retired report views keep their URL context at the existing wealth destinations. */
+export function wealthReportDestination(reportId: string, view: unknown): string | undefined {
+  if (!REDESIGN_ENABLED || reportId !== 'vermoegen-schulden') return undefined;
+  if (view === 'freiheit') return '/vermoegen/freiheit';
+  if (view === 'schulden') return '/vermoegen/schulden';
+  return undefined;
+}

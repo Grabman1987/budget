@@ -21,6 +21,8 @@ import { FreedomGoalForm, type FreedomGoalRequest } from './freedom-goal-form';
 import { freedomScenario, monthText, percent } from './freedom-model';
 import { FreedomChart } from './freedom-chart';
 import './freedom.css';
+import { REDESIGN_ENABLED } from '../shell/redesign-flag';
+import '../reports/freedom-report.css';
 
 /** The ⓘ button of a heading; the text it opens is an `InfoText` with the same id. */
 function InfoButton({
@@ -65,7 +67,7 @@ export function FreedomPage() {
   const goal = useQuery(freedomGoalQuery());
   return (
     <PageFrame meta={VERMOEGEN_FREIHEIT_META} revealCurrentRegister>
-      <div className="kview vview freedom-view">
+      <div className={`kview vview freedom-view${REDESIGN_ENABLED ? ' freedom-report' : ''}`}>
         {query.isPending && <LoadingNote what="Freiheitszahl" />}
         {query.isError && (
           <ErrorNote
