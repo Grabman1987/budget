@@ -11,7 +11,7 @@
   },
   "dependencies": {
     "@budget/domain": "*",
-    "better-sqlite3": "^13.1.1",
+    "better-sqlite3": "^13.2.0",
     "drizzle-orm": "^0.45.4"
   },
   "devDependencies": {
