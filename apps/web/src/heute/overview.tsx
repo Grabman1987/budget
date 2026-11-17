@@ -324,7 +324,9 @@ export function HeuteOverview({
                   aria-label={`Frei verfügbar bis Gehalt: ${eur(data.lead.freeCents)}. Herleitung zeigen`}
                 >
                   <span data-testid="heute-lead-value">
-                    {data.lead.freeCents < 0 && <TriangleAlert size={20} strokeWidth={1.5} aria-hidden="true" />}
+                    {data.lead.freeCents < 0 && (
+                      <TriangleAlert size={20} strokeWidth={1.5} aria-hidden="true" />
+                    )}
                     {eur(data.lead.freeCents)}
                   </span>
                 </DetailLink>
