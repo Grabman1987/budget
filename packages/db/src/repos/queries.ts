@@ -7,7 +7,7 @@ import {
   type BudgetMonth,
   type CardRule,
 } from '@budget/domain';
-import { and, asc, count, eq, gte, isNull, lte, sql } from 'drizzle-orm';
+import { and, asc, count, eq, isNull, sql } from 'drizzle-orm';
 import { account, booking, bookingSplit, budgetMonth, category } from '../schema';
 import { assignedByMonth } from './envelopes';
 import { budgetInputFromRows, type BudgetLedgerRows } from './budget-ledger-input';
