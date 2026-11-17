@@ -1,6 +1,7 @@
 import { cents } from '../money/cents';
 import { addMonths } from '../date';
 import { allocation, type AllocMonth, type Allocation } from '../ledger/alloc';
+import { mulDivRound, roundDivCents } from '../wealth/int';
 
 /**
  * Ratio KPIs of the rule book (concept §3.5 and §8). Ratios are integers in basis points
@@ -11,7 +12,7 @@ import { allocation, type AllocMonth, type Allocation } from '../ledger/alloc';
 /** `num / den` in basis points, rounded half away from zero; `null` without a positive denominator. */
 export function ratioBp(num: number, den: number): number | null {
   if (den <= 0) return null;
-  const v = Math.round((Math.abs(num) * 10_000) / den);
+  const v = mulDivRound(Math.abs(num), 10_000, den);
   return num < 0 ? -v : v;
 }
 
@@ -88,8 +89,8 @@ export function emergencyCoverage(input: EmergencyCoverageInput): EmergencyCover
   const n = months.length;
   const reserve = Math.max(0, input.reserveCents);
   return {
-    tenthsOfMonth: n === 0 || total <= 0 ? null : Math.round((reserve * 10 * n) / total),
-    averageNeedCents: n === 0 ? 0 : Math.round(total / n),
+    tenthsOfMonth: n === 0 || total <= 0 ? null : mulDivRound(reserve * 10, n, total),
+    averageNeedCents: n === 0 ? 0 : roundDivCents(total, n),
     months: n,
   };
 }

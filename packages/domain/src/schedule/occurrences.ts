@@ -1,5 +1,6 @@
 import { addDays, monthOf } from '../date';
 import { dayDistance, dueDates, weekInterval, type Rhythm, type ScheduleRule } from './due-dates';
+import { roundDivCents } from '../wealth/int';
 
 /**
  * `missed` (ausgefallen) is a warning: it should have come. `skipped` (gestrichen) is a deliberate
@@ -86,10 +87,7 @@ const PER_YEAR: Record<Rhythm, number> = {
 };
 
 /** `num / den` rounded to whole cents half away from zero (`den` > 0). */
-const roundDiv = (num: number, den: number): number => {
-  const rounded = Math.floor((Math.abs(num) * 2 + den) / (den * 2));
-  return num < 0 && rounded !== 0 ? -rounded : rounded;
-};
+const roundDiv = roundDivCents;
 
 /**
  * Yearly equivalent of one payment of `amountCents` (keeps the sign). A weekly rhythm with

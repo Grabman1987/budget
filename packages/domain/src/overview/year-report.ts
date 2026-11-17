@@ -12,6 +12,7 @@ import {
   type OverviewFigures,
   type OverviewMonthFigures,
 } from './figures';
+import { mulDivRound } from '../wealth/int';
 
 /**
  * Jahresreport (report 5.1): one calendar year on two sheets, from the full months of the ledger
@@ -176,7 +177,7 @@ export function yearReport(input: {
         comparableCents: comparable,
         changeBp:
           prev !== null && comparable !== null && prev > 0
-            ? Math.round(((comparable - prev) * 10_000) / prev)
+            ? mulDivRound(comparable - prev, 10_000, prev)
             : null,
         byMonth: Array.from({ length: 12 }, (_, i) => {
           const month = `${year}-${String(i + 1).padStart(2, '0')}`;

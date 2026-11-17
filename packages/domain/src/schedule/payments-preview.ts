@@ -8,6 +8,7 @@ import {
   type SchedulePayment,
   type ScheduleVersion,
 } from './occurrences';
+import { roundDivCents } from '../wealth/int';
 
 export interface PreviewPayment extends SchedulePayment {
   id: string;
@@ -200,8 +201,8 @@ export function paymentsPreview(
     g.total = sum(g.months);
     g.periodicTotal = sum(g.periodicMonths);
     g.average = {
-      baseCents: Math.round(g.total.baseCents / 12),
-      upperCents: Math.round(g.total.upperCents / 12),
+      baseCents: roundDivCents(g.total.baseCents, 12),
+      upperCents: roundDivCents(g.total.upperCents, 12),
     };
     const max = Math.max(...g.months.map((m) => m.baseCents));
     g.highestMonth =
