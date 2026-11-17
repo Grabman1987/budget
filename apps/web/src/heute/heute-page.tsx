@@ -894,7 +894,7 @@ function PrimaryLead({
           {open ? 'Herleitung ausblenden' : 'Herleitung zeigen'}
         </Button>
       </div>
-      <p className="heute-note">
+      <p className="heute-note heute-primary-definition">
         Kontostand minus offene Rechnungen bis Gehalt; ohne Dispo und ohne erwartete Eingänge.
         {data && data.lead.lastResortCents > 0
           ? ` Letzte Reserve (Dispo): ${eur(data.lead.lastResortCents)}.`

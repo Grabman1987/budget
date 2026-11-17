@@ -399,7 +399,14 @@ test('a late booking transaction failure leaves no booking/payee/delivery/audit 
     expect(state(isolatedLedger.databasePath)).toEqual(before);
     expect(await page.evaluate(() => window.queue559.listQueue())).toHaveLength(1);
     db.exec('DROP TRIGGER synthetic_559');
+    // #1144 parks definitive refusals; background delivery must preserve the rejected draft.
     await page.evaluate(() => window.queue559.sendQueue(() => {}));
+    expect(state(isolatedLedger.databasePath)).toEqual(before);
+    expect(await page.evaluate(() => window.queue559.listQueue())).toMatchObject([
+      { rejected: true, uncertain: false, input: { amountCents: -1375 } },
+    ]);
+    // Model the owner's explicit Jetzt senden action, retaining the same idempotent intent.
+    await page.evaluate(() => window.queue559.sendQueue(() => {}, undefined, true));
     expect(await page.evaluate(() => window.queue559.listQueue())).toEqual([]);
     const after = state(isolatedLedger.databasePath);
     expect(after['booking_delivery']).toHaveLength(1);

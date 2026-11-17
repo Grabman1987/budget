@@ -2,7 +2,7 @@ import { detectHeuteRedesign, heuteReviewUrl } from './heute-visual-fixture';
 import AxeBuilder from '@axe-core/playwright';
 import type { Locator } from '@playwright/test';
 import { MIN_TARGET_PX } from './ledger-helpers';
-import { sampleTest as test, expect } from './sample';
+import { test, expect } from './seeded-heute';
 
 // Run against the matching build flag; both states preserve their own readiness contract.
 let redesign = false;
@@ -151,12 +151,14 @@ for (const colorScheme of ['light', 'dark'] as const) {
     }
     if (page.viewportSize()!.width < 768) await page.setViewportSize({ width: 390, height: 844 });
     const source = await (await page.request.get('/api/heute?period=month&month=2026-09')).json();
-    expect(source.lead.freeCents).toBe(-154_921);
-    expect(source.forecast35d.report.low.cents).toBe(-10_899);
+    // Seed schedule: 116,700 - 171,621 - 30,000 - 40,000 = -124,921 cents.
+    // Forecast low: 116,700 - 1,799 - 2,500 - 10,500 - 82,800 = 19,101 (29 September).
+    expect(source.lead.freeCents).toBe(-124_921);
+    expect(source.forecast35d.report.low.cents).toBe(19_101);
     const primary = page.getByRole('region', { name: 'Frei bis Gehalt', exact: true });
-    await expect(primary.getByTestId('heute-lead-value')).toHaveText('−1.549,21 €');
+    await expect(primary.getByTestId('heute-lead-value')).toHaveText('−1.249,21 €');
     await expect(primary).toHaveAttribute('data-as-of', '2026-09-17');
-    await expect(page.locator('.heute-forecast-low')).toHaveAttribute('data-cents', '-10899');
+    await expect(page.locator('.heute-forecast-low')).toHaveAttribute('data-cents', '19101');
     const tasks = page.locator('.hv-revisions tbody tr');
     await expect(tasks).toHaveCount(4);
     expect(await tasks.allTextContents()).toEqual([
@@ -203,13 +205,13 @@ for (const colorScheme of ['light', 'dark'] as const) {
     await page.reload();
     await expect(fold).toHaveAttribute('aria-expanded', original === 'true' ? 'false' : 'true');
     await page.goto('/?monat=2026-08&period=month');
-    await expect(primary.getByTestId('heute-lead-value')).toHaveText('−1.549,21 €');
+    await expect(primary.getByTestId('heute-lead-value')).toHaveText('−1.249,21 €');
     await expect(page.locator('.hv-head:visible .month-name')).toHaveText('August 2026');
     await expect(primary).toHaveAttribute('data-as-of', '2026-09-17');
     await page.keyboard.press('Control+Shift+H');
-    await expect(primary.getByTestId('heute-lead-value')).not.toContainText('1.549');
+    await expect(primary.getByTestId('heute-lead-value')).not.toContainText('1.249');
     await page.keyboard.press('Control+Shift+H');
-    await expect(primary.getByTestId('heute-lead-value')).toHaveText('−1.549,21 €');
+    await expect(primary.getByTestId('heute-lead-value')).toHaveText('−1.249,21 €');
     await page.setViewportSize({ width: 320, height: 844 });
     await page.evaluate(() => {
       const root = document.documentElement;
