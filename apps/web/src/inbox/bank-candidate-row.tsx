@@ -372,10 +372,12 @@ export const BankCandidateRow = memo(function BankCandidateRow({
         ) : (
           pill('payee', payee?.name ?? 'Empfänger fehlt', draft?.payeeId !== undefined)
         )}
-        <span>{item.bankCandidate ? shortDay(item.bankCandidate.date) : ''}</span>
-        <small className="bank-v1-phone-source">
-          {item.bankCandidate?.accountName} · Bank-Sync
-        </small>
+        <div className="bank-v1-meta">
+          <span>{item.bankCandidate ? shortDay(item.bankCandidate.date) : ''}</span>
+          <small className="bank-v1-phone-source">
+            {item.bankCandidate?.accountName} · Bank-Sync
+          </small>
+        </div>
       </td>
       <td className="bank-v1-source" data-missing={missing?.cell === 'source' || undefined}>
         <span>{item.bankCandidate?.accountName ?? 'Konto fehlt'}</span>

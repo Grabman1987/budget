@@ -209,6 +209,7 @@
 }
 .bank-v1-payee strong,
 .bank-v1-payee > span,
+.bank-v1-meta > span,
 .bank-v1-source span,
 .bank-v1-source small {
   display: block;
@@ -221,6 +222,7 @@
   font-weight: 650;
 }
 .bank-v1-payee > span,
+.bank-v1-meta > span,
 .bank-v1-source small {
   font-size: var(--fs-meta);
   color: var(--ink-2);
@@ -319,29 +321,15 @@
     min-width: 0;
   }
   .konten-inbox-segments-slot .inbox-segments {
-    display: flex;
-    justify-content: flex-start;
-    gap: 18px;
-    padding: 0;
-    border: 0;
-    background: transparent;
     width: 100%;
+    grid-auto-columns: minmax(0, 1fr);
   }
   .konten-inbox-segments-slot .inbox-segments button {
-    border: 0;
-    border-radius: 0;
-    box-shadow: none;
-    background: transparent;
     min-width: 0;
-    padding: 0;
-    flex: none;
-    color: var(--ink-2);
-    font-size: var(--fs-title);
-  }
-  .konten-inbox-segments-slot .inbox-segments button[aria-pressed='true'] {
-    color: var(--ink);
-    box-shadow: inset 0 -2px 0 var(--primary);
-    font-weight: 650;
+    padding-inline: var(--space-sm);
+    overflow-wrap: anywhere;
+    white-space: normal;
+    height: auto;
   }
   .konten-inbox-sort-slot:empty {
     display: none;
@@ -953,4 +941,69 @@
 }
 .bank-account-summary svg.is-collapsed {
   transform: rotate(-90deg);
+}
+
+.bank-v1-meta {
+  display: contents;
+}
+@media (max-width: 767px) {
+  .konten-inbox-actions-slot {
+    width: 100%;
+    padding-block: var(--space-xs);
+  }
+  :root:has([data-budget-redesign='1']) .konten-inbox-actions-slot > .btn.btn-ghost {
+    flex: 1 1 max-content;
+    border: var(--stroke-hairline) solid var(--field);
+    background: var(--surface);
+    justify-content: center;
+  }
+  .kinbox-v1 .bank-v1-table .bank-editable-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: start;
+    gap: var(--space-sm);
+  }
+  .kinbox-v1
+    .bank-v1-table
+    .bank-editable-row
+    > :is(.bank-v1-payee, .bank-v1-suggestion, .bank-v1-category) {
+    display: contents;
+  }
+  .bank-editable-row .bank-v1-payee strong {
+    flex: 1 1 0;
+    min-width: 0;
+    max-width: none;
+  }
+  .kinbox-v1 .bank-v1-table .bank-editable-row .bank-v1-amount {
+    order: 1;
+  }
+  .bank-editable-row .bank-v1-meta {
+    order: 2;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0 var(--space-xs);
+    flex-basis: 100%;
+    color: var(--ink-2);
+    font-size: var(--fs-label);
+  }
+  .bank-editable-row :is(.bank-suggestion-pill, .bank-row-editor) {
+    order: 3;
+    max-width: 100%;
+  }
+  .kinbox-v1 .bank-v1-table .bank-editable-row .bank-v1-action {
+    order: 4;
+    flex: 1 0 calc(100% - 52px);
+  }
+  .kinbox-v1 .bank-editable-row .inbox-row-actions {
+    justify-content: flex-end;
+    gap: var(--space-sm);
+  }
+  .bank-editable-row .kstatus-btn {
+    min-width: 44px;
+    min-height: 44px;
+  }
+  .kinbox-v1 .bank-v1-table .bank-editable-row .bank-v1-more {
+    order: 5;
+    flex: 0 0 44px;
+  }
 }
