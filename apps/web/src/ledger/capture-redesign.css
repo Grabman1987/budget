@@ -1208,5 +1208,19 @@
 }
 .bk-editor-document-row {
   display: flex;
+  flex: none;
   padding: 0 var(--space-lg);
+}
+
+/* Rule 1 (#1146): on a normal phone height the actions are pinned below the scrolling body.
+   Rule 2 (#970): on a short or keyboard-sized viewport the pinned bar would push the primary
+   fields out of view, so the whole form scrolls and the actions follow the content. */
+@media (max-width: 767px) and (max-height: 520px) {
+  .bkform-redesign {
+    overflow-y: auto;
+  }
+  .bkform-redesign .bk-body {
+    flex: none;
+    overflow: visible;
+  }
 }

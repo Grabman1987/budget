@@ -1558,13 +1558,6 @@ export function CaptureForm({
             {saveReason}
           </p>
         )}
-        {mobileRedesign && !editing && (
-          // The phone header has no room for a global upload action; the + sheet carries it. It
-          // closes the scrolling body; the form actions stay pinned below it (#1146).
-          <div className="bk-editor-document-row">
-            <DocumentUploadButton label="Dokument hochladen" />
-          </div>
-        )}
         <p className={REDESIGN_ENABLED ? 'khint sr-only' : 'khint'} aria-hidden="true">
           {CAPTURE_SHORTCUT_HINT}
         </p>
@@ -1656,6 +1649,13 @@ export function CaptureForm({
         </p>
       )}
       {formActions}
+      {mobileRedesign && !editing && (
+        // The phone header has no room for a global upload action; the + sheet carries it. It
+        // follows the form actions, which stay pinned below the body (#1146).
+        <div className="bk-editor-document-row">
+          <DocumentUploadButton label="Dokument hochladen" />
+        </div>
+      )}
       {mobileRedesign && (
         <Button
           className="bk-keyboard-save"

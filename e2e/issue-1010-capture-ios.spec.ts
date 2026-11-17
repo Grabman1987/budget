@@ -59,19 +59,16 @@ for (const width of [390, 1440]) {
         await expect(save).toBeEnabled();
         await expect(save).not.toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
         await page.setViewportSize({ width, height: 430 });
-        // The actions are pinned below the scrolling body (#1146): on a short screen only the
-        // body scrolls and Speichern stays reachable at the same position.
-        await expect(save).toBeInViewport();
+        // Short viewports (#970, up to 520px high): the actions follow the content and the whole
+        // form scrolls; at normal phone height they are pinned instead (#1146).
+        await save.scrollIntoViewIfNeeded();
         const before = (await save.boundingBox())!.y;
-        const scrollable = await dialog
-          .locator('.bk-body')
-          .evaluate((el) => el.scrollHeight > el.clientHeight);
-        expect(scrollable).toBe(true);
-        await dialog.locator('.bk-body').evaluate((el) => {
-          el.scrollTop = el.scrollHeight;
+        const form = dialog.locator('form.bkform');
+        expect(await form.evaluate((el) => el.scrollTop)).toBeGreaterThan(0);
+        await form.evaluate((el) => {
+          el.scrollTop = 0;
         });
-        await expect(save).toBeInViewport();
-        expect((await save.boundingBox())!.y).toBe(before);
+        expect((await save.boundingBox())!.y).toBeGreaterThan(before);
         await page.setViewportSize({ width, height: 900 });
         await close.click();
         await expect(
