@@ -169,3 +169,105 @@ test('guided Prüfen: one line at a time, failed confirm stays actionable, summa
   await expect(page).not.toHaveURL(/modus=gefuehrt/);
   await expect(page.getByRole('link', { name: 'Prüfen durchgehen' })).toBeVisible();
 });
+
+test('phone review keeps equal segments, separate metadata and grouped actions', async ({
+  page,
+}, info) => {
+  test.skip(info.project.name === 'desktop', 'phone layout regression');
+  await page.route(/\/api\/inbox\?/, (route) =>
+    route.fulfill({
+      json: {
+        asOf: '2026-09-17',
+        count: 1234568,
+        entries: [line('phone-review', '2026-09-01', 'Synthetic shop', -1201)],
+        overspentSummary: null,
+        readSourceSummaries: [],
+        segment: 'umsaetze',
+        segments: { umsaetze: 1234567, aufgaben: 1 },
+        taskSources: { accounts: 0, receipts: 0, plan: 0, payslips: 0, other: 1 },
+        totalEntries: 1,
+        countsByKind: {},
+        countsByCause: {},
+        limit: 100,
+        offset: 0,
+        next: null,
+      },
+    }),
+  );
+  await page.route(/\/api\/inbox\/count/, (route) =>
+    route.fulfill({ json: { asOf: '2026-09-17', count: 1234568 } }),
+  );
+  await page.route(/\/api\/assignment-rules\/candidates\/phone-review/, (route) =>
+    route.fulfill({
+      json: {
+        candidate: {},
+        candidateRevision: 'synthetic-revision',
+        cleanup: { payeeId: null },
+        existingTransfer: null,
+        suggestions: [],
+      },
+    }),
+  );
+  await page.route(/\/api\/bank-sync\/candidates\/phone-review\/matches/, (route) =>
+    route.fulfill({ json: { merge: [], link: [], transfers: [] } }),
+  );
+  await page.goto('/konten/pruefen');
+  test.skip(!(await redesignLoaded(page)), 'redesign layout');
+  for (const width of [375, 390, 430]) {
+    await page.setViewportSize({ width, height: 844 });
+    await page.evaluate(() => document.fonts.ready);
+    const track = page.getByRole('group', { name: 'Teil von Pr\u00fcfen' });
+    const frame = (await track.boundingBox())!;
+    const segments = await track.getByRole('button').all();
+    const boxes = await Promise.all(
+      segments.map(async (segment) => (await segment.boundingBox())!),
+    );
+    expect(Math.abs(boxes[0]!.width - boxes[1]!.width)).toBeLessThanOrEqual(1);
+    for (const [index, box] of boxes.entries()) {
+      expect(box.x).toBeGreaterThanOrEqual(frame.x);
+      expect(box.x + box.width).toBeLessThanOrEqual(frame.x + frame.width);
+      expect(box.height).toBeGreaterThanOrEqual(44);
+      expect(await segments[index]!.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
+    }
+    for (const slot of ['inbox-info', 'inbox-filters']) {
+      const beside = (await page.locator(`[data-konten-slot="${slot}"] summary`).boundingBox())!;
+      expect(frame.x + frame.width).toBeLessThanOrEqual(beside.x);
+    }
+    const row = page.getByTestId('inbox-row');
+    const payee = (await row.locator('.bank-v1-payee strong').boundingBox())!;
+    const amount = (await row.locator('.bank-v1-amount').boundingBox())!;
+    expect(Math.abs(payee.y - amount.y)).toBeLessThanOrEqual(1);
+    expect(payee.x + payee.width).toBeLessThanOrEqual(amount.x);
+    const meta = (await row.locator('.bank-v1-meta').boundingBox())!;
+    expect(meta.y).toBeGreaterThanOrEqual(payee.y + payee.height);
+    const chips = row.locator('.bank-suggestion-pill');
+    await expect(chips).toHaveCount(3);
+    for (const chip of await chips.all())
+      expect((await chip.boundingBox())!.y).toBeGreaterThanOrEqual(meta.y + meta.height);
+    const actions = row.locator('.inbox-row-actions button, .bank-row-full-form');
+    await expect(actions).toHaveCount(3);
+    const actionBoxes = await Promise.all(
+      (await actions.all()).map(async (action) => (await action.boundingBox())!),
+    );
+    for (const box of actionBoxes) {
+      expect(box.height).toBeGreaterThanOrEqual(44);
+      expect(box.width).toBeGreaterThanOrEqual(44);
+      expect(Math.abs(box.y - actionBoxes[0]!.y)).toBeLessThanOrEqual(1);
+    }
+    await page.screenshot({ path: info.outputPath(`phone-review-${width}.png`), fullPage: true });
+    const toolbar = page.locator('.konten-inbox-actions-slot');
+    await expect(toolbar.locator('.btn')).toHaveCount(2);
+    for (const action of await toolbar.locator('.btn').all()) {
+      expect(await action.evaluate((el) => getComputedStyle(el).borderTopColor)).not.toBe(
+        'rgba(0, 0, 0, 0)',
+      );
+      expect(await action.evaluate((el) => getComputedStyle(el).borderTopStyle)).toBe('solid');
+      expect((await action.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+    }
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+      ),
+    ).toBeLessThanOrEqual(0);
+  }
+});

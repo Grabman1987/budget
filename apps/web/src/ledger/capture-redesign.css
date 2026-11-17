@@ -1206,11 +1206,6 @@
     padding-bottom: 0;
   }
 }
-.bk-editor-document-row {
-  display: flex;
-  flex: none;
-  padding: 0 var(--space-lg);
-}
 
 /* Rule 1 (#1146): on a normal phone height the actions are pinned below the scrolling body.
    Rule 2 (#970): on a short or keyboard-sized viewport the pinned bar would push the primary
@@ -1225,6 +1220,20 @@
   }
   /* Scrolling a button into view keeps its whole box (fractional layout) inside the form. */
   .bkform-redesign .bk-form-actions .btn {
+    scroll-margin-block: 8px;
+  }
+}
+
+/* iOS keyboards resize visualViewport without changing the CSS viewport height. */
+@media (max-width: 767px) {
+  .bk-focus-scope[data-compact-viewport] .bkform-redesign {
+    overflow-y: auto;
+  }
+  .bk-focus-scope[data-compact-viewport] .bkform-redesign .bk-body {
+    flex: none;
+    overflow: visible;
+  }
+  .bk-focus-scope[data-compact-viewport] .bkform-redesign .bk-form-actions .btn {
     scroll-margin-block: 8px;
   }
 }
