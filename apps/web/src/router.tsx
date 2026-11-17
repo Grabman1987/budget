@@ -874,19 +874,6 @@ const reportRoute = createRoute({
         hash: location.hash,
         replace: true,
       });
-    if (!REDESIGN_ENABLED || params.reportId !== 'pallocation') return;
-    const target = new URL(
-      `/reports/vermoegen-schulden${location.searchStr}${location.hash ? `#${location.hash}` : ''}`,
-      'https://budget.invalid',
-    );
-    const intendedView = target.searchParams.get('darstellung');
-    if (
-      !['verteilung', 'einzahlungen', 'rendite', 'kennzahlen', 'klassen'].includes(
-        intendedView ?? '',
-      )
-    )
-      target.searchParams.set('darstellung', 'verteilung');
-    throw redirect({ href: `${target.pathname}${target.search}${target.hash}`, replace: true });
   },
   staticData: { meta: { ...REPORTS_CATALOG, title: 'Report', register: 'katalog' } },
   loaderDeps: ({ search }) => ({
