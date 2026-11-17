@@ -1558,10 +1558,9 @@ export function CaptureForm({
             {saveReason}
           </p>
         )}
-        {mobileRedesign && formActions}
         {mobileRedesign && !editing && (
           // The phone header has no room for a global upload action; the + sheet carries it. It
-          // sits after the form actions so date, kind and amount keep their place above the fold.
+          // closes the scrolling body; the form actions stay pinned below it (#1146).
           <div className="bk-editor-document-row">
             <DocumentUploadButton label="Dokument hochladen" />
           </div>
@@ -1656,7 +1655,7 @@ export function CaptureForm({
           {lineProblem}
         </p>
       )}
-      {!mobileRedesign && formActions}
+      {formActions}
       {mobileRedesign && (
         <Button
           className="bk-keyboard-save"

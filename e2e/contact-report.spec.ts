@@ -111,7 +111,11 @@ test('fixed EUR report preserves credit, running history, source links and recei
     await expect(
       page.getByRole('heading', { name: `Kontoblatt ${data.contact.name}`, exact: true }),
     ).toBeFocused();
-    await page.locator('[data-r8-detail="contact-history"] > summary').click();
+    // Every open contact has its own stacked sheet; the selected one is the labelled region.
+    await page
+      .getByRole('region', { name: 'Kontaktkontoauszug' })
+      .locator('[data-r8-detail="contact-history"] > summary')
+      .click();
   }
   const sheet = page.getByRole('region', { name: 'Kontaktkontoauszug' });
   await expect(sheet.locator('.contacts-balance')).toContainText(
@@ -197,8 +201,8 @@ test('balanced contacts stay hidden by default and retain deep-linked full histo
   if (on) await page.getByRole('checkbox', { name: 'Auch ausgeglichene Kontakte' }).check();
   else await page.getByRole('button', { name: 'Alle', exact: true }).click();
   await contact.click();
-  if (on) await page.locator('[data-r8-detail="contact-history"] > summary').click();
   const sheet = page.getByRole('region', { name: 'Kontaktkontoauszug' });
+  if (on) await sheet.locator('[data-r8-detail="contact-history"] > summary').click();
   await expect(sheet.locator('.contacts-balance')).toContainText('Ausgeglichen');
   await expect(sheet.locator('.contacts-balance')).toContainText('0,00 €');
   const closed = sheet.locator('.contacts-closed-history > summary');

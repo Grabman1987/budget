@@ -194,17 +194,22 @@ test('850 contacts: 5000-cent debt forgiveness, exact shortfall, cash unchanged,
   expect(new URL(page.url()).searchParams.get('kontakt')).toBe(owed.id);
   expect(new URL(page.url()).hash).toBe('#details');
   const body = page.locator('.r4-contact-report');
+  const sheet = page.getByRole('region', { name: 'Kontaktkontoauszug' });
   await expect(body.getByRole('link', { name: new RegExp(balanced.name) })).toBeVisible();
   await expect(page.getByTestId('report-frame-result')).toContainText('30,00 €');
   await body.getByRole('link', { name: new RegExp(credit.name) }).click();
   await expect(page.getByRole('heading', { name: `Kontoblatt ${credit.name}` })).toBeFocused();
-  await expect(body.getByRole('button', { name: 'Schulden erlassen', exact: true })).toHaveCount(0);
+  await expect(sheet.getByRole('button', { name: 'Schulden erlassen', exact: true })).toHaveCount(
+    0,
+  );
   await expect(
     body.getByRole('button', { name: /Rückzahlung|Ausgleichen|Kontakt anlegen|Umbenennen/ }),
   ).toHaveCount(0);
   await body.getByRole('link', { name: new RegExp(balanced.name) }).click();
   await expect(body).toContainText('Noch keine Kontaktbuchungen. Der Saldo ist ausgeglichen.');
-  await expect(body.getByRole('button', { name: 'Schulden erlassen', exact: true })).toHaveCount(0);
+  await expect(sheet.getByRole('button', { name: 'Schulden erlassen', exact: true })).toHaveCount(
+    0,
+  );
   const showAll = page.getByRole('checkbox', { name: 'Auch ausgeglichene Kontakte' });
   await showAll.uncheck();
   await expect(page).not.toHaveURL(/verlauf=/);
@@ -217,9 +222,9 @@ test('850 contacts: 5000-cent debt forgiveness, exact shortfall, cash unchanged,
   await page.goForward();
   await expect(showAll).toBeChecked();
   await body.getByRole('link', { name: new RegExp(owed.name) }).click();
-  const history = body.locator('[data-r8-detail="contact-history"]');
+  const history = sheet.locator('[data-r8-detail="contact-history"]');
   await history.locator(':scope > summary').click();
-  const source = body.getByRole('button', { name: /Ursprungsbuchung öffnen/ }).first();
+  const source = sheet.getByRole('button', { name: /Ursprungsbuchung öffnen/ }).first();
   await source.click();
   await expect(page.getByRole('dialog', { name: 'Buchung bearbeiten' })).toBeVisible();
   const sourceOverviewUrl = '**/api/contacts?history=1';
@@ -243,7 +248,7 @@ test('850 contacts: 5000-cent debt forgiveness, exact shortfall, cash unchanged,
   await expect(source).toBeFocused();
   await history.locator(':scope > summary').click();
 
-  await body.getByRole('button', { name: 'Schulden erlassen', exact: true }).click();
+  await sheet.getByRole('button', { name: 'Schulden erlassen', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: 'Schulden erlassen', exact: true });
   const submit = dialog.getByRole('button', { name: 'Schulden erlassen', exact: true });
   await expect(submit).toBeDisabled();
@@ -312,7 +317,7 @@ test('850 contacts: 5000-cent debt forgiveness, exact shortfall, cash unchanged,
     ),
   ).toMatchObject({ activityCents: 0, availableCents: 2000 });
   // A real concurrent repayment lowers the maximum while this browser retains its draft.
-  await body.getByRole('button', { name: 'Schulden erlassen', exact: true }).click();
+  await sheet.getByRole('button', { name: 'Schulden erlassen', exact: true }).click();
   await dialog.getByLabel('Kategorie', { exact: true }).selectOption(gifts.id);
   await expect(submit).toBeEnabled();
   const payment = await post(`/contacts/${owed.id}/settlements`, {
@@ -342,7 +347,7 @@ test('850 contacts: 5000-cent debt forgiveness, exact shortfall, cash unchanged,
   expect((await read(`/contacts/${owed.id}`)).balanceCents).toBe(5000);
   expect((await read('/accounts')).accounts[0].balanceCents).toBe(cash);
   await page.reload();
-  await expect(body.locator('.contacts-balance')).toContainText('50,00 €');
+  await expect(sheet.locator('.contacts-balance')).toContainText('50,00 €');
   await page.setViewportSize({ width: 320, height: 844 });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
@@ -356,6 +361,7 @@ test('1149 contacts: open register and forgiveness remain readable and accessibl
   await page.goto(`/reports/kontakte?kontakt=${owed.id}&verlauf=1#details`);
   if (!(await redesignReportsOn(page))) return;
   const body = page.locator('.r4-contact-report');
+  const sheet = page.getByRole('region', { name: 'Kontaktkontoauszug' });
   await revealReportDetail(page);
   const calculation = page.locator('.redesign-report-equation');
   await expect(calculation.getByText('Wir bekommen', { exact: true })).toBeVisible();
@@ -379,7 +385,7 @@ test('1149 contacts: open register and forgiveness remain readable and accessibl
     });
   }
   await page.getByRole('combobox', { name: 'Darstellung der Kontakte' }).selectOption('offen');
-  const openTable = body.getByRole('table', { name: /Offene Forderungen/ });
+  const openTable = sheet.getByRole('table', { name: /Offene Forderungen/ });
   await expect(openTable).toContainText('50,00 €');
   await expect(openTable.getByRole('columnheader')).toHaveText([
     'Datum',
@@ -397,7 +403,7 @@ test('1149 contacts: open register and forgiveness remain readable and accessibl
       fullPage: true,
     });
   }
-  await body.getByRole('button', { name: 'Schulden erlassen', exact: true }).click();
+  await sheet.getByRole('button', { name: 'Schulden erlassen', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: 'Schulden erlassen', exact: true });
   const submit = dialog.getByRole('button', { name: 'Schulden erlassen', exact: true });
   await expect(submit).toBeDisabled();
