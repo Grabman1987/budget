@@ -3,6 +3,7 @@ import { act, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SidePanel } from './panel';
 import { ToastProvider, useToast, type ToastOptions } from './toast';
+import { readFileSync } from 'node:fs';
 
 function Trigger({ options, label = 'go' }: { options: ToastOptions; label?: string }) {
   const { show } = useToast();
@@ -16,6 +17,14 @@ function Trigger({ options, label = 'go' }: { options: ToastOptions; label?: str
 const flush = () => act(() => vi.advanceTimersByTimeAsync(0));
 
 describe('Toast', () => {
+  it('allows wrapping messages while keeping the complete action in the available width', () => {
+    const css = readFileSync('packages/ui/src/styles/components.css', 'utf8');
+    expect(css).toMatch(/\.toast-body > span\s*\{[^}]*min-width: 0;[^}]*overflow-wrap: anywhere;/);
+    expect(css).toMatch(
+      /\.toast button\s*\{[^}]*flex-shrink: 0;[^}]*white-space: nowrap;[^}]*overflow: visible;/,
+    );
+    expect(css).toMatch(/\.toast\s*\{[^}]*width: max-content;/);
+  });
   beforeEach(() => {
     vi.useFakeTimers();
   });

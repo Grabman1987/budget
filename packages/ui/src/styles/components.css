@@ -1330,10 +1330,13 @@ dialog.sheet-bottom.is-full .sheet-grip {
   left: 50%;
   bottom: 28px;
   translate: -50% 0;
+  width: max-content;
   max-width: calc(100vw - 32px);
   pointer-events: none;
 }
 .toast-body {
+  box-sizing: border-box;
+  max-width: 100%;
   display: flex;
   align-items: center;
   gap: 16px;
@@ -1359,7 +1362,14 @@ dialog.sheet-bottom.is-full .sheet-grip {
     opacity 200ms var(--ease-out),
     translate 240ms var(--ease-out);
 }
+.toast-body > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
 .toast button {
+  flex-shrink: 0;
+  white-space: nowrap;
+  overflow: visible;
   color: var(--ground);
   font-weight: 650;
   text-decoration: underline;
@@ -1378,7 +1388,11 @@ dialog.sheet-bottom.is-full .sheet-grip {
 }
 @media (max-width: 767px) {
   .toast {
-    bottom: calc(88px + env(safe-area-inset-bottom));
+    width: calc(100vw - 32px);
+    bottom: calc(
+      var(--tabbar-h, calc(64px + env(safe-area-inset-bottom))) + var(--fab-gap, 16px) +
+        var(--fab-size, 58px) + 8px
+    );
   }
 }
 
