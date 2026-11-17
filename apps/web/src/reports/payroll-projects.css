@@ -290,3 +290,19 @@
 .pp-slip .n {
   text-align: right;
 }
+.pp-running {
+  fill: var(--line);
+}
+.pp-special {
+  stroke: var(--line);
+  stroke-width: var(--stroke-hairline);
+}
+.pp-hatch-line {
+  stroke: var(--line);
+  stroke-width: 1;
+}
+.pp-unclear {
+  fill: none;
+  stroke: var(--ink-2);
+  stroke-dasharray: 4 3;
+}

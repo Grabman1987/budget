@@ -446,7 +446,7 @@ const direct = [
   [34, '/reports/gruppe/monat', 'reportGroup'],
   [35, '/reports/onepager?monat=2026-08', 'onepager'],
   [36, '/reports/gehalt/historie?monat=2026-08', 'payrollHistory'],
-  [37, '/reports/einnahmen-ausgaben/buchungen?zeitraum=1J&zelle=inc&spalte=2025-09', 'sources'],
+  [37, '/reports/einnahmen-ausgaben/buchungen?zeitraum=1J&zelle=inc&spalte=2025-10', 'sources'],
   [38, '/einstellungen', 'settingsIndex'],
   [39, '/einstellungen/profil', 'profile'],
   [40, '/einstellungen/sicherheit', 'security'],

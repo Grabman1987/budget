@@ -42,6 +42,7 @@ export function TableReportFrame<T extends FrameFacts = ReportTables>({
   embedded = false,
   calculation,
   basisOverride,
+  statement,
   verdictOverride,
 }: {
   report: ReportEntry;
@@ -59,6 +60,7 @@ export function TableReportFrame<T extends FrameFacts = ReportTables>({
   calculation?: ReportCalculation | undefined;
   basisOverride?: ReactNode;
   verdictOverride?: VerdictFacts | undefined;
+  statement?: ReactNode;
 }) {
   const tables = embedded && (query.isFetching || query.isError) ? undefined : query.data;
   const end =
@@ -117,6 +119,7 @@ export function TableReportFrame<T extends FrameFacts = ReportTables>({
       sourceReportId={report.id}
       sourceDate={tables?.asOf}
       verdict={verdictOverride ?? verdict}
+      statement={statement}
       reportControls={reportControls}
       meta={meta}
       title={report.name}

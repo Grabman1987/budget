@@ -177,10 +177,10 @@ describe('owner625 templates over canonical report facts', () => {
 
   it('opens split contributions, preserving refund signs and excluding other categories in the same booking', () => {
     const model = explorerTemplate(facts, { id: 'heatmap', period: '1J' });
-    expect(explorerTemplateSources(facts, model, 'cat:food', '2024-01')).toEqual([
+    expect(explorerTemplateSources(facts, model, 'cat:food', '2024-01')).toMatchObject([
       { bookingId: 'shared-cash-booking', date: '2024-01-04', cents: 1001 },
     ]);
-    expect(explorerTemplateSources(facts, model, 'cat:food', '2024-02')).toEqual([
+    expect(explorerTemplateSources(facts, model, 'cat:food', '2024-02')).toMatchObject([
       { bookingId: 'food-feb', date: '2024-02-04', cents: 2002 },
       { bookingId: 'category-refund-feb', date: '2024-02-05', cents: -1 },
     ]);

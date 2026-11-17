@@ -96,8 +96,13 @@ export function useContactWrite() {
     toast.dismiss();
     try {
       const result = await run();
-      await refresh();
-      toast.show({ message, actionLabel: 'Rückgängig', onAction: () => undo(result.groupId) });
+      // #1201: the dialog closes on the write response. Reads refresh in the background and the
+      // Undo toast appears once they are in, so Undo is never offered over stale lists.
+      void refresh()
+        .catch(() => undefined)
+        .then(() =>
+          toast.show({ message, actionLabel: 'Rückgängig', onAction: () => undo(result.groupId) }),
+        );
       return true;
     } catch (error) {
       failed(error);

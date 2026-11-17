@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { and, eq, gt, gte, lte, isNull, min, or } from 'drizzle-orm';
+import { and, desc, eq, gt, gte, lte, isNotNull, isNull, min, or } from 'drizzle-orm';
 import {
   isDuplicatePayslip,
   payrollTotals,
@@ -366,6 +366,86 @@ function settleIntake(tx: Executor, id: string, resolution: string, ctx: AuditCo
       { resolvedAt: nowIso(), resolution, urgent: false },
       ctx,
     );
+}
+/** Inbox resolution prefix of a PDF the owner marked as "no payslip" (kept, excluded). */
+export const NOT_A_PAYSLIP = 'Kein Gehaltszettel';
+const NOT_A_PAYSLIP_RE = new RegExp(`^${NOT_A_PAYSLIP}(?:: (.*))?$`, 's');
+const intakeTask = (tx: Executor, id: string, open: boolean) =>
+  tx
+    .select()
+    .from(inboxItem)
+    .where(
+      and(
+        eq(inboxItem.refType, 'payslip-intake'),
+        eq(inboxItem.refId, id),
+        open ? isNull(inboxItem.resolvedAt) : isNotNull(inboxItem.resolvedAt),
+      ),
+    )
+    .orderBy(desc(inboxItem.resolvedAt))
+    .get();
+/**
+ * The owner declares that an unrecognised PDF is not a payslip. The file and its receipt stay;
+ * the intake becomes `rejected`, which already excludes its content hash from every later scan
+ * and upload, so a renamed copy stays excluded. Nothing is booked.
+ */
+export function markIntakeNotAPayslip(
+  db: Executor,
+  id: string,
+  note: string | null | undefined,
+  ctx: AuditContext,
+) {
+  const grouped = withGroup(ctx);
+  return runInTransaction(db, (tx) => {
+    const row = getPayslipIntake(tx, id);
+    if (row.status !== 'pending')
+      throw new ConflictError('Diese Aufgabe wurde bereits entschieden.');
+    if (row.parsed.documentType !== 'unknown')
+      throw new ConflictError('Nur nicht erkannte Dokumente können ausgeschlossen werden.');
+    const text = note?.trim().slice(0, 200);
+    settleIntake(tx, id, text ? `${NOT_A_PAYSLIP}: ${text}` : NOT_A_PAYSLIP, grouped);
+    return { groupId: grouped.groupId };
+  });
+}
+/** Documents excluded with "Kein Gehaltszettel", newest first. */
+export function listExcludedNonPayslips(db: Executor) {
+  return db
+    .select()
+    .from(payslipIntake)
+    .where(and(eq(payslipIntake.status, 'rejected'), isNull(payslipIntake.deletedAt)))
+    .all()
+    .flatMap((row) => {
+      const m = NOT_A_PAYSLIP_RE.exec(intakeTask(db, row.id, false)?.resolution ?? '');
+      if (!m) return [];
+      return [
+        {
+          id: row.id,
+          receiptId: row.receiptId,
+          originalFilename: getReceipt(db, row.receiptId).originalFilename,
+          note: m[1] ?? null,
+          excludedAt: intakeTask(db, row.id, false)?.resolvedAt ?? row.updatedAt,
+        },
+      ];
+    })
+    .sort((a, b) => b.excludedAt.localeCompare(a.excludedAt));
+}
+/** Undo "Kein Gehaltszettel": the intake is pending again and its task reopens. */
+export function reincludeNonPayslip(db: Executor, id: string, ctx: AuditContext) {
+  const grouped = withGroup(ctx);
+  return runInTransaction(db, (tx) => {
+    const row = getPayslipIntake(tx, id);
+    const task = intakeTask(tx, id, false);
+    if (row.status !== 'rejected' || !task?.resolution || !NOT_A_PAYSLIP_RE.test(task.resolution))
+      throw new ConflictError('Dieses Dokument ist nicht als „Kein Gehaltszettel“ ausgeschlossen.');
+    updateTracked(tx, payslipIntake, [id], { status: 'pending' }, grouped);
+    updateTracked(
+      tx,
+      inboxItem,
+      [task.id],
+      { resolvedAt: null, resolution: null, urgent: true },
+      grouped,
+    );
+    return { groupId: grouped.groupId };
+  });
 }
 /**
  * Re-evaluate one pending Dropbox intake with the current scope rules (start of the records,

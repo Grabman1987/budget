@@ -69,6 +69,7 @@ describe.each([false, true])('actual A2 router, redesign=%s', (enabled) => {
       .map((route) => route.fullPath.replace(/\/$/, '') || '/');
     const expected = [
       '/einstellungen/kontakte',
+      '/einstellungen/empfaenger',
       ...baselinePatterns.map((row) => row[1]),
       ...aliasPatterns
         .filter((row) => !enabled || row[0] !== '/reports/kontakte')

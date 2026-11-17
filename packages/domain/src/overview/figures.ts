@@ -57,6 +57,11 @@ export interface OverviewSplit {
   incomeGroup: IncomeGroup | null;
   payeeId: string | null;
   payeeName: string | null;
+  /** Drill-down detail (income/expense report only): the booking's account, memo and total. */
+  accountName?: string | null;
+  memo?: string | null;
+  /** Whole cash amount of the booking (signed); differs from `amountCents` for a split. */
+  bookingCents?: number;
 }
 
 export interface OverviewData {

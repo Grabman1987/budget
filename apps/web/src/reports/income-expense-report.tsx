@@ -36,6 +36,7 @@ import { monthShort } from './table-format';
 import { TableReportFrame } from './table-report-frame';
 import type { IncomeExpenseReportData } from '@budget/db';
 import type { ReactNode } from 'react';
+import { IncomeExpenseCashflow, cashflowStatementLine } from './income-expense-cashflow';
 import { ReportProjectScopeNote } from './report-project-scope';
 import { REDESIGN_ENABLED } from '../shell/redesign-flag';
 import {
@@ -82,11 +83,7 @@ export function IncomeExpenseReport({
   const expanded = new Set(gruppen ?? []);
   const data = !query.isFetching && query.isSuccess ? query.data : null;
   const window = data?.firstMonth
-    ? reportPeriodMonths(
-        period,
-        period.includes('..') ? data.currentMonth! : (data.lastFullMonth ?? ''),
-        data.firstMonth,
-      )
+    ? reportPeriodMonths(period, data.currentMonth, data.firstMonth)
     : [];
   const months = data?.months.filter((m) => window.includes(m.month)) ?? [];
   const rows = data ? incomeExpenseRows(months, data, expanded) : [];
@@ -133,15 +130,16 @@ export function IncomeExpenseReport({
       <TableReportFrame
         calculation={REDESIGN_ENABLED && summary ? summary.calculation : undefined}
         basisOverride={
-          REDESIGN_ENABLED && window.length
-            ? `${monthShort(window[0]!, true)} bis ${monthShort(window.at(-1)!, true)} · Buchungsdatum`
+          window.length
+            ? `${monthShort(window[0]!, true)} bis ${monthShort(window.at(-1)!, true)}${window.at(-1) === data?.currentMonth ? ' (laufend)' : ''} · Buchungsdatum`
             : undefined
         }
+        statement={months.length && data ? cashflowStatementLine(data, window) : undefined}
         report={report}
         meta={meta}
         through="full"
         verdictEnd={window.at(-1)}
-        currentAllowed={period.includes('..')}
+        currentAllowed
         query={query}
         reportControls={viewControl}
         className="income-expense-report"
@@ -151,6 +149,7 @@ export function IncomeExpenseReport({
             value: (
               <ReportPeriodControl
                 trend={false}
+                includeCurrent
                 label="Zeitraum"
                 value={period}
                 onChange={(p) => {
@@ -240,9 +239,10 @@ export function IncomeExpenseReport({
                   ) : (
                     <>
                       <IncomeExpenseChart data={data} months={window} />
-                      <LineLegend items={[{ kind: 'actual', label: 'Netto' }]} />
+                      <LineLegend items={[{ kind: 'actual', label: 'Cashflow' }]} />
                     </>
                   )}
+                  <IncomeExpenseCashflow data={data} months={window} />
                   <IncomeOverviewDetails>
                     <RowsGrid
                       rows={rows}
@@ -291,7 +291,7 @@ export function IncomeExpenseReport({
                       Haushaltseinnahmen minus Bedarf, Wunsch, Zukunft und Ausgaben ohne Kategorie.
                       Kapitalerträge und Erstattungen ohne Kategorie stehen außerhalb der
                       Haushaltseinnahmen; kategorisierte Erstattungen mindern die Ausgaben.
-                      Kategorisierte Zukunft-Umbuchungen zählen wie in der Gesamttabelle. Netto =
+                      Kategorisierte Zukunft-Umbuchungen zählen wie in der Gesamttabelle. Cashflow =
                       Übrig nach Zukunft minus Ohne Kategorie. Zuflüsse ohne Einkommensart werden
                       nicht gezählt. Eine Zelle öffnet ihre Buchungen; CSV enthält genau die
                       sichtbaren Zeilen, Monate, Summe und Ø. Der laufende Monat reicht bis heute.
@@ -321,12 +321,12 @@ function IncomeExpenseChart({ data, months }: { data: IncomeExpenseReportData; m
     <ChartSvg
       width={760}
       height={260}
-      label="Monatliche Einnahmen oben, Ausgaben unten und Netto als Linie"
+      label="Monatliche Einnahmen oben, Ausgaben unten und Cashflow als Linie"
       testId="income-expense-chart"
       points={chartPoints(months, x, [
         { name: 'Einnahmen · Haushalt', values: income },
         { name: 'Ausgaben', values: expenses, color: 'var(--ink-3)' },
-        { name: 'Netto', values: net, color: 'var(--future)' },
+        { name: 'Cashflow', values: net, color: 'var(--future)' },
       ])}
     >
       <Graticule

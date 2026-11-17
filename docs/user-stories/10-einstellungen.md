@@ -1,7 +1,7 @@
 # User-Stories – Einstellungen
 
 Bereich 10: Konten, Datenquellen, Sicherheit/Passkey, Sicherung, Warenkorb, Kontakte-Verwaltung. Gesamtkatalog, Status- und Verweis-Legende: `docs/USER-STORIES.md`. Stand: 15.11.2026.
-Einstellungen erreicht der Nutzer über die Navigation „Einstellungen“. Die Seiten heißen Profil, Konten, Depots & Kryptos, Projekte, Warenkorb (Teuerung), Kategorien, Regelwerk, Zuordnungsregeln, Datenquellen, Anlageklassen, Kontakte, CSV-Export und Sicherheit. Neue Story-IDs ab E-11 sind Ergänzungen zum bisherigen Katalog (Konten, Kontakte, Warenkorb, Sitzungen). Das Regelwerk steht in `09-regelwerk.md`.
+Einstellungen erreicht der Nutzer über die Navigation „Einstellungen“. Die Seiten heißen Profil, Konten, Depots & Kryptos, Projekte, Warenkorb (Teuerung), Kategorien, Regelwerk, Zuordnungsregeln, Datenquellen, Anlageklassen, Kontakte, Empfänger, CSV-Export und Sicherheit. Neue Story-IDs ab E-11 sind Ergänzungen zum bisherigen Katalog (Konten, Kontakte, Warenkorb, Sitzungen). Das Regelwerk steht in `09-regelwerk.md`.
 
 ### E-01 – Dispo je Konto per Häkchen mit Limit
 - **Story:** Als Nutzer möchte ich je Konto den Dispo per Häkchen mit Limit aktivieren, damit „Frei bis Gehalt“ den Überziehungsrahmen als verfügbares Geld einrechnet und die Prognose die Realität zeigt.
@@ -322,3 +322,21 @@ Einstellungen erreicht der Nutzer über die Navigation „Einstellungen“. Die 
   4. Nach erfassten Zahlungen lässt sich die Zusammenführung nicht mehr rückgängig machen; die App warnt davor.
 - **Status:** teilweise — **Verweis:** #871, #869 (siehe auch C-04)
   Fehlt noch: Vertrag und Freigabe (#869, #871) sind offen; der Dialog mit Vorschau ist im Code vorhanden. Abgleich mit C-04 (dort „geplant“).
+
+### E-14 – Empfänger zusammenführen, Hauptempfänger und Alias
+- **Story:** Als Nutzer möchte ich ähnliche Empfänger (Tippfehler, „Payment for Bäckerei Muster“ neben „Bäckerei Muster“) zu einem Hauptempfänger zusammenführen und die alten Namen als Alias behalten, damit Auswertungen einen Händler nicht mehrfach zeigen und spätere Bankzeilen mit dem alten Text gleich den Hauptempfänger vorschlagen.
+- **Ausgangslage:** Durch Bankzeilen, Wallets und Tippfehler gibt es mehrere Empfänger für denselben Händler.
+- **Ablauf:**
+  1. Nutzer öffnet Einstellungen › Empfänger. Oben steht „Mögliche Dubletten“ mit Gruppen ähnlicher Namen (gleich nach Groß-/Kleinschreibung, Umlauten, Leerzeichen, Präfixen wie „Payment for“ oder „Zahlung an“, angehängter Ortsangabe oder Nummer, kleiner Tippfehler). Darunter steht die Liste aller Empfänger mit Anzahl der Buchungen und letzter Verwendung; Suche und Umbenennen sind dort möglich.
+  2. Er klickt bei einer Gruppe auf „Zusammenführen …“ oder wählt in der Liste mindestens zwei Empfänger aus und klickt „Ausgewählte zusammenführen“.
+  3. Im Dialog wählt er den Hauptempfänger (vorgeschlagen ist der mit den meisten Buchungen). Die Vorschau nennt „n Buchungen, m Regeln wechseln zu <Hauptempfänger>“ und die Namen, die Alias werden. Geprüfte (gesperrte) Buchungen bleiben, bis er das Häkchen zum Entsperren setzt.
+  4. Er klickt „Zusammenführen bestätigen“. Die App meldet „Empfänger zusammengeführt.“ mit „Rückgängig“.
+  5. Unter dem Hauptempfänger stehen die Aliase; „Entfernen“ löscht einen Alias (ebenfalls rückgängig machbar).
+- **Ergebnis:** Buchungen und Zuordnungsregeln der anderen Empfänger gehören dem Hauptempfänger; die alten Namen sind Alias, sodass spätere Bankzeilen mit diesem Text (in jeder Datenquelle) den Hauptempfänger als Vorschlag bekommen. Kein Betrag und kein Saldo ändert sich.
+- **Abnahmekriterien:**
+  1. Es wird nie von selbst zusammengeführt; Dubletten sind nur Vorschläge.
+  2. „Rückgängig“ stellt Buchungen, Regeln, Empfänger und Aliase in einem Schritt wieder her.
+  3. Systemempfänger (z. B. Eröffnungssaldo) erscheinen nicht und lassen sich nicht zusammenführen.
+  4. Ohne Auswahl von mindestens zwei Empfängern ist „Ausgewählte zusammenführen“ gesperrt.
+  5. Am Handy bleibt die Seite ohne seitliches Scrollen bedienbar.
+- **Status:** offen — **Verweis:** #1202 (Kontakte siehe E-13b, #871)

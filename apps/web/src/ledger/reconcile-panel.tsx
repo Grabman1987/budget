@@ -4,8 +4,13 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tansta
 import { TriangleAlert, CircleCheck } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { ApiError } from '../api/http';
-import { previewReconciliation, reconcileAccount, type ReconcileRequest } from './api';
-import { nativeCurrency, valuedCurrency, longDay, shortDay } from './format';
+import {
+  patchBooking,
+  previewReconciliation,
+  reconcileAccount,
+  type ReconcileRequest,
+} from './api';
+import { nativeCurrency, pluralBookings, valuedCurrency, longDay, shortDay } from './format';
 import { errorText } from './labels';
 import { useLedgerWrites } from './mutations';
 import { LEDGER_KEY, lookupsQuery } from './queries';
@@ -66,6 +71,8 @@ export function ReconcileFlow({
   const hidden = useAmountPrivacy();
   const qc = useQueryClient();
   const writes = useLedgerWrites();
+  const [confirming, setConfirming] = useState(false);
+  const [confirmedNote, setConfirmedNote] = useState('');
   const today = todayInVienna();
   // A dirty form retains the close revision captured when it was opened, never a silent refresh.
   const [closeContext] = useState(monthClose);
@@ -234,27 +241,40 @@ export function ReconcileFlow({
       },
     );
   };
-  const confirmPending = (ids: string[]) => {
+  // #1204: confirm row by row through the same single-booking write as the register's status
+  // change. The bulk route applies a stricter ownership policy (bank-linked, scheduled or
+  // transfer rows are skipped), which made "Bestätigen" fail on exactly the suggested bookings.
+  const confirmPending = async (ids: string[]) => {
+    if (confirming) return;
     setError(null);
+    setConfirmedNote('');
+    setConfirming(true);
     closeContext?.onBusy(true);
-    writes.bulk.mutate(
-      { ids, set: { status: 'confirmed' } },
-      {
-        onSuccess: (result) => {
-          if (result.skipped.length)
-            setError(
-              `${result.skipped.length} Buchungen wurden nicht geändert. Bitte den Vorschlag in Buchungen prüfen.`,
-            );
-          // The month-close token is intentionally immutable after a separate canonical write.
-          if (closeContext && result.changed.length) setStaleClose(true);
-        },
-        onError: (e) => setError(errorText(e)),
-        onSettled: () => {
-          closeContext?.onBusy(false);
-          void qc.invalidateQueries({ queryKey: LEDGER_KEY });
-        },
-      },
-    );
+    const changed: string[] = [];
+    const failures: string[] = [];
+    let lastGroup = '';
+    for (const id of ids) {
+      try {
+        lastGroup = (await patchBooking(id, { status: 'confirmed' })).groupId;
+        changed.push(id);
+      } catch (e) {
+        failures.push(`Buchung ${id.slice(0, 8)}: ${errorText(e, '')}`.trim());
+      }
+    }
+    if (changed.length) {
+      const text = `${pluralBookings(changed.length)} bestätigt.`;
+      if (changed.length === 1) writes.offerUndo(text, lastGroup);
+      else setConfirmedNote(text);
+      // The month-close token is intentionally immutable after a separate canonical write.
+      if (closeContext) setStaleClose(true);
+    }
+    if (failures.length)
+      setError(
+        `${changed.length} von ${ids.length} Buchungen bestätigt. Nicht geändert: ${failures.join('; ')}`,
+      );
+    closeContext?.onBusy(false);
+    setConfirming(false);
+    void qc.invalidateQueries({ queryKey: LEDGER_KEY });
   };
 
   return (
@@ -293,6 +313,11 @@ export function ReconcileFlow({
             />
           )}
         </Field>
+      )}
+      {confirmedNote && (
+        <p className="kmeta" role="status">
+          {confirmedNote}
+        </p>
       )}
       {future && (
         <p className="field-error" role="alert">
@@ -510,11 +535,13 @@ export function ReconcileFlow({
                       ) : (
                         <>
                           <Button
-                            disabled={candidateBusy || confirm.isPending || staleClose}
+                            disabled={
+                              candidateBusy || confirm.isPending || confirming || staleClose
+                            }
                             onClick={() =>
                               row.kind === 'duplicate'
                                 ? dropDuplicate(row.bookingIds[0]!)
-                                : confirmPending(row.bookingIds)
+                                : void confirmPending(row.bookingIds)
                             }
                           >
                             {row.kind === 'duplicate'

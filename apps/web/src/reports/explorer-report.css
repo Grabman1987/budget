@@ -315,3 +315,14 @@
 .ex-chart-original-scroll th:first-child {
   text-align: left;
 }
+.ex-template-sources .ex-cell-bookings tfoot :is(th, td) {
+  border-top: 1px solid var(--line-2);
+  border-bottom: 0;
+  font-weight: 600;
+}
+.ex-template-sources .ex-cell-bookings td small {
+  white-space: nowrap;
+}
+.ex-template-sources {
+  scroll-margin-top: 72px;
+}

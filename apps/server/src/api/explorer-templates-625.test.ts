@@ -118,8 +118,14 @@ describe('625 templates reuse the existing authenticated canonical report read',
       await app.request('/api/report-tables/income-expense')
     ).json()) as ExplorerTemplateFacts;
     const model = explorerTemplate(facts, { id: 'category', period: '1J', categoryId: 'food' });
-    expect(explorerTemplateSources(facts, model, 'cat:food', '2024-01')).toEqual([
-      { bookingId: shared.id, date: '2024-01-04', cents: 1001 },
+    expect(explorerTemplateSources(facts, model, 'cat:food', '2024-01')).toMatchObject([
+      {
+        bookingId: shared.id,
+        date: '2024-01-04',
+        cents: 1001,
+        accountName: 'Synthetic checking',
+        bookingCents: -1502,
+      },
     ]);
     const response = await app.request(`/api/bookings?ids=${shared.id}`);
     expect(response.status).toBe(200);

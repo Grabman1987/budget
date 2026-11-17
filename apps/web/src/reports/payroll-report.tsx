@@ -15,6 +15,7 @@ import type { ReportEntry } from '../nav/reports-catalog';
 import { AppLink } from '../shell/app-link';
 import { MonthReportFrame, shortMonth, useReportMonth } from './month-frame';
 import { payrollQuery, type PayrollData } from './payroll-projects-api';
+import { PayrollNetComposition } from './payroll-net-composition';
 import { PayrollProjectChart } from './payroll-project-chart';
 import { PayslipPanel } from './payslip-panel';
 import { PayrollSource } from './payroll-source';
@@ -298,29 +299,17 @@ export function PayrollReport({
                         : 'Netto im Verlauf'}
                     </h2>
                   </div>
-                  {recent.some((row) => row.recorded && !row.netSplitUnknown) ? (
-                    <PayrollProjectChart
-                      focusSalary
-                      table
+                  {recent.some((row) => row.composition.recorded) ? (
+                    <PayrollNetComposition
                       height={phone ? 176 : 240}
-                      months={recent.map((r) => r.month)}
-                      values={recent.map((r) =>
-                        r.recorded && !r.netSplitUnknown ? r.salaryNetCents : null,
-                      )}
-                      gross={recent.map((r) =>
-                        r.recorded && !r.netSplitUnknown ? r.grossCents : null,
-                      )}
+                      rows={recent.map((r) => r.composition)}
                     />
                   ) : (
-                    <EmptyNote>
-                      {recent.some((row) => row.recorded)
-                        ? 'Laufendes Nettogehalt aus der Quelle nicht getrennt bestimmbar.'
-                        : 'Noch keine laufenden Gehälter erfasst.'}
-                    </EmptyNote>
+                    <EmptyNote>Noch keine Gehaltszettel erfasst.</EmptyNote>
                   )}
                   <p className="r9-meta">
-                    Laufendes Nettogehalt ohne steuerfreie Erstattungen · fehlende Zettel bleiben
-                    Lücken.
+                    Netto laufend plus Sonderzahlungen je Monat, ohne Reisespesen. Fehlende Zettel
+                    bleiben Lücken.
                   </p>
                 </section>
               )}

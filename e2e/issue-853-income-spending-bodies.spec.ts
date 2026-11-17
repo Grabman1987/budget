@@ -48,7 +48,13 @@ for (const [name, path, ready] of [
     if (name === 'overview') {
       await expect(page.getByTestId('income-overview-summary')).toBeVisible();
       await expect(page.locator('.r8-income-details')).not.toHaveAttribute('open');
-      await expect(page.locator('.r8-months tbody tr')).toHaveCount(3);
+      // The month table lists every month of the period (oldest first), the running one included.
+      await expect(
+        page.getByTestId('income-overview-summary').locator('.r8-months tbody tr'),
+      ).toHaveCount(12);
+      await expect(
+        page.getByTestId('income-expense-cashflow').locator('.r8-months tbody tr'),
+      ).toHaveCount(12);
     }
     if (name === 'income') {
       await expect(page.locator('.income-report > [data-r8-detail]')).toHaveCount(2);

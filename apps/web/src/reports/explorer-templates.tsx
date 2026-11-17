@@ -8,18 +8,10 @@ import {
   type ExplorerTemplateModel,
   type TableRow,
 } from '@budget/domain';
-import { Button, ClassSwatch, useAmountPrivacy } from '@budget/ui';
-import {
-  useEffect,
-  useId,
-  useMemo,
-  useRef,
-  useState,
-  type CSSProperties,
-  type MouseEvent,
-} from 'react';
-import { eur, longDay } from '../ledger/format';
-import { AppLink } from '../shell/app-link';
+import { ClassSwatch, useAmountPrivacy } from '@budget/ui';
+import { useId, useMemo, useRef, useState, type CSSProperties, type MouseEvent } from 'react';
+import { eur } from '../ledger/format';
+import { ReportCellBookings } from './report-cell-bookings';
 import { ExplorerTemplateTrend } from './explorer-template-trend';
 import { monthLong, monthShort, percentWhole } from './table-format';
 import './table-reports.css';
@@ -51,7 +43,6 @@ export function ExplorerTemplates({
   const cellsPerRow = model.months.length + chartData.summaryColumns.length;
   const root = useRef<HTMLDivElement>(null);
   const sectionsRef = useCollapsibleSections(`explorer-template-${model.id}`);
-  const detailHeading = useRef<HTMLHeadingElement>(null);
   const origin = useRef<HTMLButtonElement | null>(null);
   const selectedIndex = model.rows.findIndex((candidate) => candidate.key === selectedRowKey);
   const row = model.rows[selectedIndex];
@@ -65,10 +56,19 @@ export function ExplorerTemplates({
     row && value !== null && selectedColumn
       ? explorerTemplateSources(facts, model, row.key, selectedColumn)
       : [];
-  const sourceSum = sources.reduce((sum, source) => sum + source.cents, 0);
-  useEffect(() => {
-    if (row && value !== null) detailHeading.current?.focus();
-  }, [row, value, selectedColumn]);
+  const close = () => {
+    const target = origin.current?.isConnected
+      ? origin.current
+      : [
+          ...(root.current?.querySelectorAll<HTMLButtonElement>('[data-template-column]') ?? []),
+        ].find(
+          (button) =>
+            button.dataset['templateColumn'] === selectedColumn &&
+            button.closest('[data-template-row]')?.getAttribute('data-template-row') === row?.key,
+        );
+    onClose();
+    target?.focus();
+  };
   const open = (event: MouseEvent<HTMLButtonElement>, key: string, column: string) => {
     origin.current = event.currentTarget;
     onSelect(key, column);
@@ -236,6 +236,15 @@ export function ExplorerTemplates({
             </ExplorerTableDetails>
           </div>
         </div>
+        {row && value !== null && row.kind !== 'pct' && (
+          <ReportCellBookings
+            headingId={`${prefix}-sources`}
+            heading={`${row.label} � ${selectedColumn === 'summe' ? 'Summe' : monthLong(selectedColumn!)} � Buchungen`}
+            value={value}
+            sources={sources}
+            onClose={close}
+          />
+        )}
       </section>
       <div key={model.id} ref={sectionsRef}>
         <section
@@ -253,72 +262,6 @@ export function ExplorerTemplates({
           </p>
         </section>
       </div>
-      {row && value !== null && row.kind !== 'pct' && (
-        <section
-          className="ex-template-sources"
-          aria-labelledby={`${prefix}-sources`}
-          data-testid="template-sources"
-        >
-          <div className="ex-template-source-heading">
-            <h3 id={`${prefix}-sources`} ref={detailHeading} tabIndex={-1}>
-              {row.label} · {selectedColumn === 'summe' ? 'Summe' : monthLong(selectedColumn!)} ·
-              Buchungen
-            </h3>
-            <Button
-              variant="ghost"
-              onClick={() => {
-                const target = origin.current?.isConnected
-                  ? origin.current
-                  : [
-                      ...(root.current?.querySelectorAll<HTMLButtonElement>(
-                        '[data-template-column]',
-                      ) ?? []),
-                    ].find(
-                      (button) =>
-                        button.dataset['templateColumn'] === selectedColumn &&
-                        button.closest('[data-template-row]')?.getAttribute('data-template-row') ===
-                          row.key,
-                    );
-                onClose();
-                target?.focus();
-              }}
-            >
-              Buchungen schließen
-            </Button>
-          </div>
-          <p>
-            Gewählte Zelle: <strong>{eur(value)}</strong> · Summe der zugeordneten Anteile:{' '}
-            <strong>{eur(sourceSum)}</strong>
-          </p>
-          {sourceSum !== value && (
-            <p role="alert">
-              Die Buchungsanteile stimmen nicht mit der Zelle überein. Bitte lade die Auswertung
-              neu.
-            </p>
-          )}
-          {sources.length === 0 ? (
-            <p>Keine Buchungen in dieser Zelle.</p>
-          ) : (
-            <ul>
-              {sources.map((source, index) => (
-                <li key={`${source.bookingId}:${index}`}>
-                  <AppLink
-                    className="report-source-link"
-                    to="/konten/buchungen"
-                    search={{ buchung: source.bookingId }}
-                  >
-                    {longDay(source.date)} · Zugeordneter Anteil {eur(source.cents)}
-                  </AppLink>
-                </li>
-              ))}
-            </ul>
-          )}
-          <p className="ov-note">
-            Bei geteilten Buchungen steht hier nur der klassifizierte Anteil dieser Zelle, nicht der
-            gesamte Kontobetrag. Erstattungen und Umbuchungen behalten ihre bestehende Zuordnung.
-          </p>
-        </section>
-      )}
     </div>
   );
 }

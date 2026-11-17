@@ -262,3 +262,55 @@ it.each([
   undo(opened.db, { groupId: result.groupId }, testCtx);
   expect([getBooking(opened.db, linked), getBooking(opened.db, eligible)]).toEqual(before);
 });
+
+// #1204: the reconcile panel's "Bestätigen" must follow the register's single-row status rule.
+// A pending booking linked to a bank reference is protected from BULK edits, while the single
+// status change (the register path) confirms it. The panel therefore confirms row by row.
+it('confirms a pending bank-linked booking via the single-row path although bulk skips it', async () => {
+  opened.db
+    .insert(schema.bankSyncConsent)
+    .values({
+      id: 'synthetic-consent',
+      initiator: 'synthetic',
+      stateHash: 'synthetic-state',
+      label: 'Synthetic bank',
+      expiresAt: '2026-10-03T00:00:00Z',
+      nextRunAt: '2026-10-03T00:00:00Z',
+    })
+    .run();
+  opened.db
+    .insert(schema.bankSyncAccount)
+    .values({
+      id: 'synthetic-bank-source',
+      consentId: 'synthetic-consent',
+      secret: 'synthetic',
+      label: 'Synthetic account',
+      currency: 'EUR',
+      accountId: 'giro',
+    })
+    .run();
+  const id = row(-1201, { status: 'pending' });
+  linkBankReference(
+    opened.db,
+    id,
+    {
+      memo: 'Synthetic bank memo',
+      rawPayee: 'Synthetic bank payee',
+      sourceId: 'synthetic-bank-source',
+      dedupeKey: 'synthetic-pending-row',
+    },
+    testCtx,
+  );
+  const bulk = await bulkResponse(
+    await post('bulk', { action: 'update', ids: [id], set: { status: 'confirmed' } }),
+  );
+  expect(bulk.changed).toEqual([]);
+  expect(bulk.skipped).toMatchObject([{ id, reason: 'linked_bank' }]);
+  const single = await app.request(`/bookings/${id}`, {
+    method: 'PATCH',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ status: 'confirmed' }),
+  });
+  expect(single.status).toBe(200);
+  expect(getBooking(opened.db, id)).toMatchObject({ status: 'confirmed', amountCents: -1201 });
+});

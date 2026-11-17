@@ -10,6 +10,8 @@ Historical references follow `docs/FEATURES.md` (positions 1.1–5.6). The hub r
 
 **Shared table, third slice (#1161, train 4):** The period comparison table, the liquidity tables (planned events, outlook per month, large movements, next booking events), payroll (months, annual salaries, 14 salaries), projects, savings per year, personal inflation, inflation explorer, contract and plan-deviation tables and the contact ledger now use the same register shell. The sign rule applies to their amounts, percentages and percentage points: no "+", a minus only for negative figures; the inflation sentence names the direction in words ("über"/"unter dem VPI"). Acceptance: unchanged figures, masked amounts, light/dark, desktop 1440 and phone 390, test ids kept. The same rule now applies to the headline deltas of the Monatsreport/Jahresreport summaries, the year comparison, the wealth change and the Vermögen & Schulden headline (a minus only when negative; the label such as "Veränderung" names the direction). Status: implemented for review; Explorer, portfolio (returns keep their sign), the calculation-chain operators and the contract/plan phone lists remain.
 
+**Cell drill-down under the matrix (#1206):** In Reports › Auswertung (all Explorer matrix templates, e.g. “Kategorie im Verlauf”), clicking a month or total cell opens “<Zeile> · <Monat> · Buchungen” directly under the matrix inside the same card, above “Datenbasis und Darstellung”. The panel is scrolled into view and focused; the chosen cell stays marked. It is a register table (shared `ReportTable`) with Datum, Empfänger, Konto, Notiz and Anteil; a split shows its classified share with “Teil von <Gesamtbetrag>”; the date opens the booking. The footer “Summe” equals the cell value, otherwise a visible alert says so. “Buchungen schließen” and Esc close the panel and return focus to the cell. Same sign rule as the other tables (no “+”), amounts masked with the privacy toggle, on phone 390 the table scrolls sideways. Status: implemented for review; screenshot baselines of the Explorer drill-down pending.
+
 **Aufteilungen:** RP-05, RP-07, RP-11, RP-12, RP-13, RP-15, RP-16, RP-17, RP-18, RP-21 und RP-23 sind in a/b(/c) geteilt, weil sie unabhängige Berichte bündeln. Namen folgen dem Katalog der App: RP-05b „Einnahmen und Cashflow“ (früher „Einnahmen und Ausgaben“), RP-11a (retired forecast-accuracy report; redirects to Budgettreue), RP-11b „Budgettreue“, RP-13a „Verträge und Abos“, RP-18a „Portfolio-Auswertung“.
 
 ### RP-Header – Compact report header and subreports
@@ -110,6 +112,19 @@ Historical references follow `docs/FEATURES.md` (positions 1.1–5.6). The hub r
 - **Status:** teilweise implementiert für Review (Lohnzeilen/Komponentenmodell aus #1082; nominaler Lese-Endpunkt in dieser Fortsetzung), Oberfläche und Live-Abnahme offen · **Verweis:** #1066
   Fehlt noch: geprüfter UI-Entwurf, Zuordnungsoberfläche und Schreib-Endpunkte, Ansichten, Vorschau/Bestätigung des expliziten PDF-Neulesens, Anbindung des vorhandenen VPI und der persönlichen Inflation, Ereignismarker und gedruckte Arbeitgeberbeiträge.
 
+### RP-02a – Netto der letzten 24 Monate mit Sonderzahlungen
+- **Story:** Als Nutzer möchte ich je Monat das laufende Netto und die Sonderzahlungen getrennt, aber mit korrekter Monatssumme sehen, damit ein Bonusmonat das laufende Gehalt nicht scheinbar einbrechen lässt.
+- **Ausgangslage:** Mehrere Gehaltszettel, darunter laufende und Sonderzahlungs-Zettel.
+- **Ablauf:**
+  1. Reports › Gehaltsreport, Karte „Netto der letzten Monate“ lesen: volle Säule = laufend, schraffiert = Sonderzahlung, gestrichelt = „Aufteilung unklar“.
+  2. Tabelle „Laufend · Sonderzahlung · Bonus · Summe“ je Monat lesen.
+- **Ergebnis:** Die Monatssumme enthält laufendes Netto und Sonderzahlungen; Steuer wird nicht zwischen den Teilen umverteilt.
+- **Abnahmekriterien:**
+  - Ein laufender Zettel mit erkennbarer Sonderzahlung (Netto über Brutto, zusätzliche Bezugszeile oder Sonderkomponente aus der Quelle) zeigt im Laufend-Teil „Aufteilung unklar“ und zählt trotzdem voll in der Summe.
+  - Telearbeit und Fahrgeld zählen als Gehalt; nur Reisespesen bleiben ausgenommen („ohne Reisespesen“). Die Regel steht an einer Stelle (`wage-label-rules.ts`); gespeicherte Zettel, Jahressummen und Sparquote bleiben unverändert.
+  - Beträge folgen dem Datenschutzschalter; kein „+“ vor Beträgen.
+- **Status:** in Prüfung · **Offen:** Zettel-Aufnahme (zwei Zettel aus einem PDF vorschlagen) und die Prüfen-Aufgabe zu #1207.
+
 ### RP-04 – Monat mit Sonderzahlung korrekt darstellen (geplant)
 - **Story:** Als Nutzer möchte ich einen Monat mit Sonderzahlung ohne erfundene Netto- oder Steueraufteilung sehen, damit der Report die Auszahlung korrekt abbildet und keine falsche Warnung zu einem fehlenden Sondergehalt erscheint.
 - **Ausgangslage:** Der Zettel enthält laufendes Brutto plus Sonderzahlung; die Auszahlung deckt sich mit der Bankbuchung.
@@ -153,13 +168,14 @@ Historical references follow `docs/FEATURES.md` (positions 1.1–5.6). The hub r
 - **Ausgangslage:** Mindestens ein geschlossener Monat mit Buchungen.
 - **Ablauf:**
   1. Reports › Einnahmen und Cashflow öffnen, „Zeitraum“ wählen.
-  2. Monatstabelle und Diagramm lesen: Einnahmen oben, Ausgaben unten, Netto als Linie; Gruppen sind aufklappbar.
+  2. Monatstabelle und Diagramm lesen: Einnahmen oben, Ausgaben unten, Cashflow als Linie; Gruppen sind aufklappbar.
+  2a. Abschnitt „Cashflow“ lesen: Aussagezeile (Cashflow des Zeitraums, Durchschnitt je Monat, Veränderung gegenüber Vorjahreszeitraum bzw. Vorperiode, wenn Daten vorliegen), Säulen je Monat um die Nulllinie (positiv gefüllt, negativ gestrichelt) mit der kumulierten Linie sowie Tabelle Monat · Einnahmen · Ausgaben · Cashflow · kumuliert.
   3. Eine Zelle anklicken: „Buchungen“ listet die dahinterliegenden Buchungen.
   4. „CSV“ exportiert genau die angezeigten Zeilen und Spalten.
 - **Ergebnis:** Ich sehe das Monatsergebnis und kann jede Zahl bis zur Buchung verfolgen.
 - **Abnahmekriterien:**
   - Die Summe der Buchungen einer Zelle entspricht dem Zellwert.
-  - Netto je Monat stimmt mit dem Cashflow-Verlauf überein.
+  - Cashflow je Monat stimmt mit dem Cashflow-Verlauf überein; „kumuliert“ ist die laufende Summe des monatlichen Cashflows (keine zweite Formel). Die alten Adressen /reports/cashflow führen hierher.
   - Die CSV enthält dieselben Zeilen und Spalten wie die Tabelle.
   - Randfall: Eine Zelle außerhalb des Zeitraums meldet „Diese Zelle ist im Reportzeitraum nicht verfügbar.“; eine leere Zelle „Keine Buchungen in dieser Zelle.“
 - **Status:** live · **Verweis:** 1.10

@@ -32,6 +32,7 @@ import {
   ACCOUNT_PAGE,
   CSV_EXPORT_META,
   CONTACT_SETTINGS_META,
+  PAYEE_SETTINGS_META,
   EINSTELLUNGEN_KATEGORIEN,
   KONTEN_SETTINGS_META,
   PLAN_ERWARTET,
@@ -197,6 +198,7 @@ const captureRoute = createRoute({
 });
 const BUILT_PATHS = new Set<string>([
   CONTACT_SETTINGS_META.path,
+  PAYEE_SETTINGS_META.path,
   '/einstellungen/zuordnung',
   '/einstellungen/datenquellen',
   SECURITY_META.path,
@@ -271,6 +273,12 @@ const contactSettingsRoute = REDESIGN_ENABLED
       ),
     })
   : redirectRoute(CONTACT_SETTINGS_META.path, '/konten/kontakte');
+const payeeSettingsRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: PAYEE_SETTINGS_META.path,
+  staticData: { meta: PAYEE_SETTINGS_META },
+  component: lazyRouteComponent(() => import('./pages/payee-settings'), 'PayeeSettingsPage'),
+});
 const overviewRoute = createRoute({
   getParentRoute: () => shellRoute,
   path: '/konten',
@@ -1086,6 +1094,7 @@ const routeTree = rootRoute.addChildren([
     bookingsRoute,
     contactsRoute,
     contactSettingsRoute,
+    payeeSettingsRoute,
     inboxRoute,
     inboxDetailRoute,
     accountRoute,

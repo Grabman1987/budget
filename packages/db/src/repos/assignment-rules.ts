@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from 'node:crypto';
-import { and, asc, eq, isNull } from 'drizzle-orm';
+import { and, asc, eq, inArray, isNull } from 'drizzle-orm';
 import {
   assignmentRuleSchema,
   assignmentMatchSchema,
@@ -11,6 +11,8 @@ import {
   cleanBankPayee,
   DEFAULT_PAYEE_CLEANUP,
   matchesAssignment,
+  matchPayeeAlias,
+  PAYEE_ALIAS_ALL_SOURCES,
   payeeCleanupSchema,
   type AssignmentRuleInput,
   type AssignmentRow,
@@ -281,9 +283,22 @@ export function suggestedBankPayee(
   const aliases = db
     .select()
     .from(bankPayeeAlias)
-    .where(and(eq(bankPayeeAlias.sourceId, sourceId), isNull(bankPayeeAlias.deletedAt)))
+    .where(
+      and(
+        inArray(bankPayeeAlias.sourceId, [sourceId, PAYEE_ALIAS_ALL_SOURCES]),
+        isNull(bankPayeeAlias.deletedAt),
+      ),
+    )
     .all();
-  const alias = aliases.find((a) => a.rawKey === bankAliasKey(rawPayee || rawText));
+  // A learned alias of this very source wins; merged-payee aliases hold for every source.
+  const alias =
+    aliases.find(
+      (a) => a.sourceId === sourceId && a.rawKey === bankAliasKey(rawPayee || rawText),
+    ) ??
+    matchPayeeAlias(
+      aliases.filter((a) => a.sourceId === PAYEE_ALIAS_ALL_SOURCES),
+      [rawPayee || rawText, cleaned],
+    );
   const payees = db
     .select()
     .from(payee)

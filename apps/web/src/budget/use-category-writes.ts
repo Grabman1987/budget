@@ -84,6 +84,7 @@ export function useBudgetWrite() {
   return async function write<T extends { groupId: string }>(
     run: () => Promise<T>,
     message: (result: T) => string,
+    options?: { awaitRefresh?: boolean },
   ): Promise<T | undefined> {
     history.set(null);
     toast.dismiss();
@@ -92,7 +93,11 @@ export function useBudgetWrite() {
     const current = () => history.revision() === revision && toast.revision() === toastRevision;
     try {
       const result = await run();
-      await refresh();
+      const refreshing = refresh().catch(() => undefined);
+      // Inline controls (toggles, order, quick fill) read their state from the refreshed data, so
+      // the write waits for it by default. #1201: a dialog that only closes passes
+      // `awaitRefresh: false` and lets the reads finish in the background.
+      if (options?.awaitRefresh !== false) await refreshing;
       if (!current()) return result;
       const hint =
         'toBeAssignedCents' in result && typeof result.toBeAssignedCents === 'number'
