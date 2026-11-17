@@ -135,13 +135,14 @@ test('three prepared bank rows are explicitly reviewed with progress and individ
   await page.goto(`/konten/pruefen?bankSource=${sourceId}`);
   await expect(page.locator('.bank-inbox-row')).toHaveCount(3);
   await expect(page.getByText('3 offen · 0 von 3 geprüft')).toBeVisible();
-  await expect(page.getByTestId('inbox-row').filter({ hasText: 'Merge 562' })).toContainText(
+  await expect(page.getByTestId('inbox-row').filter({ hasText: /Merge 562/ })).toContainText(
     'Mit Buchung',
   );
-  await expect(page.getByTestId('inbox-row').filter({ hasText: 'Rule 562' })).toContainText(
+  await expect(page.getByTestId('inbox-row').filter({ hasText: /Rule 562/ })).toContainText(
     'Regel: Synthetic rule 562',
   );
-  const categoryRow = page.getByTestId('inbox-row').filter({ hasText: 'Category 562' });
+  // Case-sensitive memo match: the rule-categorised row also shows the category name "... category 562".
+  const categoryRow = page.getByTestId('inbox-row').filter({ hasText: /Category 562/ });
   if (await redesignLoaded(page)) {
     await expect(categoryRow.locator('.bank-v1-category')).toContainText('Kategorie fehlt');
   } else await expect(categoryRow).toContainText('Kategorie prüfen');
@@ -166,7 +167,7 @@ test('three prepared bank rows are explicitly reviewed with progress and individ
       fullPage: true,
     });
   }
-  const mergeRow = page.getByTestId('inbox-row').filter({ hasText: 'Merge 562' });
+  const mergeRow = page.getByTestId('inbox-row').filter({ hasText: /Merge 562/ });
   await (await bankPreviewControl(mergeRow)).click();
   await expect(page.getByRole('dialog', { name: 'Buchung übernehmen' })).toBeVisible();
   expect(writes).toEqual([]);
@@ -182,7 +183,7 @@ test('three prepared bank rows are explicitly reviewed with progress and individ
     [2, 'Rule 562', 96497],
     [3, 'Category 562', 93094],
   ] as const) {
-    const row = page.getByTestId('inbox-row').filter({ hasText: memo });
+    const row = page.getByTestId('inbox-row').filter({ hasText: new RegExp(memo) });
     const accept = async () => {
       await (await bankPreviewControl(row)).click();
       const dialog = page.getByRole('dialog', { name: 'Buchung übernehmen' });

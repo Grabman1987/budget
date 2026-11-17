@@ -215,10 +215,11 @@ export function ContactReportRedesign({
           <div>
             <ContactReportError
               what="Kontaktabrechnung"
-              error={unsupported ? detailError : overview.error}
+              error={unsupported || sheetBlocked ? blockedError : overview.error}
               retry={() => {
                 void overview.refetch();
                 if (unsupported) void statement.refetch();
+                for (const id of blockedIds) void queries.get(id)?.refetch();
               }}
             />
             <p>Der Report ist nicht verfügbar. Es wird kein Teilsaldo gezeigt.</p>

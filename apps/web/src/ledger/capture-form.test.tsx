@@ -350,7 +350,11 @@ it('shows phone validation only after a save attempt and resets it after save-an
   expect(screen.getByRole('button', { name: 'Schließen' })).toBeTruthy();
   expect(screen.queryByRole('button', { name: /^Markierung/ })).toBeNull();
   expect(screen.queryByLabelText('Markierung')).toBeNull();
-  expect(screen.getByRole('button', { name: 'Speichern' }).closest('.bk-body')).toBeTruthy();
+  // The phone actions are pinned below the scrolling body (#1146), not part of it.
+  expect(
+    screen.getByRole('button', { name: 'Speichern' }).closest('.bk-form-actions'),
+  ).toBeTruthy();
+  expect(screen.getByRole('button', { name: 'Speichern' }).closest('.bk-body')).toBeNull();
   expect(screen.getByRole('button', { name: 'Speichern' }).getAttribute('aria-describedby')).toBe(
     null,
   );

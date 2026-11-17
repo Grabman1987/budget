@@ -360,7 +360,6 @@ test('1149 contacts: open register and forgiveness remain readable and accessibl
   const { gifts, owed } = await debtFixture(request, isolatedLedger.origin);
   await page.goto(`/reports/kontakte?kontakt=${owed.id}&verlauf=1#details`);
   if (!(await redesignReportsOn(page))) return;
-  const body = page.locator('.r4-contact-report');
   const sheet = page.getByRole('region', { name: 'Kontaktkontoauszug' });
   await revealReportDetail(page);
   const calculation = page.locator('.redesign-report-equation');
