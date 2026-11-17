@@ -287,6 +287,10 @@ Invariants (binding):
 | Freiheitszahl with Soll-Pfad to a goal year and required saving rate | `vermoegen.js` `renderFreedom` |
 | Debt payoff with extra repayment | `vermoegen.js`, `reference/finance-hub/debt-*.mjs` |
 
+### Rounding
+
+Derived money and unit values (cents, units in e8, basis points that are stored, summed or compared) are rounded **half away from zero**, symmetric for negatives (-0.5 cent becomes -1, +0.5 becomes +1), from an **exact BigInt intermediate**: `mulDivRound(a, b, d)` and `roundDivCents(n, d)` in `packages/domain/src/wealth/int.ts`, never floating-point `Math.round`, `Math.floor((2a + b) / 2b)` or a local copy. Floor/ceil are only for allocation (largest remainder, which must add up exactly) and counts. `Math.round` is allowed only for display-only ratios, index maths and time, in files named in the allow-list of `eslint.config.js`. Inventory, classes and conformance values: [docs/rounding.md](docs/rounding.md).
+
 ## 7. Reports (catalog, decided 29.09.2026)
 
 The numbered list below records the original catalog and subsequent decisions.

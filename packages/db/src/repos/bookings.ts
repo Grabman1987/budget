@@ -1,5 +1,5 @@
 import { bookingIncomeDefault } from './income-month';
-import { contactStatement } from '@budget/domain';
+import { contactStatement, mulDivRound } from '@budget/domain';
 import { actualContactMovements, savedContactSettlements } from './contact-invariants';
 import { contactCreditRecords, saveContactCreditRecord } from './contact-credit';
 import { assertContactActive, resolveContactForWrite } from './contact-label';
@@ -228,7 +228,7 @@ function normalizeFx<T extends FxFields>(input: T): T {
   if (!Number.isSafeInteger(rate) || rate <= 0)
     throw new BookingInvariantError(`FX rate ${rate} must be a positive integer (micro-units)`);
   const amount = input.amountCents as number;
-  const converted = Math.round((original * rate) / 1e6);
+  const converted = mulDivRound(original, rate, 1_000_000);
   if (Math.abs(amount - (converted + fee)) > 1) {
     throw new BookingInvariantError(
       `Amount ${amount} cents does not match ${original} × ${rate / 1e6} + fee ${fee} = ${converted + fee} cents`,

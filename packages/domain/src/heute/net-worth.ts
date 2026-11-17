@@ -1,4 +1,5 @@
 import { addMonths, lastDayOfMonth, monthOf } from '../date';
+import { mulDivRound } from '../wealth/int';
 
 /**
  * Net worth on Heute: the split into liquidity, invested and debt (the Maßkette), the change
@@ -56,7 +57,7 @@ export function netWorthParts(accounts: ReadonlyArray<NetWorthAccount>): NetWort
 /** Change in basis points of the previous value, rounded half away from zero; `null` from 0. */
 export function changeBp(currentCents: number, previousCents: number): number | null {
   if (previousCents === 0) return null;
-  const v = Math.round(((currentCents - previousCents) * 10_000) / Math.abs(previousCents));
+  const v = mulDivRound(currentCents - previousCents, 10_000, Math.abs(previousCents));
   return v === 0 ? 0 : v;
 }
 

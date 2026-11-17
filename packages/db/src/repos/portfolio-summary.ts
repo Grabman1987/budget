@@ -42,6 +42,7 @@ import {
   type AllocationQuality,
   type WindowPerformance,
   windowPerformance,
+  mulDivRound,
 } from '@budget/domain';
 import { and, asc, eq, gt, inArray, isNull, lte, ne } from 'drizzle-orm';
 import {
@@ -1100,7 +1101,7 @@ function portfolioSummaryInRange(
     terCents,
     feesCents,
     totalCents: totalCostCents,
-    costRateBp: valueCents > 0 ? Math.round((totalCostCents * 10_000) / valueCents) : 0,
+    costRateBp: valueCents > 0 ? mulDivRound(totalCostCents, 10_000, valueCents) : 0,
     bySecurity: costsBySecurity,
   };
   const income = incomeLast12Months(allTrades, today);
@@ -1200,8 +1201,7 @@ export function exposurePositionLines(
         costCents: split(line.costCents),
         gainCents: split(line.gainCents),
         realizedGainCents: split(line.realizedGainCents) ?? 0,
-        shareBp:
-          line.valueCents > 0 ? Math.round((line.shareBp * valueCents) / line.valueCents) : 0,
+        shareBp: line.valueCents > 0 ? mulDivRound(line.shareBp, valueCents, line.valueCents) : 0,
       };
     });
   });

@@ -9,6 +9,7 @@ import {
   type LiquidityForecast,
   type LowPoint,
 } from './liquidity';
+import { mulDivRound } from '../wealth/int';
 
 /**
  * Report 3.1 Liquiditätsprognose, calculated: the forecast of the budget accounts with and without
@@ -164,7 +165,7 @@ export function horizonDays(horizon: LiquidityHorizon, startDay: string): number
   return daysBetween(startDay, sameDayInMonths(startDay, horizon === '6m' ? 6 : 12));
 }
 
-const percentOf = (cents: number, percent: number): number => Math.round((cents * percent) / 100);
+const percentOf = (cents: number, percent: number): number => mulDivRound(cents, percent, 100);
 
 /** What the levers change: the scheduled items and the planned variable spending. */
 function applyLevers(

@@ -4,7 +4,10 @@
  * `shareBps` is exported for the read models (platform and position shares).
  */
 
-/** `a * b / d` rounded half up (away from zero for negatives) with an exact BigInt product. `d > 0`. */
+/**
+ * `a * b / d` rounded half away from zero (symmetric for negatives, so -0.5 becomes -1) with an exact
+ * BigInt product. `d > 0`. The one rounding policy for derived cents and units (docs/rounding.md).
+ */
 export function mulDivRound(a: number | bigint, b: number, d: number): number {
   if (d <= 0) throw new RangeError(`divisor must be positive, got ${String(d)}`);
   const bn = BigInt(a) * BigInt(b);
@@ -14,6 +17,11 @@ export function mulDivRound(a: number | bigint, b: number, d: number): number {
   const half = bd / 2n;
   const q = bn >= 0n ? (bn + half) / bd : -((-bn + half) / bd);
   return Number(q);
+}
+
+/** `n / d` rounded half away from zero (exact BigInt, `d > 0`): the one policy for derived cents. */
+export function roundDivCents(n: number | bigint, d: number): number {
+  return mulDivRound(n, 1, d);
 }
 
 /** Basis points of `value` in `total` (10 000 = 100 %), rounded half up. 0 when `total` is 0. */

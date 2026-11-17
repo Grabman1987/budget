@@ -97,7 +97,7 @@ const r01: Rule<'R01'> = (p, i) => {
   const months = Array.from({ length: 12 }, (_, n) => addMonths(i.refMonth, n - 11)).filter(
     (m) => i.allocByMonth?.[m] !== undefined,
   ).length;
-  const euroOver = Math.round((Math.max(worst, 0) * income) / (10_000 * months));
+  const euroOver = mulDivRound(Math.max(worst, 0), income, 10_000 * months);
   const action = {
     need: `Bedarf liegt über ${formatPercent(p.needMaxBp)} des Einkommens: Fixkosten und Verträge prüfen (${eur(euroOver)} im Monat zu viel).`,
     want: `Wunsch-Envelopes um ${eur(euroOver)} im Monat kürzen.`,
@@ -311,7 +311,7 @@ const r12: Rule<'R12'> = (p, i) => {
     const allowanceBp = p.slackBp + (p.enjoyCategoryIds.length === 0 ? p.enjoyBp : 0);
     const left = Math.max(
       0,
-      w.undistributedCents - Math.round((w.windfallCents * allowanceBp) / 10_000),
+      w.undistributedCents - mulDivRound(w.windfallCents, allowanceBp, 10_000),
     );
     return {
       month: w.month,

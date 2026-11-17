@@ -1,3 +1,4 @@
+import { mulDivRound } from '../wealth/int';
 /**
  * Stage model (SPEC §4, decision 29.09.2026): the stage follows from net worth. Fundament up to
  * 10.000 €, Aufbau up to 100.000 €, Freiheit up to 1 Mio. €. A limit belongs to the next stage:
@@ -35,7 +36,7 @@ export function stageOf(netWorthCents: number): StageOf {
   const inside = Math.min(Math.max(netWorthCents - def.fromCents, 0), span);
   return {
     ...def,
-    progressBp: Math.round((inside * 10_000) / span),
+    progressBp: mulDivRound(inside, 10_000, span),
     remainingCents: Math.max(0, def.toCents - netWorthCents),
   };
 }

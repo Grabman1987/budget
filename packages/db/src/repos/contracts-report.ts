@@ -12,6 +12,7 @@ import {
   type ContractSource,
   type ContractsOverview,
   type FxLookup,
+  roundDivCents,
 } from '@budget/domain';
 import { and, asc, eq, gte, isNull, lte } from 'drizzle-orm';
 import {
@@ -241,7 +242,7 @@ export function contractsReport(db: Executor, today: string): ContractsReport {
   const refMonth = referenceMonth(today);
   const incomeMonth = allocationMonth(db, refMonth);
   const netIncomeMonthlyCents = first
-    ? incomeMonth.incomeCents + Math.round(incomeMonth.annualIncomeCents / 12)
+    ? incomeMonth.incomeCents + roundDivCents(incomeMonth.annualIncomeCents, 12)
     : null;
   const r10Row = db.select().from(rule).where(eq(rule.code, 'R10')).get();
   const maxBp = (JSON.parse(r10Row?.paramsJson ?? '{}') as { maxBp?: number }).maxBp ?? 5_500;

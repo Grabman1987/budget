@@ -4,6 +4,26 @@ import jsxA11y from 'eslint-plugin-jsx-a11y';
 import reactHooks from 'eslint-plugin-react-hooks';
 import tseslint from 'typescript-eslint';
 
+// Files that may still call Math.round (docs/rounding.md, inventory classes b and c, plus "left").
+const MATH_ROUND_ALLOWED = [
+  // c: time and test data
+  'packages/domain/src/date/date.ts',
+  'packages/db/src/repos/portfolio-report-fixture.ts',
+  // b: display-only percentages, scores, index and micro-unit maths
+  'packages/domain/src/kpi/age-of-money.ts',
+  'packages/domain/src/report-tables/tables.ts',
+  'packages/domain/src/reports/verdicts.ts',
+  'packages/domain/src/rules/health.ts',
+  'packages/domain/src/spending/coicop.ts',
+  'packages/domain/src/spending/inflation.ts',
+  'packages/domain/src/wealth/allocation-report.ts',
+  'packages/db/src/repos/inflation-report.ts',
+  'packages/db/src/repos/strategy-signal-evidence.ts',
+  // a, left for later: float share input (ledger/alloc.ts) and a file other work is changing
+  'packages/domain/src/ledger/alloc.ts',
+  'packages/db/src/repos/rule-inputs.ts',
+];
+
 export default tseslint.config(
   {
     ignores: [
@@ -28,6 +48,24 @@ export default tseslint.config(
       'no-new-func': 'error',
       'no-implied-eval': 'error',
       '@typescript-eslint/consistent-type-imports': 'error',
+    },
+  },
+  {
+    // Rounding policy (docs/rounding.md): derived cents and units go through the exact helpers
+    // `mulDivRound` / `roundDivCents`. `Math.round` is only for display ratios, index maths and time,
+    // and only in the files listed below (class b/c of the inventory, plus the files still to migrate).
+    files: ['packages/domain/src/**/*.ts', 'packages/db/src/**/*.ts'],
+    ignores: ['**/*.test.ts', ...MATH_ROUND_ALLOWED],
+    rules: {
+      'no-restricted-properties': [
+        'error',
+        {
+          object: 'Math',
+          property: 'round',
+          message:
+            'Use mulDivRound / roundDivCents (exact, half away from zero), see docs/rounding.md. Display-only ratios go to the allow-list in eslint.config.js.',
+        },
+      ],
     },
   },
   {
