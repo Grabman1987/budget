@@ -1,5 +1,7 @@
 import {
   createTestDatabase,
+  linkOccurrence,
+  schema,
   matchOccurrences,
   monthIncome,
   refreshOccurrences,
@@ -18,6 +20,22 @@ beforeAll(() => {
   seedDatabase(db);
   refreshOccurrences(db, TODAY);
   matchOccurrences(db, TODAY);
+  // Savings transfer legs have no counterparty evidence. The owner confirms their proposals;
+  // keep the sample's paid-payment assertions without restoring unsafe automatic matching.
+  const transfers = upcoming(db, '2026-08-01', TODAY).filter(
+    (row) => row.name === 'Investieren (ETF-Sparplan)' || row.name === 'Notgroschen',
+  );
+  expect(transfers).toHaveLength(4);
+  for (const row of transfers) {
+    expect(row.bookingId).toBeNull();
+    const proposal = db
+      .select()
+      .from(schema.inboxItem)
+      .all()
+      .find((i) => i.refType === 'expected_occurrence' && i.refId === row.occurrenceId);
+    expect(proposal).toBeDefined();
+    linkOccurrence(db, row.occurrenceId!, proposal!.id.split(':')[2]!, { actor: 'tester' });
+  }
 }, 60_000);
 
 describe('sample expected payments', () => {
@@ -55,6 +73,18 @@ describe('sample expected payments', () => {
   });
 
   it('August 2026: all received, except the trip that cost less than planned', () => {
+    // The deviating amount is no unambiguous link (#1102): the window has passed, the occurrence is
+    // open for the owner, and the proposal in Prüfen links it on confirmation.
+    const open = upcoming(db, '2026-08-01', '2026-08-31').find(
+      (r) => r.name === 'Reisen (August)',
+    )!;
+    expect(open.status).toBe('missed');
+    const proposal = db
+      .select()
+      .from(schema.inboxItem)
+      .all()
+      .find((i) => i.refType === 'expected_occurrence' && i.refId === open.occurrenceId)!;
+    linkOccurrence(db, open.occurrenceId!, proposal.id.split(':')[2]!, { actor: 'tester' });
     const august = upcoming(db, '2026-08-01', '2026-08-31');
     const off = august.filter((r) => r.status !== 'received');
     expect(off.map((r) => [r.name, r.status])).toEqual([['Reisen (August)', 'deviating']]);
