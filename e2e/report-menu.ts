@@ -59,7 +59,5 @@ export const chooseReportMenuValue = (page: Page, value: string) =>
 export const expectReportMenuValue = (page: Page, value: string) =>
   expectReportMenuView(page, labelFor(page, value));
 
-/** 17 reports in the redesign hub (Portfolio-Auswertung joined the Portfolio group), 16 in the legacy hub. */
-export async function hubReportCount(page: Page) {
-  return (await page.locator('[data-budget-redesign="1"]').count()) > 0 ? 17 : 16;
-}
+/** 17 reports in the hub (Portfolio-Auswertung joined the Portfolio group), in both presentations. */
+export const HUB_REPORT_COUNT = 17;

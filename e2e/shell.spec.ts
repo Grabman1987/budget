@@ -1,4 +1,4 @@
-import { hubReportCount } from './report-menu';
+import { HUB_REPORT_COUNT } from './report-menu';
 import { captureCloseControl } from './ledger-helpers';
 import { expect, test, type Page, type TestInfo } from '@playwright/test';
 import { expectScreenshot } from './visual';
@@ -243,11 +243,11 @@ test.describe('routes', () => {
     await expect(page).toHaveTitle('Geldfluss · Budget');
   });
 
-  test('the report hub lists sixteen reports in four groups with continuous positions', async ({
+  test('the report hub lists seventeen reports in four groups with continuous positions', async ({
     page,
   }, info) => {
     await page.goto('/reports');
-    await expect(page.locator('.report-hub-list > li')).toHaveCount(await hubReportCount(page));
+    await expect(page.locator('.report-hub-list > li')).toHaveCount(HUB_REPORT_COUNT);
     const redesign = (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
     await expect(
       page.getByRole('group', { name: 'Berichtsgruppen' }).getByRole('button'),
@@ -271,7 +271,7 @@ test.describe('routes', () => {
       '14',
       '15',
       '16',
-      ...(redesign ? ['17'] : []),
+      '17',
     ]);
     // The catalog keeps the question; chart implementation and period controls belong to reports.
     const first = page.locator('.report-hub-list > li > a').first();
@@ -657,7 +657,7 @@ sampleTest.describe('regression baselines of the shell (own screenshots)', () =>
       }
       await page.evaluate(() => document.fonts.ready);
       if (name === 'reports')
-        await expect(page.locator('.report-hub-list > li')).toHaveCount(await hubReportCount(page));
+        await expect(page.locator('.report-hub-list > li')).toHaveCount(HUB_REPORT_COUNT);
       const redesign = (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
       await expectScreenshot(page, `shell-${name}${redesign ? '-redesign' : ''}-light.png`);
     });

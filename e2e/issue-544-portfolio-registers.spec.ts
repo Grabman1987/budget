@@ -72,6 +72,24 @@ test('five portfolio registers preserve period across navigation and reload', as
     let nav = await portfolioNavigation(page);
     await expect(nav.getByRole('link')).toHaveCount(5);
     await selectPortfolioView(page, label);
+    // The metrics moved into the Portfolio-Auswertung report (#1157); its bookmark keeps the period.
+    if (redesign && label === 'Kennzahlen') {
+      await expect(page).toHaveURL(
+        (url) =>
+          url.pathname === '/reports/pallocation' &&
+          url.searchParams.get('zeitraum') === '3J' &&
+          url.searchParams.get('ansicht') === 'kennzahlen',
+      );
+      await page.reload();
+      await expect(page).toHaveURL(
+        (url) =>
+          url.pathname === '/reports/pallocation' && url.searchParams.get('zeitraum') === '3J',
+      );
+      await expect(
+        page.getByRole('heading', { name: 'Portfolio-Auswertung', exact: true }).first(),
+      ).toBeVisible();
+      continue;
+    }
     const destination = path;
     await expect(page).toHaveURL(
       (url) =>

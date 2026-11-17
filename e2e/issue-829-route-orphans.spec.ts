@@ -1,4 +1,4 @@
-import { expectReportMenuView, hubReportCount } from './report-menu';
+import { expectReportMenuView, HUB_REPORT_COUNT } from './report-menu';
 import { retainExplorerReaders } from './explorer-controls';
 import { openR8BodyDetails } from './income-spending-controls';
 import { portfolioReportPath, expectWealthReportView } from './wealth-report-controls';
@@ -282,8 +282,7 @@ const probes = {
   savings,
   debts: (p: Page) => id(p, 'debt-total'),
   freedom: (p: Page) => id(p, 'freedom-chart'),
-  hub: async (p: Page) =>
-    expect(p.locator('.report-hub-list > li')).toHaveCount(await hubReportCount(p)),
+  hub: async (p: Page) => expect(p.locator('.report-hub-list > li')).toHaveCount(HUB_REPORT_COUNT),
   reportGroup: (p: Page) => css(p, '.report-hub-list a[href="/reports/einnahmen-ausgaben"]'),
   onepager: async (p: Page) =>
     id(p, (await redesignReportsOn(p)) ? 'r5-month-saved' : 'onepager-saved'), // The real monthly reader in either presentation, never the unrelated rg-all table.
