@@ -17,8 +17,10 @@ test('income versus expense expands categories, drills bookings and exports the 
   await expect(page.getByTestId('cashflow-statement')).toContainText('durchschnittlich');
   await expect(page.getByTestId('report-verdict')).toContainText('inkl. laufendem Monat');
   await expect(page.getByTestId('report-verdict')).not.toContainText('im Plan');
-  await expect(cashflow.getByRole('rowheader', { name: /· laufend$/ })).toHaveCount(1);
-  await expect(cashflow.getByRole('columnheader', { name: 'kumuliert' })).toBeVisible();
+  // The month table is hidden on phones by design (the chart carries the story there).
+  const monthTable = info.project.name === 'mobile' ? 'toBeHidden' : 'toBeVisible';
+  await expect(cashflow.locator('tbody th', { hasText: /· laufend$/ })).toHaveCount(1);
+  await expect(cashflow.getByRole('columnheader', { name: 'kumuliert' }))[monthTable]();
   await expect(report.getByText('Cashflow (Einnahmen − Ausgaben)', { exact: true })).toBeVisible();
   const expand = report.getByRole('button', { expanded: false }).first();
   await expect(expand).toBeVisible();
@@ -35,7 +37,7 @@ test('income versus expense expands categories, drills bookings and exports the 
   expect(csv).toContain('Cashflow (Einnahmen − Ausgaben)');
   expect(csv.trim().split('\n')).toHaveLength(rows + 1);
   const cell = report.locator('.rgrid tbody tr').first().getByRole('link').first();
-  await expect(cell).toHaveAttribute('href', /spalte=2025-09/);
+  await expect(cell).toHaveAttribute('href', /spalte=2025-10/);
   expect((await cell.boundingBox())!.height).toBeGreaterThanOrEqual(44);
   await cell.click();
   await expect(page.getByTestId('income-expense-sources')).toBeVisible();
@@ -44,8 +46,8 @@ test('income versus expense expands categories, drills bookings and exports the 
   await page.reload();
   await expect(page.getByTestId('income-expense-sources')).toBeVisible();
   const bookingLink = page.getByTestId('income-expense-sources').getByRole('link').first();
-  await expect(bookingLink).toHaveAttribute('href', /von=2025-09-01/);
-  await expect(bookingLink).toHaveAttribute('href', /bis=2025-09-30/);
+  await expect(bookingLink).toHaveAttribute('href', /von=2025-10-01/);
+  await expect(bookingLink).toHaveAttribute('href', /bis=2025-10-31/);
   await inspectReport(page, info, 'income-expense-sources');
   await bookingLink.click();
   await expect(page).toHaveURL(/konten\/buchungen/);
@@ -59,7 +61,7 @@ test('income versus expense expands categories, drills bookings and exports the 
       url.pathname === '/reports/einnahmen-ausgaben/buchungen' &&
       url.searchParams.get('zeitraum') === '1J' &&
       url.searchParams.get('zelle') === 'inc' &&
-      url.searchParams.get('spalte') === '2025-09',
+      url.searchParams.get('spalte') === '2025-10',
   );
   await page.getByRole('link', { name: 'Zurück zu Einnahmen und Ausgaben' }).click();
   await expect(report).toBeVisible();
@@ -75,7 +77,7 @@ test('direct invalid report cells retain a usable back link and report period', 
   page,
 }) => {
   await page.goto(
-    '/reports/einnahmen-ausgaben/buchungen?zeitraum=1J&zelle=cat:missing&spalte=2025-09',
+    '/reports/einnahmen-ausgaben/buchungen?zeitraum=1J&zelle=cat:missing&spalte=2025-10',
   );
   await expect(page.getByTestId('income-expense-sources')).toContainText(
     'Diese Zelle ist im Reportzeitraum nicht verfügbar.',

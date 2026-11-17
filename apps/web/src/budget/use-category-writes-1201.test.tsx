@@ -6,7 +6,7 @@ import type { ReactNode } from 'react';
 import { expect, it, vi } from 'vitest';
 import { useBudgetWrite } from './use-category-writes';
 
-// #1201: a write resolves (and so closes its dialog) without waiting for the follow-up reads.
+// #1201: a dialog write (`awaitRefresh: false`) resolves without waiting for the follow-up reads.
 it('resolves before the refreshing reads finish and keeps errors on the dialog path', async () => {
   const client = new QueryClient();
   const reads = vi
@@ -21,6 +21,7 @@ it('resolves before the refreshing reads finish and keeps errors on the dialog p
   const done = await result.current(
     async () => ({ groupId: 'g1' }),
     () => 'ok',
+    { awaitRefresh: false },
   );
   expect(done).toEqual({ groupId: 'g1' });
   expect(reads).toHaveBeenCalled();

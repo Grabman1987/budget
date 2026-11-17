@@ -43,6 +43,7 @@ export function usePlanGroupOrder(tree: CategoryTree | undefined) {
       const result = await write(
         () => sortCategories(next),
         () => 'Reihenfolge gespeichert.',
+        { awaitRefresh: true },
       );
       if (result) setAnnouncement(`Gruppe nach ${delta === -1 ? 'oben' : 'unten'} verschoben`);
     } finally {

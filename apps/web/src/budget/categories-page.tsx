@@ -78,6 +78,7 @@ export function CategoriesPage() {
         write(
           () => sortCategories(next),
           () => 'Reihenfolge gespeichert.',
+          { awaitRefresh: true },
         ),
       )
       .finally(() => {
