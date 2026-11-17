@@ -72,6 +72,12 @@ async function deliver(item: QueuedBooking) {
     if (!intent) throw new Error('Ungültiger Warteschlangeneintrag.');
     const previous = uncertain ? (await readBookingDelivery(item.id, intent)).result : null;
     checking = false;
+    if (previous === null && item.rejected && item.uncertain) {
+      // A parked HTTP 500 may still have been committed: only now, with the server saying it did
+      // not receive the entry, is it safe to edit or delete it. No new POST here.
+      await putQueued({ ...item, uncertain: false, sending: false });
+      return null;
+    }
     uncertain = true;
     await putQueued({ ...pending, uncertain: true, sending: true });
     const result =
@@ -96,12 +102,18 @@ async function deliver(item: QueuedBooking) {
     if (checking) uncertain = true;
     // A server answer is final: the same idempotency key is kept for the corrected resend.
     const refusal = !checking && error instanceof ApiError && isRejection(error) ? error : null;
-    if (refusal) uncertain = false;
+    // A 500 may have committed before failing: it stays unclear until a delivery check says so.
+    if (refusal && refusal.status !== 500) uncertain = false;
     const { rejected: _r, errorId: _e, ...base } = item;
     void _r;
     void _e;
+    const keep =
+      checking && item.rejected
+        ? { rejected: true as const, ...(item.errorId ? { errorId: item.errorId } : {}) }
+        : {};
     await putQueued({
       ...base,
+      ...keep,
       uncertain,
       sending: false,
       reason: queueReason(error),
@@ -183,7 +195,8 @@ export const sendQueue = (
       if (heldItem() === item.id) break;
       if (item.rejected && !retryRejected) continue;
       try {
-        onSent(await deliver(item));
+        const sent = await deliver(item);
+        if (sent) onSent(sent);
       } catch (error) {
         if (isRejection(error)) continue;
         break;

@@ -595,6 +595,18 @@ export function heute(db: Executor, query: HeuteQuery): Heute {
       day: o.dueDate,
       cents: -o.amountCents,
     }));
+  // A linked occurrence whose booking is dated after today is not in the balance yet (#1102):
+  // it still counts once, on its booking date.
+  for (const o of all) {
+    if (!onLeadAccount(o) || (o.status !== 'received' && o.status !== 'deviating')) continue;
+    const mark = facts.planMarks.get(`${o.paymentId}|${o.dueDate}`);
+    if (typeof mark !== 'object' || mark.settledOn <= today) continue;
+    const id = o.occurrenceId ?? `${o.paymentId}|${o.dueDate}`;
+    if (o.kind === 'outflow' && o.categoryClass !== 'future')
+      openOutflows.push({ id, label: o.name, day: mark.settledOn, cents: -o.amountCents });
+    else if (o.kind === 'inflow' && o.amountCents > 0)
+      expectedInflows.push({ id, label: o.name, day: mark.settledOn, cents: o.amountCents });
+  }
   const lead = freeUntilPayday({
     accounts,
     expectedInflows,

@@ -133,7 +133,8 @@ describe('automatic link of recurring debits (#1102)', () => {
     const target = proposal!.refId!;
     const { groupId } = linkOccurrence(db, target, bookingId, ctx);
     expect(proposals()[0]).toMatchObject({ resolution: 'Verknüpft.' });
-    expect(openOutflowCents()).toBe(2_800);
+    // The linked booking is dated after today, so it is not in the balance yet: it still counts.
+    expect(openOutflowCents()).toBe(5_600);
     undo(db, { groupId }, ctx);
     expect(proposals()[0]!.resolvedAt).toBeNull();
   });
@@ -264,6 +265,53 @@ describe('automatic link of recurring debits (#1102)', () => {
     expect(forecastDays('Gehalt')).toContain('2026-04-21');
     // A debit booked after the start day does not settle its occurrence yet.
     expect(forecastDays('Miete')).toContain('2026-03-22');
+  });
+
+  it('a deviating income already in the balance is not forecast again (300000 expected, 310000 booked)', () => {
+    const salary = payment('Gehalt', 300_000, { kind: 'inflow', categoryId: null, dueDay: 21 });
+    createBooking(
+      db,
+      {
+        accountId: 'giro',
+        date: '2026-03-20',
+        amountCents: 310_000,
+        payeeId: 'p1',
+        splits: [{ amountCents: 310_000, categoryId: null }],
+      },
+      ctx,
+    );
+    matchOccurrences(db, TODAY);
+    const row = db
+      .select()
+      .from(expectedOccurrence)
+      .where(eq(expectedOccurrence.expectedPaymentId, salary.id))
+      .all()
+      .find((o) => o.dueDate === '2026-03-21');
+    expect(row).toMatchObject({ status: 'deviating' });
+    expect(forecastDays('Gehalt')).not.toContain('2026-03-21');
+    expect(forecastDays('Gehalt')).toContain('2026-04-21');
+  });
+
+  it('a linked debit booked after today counts once, on its booking date, in lead and forecast', () => {
+    const rent = payment('Miete', 40_000, { dueDay: 20 });
+    const bookingId = debit('2026-03-22', -40_000);
+    matchOccurrences(db, TODAY);
+    const row = db
+      .select()
+      .from(expectedOccurrence)
+      .where(eq(expectedOccurrence.expectedPaymentId, rent.id))
+      .all()
+      .find((o) => o.dueDate === '2026-03-20');
+    expect(row).toMatchObject({ bookingId });
+    expect(forecastDays('Miete').filter((d) => d <= '2026-03-31')).toEqual(['2026-03-22']);
+    expect(openOutflowCents()).toBe(40_000);
+  });
+
+  it('an overdue open debit is in the lead and on the first forecast day', () => {
+    payment('Miete', 40_000, { dueDay: 18 });
+    matchOccurrences(db, TODAY);
+    expect(openOutflowCents()).toBe(40_000);
+    expect(forecastDays('Miete').filter((d) => d <= '2026-03-31')).toEqual(['2026-03-21']);
   });
 
   it('leaves recurring income to the existing matching (no proposal, no own group)', () => {

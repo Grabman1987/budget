@@ -76,7 +76,8 @@ async function seedBudget() {
   categories.create(db, { id: 'miete', name: 'Miete', groupId: 'g', class: 'need' }, ctx);
   categories.create(db, { id: 'abo', name: 'Streaming', groupId: 'g', class: 'want' }, ctx);
   categories.create(db, { id: 'etf', name: 'ETF', groupId: 'g', class: 'future' }, ctx);
-  const base = { accountId: 'giro', rhythm: 'monthly', validFrom: '2026-01-01' };
+  // Nothing is overdue on TODAY, so the forecast starts from the balance alone.
+  const base = { accountId: 'giro', rhythm: 'monthly', validFrom: '2026-01-01', startDate: TODAY };
   await call('POST', '/expected', {
     ...base,
     name: 'Gehalt',

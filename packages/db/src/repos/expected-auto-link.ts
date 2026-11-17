@@ -210,7 +210,7 @@ export const isRejectedPair = (
 const money = (amountCents: number, currency: string) =>
   currency === 'EUR'
     ? formatEuro(cents(amountCents))
-    : `${(amountCents / 100).toFixed(2).replace('.', ',').replace('-', '−')} ${currency}`;
+    : `${amountCents < 0 ? '−' : ''}${Math.trunc(Math.abs(amountCents) / 100)},${String(Math.abs(amountCents) % 100).padStart(2, '0')} ${currency}`;
 
 /** Open the proposal task of a pairing unless it exists; returns its id. */
 export function ensureLinkProposal(
@@ -220,6 +220,8 @@ export function ensureLinkProposal(
     payment: Payment;
     currency: string;
     booking: { id: string; date: string; amountCents: number };
+    /** Why the owner decides: shown in the task. */
+    reason?: string;
   },
   ctx: GroupedContext,
 ): { id: string; created: boolean } {
@@ -249,7 +251,7 @@ export function ensureLinkProposal(
         `${input.payment.name} · fällig ${input.occurrence.dueDate} · erwartet ` +
         `${money(input.occurrence.expectedAmountCents, input.currency)} · Buchung ` +
         `${input.booking.date} · ${money(input.booking.amountCents, input.currency)} · ` +
-        'mehrere Zuordnungen möglich',
+        (input.reason ?? 'bitte bestätigen'),
       refType: LINK_PROPOSAL_REF,
       refId: input.occurrence.id,
     },

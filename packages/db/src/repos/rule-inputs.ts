@@ -395,14 +395,8 @@ export function scheduled(
       to,
     )) {
       if (replaced.has(p.id + '|' + occ.dueDate)) continue;
-      // Only a settled outflow leaves the forecast; income keeps its established treatment.
-      if (
-        !isPlannedOccurrence(f, p.id, occ.dueDate, {
-          ...options,
-          skipSettledBy: p.kind === 'outflow' ? options.skipSettledBy : undefined,
-        })
-      )
-        continue;
+      // One predicate for income and outflows: a settled occurrence already in the balance leaves.
+      if (!isPlannedOccurrence(f, p.id, occ.dueDate, options)) continue;
       const v = versionOn(versions, occ.dueDate);
       const pause = options.applyIncomePauses
         ? f.incomePauses.find(
@@ -467,6 +461,8 @@ const monthlyAmount = (f: RuleFacts, p: PaymentRow, day: string): number =>
 const yearlyAmount = (f: RuleFacts, p: PaymentRow, day: string): number =>
   yearlyEquivalent(p.rhythm as Rhythm, unitAmount(f, p, day), p.intervalWeeks);
 
+const OVERDUE_LOOKBACK_DAYS = 31;
+
 // ---- the inputs ----
 
 /** Last full month: the month itself when `asOf` is its last day. */
@@ -491,26 +487,47 @@ export function forecastInputs(
     (a) => a.openingDate <= asOf && a.onBudget && a.role === 'budget',
   );
   const to = addDays(asOf, 365);
-  // A settled income already in the starting balance must not arrive a second time.
-  const receivedIncome = new Set(
+  const toItem = (o: ReturnType<typeof scheduled>[number], day: string): ForecastItem => ({
+    day,
+    cents: o.cents,
+    kind: o.cents >= 0 ? ('income' as const) : ('fixed' as const),
+    label: o.payment.name,
+    ref: { paymentId: o.payment.id, dueDate: o.dueDate },
+    ...(o.category?.class ? { group: o.category.class } : {}),
+  });
+  // Occurrences due up to the start day that the balance does not contain yet (#1102): a linked
+  // one whose booking is dated after the start day lands on that booking date; an overdue open
+  // outflow (stored `expected`, window still open) is paid on the first forecast day, as the lead
+  // of Heute counts it.
+  const openStored = new Set(
     f.db
       .select({
         paymentId: expectedOccurrence.expectedPaymentId,
         dueDate: expectedOccurrence.dueDate,
       })
       .from(expectedOccurrence)
-      .innerJoin(booking, eq(booking.id, expectedOccurrence.bookingId))
       .where(
         and(
           isNull(expectedOccurrence.deletedAt),
-          isNull(booking.deletedAt),
-          eq(expectedOccurrence.status, 'received'),
-          lte(booking.date, asOf),
+          eq(expectedOccurrence.status, 'expected'),
+          lte(expectedOccurrence.dueDate, asOf),
         ),
       )
       .all()
       .map((o) => `${o.paymentId}|${o.dueDate}`),
   );
+  const pending = scheduled(f, addDays(asOf, -OVERDUE_LOOKBACK_DAYS), asOf, asOf, {
+    applyIncomePauses: true,
+  })
+    .filter((o) => o.onBudget)
+    .flatMap((o): ForecastItem[] => {
+      const key = `${o.payment.id}|${o.dueDate}`;
+      const mark = f.planMarks.get(key);
+      if (typeof mark === 'object') return mark.settledOn > asOf ? [toItem(o, mark.settledOn)] : [];
+      return o.payment.kind === 'outflow' && openStored.has(key)
+        ? [toItem(o, addDays(asOf, 1))]
+        : [];
+    });
   const items: ForecastItem[] = [
     ...statementForecastLegs(
       f.db,
@@ -524,19 +541,9 @@ export function forecastInputs(
       label: l.kind === 'settlement' ? 'Abrechnungsausgleich' : 'Ausgabengutschrift',
     })),
     ...scheduled(f, addDays(asOf, 1), to, asOf, { applyIncomePauses: true, skipSettledBy: asOf })
-      .filter(
-        (o) =>
-          o.onBudget &&
-          (o.payment.kind !== 'inflow' || !receivedIncome.has(`${o.payment.id}|${o.dueDate}`)),
-      )
-      .map((o) => ({
-        day: o.dueDate,
-        cents: o.cents,
-        kind: o.cents >= 0 ? ('income' as const) : ('fixed' as const),
-        label: o.payment.name,
-        ref: { paymentId: o.payment.id, dueDate: o.dueDate },
-        ...(o.category?.class ? { group: o.category.class } : {}),
-      })),
+      .filter((o) => o.onBudget)
+      .map((o) => toItem(o, o.dueDate)),
+    ...pending,
     ...f.plannedEvents
       .filter((e) => {
         const a = e.accountId ? f.accounts.find((x) => x.id === e.accountId) : undefined;

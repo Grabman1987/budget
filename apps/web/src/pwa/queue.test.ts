@@ -188,13 +188,36 @@ describe('durable booking delivery', () => {
     expect(memory.rows[0]).toMatchObject({
       id: ids[1],
       rejected: true,
-      uncertain: false,
+      uncertain: true,
       errorId: 'abc123def456',
     });
     expect(memory.rows[0]?.reason).not.toContain('intern');
     // The rejected draft is not retried automatically.
     await sendQueue(vi.fn());
     expect(post).toHaveBeenCalledTimes(3);
+  });
+  it('a parked 500 is checked before it can be edited: not delivered unlocks it, delivered completes it', async () => {
+    const parked = (id: string): QueuedBooking => ({
+      id,
+      createdAt: 1,
+      input,
+      draft,
+      uncertain: true,
+      reason: 'x',
+      rejected: true,
+      errorId: 'abc123def456',
+    });
+    memory.rows = [parked('a')];
+    await sendQueue(vi.fn(), () => undefined, true);
+    expect(check).toHaveBeenCalledTimes(1);
+    expect(post).not.toHaveBeenCalled();
+    expect(memory.rows[0]).toMatchObject({ id: 'a', rejected: true, uncertain: false });
+    memory.rows = [parked('b')];
+    check.mockResolvedValueOnce({ result });
+    const sent = vi.fn();
+    await sendQueue(sent, () => undefined, true);
+    expect(sent).toHaveBeenCalledWith(result);
+    expect(memory.rows).toEqual([]);
   });
   it('keeps 502-504 and network loss in the queue and blocks later items', async () => {
     online(false);

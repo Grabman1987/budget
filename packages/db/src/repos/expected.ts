@@ -986,6 +986,16 @@ export function matchOccurrences(
             payment,
             currency: version?.currency ?? 'EUR',
             booking: match.candidate,
+            reason:
+              match.doubt === 'amount'
+                ? 'Betrag außerhalb der Toleranz'
+                : match.doubt === 'several'
+                  ? 'mehrere Zuordnungen möglich'
+                  : rejectedBookings.has(match.candidate.id) || rejectedOccurrences.has(occ.id)
+                    ? 'früher abgelehnt'
+                    : !sameCounterparty(payment, match.candidate.id)
+                      ? 'Empfänger nicht bestätigt'
+                      : 'bitte bestätigen',
           },
           grouped,
         );
