@@ -1,5 +1,6 @@
 import {
   checkStatementPurchases,
+  statementPurchaseTotal,
   parseCardDocument,
   type StatementCas,
   type StatementFacts,
@@ -84,7 +85,9 @@ export async function statementPurchaseCheck(
   const check = checkStatementPurchases(
     {
       period,
-      printedTotalCents: facts.payableCents,
+      // Payable includes carried debt and repayments; only complete cycle positions
+      // establish a purchase total. The printed closing balance stays in the review facts.
+      statementPurchaseCents: incomplete ? null : statementPurchaseTotal(lines),
       lines: doc ? lines : null,
       linesComplete: !incomplete,
     },

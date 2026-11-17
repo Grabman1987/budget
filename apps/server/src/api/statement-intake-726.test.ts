@@ -521,3 +521,48 @@ it('checks the retained misaligned statement against current EUR card purchases 
   });
   expect(anonymous.status).toBe(401);
 });
+
+it('compares cycle purchases separately from a carried closing balance and payment', async () => {
+  opened.db.run(sql`UPDATE account SET type='credit_card' WHERE id='giro'`);
+  opened.db.run(
+    sql`INSERT INTO booking(id,account_id,date,amount_cents,currency) VALUES ('cycle-purchase','giro','2031-01-02',-2000,'EUR')`,
+  );
+  const text = [
+    'Datum 19.01.2031',
+    'Datum nächste Umsatznachricht 19.02.2031',
+    'Wird eingezogen am 25.01.2031',
+    'Saldo 30,00-',
+    'Abrechnungszeitraum 20.12.2030 - 19.01.2031',
+    'Karte Umsatz Buchung Buchungstext Branche Betrag Kurs EUR Betrag',
+    '  1 02.01. 02.01. Synthetic shop     20,00-',
+    '    03.01. 03.01. Zahlung     40,00+',
+  ];
+  const uploaded = await upload(
+    await syntheticColumnarPayslipPdf(
+      text.map((text) => [{ x: 40, text }]),
+      '',
+    ),
+  );
+  const { intake } = (await uploaded.json()) as ApiJson;
+  const facts = Object.fromEntries(
+    Object.entries(intake.proposal.fields).map(([k, v]) => [k, v.value]),
+  );
+  const before = financialState();
+  const response = await jsonCall('POST', `/${intake.id}/purchase-check`, {
+    revision: intake.revision,
+    accountId: intake.accountId,
+    sha256: intake.sha256,
+    facts,
+  });
+  expect(response.status).toBe(200);
+  expect(await response.json()).toMatchObject({
+    extractionIncomplete: false,
+    check: {
+      statementPurchaseCents: 2000,
+      bookedPurchaseCents: 2000,
+      differenceCents: 0,
+      sumMatches: true,
+    },
+  });
+  expect(financialState()).toBe(before);
+});

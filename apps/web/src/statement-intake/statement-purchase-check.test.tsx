@@ -1,10 +1,11 @@
 // @vitest-environment jsdom
 import { emptyStatementFacts, type StatementPurchaseCheck } from '@budget/domain';
 import { setAmountsHidden } from '@budget/ui';
-import { cleanup, render, screen } from '@testing-library/react';
+import { act, cleanup, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, expect, it, vi } from 'vitest';
 import { StatementPurchaseReview } from './statement-purchase-check';
+import { notifyApiWrite } from '../api/http';
 const source = { accountId: 'card', revision: 'revision', sha256: 'a'.repeat(64) };
 const facts = {
   ...emptyStatementFacts(),
@@ -16,7 +17,7 @@ const facts = {
 const line = { id: 'line', date: '2030-12-31', amountCents: -1234, description: 'Synthetic shop' };
 const check = (patch: Partial<StatementPurchaseCheck> = {}): StatementPurchaseCheck => ({
   period: { from: '2030-12-20', to: '2031-01-19' },
-  printedTotalCents: 1234,
+  statementPurchaseCents: 1234,
   bookedPurchaseCents: 0,
   differenceCents: -1234,
   sumMatches: false,
@@ -44,6 +45,27 @@ function transport(value: StatementPurchaseCheck, omittedBookings = 0) {
   );
 }
 const props = { intakeId: 'intake', source, facts, password: '', disabled: false };
+it('discards a delayed verdict after a competing local write', async () => {
+  let resolve!: (response: Response) => void;
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(
+      () =>
+        new Promise<Response>((done) => {
+          resolve = done;
+        }),
+    ),
+  );
+  render(<StatementPurchaseReview {...props} />);
+  await userEvent.click(screen.getByRole('button'));
+  await act(async () => {
+    notifyApiWrite();
+    resolve(
+      new Response(JSON.stringify({ check: check({ sumMatches: true }), omittedBookings: 0 })),
+    );
+  });
+  expect(screen.queryByText('Summe stimmt')).toBeNull();
+});
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();

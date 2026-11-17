@@ -8,10 +8,10 @@ const row = (
 ) => ({ id, date, description, amountCents });
 const statement = (
   lines: StatementPurchaseInput['lines'] = [row('line')],
-  printedTotalCents = 1234,
+  statementPurchaseCents = 1234,
 ): StatementPurchaseInput => ({
   period: { from: '2030-12-20', to: '2031-01-19' },
-  printedTotalCents,
+  statementPurchaseCents,
   lines,
 });
 it('matches exact cents and produces identical results on a second check without mutation', () => {
@@ -72,6 +72,24 @@ it('leaves an ambiguous same-day same-amount pair open even when descriptions di
   expect(result.statementOnly).toHaveLength(2);
   expect(result.bookingOnly).toHaveLength(2);
 });
+it('includes leap day and both month-end boundaries exactly once', () => {
+  const result = checkStatementPurchases(
+    {
+      period: { from: '2032-02-29', to: '2032-03-31' },
+      statementPurchaseCents: 701,
+      lines: null,
+    },
+    [
+      row('before', -800, '2032-02-28'),
+      row('leap', -1001, '2032-02-29'),
+      row('refund', 300, '2032-03-31'),
+      row('after', -900, '2032-04-01'),
+    ],
+  );
+  expect(result.bookedPurchaseCents).toBe(701);
+  expect(result.differenceCents).toBe(0);
+  expect(result.bookingOnly.map((b) => b.id)).toEqual(['leap', 'refund']);
+});
 it('never matches one purchase to two statement lines', () => {
   const result = checkStatementPurchases(statement([row('a'), row('b')], 2468), [row('x')]);
   expect(result.matched).toEqual([]);
@@ -88,7 +106,8 @@ it('does not infer an unstated cycle or an unknown printed total', () => {
     checkStatementPurchases({ ...statement(), period: null }, [row('x')]).sumMatches,
   ).toBeNull();
   expect(
-    checkStatementPurchases({ ...statement(), printedTotalCents: null }, [row('x')]).sumMatches,
+    checkStatementPurchases({ ...statement(), statementPurchaseCents: null }, [row('x')])
+      .sumMatches,
   ).toBeNull();
 });
 it('rejects unsafe cents and aggregate overflow', () => {
@@ -114,5 +133,7 @@ it('keeps undated and out-of-cycle statement rows unresolved instead of recommen
     const result = checkStatementPurchases(statement([{ ...row('line'), date }]), [row('exists')]);
     expect(result.statementOnly).toEqual([{ line: { ...row('line'), date }, ambiguous: true }]);
     expect(result.matched).toEqual([]);
+    expect(result.sumMatches).toBeNull();
+    expect(result.differenceCents).toBeNull();
   }
 });

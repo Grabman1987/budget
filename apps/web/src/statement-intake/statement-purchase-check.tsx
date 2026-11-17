@@ -4,7 +4,7 @@ import {
   type StatementPurchaseCheck,
 } from '@budget/domain';
 import { Button, useAmountPrivacy } from '@budget/ui';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { onApiWrite, request } from '../api/http';
 import { nativeCurrency, longDay } from '../ledger/format';
 import { errorText } from '../ledger/labels';
@@ -31,7 +31,15 @@ export function StatementPurchaseReview({
   const [result, setResult] = useState<{ signature: string; reply: Reply } | null>(null);
   const [busy, setBusy] = useState(false),
     [error, setError] = useState('');
-  useEffect(() => onApiWrite(() => setResult(null)), []);
+  const writes = useRef(0);
+  useEffect(
+    () =>
+      onApiWrite(() => {
+        writes.current++;
+        setResult(null);
+      }),
+    [],
+  );
   const signature = JSON.stringify([source, facts]);
   const reply = result?.signature === signature ? result.reply : null;
   const check = reply?.check;
@@ -43,13 +51,15 @@ export function StatementPurchaseReview({
     setBusy(true);
     setError('');
     setResult(null);
+    const generation = writes.current;
     try {
       const reply = await request<Reply>(
         'POST',
         `/api/statement-intake/${encodeURIComponent(intakeId)}/purchase-check`,
         { ...source, facts, ...(password ? { password } : {}) },
       );
-      setResult({ signature, reply });
+      // request() emits one notification for this read-only POST itself.
+      if (writes.current === generation + 1) setResult({ signature, reply });
     } catch (cause) {
       setError(errorText(cause));
     } finally {
@@ -99,11 +109,11 @@ export function StatementPurchaseReview({
           )}
           {check.bookedPurchaseCents !== null && (
             <p>
-              Gebuchte Käufe abzüglich Gutschriften: {money(check.bookedPurchaseCents)} ·
-              Abrechnungsbetrag:{' '}
-              {check.printedTotalCents === null
+              Gebuchte Käufe abzüglich Gutschriften: {money(check.bookedPurchaseCents)} · Summe der
+              Abrechnungspositionen:{' '}
+              {check.statementPurchaseCents === null
                 ? 'nicht angegeben'
-                : money(check.printedTotalCents)}
+                : money(check.statementPurchaseCents)}
             </p>
           )}
           {!check.linesAvailable && (

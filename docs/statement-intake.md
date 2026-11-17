@@ -235,8 +235,10 @@ settlement transfers are excluded. A stated cycle can cross month and year ends;
 no cycle is inferred from a calendar month or the issue date. Without a full
 period, the sum and missing-purchase decisions remain unavailable.
 
-**Summe stimmt** means only that purchases minus refunds equal the entered printed
-total to the cent. It does not prove payment, completeness of extraction or unique
+**Summe stimmt** means only that booked purchases minus refunds equal the complete
+extracted cycle positions to the cent. The printed closing amount payable includes
+carried debt and repayments and is not a purchase total. Incomplete extraction leaves
+the sum verdict unavailable. It does not prove payment or unique
 position matching. Same-day/same-amount competitors stay open even when merchant
 names differ. One booking cannot satisfy two positions. A unique same-day merchant
 with a different amount is shown separately. Readable positions remain available
@@ -259,6 +261,6 @@ cents for exact/missing/duplicate purchases, partial refunds, final EUR amounts,
 cycle boundaries, ambiguity and repeated checks. Retained-PDF API coverage verifies
 fresh booking amounts, source conflicts, authentication and unchanged financial and
 audit tables. These tests do not establish support for every issuer, scanned PDFs,
-private statement acceptance or production reconciliation. Old carried balances,
-fees and manual corrections can still explain differences; none is automatically
+private statement acceptance or production reconciliation. Fees and manual
+corrections can still explain differences; none is automatically
 turned into a balancing booking. No database migration is needed.

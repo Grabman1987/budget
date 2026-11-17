@@ -11,14 +11,14 @@ export type StatementPurchaseBooking = StatementPurchaseLine & {
 };
 export type StatementPurchaseInput = {
   period: { from: string; to: string } | null;
-  printedTotalCents: number | null;
+  statementPurchaseCents: number | null;
   /** null means unavailable/incomplete extraction; [] means a known empty list. */
   lines: readonly StatementPurchaseLine[] | null;
   linesComplete?: boolean;
 };
 export type StatementPurchaseCheck = {
   period: StatementPurchaseInput['period'];
-  printedTotalCents: number | null;
+  statementPurchaseCents: number | null;
   bookedPurchaseCents: number | null;
   differenceCents: number | null;
   sumMatches: boolean | null;
@@ -38,6 +38,10 @@ const checked = (n: number) => {
   return n;
 };
 const number = (n: bigint) => checked(Number(n));
+/** Net cost of cycle positions; never the closing card balance or a settlement payment. */
+export function statementPurchaseTotal(lines: readonly StatementPurchaseLine[]): number {
+  return number(lines.reduce((n, line) => n - BigInt(checked(line.amountCents)), 0n));
+}
 
 /** Read-only, deterministic and deliberately conservative: matching requires a unique
  * edge in both directions. Equal-day/equal-amount candidates are never disambiguated by name. */
@@ -47,7 +51,7 @@ export function checkStatementPurchases(
 ): StatementPurchaseCheck {
   if (statement.period && statement.period.from > statement.period.to)
     throw new Error('Invalid statement period');
-  if (statement.printedTotalCents !== null) checked(statement.printedTotalCents);
+  if (statement.statementPurchaseCents !== null) checked(statement.statementPurchaseCents);
   const lines = [...(statement.lines ?? [])];
   const cycle = statement.period
     ? bookings.filter((b) => b.date >= statement.period!.from && b.date <= statement.period!.to)
@@ -56,16 +60,21 @@ export function checkStatementPurchases(
     if (new Set(rows.map((r) => r.id)).size !== rows.length) throw new Error('Duplicate identity');
     rows.forEach((r) => checked(r.amountCents));
   }
-  const sum = statement.period
-    ? number(cycle.reduce((n, b) => n - BigInt(b.amountCents), 0n))
-    : null;
+  const sum = statement.period ? statementPurchaseTotal(cycle) : null;
+  const positionsInCycle = lines.every(
+    (line) =>
+      line.date &&
+      statement.period &&
+      line.date >= statement.period.from &&
+      line.date <= statement.period.to,
+  );
   const difference =
-    sum !== null && statement.printedTotalCents !== null
-      ? number(BigInt(sum) - BigInt(statement.printedTotalCents))
+    positionsInCycle && sum !== null && statement.statementPurchaseCents !== null
+      ? number(BigInt(sum) - BigInt(statement.statementPurchaseCents))
       : null;
   const result: StatementPurchaseCheck = {
     period: statement.period,
-    printedTotalCents: statement.printedTotalCents,
+    statementPurchaseCents: statement.statementPurchaseCents,
     bookedPurchaseCents: sum,
     differenceCents: difference,
     sumMatches: difference === null ? null : difference === 0,
