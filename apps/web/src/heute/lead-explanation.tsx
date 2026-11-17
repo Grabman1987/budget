@@ -53,11 +53,7 @@ export function LeadExplanation({ data }: { data: Heute }) {
       </section>
       <div id="rechenweg">
         <DimensionChain
-          terms={[
-            { label: 'Kontostand', value: cents(data.lead.balanceCents) },
-            { label: 'offen bis Gehalt', value: cents(data.lead.openCents), op: '-' },
-            { label: 'frei verfügbar', value: cents(data.lead.freeCents), op: '=', result: true },
-          ]}
+          terms={data.lead.chain.map((term) => ({ ...term, value: cents(term.value) }))}
           precision="cent"
           label="Kontostand minus offene Rechnungen bis Gehalt"
         />

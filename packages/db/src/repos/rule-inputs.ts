@@ -1,3 +1,4 @@
+import { isLiquidityAccount } from './liquidity-account';
 import { readPaymentLifecycles, type PaymentLifecycle } from './expected-lifecycle-invariants';
 import { allocationInputsAsOf } from './allocation-inputs';
 import { cashlessContactBookingIds } from './contact-invariants';
@@ -430,7 +431,7 @@ export function scheduled(
         payment: p,
         dueDate: occ.dueDate,
         cents,
-        onBudget: acct ? acct.onBudget && acct.role === 'budget' : true,
+        onBudget: acct ? isLiquidityAccount(acct, asOf) : !p.accountId,
         category: p.categoryId ? cats.get(p.categoryId) : undefined,
       });
     }
@@ -484,9 +485,7 @@ export function forecastInputs(
 ): NonNullable<RuleInputs['forecast']> {
   const cur = monthOf(asOf);
   const ref = referenceMonth(asOf);
-  const budgetAccounts = f.accounts.filter(
-    (a) => a.openingDate <= asOf && a.onBudget && a.role === 'budget',
-  );
+  const budgetAccounts = f.accounts.filter((a) => isLiquidityAccount(a, asOf));
   const to = addDays(asOf, 365);
   const toItem = (o: ReturnType<typeof scheduled>[number], day: string): ForecastItem => ({
     day,
@@ -498,7 +497,7 @@ export function forecastInputs(
   });
   // Occurrences due up to the start day that the balance does not contain yet (#1102): a linked
   // one whose booking is dated after the start day lands on that booking date; an overdue open
-  // outflow (stored `expected`, window still open) is paid on the first forecast day, as the lead
+  // outflow (stored `expected`, window still open) is deducted from projected day zero, as the lead
   // of Heute counts it.
   const openStored = new Set(
     f.db
@@ -525,9 +524,7 @@ export function forecastInputs(
       const key = `${o.payment.id}|${o.dueDate}`;
       const mark = f.planMarks.get(key);
       if (typeof mark === 'object') return mark.settledOn > asOf ? [toItem(o, mark.settledOn)] : [];
-      return o.payment.kind === 'outflow' && openStored.has(key)
-        ? [toItem(o, addDays(asOf, 1))]
-        : [];
+      return o.payment.kind === 'outflow' && openStored.has(key) ? [toItem(o, asOf)] : [];
     });
   const items: ForecastItem[] = [
     ...statementForecastLegs(
@@ -543,20 +540,15 @@ export function forecastInputs(
     })),
     ...scheduled(f, addDays(asOf, 1), to, asOf, { applyIncomePauses: true, skipSettledBy: asOf })
       .filter((o) => o.onBudget)
-      .map((o) => toItem(o, o.dueDate)),
-    ...pending,
+      .map((o) => {
+        const mark = f.planMarks.get(`${o.payment.id}|${o.dueDate}`);
+        return toItem(o, typeof mark === 'object' ? mark.settledOn : o.dueDate);
+      }),
+    ...pending.filter((o) => o.day > asOf),
     ...f.plannedEvents
       .filter((e) => {
         const a = e.accountId ? f.accounts.find((x) => x.id === e.accountId) : undefined;
-        return (
-          e.enabled &&
-          (e.accountId === null ||
-            (a &&
-              a.onBudget &&
-              a.role === 'budget' &&
-              a.openingDate <= asOf &&
-              a.currency === 'EUR'))
-        );
+        return e.enabled && (e.accountId === null || (a && isLiquidityAccount(a, asOf)));
       })
       .flatMap((e) => plannedEventOccurrences(e, addDays(asOf, 1), to))
       .map((e) => ({ day: e.date, cents: e.amountCents, kind: 'event' as const, label: e.name })),
@@ -575,7 +567,11 @@ export function forecastInputs(
       : Math.max(0, averageCents(last3.map((m) => spent(f, m, (c) => c.kind === 'variable'))));
   return {
     startDay: asOf,
-    startCents: budgetAccounts.reduce((s, a) => s + (nw.byAccount[a.id] ?? 0), 0),
+    // Unpaid overdue outflows are immediate obligations, including when payday is tomorrow.
+    // Projected day zero differs from the actual bank balance by these obligations only.
+    startCents:
+      budgetAccounts.reduce((s, a) => s + (nw.byAccount[a.id] ?? 0), 0) +
+      pending.filter((o) => o.day === asOf).reduce((s, o) => s + o.cents, 0),
     items,
     variableMonthlyCents,
     // Letzte Reserve, the same figure as the lead of Heute: open accounts only (a closed account

@@ -14,6 +14,7 @@ export {
   classShares,
   debtServiceRatio,
   emergencyCoverage,
+  emergencyTargetCents,
   fixedCostRatio,
   lifestyleInflation,
   ratioBp,

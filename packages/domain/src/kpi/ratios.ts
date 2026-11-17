@@ -1,3 +1,4 @@
+import { cents } from '../money/cents';
 import { addMonths } from '../date';
 import { allocation, type AllocMonth, type Allocation } from '../ledger/alloc';
 
@@ -44,6 +45,14 @@ export function savingsRate(input: {
   consumptionCents: number;
 }): number | null {
   return ratioBp(input.incomeCents - input.consumptionCents, input.incomeCents);
+}
+
+/** Full emergency target, independent of the current R02 recovery status. */
+export function emergencyTargetCents(input: {
+  averageNeedCents: number;
+  targetMonths: number;
+}): number {
+  return cents(Math.max(0, input.averageNeedCents) * Math.max(0, input.targetMonths));
 }
 
 export interface EmergencyCoverageInput {

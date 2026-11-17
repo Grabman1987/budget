@@ -8,7 +8,7 @@ import type { LiquidityReportView } from '../apps/web/src/reports/liquidity-api'
 import type { Heute } from '../apps/web/src/heute/api';
 import { MAIN_URL } from '../playwright.config';
 import { pickCategory, toast } from './ledger-helpers';
-import { addDays, daysBetween } from '@budget/domain';
+import { addDays, cents, daysBetween } from '@budget/domain';
 import { eur, shortDay } from '../apps/web/src/ledger/format';
 
 const expect = baseExpect.configure({ timeout: 15_000 });
@@ -73,14 +73,41 @@ test('daily budget uses the live lead and next payday, wraps and explains the fo
 }, info) => {
   await page.goto(heuteReviewUrl(redesign, '/?monat=2026-09&period=payday'));
   const data: Heute = await (await page.request.get('/api/heute?period=payday')).json();
-  expect(data.lead.freeCents).toBeGreaterThan(0);
+  expect(data.lead.freeCents).toBe(-154_921);
+  expect(data.dailyBudget.perDayCents).toBeNull();
+  // Preserve positive daily-budget coverage with an explicit synthetic cash-only lead.
+  await page.route('**/api/heute?**', async (route) => {
+    const response = await route.fetch();
+    const json: Heute = await response.json();
+    json.lead.balanceCents = 38_000;
+    json.lead.lastResortCents = 0;
+    json.lead.openCents = 0;
+    json.lead.freeCents = 38_000;
+    json.lead.items = {
+      accounts: [
+        {
+          id: 'synthetic',
+          name: 'Synthetic cash',
+          balanceCents: 38_000,
+          overdraftLimitCents: null,
+        },
+      ],
+      open: [],
+    };
+    json.lead.chain = [
+      { label: 'Kontostand', value: cents(38_000) },
+      { label: 'offen bis Gehalt', value: cents(0), op: '-' },
+      { label: 'frei verf\u00fcgbar', value: cents(38_000), op: '=', result: true },
+    ];
+    json.dailyBudget.perDayCents = 1357; // 38,000 / 28 days, rounded to the nearest cent.
+    await route.fulfill({ response, json });
+  });
+  await page.reload();
   expect(data.dailyBudget.remainingDays).toBe(data.lead.daysToPayday);
-  expect(data.dailyBudget.perDayCents).toBe(
-    Math.round(data.lead.freeCents / data.dailyBudget.remainingDays),
-  );
+  expect(data.dailyBudget.remainingDays).toBe(28);
   const line = page.getByTestId('heute-daily-budget');
   await expect(line).toContainText(
-    `≈ ${eur(data.dailyBudget.perDayCents!, { cents: false })} pro Tag · noch ${data.dailyBudget.remainingDays} Tage bis zum Gehalt`,
+    `≈ ${eur(1357, { cents: false })} pro Tag · noch ${data.dailyBudget.remainingDays} Tage bis zum Gehalt`,
   );
   for (const colorScheme of ['light', 'dark'] as const) {
     await page.emulateMedia({ colorScheme, reducedMotion: 'reduce' });
@@ -284,7 +311,7 @@ test('Heute uses live API data and period, expands the lead chain, and links to 
   const response = await page.request.get('/api/heute?period=month&month=2026-09');
   expect(response.ok()).toBe(true);
   const initial: Heute = await response.json();
-  expect(initial.lead.freeCents).toBe(706_279);
+  expect(initial.lead.freeCents).toBe(-154_921);
   const badRules =
     'unavailable' in initial.financeCheck
       ? []
@@ -326,8 +353,8 @@ test('Heute uses live API data and period, expands the lead chain, and links to 
     'Nettovermögen',
   ]);
   await expect(page.getByTestId('heute-lead-value')).toBeVisible();
-  await expect(page.getByTestId('heute-lead-value')).toContainText('7.062');
-  await expect(page.getByTestId('heute-lead-value')).toContainText(',79 €');
+  await expect(page.getByTestId('heute-lead-value')).toContainText('1.549');
+  await expect(page.getByTestId('heute-lead-value')).toContainText(',21 €');
   await page.getByTestId('heute-lead-value').click();
   await expect(
     page.getByRole('button', { name: 'Herleitung ausblenden', exact: true }),
@@ -396,7 +423,7 @@ test('Heute uses live API data and period, expands the lead chain, and links to 
   for (const [name, account, total] of [
     ['Liquidität', 'Girokonto', '9.356,00 €'],
     [redesign ? 'Anlagen' : 'Investiert', 'Depot', '88.000,00 €'],
-    [redesign ? 'Schulden (netto)' : 'Schulden', 'Kredit', '−12.626,00 €'],
+    ['Schulden netto', 'Kredit', '−12.626,00 €'],
   ]) {
     const segment = page
       .getByRole('group', { name: 'Maßkette Nettovermögen' })
@@ -421,7 +448,7 @@ test('Heute uses live API data and period, expands the lead chain, and links to 
     .getByRole('button', { name: /^Schulden/ })
     .press('Enter');
   const source = page
-    .getByRole('region', { name: redesign ? 'Schulden (netto)' : 'Schulden', exact: true })
+    .getByRole('region', { name: 'Schulden netto', exact: true })
     .getByRole('link', { name: 'Kredit', exact: true });
   const target = new URL((await source.getAttribute('href'))!, page.url());
   await source.click();
@@ -750,7 +777,7 @@ test('a failed Heute request offers a working retry', async ({ page }) => {
   );
   await alert.getByRole('button', { name: 'Erneut versuchen' }).click();
   await retried;
-  await expect(page.getByTestId('heute-lead-value')).toContainText('7.062');
+  await expect(page.getByTestId('heute-lead-value')).toContainText('1.549');
   await expect(page.getByRole('alert')).toBeHidden();
 });
 

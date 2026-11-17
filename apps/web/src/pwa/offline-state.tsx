@@ -368,8 +368,8 @@ export function OfflineState({ onCapture }: { onCapture: () => void }) {
                       {REDESIGN_ENABLED
                         ? heute.netWorth.debtCents > 0
                           ? 'Guthaben auf Schuldkonten (netto)'
-                          : 'Schulden (netto)'
-                        : 'Schulden'}
+                          : 'Schulden netto'
+                        : 'Schulden netto'}
                     </dt>
                     <dd>{eur(heute.netWorth.debtCents)}</dd>
                   </div>

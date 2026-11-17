@@ -67,6 +67,7 @@ describe('parameters', () => {
     });
     expect(() => applyParamsPatch('R08', {}, { nope: 1 })).toThrow();
     expect(() => applyParamsPatch('R08', {}, { maxBp: -5 })).toThrow();
+    expect(() => applyParamsPatch('R07', {}, { minCents: -1 })).toThrow();
     expect(() => applyParamsPatch('R08', {}, { maxBp: 1.5 })).toThrow();
   });
 
@@ -199,7 +200,12 @@ describe('R02 Notgroschen', () => {
   });
   it('the action names the missing amount', () => {
     const e = evaluateRule('R02', {}, inputs({ emergency: emergency(720_000) }));
-    expect(e?.detail['missingCents']).toBe(180_000);
+    expect(e?.detail).toEqual({
+      tenthsOfMonth: 24,
+      averageNeedCents: 300_000,
+      months: 12,
+      missingCents: 180_000,
+    });
     expect(e?.actionText).toContain('1.800 €');
   });
 });
@@ -359,6 +365,9 @@ describe('R07 Dispo', () => {
       detail: { lastResortCents: 300_000 },
     });
     expect(evaluateRule('R07', {}, inputs({ forecast: forecast(30_000, 0) }))?.status).toBe('bad');
+    expect(
+      evaluateRule('R07', { minCents: -60_000 }, inputs({ forecast: forecast(30_000) }))?.status,
+    ).toBe('bad');
     // a threshold of 600 € flips the first case
     expect(
       evaluateRule('R07', { minCents: 60_000 }, inputs({ forecast: forecast(100_000) }))?.status,

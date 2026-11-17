@@ -401,10 +401,10 @@ function ForecastCard({
           <small>{lowPlain ? `Tiefpunkt am ${shortDay(lowPlain.day)}` : ''}</small>
         </div>
         <div>
-          <span className="tech">Heute</span>
+          <span className="tech">Prognosestart</span>
           <strong data-testid="liq-start">{eur(report.startCents)}</strong>
           <small>
-            Budget-Konten
+            Budget-Konten abzüglich bis heute fälliger Zahlungen
             {view.lastResortCents > 0 &&
               `, Letzte Reserve (Dispo) ${eur(view.lastResortCents, { cents: false })} zählt nicht`}
           </small>

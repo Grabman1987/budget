@@ -42,8 +42,11 @@ it.each(['occurrence', 'payment|2026-09-20'])(
         openCents: 103,
         lastResortCents: 500,
         freeCents: 898,
-        // Older API responses round their overview chain; the full explanation must retain cents.
-        chain: [{ label: 'Kontostand', value: 1000 }],
+        chain: [
+          { label: 'Server-Kontostand', value: 1001 },
+          { label: 'offen bis Gehalt', value: 103, op: '-' },
+          { label: 'frei verfügbar', value: 898, op: '=', result: true },
+        ],
         items: {
           accounts: [
             {
@@ -92,6 +95,7 @@ it.each(['occurrence', 'payment|2026-09-20'])(
         <LeadExplanation data={data} />
       </QueryClientProvider>,
     );
+    expect(view.container.textContent).toContain('Server-Kontostand');
     expect(view.container.textContent).toContain('10,01 €');
     expect(view.container.textContent).not.toContain('Erwartete Eingänge');
     expect(view.container.textContent).toContain('Letzte Reserve (Dispo): 5,00 €');

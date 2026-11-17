@@ -163,7 +163,7 @@ test('Heute explains sidebar, forecast and net-worth account scopes', async ({
     .click({ timeout: 10_000 });
   await expect(page.getByRole('heading', { name: 'Liquidität', exact: true })).toBeVisible();
   const liquidDetail = page.getByText(
-    'Positive Salden aus Budget- und Reservekonten. Negative Kontosalden zählen zu Schulden; ' +
+    'Positive Salden aus Budget-, Reservekonten und Konten ohne Rolle. Negative Kontosalden zählen zu Schulden; ' +
       'das Maß ist kein frei verfügbares Budget.',
   );
   await expect(liquidDetail).toBeVisible();

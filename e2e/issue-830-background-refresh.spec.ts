@@ -151,12 +151,12 @@ for (const colorScheme of ['light', 'dark'] as const) {
     }
     if (page.viewportSize()!.width < 768) await page.setViewportSize({ width: 390, height: 844 });
     const source = await (await page.request.get('/api/heute?period=month&month=2026-09')).json();
-    expect(source.lead.freeCents).toBe(706_279);
-    expect(source.forecast35d.report.low.cents).toBe(19_101);
+    expect(source.lead.freeCents).toBe(-154_921);
+    expect(source.forecast35d.report.low.cents).toBe(-10_899);
     const primary = page.getByRole('region', { name: 'Frei bis Gehalt', exact: true });
-    await expect(primary.getByTestId('heute-lead-value')).toHaveText('7.062,79 €');
+    await expect(primary.getByTestId('heute-lead-value')).toHaveText('−1.549,21 €');
     await expect(primary).toHaveAttribute('data-as-of', '2026-09-17');
-    await expect(page.locator('.heute-forecast-low')).toHaveAttribute('data-cents', '19101');
+    await expect(page.locator('.heute-forecast-low')).toHaveAttribute('data-cents', '-10899');
     const tasks = page.locator('.hv-revisions tbody tr');
     await expect(tasks).toHaveCount(4);
     expect(await tasks.allTextContents()).toEqual([
@@ -203,13 +203,13 @@ for (const colorScheme of ['light', 'dark'] as const) {
     await page.reload();
     await expect(fold).toHaveAttribute('aria-expanded', original === 'true' ? 'false' : 'true');
     await page.goto('/?monat=2026-08&period=month');
-    await expect(primary.getByTestId('heute-lead-value')).toHaveText('7.062,79 €');
+    await expect(primary.getByTestId('heute-lead-value')).toHaveText('−1.549,21 €');
     await expect(page.locator('.hv-head:visible .month-name')).toHaveText('August 2026');
     await expect(primary).toHaveAttribute('data-as-of', '2026-09-17');
     await page.keyboard.press('Control+Shift+H');
-    await expect(primary.getByTestId('heute-lead-value')).not.toContainText('7.062');
+    await expect(primary.getByTestId('heute-lead-value')).not.toContainText('1.549');
     await page.keyboard.press('Control+Shift+H');
-    await expect(primary.getByTestId('heute-lead-value')).toHaveText('7.062,79 €');
+    await expect(primary.getByTestId('heute-lead-value')).toHaveText('−1.549,21 €');
     await page.setViewportSize({ width: 320, height: 844 });
     await page.evaluate(() => {
       const root = document.documentElement;

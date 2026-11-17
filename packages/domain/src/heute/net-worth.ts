@@ -6,7 +6,7 @@ import { addMonths, lastDayOfMonth, monthOf } from '../date';
  */
 
 export interface NetWorthAccount {
-  role: 'budget' | 'reserve' | 'investment' | 'debt' | 'receivable';
+  role: 'budget' | 'reserve' | 'investment' | 'debt' | 'receivable' | null;
   /** Balance plus positions in EUR cents (negative for a card or loan owed). */
   valueCents: number;
 }
@@ -18,7 +18,7 @@ export interface NetWorthParts {
   investedCents: number;
   /** Open receivables from contacts (role receivable); shown separately, see the owner decision. */
   receivableCents: number;
-  /** Everything owed: every negative account value, any role (≤ 0). */
+  /** Signed net debt: negative values of any role plus positive debt-role balances. */
   debtCents: number;
   /** liquid + invested + receivable + debt = net worth. */
   totalCents: number;

@@ -35,7 +35,7 @@ export interface FreeUntilPaydayInput {
   /** `YYYY-MM-DD` of the next salary. Items due on or after it are not counted. */
   payday: string;
   today: string;
-  /** Rounding of the chain terms (`balanceChain`). Default: whole euros, the largest term absorbs. */
+  /** Rounding of the chain terms (`balanceChain`). Always cent precision; retained for caller compatibility. */
   precision?: 'euro' | 'cent';
 }
 
@@ -66,14 +66,25 @@ const sum = (xs: ReadonlyArray<number>): number => xs.reduce((a, v) => a + v, 0)
 export function overdraftLastResort(
   accounts: ReadonlyArray<Pick<FreeAccount, 'balanceCents' | 'overdraftLimitCents'>>,
 ): number {
-  return sum(
-    accounts.map((a) =>
-      Math.max(0, Math.max(0, a.overdraftLimitCents ?? 0) - Math.max(0, -a.balanceCents)),
+  accounts.forEach((a) => {
+    cents(a.balanceCents);
+    cents(a.overdraftLimitCents ?? 0);
+  });
+  return cents(
+    sum(
+      accounts.map((a) =>
+        Math.max(0, Math.max(0, a.overdraftLimitCents ?? 0) - Math.max(0, -a.balanceCents)),
+      ),
     ),
   );
 }
 
 export function freeUntilPayday(input: FreeUntilPaydayInput): FreeUntilPayday {
+  input.accounts.forEach((a) => {
+    cents(a.balanceCents);
+    cents(a.overdraftLimitCents ?? 0);
+  });
+  input.openOutflows.forEach((o) => cents(o.cents));
   const open = input.openOutflows.filter((o) => o.day < input.payday);
   const balanceCents = sum(input.accounts.map((a) => a.balanceCents));
   const openCents = sum(open.map((o) => o.cents));
@@ -89,7 +100,7 @@ export function freeUntilPayday(input: FreeUntilPaydayInput): FreeUntilPayday {
     lastResortCents: overdraftLastResort(input.accounts),
     freeCents,
     daysToPayday: daysBetween(input.today, input.payday),
-    chain: balanceChain(terms, input.precision ?? 'euro'),
+    chain: balanceChain(terms, 'cent'),
     items: { accounts: [...input.accounts], open },
   };
 }

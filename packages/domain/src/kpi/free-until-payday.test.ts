@@ -78,7 +78,7 @@ describe('freeUntilPayday as cash flow', () => {
     expect(r.lastResortCents).toBe(3999 + 1234);
   });
 
-  it('the whole-euro chain absorbs the rounding gap; empty input is zero', () => {
+  it('retains cents for legacy euro callers; empty input is zero', () => {
     const r = freeUntilPayday({
       ...base,
       precision: 'euro',
@@ -86,6 +86,7 @@ describe('freeUntilPayday as cash flow', () => {
       openOutflows: [{ id: 'o', label: 'o', day: '2026-09-18', cents: 1049 }],
     });
     expect(r.freeCents).toBe(0);
+    expect(r.chain.map((t) => t.value)).toEqual([1049, 1049, 0]);
     const empty = freeUntilPayday({ ...base, accounts: [], openOutflows: [] });
     expect(empty.freeCents).toBe(0);
   });
@@ -112,4 +113,32 @@ describe('freeUntilPayday and liquidityForecast share their inputs (#1227)', () 
     // the overdraft is neither in the forecast balance nor in the free figure
     expect(lead.lastResortCents).toBe(300_000);
   });
+});
+
+it.each([0.5, NaN, Infinity, Number.MAX_SAFE_INTEGER + 1])(
+  'rejects invalid cents %s at every entry',
+  (invalid) => {
+    expect(() => overdraftLastResort([acc('x', invalid, null)])).toThrow(RangeError);
+    expect(() => overdraftLastResort([acc('x', 0, invalid)])).toThrow(RangeError);
+    expect(() =>
+      freeUntilPayday({ ...base, accounts: [acc('x', invalid, null)], openOutflows: [] }),
+    ).toThrow(RangeError);
+    expect(() =>
+      freeUntilPayday({
+        ...base,
+        accounts: [],
+        openOutflows: [{ id: 'x', label: 'x', day: '2027-01-01', cents: invalid }],
+      }),
+    ).toThrow(RangeError);
+  },
+);
+
+it('keeps the default lead chain at cent precision', () => {
+  const r = freeUntilPayday({
+    today: base.today,
+    payday: base.payday,
+    accounts: [acc('x', 1001, null)],
+    openOutflows: [{ id: 'x', label: 'x', day: base.today, cents: 103 }],
+  });
+  expect(r.chain.map((t) => t.value)).toEqual([1001, 103, 898]);
 });

@@ -256,7 +256,7 @@ export function Kennzahlen({
               ? {
                   value: net.assetsCents,
                   total: net.assetsCents + net.liabilitiesCents,
-                  label: `Vermögen ${eur(net.assetsCents)} · ${REDESIGN_ENABLED ? 'Verbindlichkeiten' : 'Schulden'} ${eur(net.liabilitiesCents)}`,
+                  label: `Vermögen ${eur(net.assetsCents)} · Verbindlichkeiten ${eur(net.liabilitiesCents)}`,
                   assets: true,
                 }
               : undefined
@@ -270,7 +270,7 @@ export function Kennzahlen({
           }
           note={
             net
-              ? `Vermögen ${eur(net.assetsCents)} − ${REDESIGN_ENABLED ? 'Verbindlichkeiten' : 'Schulden'} ${eur(net.liabilitiesCents)}.${
+              ? `Vermögen ${eur(net.assetsCents)} − Verbindlichkeiten ${eur(net.liabilitiesCents)}.${
                   change
                     ? ` Δ Monat ${eur(change.deltaCents, { sign: true })}: Einzahlung ${eur(change.investmentsInCents, { sign: true })} · Markt ${eur(change.marketCents, { sign: true })}.`
                     : ` ${'unavailable' in net.monthChange ? net.monthChange.unavailable.message : ''}`

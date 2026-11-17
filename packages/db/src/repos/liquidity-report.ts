@@ -1,3 +1,4 @@
+import { isLiquidityAccount } from './liquidity-account';
 import {
   addDays,
   horizonDays,
@@ -244,9 +245,7 @@ export function plannedEventAccounts(db: Executor, asOf: string) {
     .from(account)
     .where(isNull(account.deletedAt))
     .all()
-    .filter(
-      (a) => a.onBudget && a.role === 'budget' && a.currency === 'EUR' && a.openingDate <= asOf,
-    )
+    .filter((a) => isLiquidityAccount(a, asOf))
     .map(({ id, name, type, onBudget, sortOrder, closedAt }) => ({
       id,
       name,
@@ -264,7 +263,7 @@ export function liquidityReportView(
 ): LiquidityReportView {
   const facts = loadFacts(db, asOf);
   const live = facts.accounts.filter((a) => a.openingDate <= asOf);
-  const budgetAccounts = live.filter((a) => a.onBudget && a.role === 'budget');
+  const budgetAccounts = live.filter((a) => isLiquidityAccount(a, asOf));
   const hDays = horizonDays(options.horizon, asOf);
   const events = plannedEventsView(db, asOf, hDays);
   const accounts = budgetAccounts.map((a) => ({ id: a.id, name: a.name }));

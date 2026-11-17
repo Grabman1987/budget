@@ -682,7 +682,7 @@ function HeuteBody({
                           ? {
                               minus: {
                                 key: 'debt',
-                                label: REDESIGN_ENABLED ? 'Schulden (netto)' : 'Schulden',
+                                label: 'Schulden netto',
                                 cents: cents(-net.debtCents),
                                 kind: 'debt' as const,
                               },
@@ -697,7 +697,7 @@ function HeuteBody({
                       Wähle ein Maß für die Konten.
                       {net.debtCents < 0
                         ? REDESIGN_ENABLED
-                          ? ' Gestrichelt: Schulden (netto), werden abgezogen.'
+                          ? ' Gestrichelt: Schulden netto, werden abgezogen.'
                           : ' Gestrichelt: Schulden, werden abgezogen.'
                         : ''}
                     </p>

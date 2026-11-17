@@ -8,6 +8,7 @@ import {
   debtOrder,
   debtServiceRatio,
   emergencyCoverage,
+  emergencyTargetCents,
   fixedCostRatio,
   lifestyleInflation,
   payYourselfFirst,
@@ -124,10 +125,15 @@ const r02: Rule<'R02'> = (p, i) => {
   const t = cov.tenthsOfMonth;
   const status: RuleStatus =
     t >= p.targetMonths * 10 ? 'ok' : t >= p.minMonths * 10 ? 'warn' : 'bad';
+  const target = emergencyTargetCents({
+    averageNeedCents: cov.averageNeedCents,
+    targetMonths: p.targetMonths,
+  });
   const goalMonths = status === 'bad' ? p.minMonths : p.targetMonths;
   const missing = Math.max(
     0,
-    goalMonths * cov.averageNeedCents - Math.max(0, i.emergency.reserveCents),
+    (status === 'bad' ? p.minMonths * cov.averageNeedCents : target) -
+      Math.max(0, i.emergency.reserveCents),
   );
   return result(
     status,
@@ -220,7 +226,7 @@ const r07: Rule<'R07'> = (p, i) => {
   if (!f) return null;
   const { low } = budgetLiquidityForecast(f, p.horizonDays);
   if (!low) return null;
-  const status: RuleStatus = low.cents >= p.minCents ? 'ok' : low.cents >= 0 ? 'warn' : 'bad';
+  const status: RuleStatus = low.cents < 0 ? 'bad' : low.cents >= p.minCents ? 'ok' : 'warn';
   return result(
     status,
     `Tiefpunkt ${eur(low.cents)}`,
