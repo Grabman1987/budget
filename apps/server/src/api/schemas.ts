@@ -192,11 +192,18 @@ export const bookingPatch = z
     ...foreign,
     /** Change a reconciled (geprüft) booking anyway. */
     unlockReconciled: z.boolean(),
+    /** Edit an outlay that a contact repayment allocates, after the owner confirmed (#1108). */
+    unlockContactLinked: z.boolean(),
+    /** Shown in the confirmation; stored with the audited override. */
+    overrideReason: z.string().max(200),
   })
   .partial();
 
 export const bookingDeleteQuery = z.object({
   unlock: z.enum(['1', 'true']).optional(),
+  /** Confirmed deletion of an outlay that a contact repayment allocates (#1108). */
+  unlockLinked: z.enum(['1', 'true']).optional(),
+  overrideReason: z.string().max(200).optional(),
   previewRevision: z
     .string()
     .regex(/^[a-f0-9]{64}$/)

@@ -133,6 +133,8 @@ export interface WriteOptions {
   unlockReconciled?: boolean;
   /** Owner capture/edit opts into current contact receipts and new shared-category pairs. */
   contactModel?: boolean;
+  /** Owner confirmed editing an outlay that a contact repayment allocates (#1108). */
+  unlockContactLinked?: boolean;
 }
 
 /** Fields of a reconciled booking that stay editable without an unlock (no effect on any figure). */
@@ -866,6 +868,7 @@ function updateBookingImpl(
       Object.entries(patch)
         .filter(([, v]) => v !== undefined)
         .map(([k]) => k),
+      { unlockLinked: options.unlockContactLinked ?? false },
     );
     // Reconciled bookings: only flag and memo are free; a status change also needs the unlock.
     const touchesLocked = Object.entries(patch).some(
@@ -1307,7 +1310,10 @@ function deleteBookingImpl(
     const legs = transferLegs(tx, cur);
     if (!tradeNative)
       for (const leg of legs) assertTradeSettlementBookingWrite(tx, leg.id, 'delete');
-    for (const leg of legs) assertContactBookingWrite(tx, leg.id, 'delete');
+    for (const leg of legs)
+      assertContactBookingWrite(tx, leg.id, 'delete', [], {
+        unlockLinked: options.unlockContactLinked ?? false,
+      });
     for (const leg of legs) assertStatementBookingWrite(tx, leg.id, 'delete');
     assertUnlocked(
       legs.filter((l) => l.deletedAt === null),

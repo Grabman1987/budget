@@ -20,6 +20,8 @@ export class ApiError extends Error {
   readonly bookingIds: string[];
   /** What keeps a contact from being archived (`contact_blocked`). */
   readonly blockers: { kind: string; count: number }[];
+  /** Dates of the repayments an edited Auslage is allocated to (`contact_linked`). */
+  readonly settlementDates: string[];
 
   constructor(
     status: number,
@@ -27,6 +29,7 @@ export class ApiError extends Error {
     detail?: string,
     bookingIds: string[] = [],
     blockers: { kind: string; count: number }[] = [],
+    settlementDates: string[] = [],
   ) {
     super(`API ${status}: ${code}`);
     this.name = 'ApiError';
@@ -35,6 +38,7 @@ export class ApiError extends Error {
     this.detail = detail;
     this.bookingIds = bookingIds;
     this.blockers = blockers;
+    this.settlementDates = settlementDates;
   }
 }
 
@@ -180,6 +184,9 @@ export async function request<T>(
               ? [{ kind: row.kind, count: row.count }]
               : [];
           })
+        : [],
+      Array.isArray(fields['settlementDates'])
+        ? fields['settlementDates'].filter((v): v is string => typeof v === 'string')
         : [],
     );
   }

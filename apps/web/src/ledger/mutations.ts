@@ -155,7 +155,8 @@ export function useLedgerWrites() {
           message: 'Änderung auf diesem Gerät gespeichert. Status in der Warteschlange prüfen.',
         });
         void requestQueueSync().catch(() => undefined);
-      } else failed('Änderung')(error);
+      } else if (!(error instanceof ApiError && error.code === 'contact_linked'))
+        failed('Änderung')(error);
     },
     onSuccess: (result) => offerUndo('Buchung geändert.', result.groupId),
     onSettled: settled,
@@ -166,15 +167,17 @@ export function useLedgerWrites() {
       id,
       unlock,
       previewRevision,
+      unlockLinked,
     }: {
       id: string;
       unlock?: boolean;
       previewRevision?: string;
-    }) => deleteBooking(id, unlock, previewRevision),
+      unlockLinked?: boolean;
+    }) => deleteBooking(id, unlock, previewRevision, unlockLinked),
     onMutate: ({ id }) => optimistic(qc, (b) => (b.id === id ? null : b)),
     onError: (error, _vars, snapshot) => {
       rollback(qc, snapshot);
-      failed('Löschen')(error);
+      if (!(error instanceof ApiError && error.code === 'contact_linked')) failed('Löschen')(error);
     },
     onSuccess: ({ groupId }: WriteResult) => offerUndo('Gelöscht.', groupId),
     onSettled: settled,

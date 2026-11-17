@@ -314,7 +314,32 @@ export function CaptureForm({
       returnTo?.focus();
     };
   }, [releaseAsking]);
+  // #1108: an Auslage that a repayment allocates asks once more, then retries with the flag.
+  const [linkedAsk, setLinkedAsk] = useState<{ dates: string[]; op: 'save' | 'remove' } | null>(
+    null,
+  );
+  const linkedConfirmed = useRef(false);
+  const retryRemove = useRef<(() => void) | null>(null);
+  const askLinked = (error: unknown, op: 'save' | 'remove') => {
+    if (!(error instanceof ApiError) || error.code !== 'contact_linked' || linkedConfirmed.current)
+      return false;
+    setLinkedAsk({ dates: error.settlementDates, op });
+    setReleaseAsking(true);
+    return true;
+  };
   const finishRelease = (confirmed: boolean) => {
+    if (linkedAsk) {
+      const { op } = linkedAsk;
+      setLinkedAsk(null);
+      setReleaseAsking(false);
+      if (confirmed) {
+        linkedConfirmed.current = true;
+        setTimeout(() =>
+          op === 'save' ? void currentSave.current?.(false) : retryRemove.current?.(),
+        );
+      }
+      return;
+    }
     setUnlock(confirmed);
     setReleaseAsking(false);
   };
@@ -719,7 +744,9 @@ export function CaptureForm({
         if (Object.keys(built.value).length > 0)
           await writes.patch.mutateAsync({
             id: editing.id,
-            patch: built.value,
+            patch: linkedConfirmed.current
+              ? { ...built.value, unlockContactLinked: true }
+              : built.value,
             capture: {
               input: {
                 type: 'booking',
@@ -796,6 +823,7 @@ export function CaptureForm({
       });
     } catch (error) {
       if (error instanceof ApiError && error.code === 'booking_queued') return onDone();
+      if (askLinked(error, 'save')) return;
       if (
         editing &&
         error instanceof ApiError &&
@@ -813,6 +841,7 @@ export function CaptureForm({
               : errorText(error),
       });
     } finally {
+      linkedConfirmed.current = false;
       saving.current = false;
       setBusy(false);
     }
@@ -838,16 +867,19 @@ export function CaptureForm({
         id: editing.id,
         unlock,
         previewRevision: preview.revision,
+        ...(linkedConfirmed.current ? { unlockLinked: true } : {}),
       });
       onDone();
     } catch (error) {
       setDeletion(null);
-      setErrors({ form: errorText(error) });
+      if (!askLinked(error, 'remove')) setErrors({ form: errorText(error) });
     } finally {
+      linkedConfirmed.current = false;
       saving.current = false;
       setBusy(false);
     }
   };
+  retryRemove.current = () => void remove();
   const deleteReason = deletion?.selection.items.find((item) => item.reason !== null)?.reason;
   const canConfirmDelete =
     !!deletion &&
@@ -1565,6 +1597,7 @@ export function CaptureForm({
       {releaseAsking && (
         <BookingReleaseQuestion
           questionRef={releaseQuestion}
+          {...(linkedAsk ? { linkedDates: linkedAsk.dates } : {})}
           onCancel={() => finishRelease(false)}
           onConfirm={() => finishRelease(true)}
         />
