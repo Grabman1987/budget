@@ -262,8 +262,8 @@ it.each([
     const ownDateOnly = lockedKey === 'toBookingId' && receiptDate !== day;
     expect(response.status).toBe(ownDateOnly ? 200 : 409);
     if (ownDateOnly) {
-      expect(getBooking(opened.db, result.fromBookingId)?.date).toBe('2026-11-15');
-      expect(getBooking(opened.db, result.toBookingId)).toMatchObject({
+      expect(getBooking(opened.db, result.fromBookingId!)?.date).toBe('2026-11-15');
+      expect(getBooking(opened.db, result.toBookingId!)).toMatchObject({
         date: receiptDate,
         status: 'reconciled',
       });

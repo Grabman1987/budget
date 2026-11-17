@@ -15,7 +15,7 @@ import {
  * A definite refusal (4xx, or an unhandled 500 with its error id) is not retried and does not
  * block later entries. Connection loss, 401, 408/429 and 502-504 stay in the queue (#1144).
  */
-export const isRejection = (error: unknown): error is ApiError =>
+export const isRejection = (error: unknown): boolean =>
   error instanceof ApiError &&
   ((error.status >= 400 &&
     error.status < 500 &&
@@ -95,7 +95,7 @@ async function deliver(item: QueuedBooking) {
     // A failed receipt check (including session expiry) cannot prove the original POST failed.
     if (checking) uncertain = true;
     // A server answer is final: the same idempotency key is kept for the corrected resend.
-    const refusal = !checking && isRejection(error) ? error : null;
+    const refusal = !checking && error instanceof ApiError && isRejection(error) ? error : null;
     if (refusal) uncertain = false;
     const { rejected: _r, errorId: _e, ...base } = item;
     void _r;
