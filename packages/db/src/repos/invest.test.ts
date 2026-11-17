@@ -264,8 +264,8 @@ describe('trades settle on the investment account', () => {
     const bookingCreate = history(db, 'booking', r.bookingId as string).find(
       (entry) => entry.action === 'create',
     )!;
-    expect(() => undo(db, { auditId: tradeCreate.id }, testCtx)).toThrow(/Handelsabrechnung/);
-    expect(() => undo(db, { auditId: bookingCreate.id }, testCtx)).toThrow(/Handelsabrechnung/);
+    expect(() => undo(db, { auditId: tradeCreate.id }, testCtx)).toThrow(/trade settlement/i);
+    expect(() => undo(db, { auditId: bookingCreate.id }, testCtx)).toThrow(/trade settlement/i);
     expect(getTrade(db, r.trade.id)).toMatchObject({ bookingId: r.bookingId });
     expect(getBooking(db, r.bookingId as string)?.amountCents).toBe(-10_000);
     expect(balance('depot')).toBe(-10_000);
@@ -292,7 +292,7 @@ describe('trades settle on the investment account', () => {
     const deletedCash = history(db, 'booking', r.bookingId as string).find(
       (entry) => entry.groupId === groupId && entry.action === 'delete',
     )!;
-    expect(() => undo(db, { auditId: deletedCash.id }, testCtx)).toThrow(/Handelsabrechnung/);
+    expect(() => undo(db, { auditId: deletedCash.id }, testCtx)).toThrow(/trade settlement/i);
     expect(balance('depot')).toBe(0);
     expect(getTrade(db, r.trade.id).bookingId).toBeNull();
 

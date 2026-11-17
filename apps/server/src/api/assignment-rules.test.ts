@@ -998,7 +998,7 @@ describe('assignment API and owner confirmation', () => {
       });
       expect(refused.status).toBe(409);
     }
-    expect(opened.db.select().from(schema.booking).all()).toHaveLength(3);
+    expect(opened.db.select().from(schema.booking).all()).toHaveLength(4);
     const attached = await call('POST', '/bank-sync/candidates/' + late + '/confirm', {
       categoryId: null,
     });

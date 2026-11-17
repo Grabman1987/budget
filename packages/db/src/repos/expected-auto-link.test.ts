@@ -235,7 +235,7 @@ describe('automatic link of recurring debits (#1102)', () => {
   });
 
   it('keeps income in the forecast like before and a debit booked after the start day too', () => {
-    payment('Gehalt', 200_000, { kind: 'inflow', categoryId: null, dueDay: 21 });
+    const salary = payment('Gehalt', 200_000, { kind: 'inflow', categoryId: null, dueDay: 21 });
     createBooking(
       db,
       {
@@ -250,7 +250,19 @@ describe('automatic link of recurring debits (#1102)', () => {
     payment('Miete', 40_000);
     debit('2026-03-25', -40_000);
     matchOccurrences(db, TODAY);
-    expect(forecastDays('Gehalt')).toContain('2026-03-21');
+    // The salary booked on 20.03. is settled by the existing income matching and already in the
+    // starting balance (#1109): it must not arrive a second time, the next one still does.
+    expect(
+      db
+        .select()
+        .from(expectedOccurrence)
+        .where(eq(expectedOccurrence.expectedPaymentId, salary.id))
+        .all()
+        .find((o) => o.dueDate === '2026-03-21'),
+    ).toMatchObject({ status: 'received' });
+    expect(forecastDays('Gehalt')).not.toContain('2026-03-21');
+    expect(forecastDays('Gehalt')).toContain('2026-04-21');
+    // A debit booked after the start day does not settle its occurrence yet.
     expect(forecastDays('Miete')).toContain('2026-03-22');
   });
 
