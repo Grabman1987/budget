@@ -220,13 +220,12 @@ const r07: Rule<'R07'> = (p, i) => {
   if (!f) return null;
   const { low } = budgetLiquidityForecast(f, p.horizonDays);
   if (!low) return null;
-  const status: RuleStatus =
-    low.cents >= p.minCents ? 'ok' : low.cents >= -f.overdraftLimitCents ? 'warn' : 'bad';
+  const status: RuleStatus = low.cents >= p.minCents ? 'ok' : low.cents >= 0 ? 'warn' : 'bad';
   return result(
     status,
     `Tiefpunkt ${eur(low.cents)}`,
     `Zahlungen verschieben oder bis zum ${low.day.slice(8)}.${low.day.slice(5, 7)}. ${eur(p.minCents - low.cents)} auf das Budget-Konto übertragen.`,
-    { lowDay: low.day, lowCents: low.cents, overdraftLimitCents: f.overdraftLimitCents },
+    { lowDay: low.day, lowCents: low.cents, lastResortCents: f.lastResortCents },
   );
 };
 

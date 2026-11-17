@@ -405,8 +405,8 @@ function ForecastCard({
           <strong data-testid="liq-start">{eur(report.startCents)}</strong>
           <small>
             Budget-Konten
-            {view.overdraftLimitCents > 0 &&
-              `, Rahmen ${eur(view.overdraftLimitCents, { cents: false })} zählt nicht`}
+            {view.lastResortCents > 0 &&
+              `, Letzte Reserve (Dispo) ${eur(view.lastResortCents, { cents: false })} zählt nicht`}
           </small>
         </div>
       </div>

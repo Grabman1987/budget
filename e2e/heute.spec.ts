@@ -334,7 +334,7 @@ test('Heute uses live API data and period, expands the lead chain, and links to 
   ).toHaveAttribute('aria-expanded', 'true');
   const leadChain = page.getByRole('group', { name: /Maßkette: Kontostand/ });
   await expect(leadChain).toBeVisible();
-  await expect(leadChain.getByRole('button', { name: /^erwartete Eingänge/ })).toBeVisible();
+  await expect(leadChain.getByRole('button', { name: /^erwartete Eingänge/ })).toHaveCount(0);
   await expect(leadChain.getByRole('button', { name: /^offen bis Gehalt/ })).toBeVisible();
   await leadChain.getByRole('button', { name: /^Kontostand/ }).click();
   await expect(page.getByRole('heading', { name: 'Budget-Konten', exact: true })).toBeVisible();

@@ -22,21 +22,21 @@ Bereich: Startseite „Heute“ (Route `/`). Status und Verweise wie in `docs/US
 - Hinweis: Das nächste Sparziel ist Teil des bestehenden Blocks „Ziele finanzieren“; keine eigene Karte (Entscheidung 15.11.2026).
 
 ### H-02 – Frei bis Gehalt verstehen
-- **Story:** Als Nutzer möchte ich „Frei bis Gehalt“ als Cashflow-Zahl sehen und in ihre Teile zerlegen können (Kontostand der Budget-Konten + erwartete Eingänge vor dem Gehalt − offene Abflüsse bis zum Gehalt + aktivierter Dispo-Rahmen), damit ich weiß, was ich bis zum Gehalt noch ausgeben kann, ohne ins Minus zu geraten.
+- **Story:** Als Nutzer möchte ich „Frei bis Gehalt“ als Cashflow-Zahl sehen und in ihre Teile zerlegen können (Kontostand der Budget-Konten − offene Abflüsse bis zum Gehalt; weder Dispo noch erwartete Eingänge zählen mit, Entscheidung 17.11.2026), damit ich weiß, was ich bis zum Gehalt noch ausgeben kann, ohne ins Minus zu geraten.
 - **Ausgangslage:** Ich will wissen, ob ich mir etwas leisten kann, oder ich verstehe die Zahl nicht.
 - **Ablauf:**
   1. Ich öffne „Heute“ und lese „Frei bis Gehalt“ (rot mit Warnzeichen, wenn negativ).
   2. Ich tippe die Zahl an. Die App öffnet die Herleitung (`/heute/details/free`).
-  3. Ich sehe die Kette „Kontostand“ + „Erwartete Eingänge“ − „Offen bis Gehalt“ + „Dispo-Rahmen“ = „frei verfügbar“ und das Tagesbudget bis Gehalt.
-  4. Ich öffne die Listen „Kontostand“, „Erwartete Eingänge“, „Offen bis Gehalt“ und sehe die einzelnen Konten, Zahlungen und Eingänge.
+  3. Ich sehe die Kette „Kontostand“ − „Offen bis Gehalt“ = „frei verfügbar“, darunter getrennt die Zeile „Letzte Reserve (Dispo)“, und das Tagesbudget bis Gehalt.
+  4. Ich öffne die Listen „Kontostand“ und „Offen bis Gehalt“ und sehe die einzelnen Konten und Zahlungen. Erwartete Eingänge stehen nur in der Prognose.
   5. Ich schalte oben in „Zeitraum“ zwischen „Monat“ und „Bis Gehalt“ um. „Bis Gehalt“ gilt nur im laufenden Monat.
 - **Ergebnis:** Nichts wird geändert. Der gewählte Zeitraum bleibt auf dem Gerät gemerkt und gilt auch im Report R07.
 - **Abnahmekriterien:**
-  1. Die Zahl entspricht der Summe der vier Teile auf den Cent.
-  2. Ohne Dispo-Häkchen (Einstellungen › Konten) fließt kein Dispo ein; die Herleitung sagt „Kein Dispo aktiviert“.
+  1. Die Zahl entspricht Kontostand minus offen bis Gehalt auf den Cent.
+  2. Der Dispo fließt nie in die Zahl ein. Mit Dispo-Häkchen (Einstellungen › Konten) zeigt die Herleitung „Letzte Reserve (Dispo)“ als eigene Zeile (ungenutzter Rahmen), ohne: „Kein Dispo aktiviert“. Prognose und Heute nennen dieselbe Zahl.
   3. Ein negativer Wert wird rot mit Warnzeichen gezeigt; das Tagesbudget sagt „Ohne positiven Spielraum gibt es kein Tagesbudget.“
   4. In einem anderen Monat ist „Bis Gehalt“ nicht wählbar und nennt den Grund.
-  5. Ohne erwartete Eingänge steht „Keine erwarteten Eingänge vor dem Gehalt.“
+  5. Ein erwartetes Gehalt oder eine erwartete Erstattung ändert die Zahl nicht; erst die gebuchte Einnahme tut es (im Kontostand).
 - **Status:** live — **Verweis:** #1084, PR #1086, Y13
 
 ### H-03 – Pace unter der Kontoprognose

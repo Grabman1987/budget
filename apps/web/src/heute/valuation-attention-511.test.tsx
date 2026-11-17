@@ -157,13 +157,12 @@ function renderKpi(source: ValuationSource, missingFx = false) {
     budgetAnswer: { spentCents: 0, plannedCents: 0, remainingCents: 0, day: 20, daysInMonth: 30 },
     lead: {
       balanceCents: 0,
-      inflowCents: 0,
-      overdraftCents: 0,
+      lastResortCents: 0,
       openCents: 0,
       freeCents: 0,
       daysToPayday: 10,
       chain: [],
-      items: { accounts: [], inflow: [], open: [] },
+      items: { accounts: [], open: [] },
     },
     balance: { actual: [], forecast: [], salary: null, low: null },
     netWorth: missingFx

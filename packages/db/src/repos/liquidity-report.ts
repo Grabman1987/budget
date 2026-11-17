@@ -57,7 +57,8 @@ export interface LiquidityReportView {
   report: LiquidityReport | null;
   events: PlannedEventView[];
   incomePauses: IncomePauseView[];
-  overdraftLimitCents: number;
+  /** Letzte Reserve (Dispo): shown next to the start balance, never counted. */
+  lastResortCents: number;
   budgetAccounts: { id: string; name: string }[];
 }
 
@@ -274,7 +275,7 @@ export function liquidityReportView(
       report: null,
       events,
       incomePauses: incomePausesView(db, facts, asOf, hDays, asOf),
-      overdraftLimitCents: 0,
+      lastResortCents: 0,
       budgetAccounts: accounts,
     };
 
@@ -308,7 +309,7 @@ export function liquidityReportView(
     report,
     events,
     incomePauses: incomePausesView(db, facts, asOf, hDays, report.verdictEnd),
-    overdraftLimitCents: inputs.overdraftLimitCents,
+    lastResortCents: inputs.lastResortCents,
     budgetAccounts: accounts,
   };
 }

@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { freeUntilPayday, type FreeAccount } from './free-until-payday';
+import { liquidityForecast } from '../forecast/liquidity';
+import { addDays } from '../date';
+import { freeUntilPayday, overdraftLastResort, type FreeAccount } from './free-until-payday';
 
 const acc = (
   id: string,
@@ -9,50 +11,40 @@ const acc = (
 const base = { payday: '2026-09-30', today: '2026-09-17', precision: 'cent' as const };
 
 describe('freeUntilPayday as cash flow', () => {
-  it('balance + expected inflows - open outflows, only items before payday', () => {
+  it('balance - open outflows, only items before payday; no inflows', () => {
     const r = freeUntilPayday({
       ...base,
       accounts: [acc('giro', 200_000, null)],
-      expectedInflows: [
-        { id: 'i1', label: 'Erstattung', day: '2026-09-20', cents: 5000 },
-        { id: 'i2', label: 'Gehalt', day: '2026-09-30', cents: 300_000 },
-      ],
       openOutflows: [
         { id: 'o1', label: 'Strom', day: '2026-09-25', cents: 10_500 },
         { id: 'o2', label: 'Miete', day: '2026-10-01', cents: 80_000 },
       ],
     });
     expect(r.balanceCents).toBe(200_000);
-    expect(r.inflowCents).toBe(5000);
     expect(r.openCents).toBe(10_500);
-    expect(r.overdraftCents).toBe(0);
-    expect(r.freeCents).toBe(194_500);
+    expect(r.lastResortCents).toBe(0);
+    expect(r.freeCents).toBe(189_500);
     expect(r.daysToPayday).toBe(13);
     expect(r.chain.map((t) => t.label)).toEqual([
       'Kontostand',
-      'erwartete Eingänge',
       'offen bis Gehalt',
       'frei verfügbar',
     ]);
-    expect(r.items.inflow.map((i) => i.id)).toEqual(['i1']);
     expect(r.items.open.map((o) => o.id)).toEqual(['o1']);
   });
 
-  it('Dispo on: the limit counts as available money (balance -4000, limit 5000 gives +1000)', () => {
+  it('Dispo on: never free money, shown as the separate last resort (balance -4000, limit 5000)', () => {
     const r = freeUntilPayday({
       ...base,
       accounts: [acc('giro', -400_000, 500_000)],
-      expectedInflows: [],
       openOutflows: [],
     });
-    expect(r.overdraftCents).toBe(500_000);
-    expect(r.freeCents).toBe(100_000);
+    expect(r.freeCents).toBe(-400_000);
+    expect(r.lastResortCents).toBe(100_000);
     expect(r.chain.map((t) => [t.op, t.value])).toEqual([
       [undefined, -400_000],
-      ['+', 0],
       ['-', 0],
-      ['+', 500_000],
-      ['=', 100_000],
+      ['=', -400_000],
     ]);
     expect(r.chain.at(-1)?.result).toBe(true);
   });
@@ -61,24 +53,29 @@ describe('freeUntilPayday as cash flow', () => {
     const r = freeUntilPayday({
       ...base,
       accounts: [acc('giro', -400_000, null), acc('bar', 10_000, 0)],
-      expectedInflows: [],
       openOutflows: [{ id: 'o', label: 'x', day: '2026-09-20', cents: 1000 }],
     });
-    expect(r.overdraftCents).toBe(0);
+    expect(r.lastResortCents).toBe(0);
     expect(r.freeCents).toBe(-391_000);
   });
 
-  it('sums several accounts; only accounts with a limit add headroom; integer cents', () => {
+  it('last resort is the unused limit per account, never below 0; closed lenders are not passed', () => {
+    expect(
+      overdraftLastResort([acc('a', -1001, 5000), acc('b', 2503, null), acc('c', 99, 1234)]),
+    ).toBe(3999 + 1234);
+    expect(overdraftLastResort([acc('x', -9000, 5000)])).toBe(0);
+    expect(Number.isInteger(overdraftLastResort([acc('a', -1, 3)]))).toBe(true);
+  });
+
+  it('sums several accounts in integer cents', () => {
     const r = freeUntilPayday({
       ...base,
       accounts: [acc('a', -1001, 5000), acc('b', 2503, null), acc('c', 99, 1234)],
-      expectedInflows: [{ id: 'i', label: 'i', day: '2026-09-18', cents: 7 }],
       openOutflows: [{ id: 'o', label: 'o', day: '2026-09-18', cents: 3 }],
     });
     expect(r.balanceCents).toBe(1601);
-    expect(r.overdraftCents).toBe(6234);
-    expect(r.freeCents).toBe(1601 + 7 - 3 + 6234);
-    expect(Number.isInteger(r.freeCents)).toBe(true);
+    expect(r.freeCents).toBe(1601 - 3);
+    expect(r.lastResortCents).toBe(3999 + 1234);
   });
 
   it('the whole-euro chain absorbs the rounding gap; empty input is zero', () => {
@@ -86,12 +83,33 @@ describe('freeUntilPayday as cash flow', () => {
       ...base,
       precision: 'euro',
       accounts: [acc('a', 1049, null)],
-      expectedInflows: [{ id: 'i', label: 'i', day: '2026-09-18', cents: 1049 }],
-      openOutflows: [],
+      openOutflows: [{ id: 'o', label: 'o', day: '2026-09-18', cents: 1049 }],
     });
-    expect(r.freeCents).toBe(2098);
-    expect(r.chain.map((t) => t.value)).toEqual([1100, 1000, 0, 2100]);
-    const empty = freeUntilPayday({ ...base, accounts: [], expectedInflows: [], openOutflows: [] });
+    expect(r.freeCents).toBe(0);
+    const empty = freeUntilPayday({ ...base, accounts: [], openOutflows: [] });
     expect(empty.freeCents).toBe(0);
+  });
+});
+
+describe('freeUntilPayday and liquidityForecast share their inputs (#1227)', () => {
+  it('agree on the balance before the next payday when no inflow is expected', () => {
+    const accounts = [acc('giro', 123_456, 300_000), acc('bar', 7_001, null)];
+    const outflows = [
+      { id: 'o1', label: 'Strom', day: '2026-09-18', cents: 10_501 },
+      { id: 'o2', label: 'Miete', day: '2026-09-29', cents: 80_000 },
+      { id: 'o3', label: 'Nach dem Gehalt', day: '2026-09-30', cents: 55_555 },
+    ];
+    const lead = freeUntilPayday({ ...base, accounts, openOutflows: outflows });
+    const forecast = liquidityForecast({
+      startDay: base.today,
+      startCents: accounts.reduce((s, a) => s + a.balanceCents, 0),
+      days: 20,
+      items: outflows.map((o) => ({ day: o.day, cents: -o.cents, kind: 'fixed' as const })),
+      variablePerDay: () => 0,
+    });
+    const eve = forecast.days.find((d) => d.day === addDays(base.payday, -1));
+    expect(eve?.balanceCents).toBe(lead.freeCents);
+    // the overdraft is neither in the forecast balance nor in the free figure
+    expect(lead.lastResortCents).toBe(300_000);
   });
 });

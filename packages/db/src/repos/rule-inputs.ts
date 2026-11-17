@@ -30,6 +30,7 @@ import {
   type CardBalance,
   type CategoryTarget,
   type DebtLoan,
+  overdraftLastResort,
   type ForecastItem,
   type MoneyEvent,
   type MonthFlow,
@@ -577,7 +578,16 @@ export function forecastInputs(
     startCents: budgetAccounts.reduce((s, a) => s + (nw.byAccount[a.id] ?? 0), 0),
     items,
     variableMonthlyCents,
-    overdraftLimitCents: budgetAccounts.reduce((s, a) => s + (a.overdraftLimitCents ?? 0), 0),
+    // Letzte Reserve, the same figure as the lead of Heute: open accounts only (a closed account
+    // keeps its stored limit but lends nothing).
+    lastResortCents: overdraftLastResort(
+      budgetAccounts
+        .filter((a) => a.closedAt === null)
+        .map((a) => ({
+          balanceCents: nw.byAccount[a.id] ?? 0,
+          overdraftLimitCents: a.overdraftLimitCents,
+        })),
+    ),
   };
 }
 

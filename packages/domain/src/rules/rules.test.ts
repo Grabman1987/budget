@@ -326,7 +326,7 @@ describe('R07 Dispo', () => {
       startDay: '2026-01-01',
       startCents: 10000,
       variableMonthlyCents: 0,
-      overdraftLimitCents: 0,
+      lastResortCents: 0,
       items: [
         { day: '2026-02-05', cents: -5000, kind: 'fixed' as const },
         { day: '2026-02-06', cents: -20000, kind: 'fixed' as const },
@@ -340,25 +340,25 @@ describe('R07 Dispo', () => {
       evaluateRule('R07', { horizonDays: 90, minCents: 6000 }, inputs({ forecast: f }))?.status,
     ).toBe('warn');
   });
-  const forecast = (startCents: number, overdraft = 300_000) => ({
+  const forecast = (startCents: number, lastResortCents = 300_000) => ({
     startDay: '2026-09-17',
     startCents,
     items: [{ day: '2026-09-20', cents: -50_000, kind: 'fixed' as const }],
     variableMonthlyCents: 0,
-    overdraftLimitCents: overdraft,
+    lastResortCents,
   });
-  it('lowest balance within the horizon; the overdraft limit is no money', () => {
+  it('lowest balance within the horizon; the overdraft is no money, below 0 is always bad', () => {
     expect(evaluateRule('R07', {}, inputs({ forecast: forecast(100_000) }))).toMatchObject({
       status: 'ok',
       valueText: 'Tiefpunkt 500 €',
     });
+    // a low point inside the overdraft limit is still a squeeze (owner decision 2026-11-17)
     expect(evaluateRule('R07', {}, inputs({ forecast: forecast(30_000) }))).toMatchObject({
-      status: 'warn',
+      status: 'bad',
       valueText: 'Tiefpunkt −200 €',
+      detail: { lastResortCents: 300_000 },
     });
-    expect(evaluateRule('R07', {}, inputs({ forecast: forecast(30_000, 10_000) }))?.status).toBe(
-      'bad',
-    );
+    expect(evaluateRule('R07', {}, inputs({ forecast: forecast(30_000, 0) }))?.status).toBe('bad');
     // a threshold of 600 € flips the first case
     expect(
       evaluateRule('R07', { minCents: 60_000 }, inputs({ forecast: forecast(100_000) }))?.status,

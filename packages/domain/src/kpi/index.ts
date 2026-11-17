@@ -59,7 +59,6 @@ export {
 export {
   freeUntilPayday,
   overdraftLastResort,
-  type ExpectedInflow,
   type FreeAccount,
   type FreeUntilPayday,
   type FreeUntilPaydayInput,

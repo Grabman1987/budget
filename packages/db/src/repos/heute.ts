@@ -23,7 +23,6 @@ import {
   overspentEnvelopes,
   summarizeMonth,
   type BudgetMonth,
-  type ExpectedInflow,
   type FreeAccount,
   type FreeUntilPayday,
   type HeutePeriod,
@@ -563,23 +562,6 @@ export function heute(db: Executor, query: HeuteQuery): Heute {
       balanceCents: budgetValues[a.id] ?? 0,
       overdraftLimitCents: a.overdraftLimitCents,
     }));
-  // Expected = still to arrive (not overdue), paused salaries excluded, like the cash forecast.
-  const expectedInflows: ExpectedInflow[] = all
-    .filter(
-      (o) =>
-        o.kind === 'inflow' &&
-        o.status === 'expected' &&
-        onLeadAccount(o) &&
-        o.amountCents > 0 &&
-        o.dueDate >= today &&
-        !pausedSalaryDates.has(`${o.paymentId}|${o.dueDate}`),
-    )
-    .map((o) => ({
-      id: o.occurrenceId ?? `${o.paymentId}|${o.dueDate}`,
-      label: o.name,
-      day: o.dueDate,
-      cents: o.amountCents,
-    }));
   // Open = still expected, not covered by a Zukunft envelope (those are transfers, not spending).
   const openOutflows: OpenOutflow[] = all
     .filter(
@@ -602,14 +584,12 @@ export function heute(db: Executor, query: HeuteQuery): Heute {
     const mark = facts.planMarks.get(`${o.paymentId}|${o.dueDate}`);
     if (typeof mark !== 'object' || mark.settledOn <= today) continue;
     const id = o.occurrenceId ?? `${o.paymentId}|${o.dueDate}`;
+    // Inflows never count in the free figure (owner decision 2026-11-17); they are forecast only.
     if (o.kind === 'outflow' && o.categoryClass !== 'future')
       openOutflows.push({ id, label: o.name, day: mark.settledOn, cents: -o.amountCents });
-    else if (o.kind === 'inflow' && o.amountCents > 0)
-      expectedInflows.push({ id, label: o.name, day: mark.settledOn, cents: o.amountCents });
   }
   const lead = freeUntilPayday({
     accounts,
-    expectedInflows,
     openOutflows,
     payday: payday.day,
     today,
