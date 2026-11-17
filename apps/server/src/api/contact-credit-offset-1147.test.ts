@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- Inspect real JSON boundary results. */
 import { createTestDatabase, schema, type OpenedDatabase } from '@budget/db';
+import { consumeContactCredit } from '@budget/domain';
 import { isNull } from 'drizzle-orm';
 import type { Hono } from 'hono';
 import { afterEach, beforeEach, expect, it } from 'vitest';
@@ -103,4 +104,61 @@ it('leaves the part the credit does not cover open as a claim', async () => {
   expect(s.outlays.map((o: any) => o.remainingCents)).toEqual([200]);
   const applied = s.creditUses.reduce((sum: number, u: any) => sum + u.amountCents, 0);
   expect(applied + s.outlays[0].remainingCents).toBe(500);
+});
+
+/** The preview of the form (`consumeContactCredit`) must match what saving books (A4). */
+async function parity(bound: boolean) {
+  await call('POST', '/contacts/k1/settlements', {
+    accountId: 'giro',
+    date: '2026-09-01',
+    amountCents: 300,
+  });
+  if (bound) {
+    const receipt = (await statement()).receipts[0].receiptSplitId;
+    const chosen = await call('POST', `/contacts/k1/credits/${receipt}`, {
+      date: '2026-09-02',
+      amountCents: 300,
+      choice: 'category',
+      categoryId: 'essen',
+    });
+    expect(chosen.status).toBe(201);
+  }
+  const before = await statement();
+  const pool = before.credits
+    .filter((c: any) => !c.targetOutlaySplitId)
+    .map((c: any) => ({ remainingCents: c.remainingCents, categoryId: c.categoryId }));
+  const preview = [
+    consumeContactCredit(pool, 'reise', 200),
+    consumeContactCredit(pool, 'essen', 200),
+  ];
+  const saved = await call('POST', '/bookings', {
+    type: 'booking',
+    accountId: 'giro',
+    date: '2026-09-05',
+    amountCents: -400,
+    splits: [
+      { categoryId: 'reise', contactId: 'k1', amountCents: -200 },
+      { categoryId: 'essen', contactId: 'k1', amountCents: -200 },
+    ],
+  });
+  expect(saved.status).toBe(201);
+  const after = await statement();
+  const created = new Set(saved.body.bookings[0].splits.map((x: any) => x.id));
+  const booked = after.outlays
+    .filter((o: any) => created.has(o.splitId))
+    .map((o: any) =>
+      after.creditUses
+        .filter((u: any) => u.outlaySplitId === o.splitId)
+        .reduce((sum: number, u: any) => sum + u.amountCents, 0),
+    );
+  expect(booked).toEqual(preview);
+  return preview;
+}
+
+it('previews the credit use like the saved booking: free credit goes in line order', async () => {
+  expect(await parity(false)).toEqual([200, 100]);
+});
+
+it('previews the credit use like the saved booking: category credit only for its category', async () => {
+  expect(await parity(true)).toEqual([0, 200]);
 });

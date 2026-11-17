@@ -15,6 +15,7 @@ import {
   contactSettlement,
   payee,
   auditLog,
+  appSetting,
 } from '../schema';
 import {
   BookingInvariantError,
@@ -234,6 +235,7 @@ export function assertContactSettlementInvariants(tx: Executor): void {
         'A contact with live ledger movements must retain its identity',
       );
   }
+  assertLiveAllocationsFit(tx);
   const creditRecords = contactCreditRecords(tx);
   for (const s of tx.select().from(contactSettlement).all()) {
     const modeled = creditRecords.some(
@@ -344,6 +346,32 @@ export function assertContactSettlementInvariants(tx: Executor): void {
   assertContactCreditRecords(tx, uses, creditRecords);
 }
 
+/** Every live allocation points to a live outlay split, and a split never carries more than it is. */
+function assertLiveAllocationsFit(tx: Executor): void {
+  const rows = tx
+    .select({
+      splitId: contactAllocation.outlaySplitId,
+      amountCents: contactAllocation.amountCents,
+      split: bookingSplit.amountCents,
+      bookingDeletedAt: booking.deletedAt,
+    })
+    .from(contactAllocation)
+    .innerJoin(contactSettlement, eq(contactSettlement.id, contactAllocation.settlementId))
+    .leftJoin(bookingSplit, eq(bookingSplit.id, contactAllocation.outlaySplitId))
+    .leftJoin(booking, eq(booking.id, bookingSplit.bookingId))
+    .where(and(isNull(contactAllocation.deletedAt), isNull(contactSettlement.deletedAt)))
+    .all();
+  const sums = new Map<string, number>();
+  for (const r of rows) {
+    if (r.split === null || r.bookingDeletedAt !== null || r.split >= 0)
+      throw new BookingInvariantError('A contact allocation must point to a live outlay');
+    const sum = (sums.get(r.splitId) ?? 0) + r.amountCents;
+    if (sum > -r.split)
+      throw new BookingInvariantError('Contact allocations exceed the outlay they settle');
+    sums.set(r.splitId, sum);
+  }
+}
+
 /** Write-offs are plain zero bookings, so their outlay must stay unchanged until they are undone. */
 function assertNoLaterWriteOff(tx: Executor, bookingId: string): void {
   const row = tx.select().from(booking).where(eq(booking.id, bookingId)).get();
@@ -377,6 +405,23 @@ function assertNoLaterWriteOff(tx: Executor, bookingId: string): void {
   }
 }
 
+/** Did `releaseLinkedAllocations` run for this booking inside the action's audit group? */
+function linkedOverrideCovers(tx: Executor, groupId: string, bookingId: string): boolean {
+  const row = tx
+    .select()
+    .from(appSetting)
+    .where(eq(appSetting.id, `${CONTACT_LINKED_OVERRIDE_PREFIX}${groupId}`))
+    .get();
+  if (!row) return false;
+  try {
+    return (
+      (JSON.parse(row.value) as { bookingIds?: string[] }).bookingIds?.includes(bookingId) === true
+    );
+  } catch {
+    return false;
+  }
+}
+
 /** Dates of the live repayments that allocate this booking's outlay splits, oldest first. */
 export function linkedSettlementDates(tx: Executor, bookingId: string): string[] {
   return tx
@@ -403,7 +448,7 @@ export function assertContactBookingWrite(
   bookingId: string,
   operation: 'update' | 'delete' | 'restore',
   fields: Iterable<string> = [],
-  options: { unlockLinked?: boolean } = {},
+  options: { unlockLinked?: boolean; groupId?: string } = {},
 ): void {
   const settlement = tx
     .select()
@@ -457,7 +502,14 @@ export function assertContactBookingWrite(
     !creditRecord?.refundCorrections?.length &&
     !creditRecord?.repaymentRefundCorrections?.length
   ) {
-    if (options.unlockLinked && operation !== 'restore') return;
+    // The flag alone is not enough: the release of the allocations must have run in this action.
+    if (
+      options.unlockLinked &&
+      operation !== 'restore' &&
+      options.groupId &&
+      linkedOverrideCovers(tx, options.groupId, bookingId)
+    )
+      return;
     throw new ContactLinkedError(bookingId, linkedSettlementDates(tx, bookingId));
   }
   throw new BookingInvariantError(
@@ -600,6 +652,7 @@ export function assertContactUndoDependencies(
         typeof snapshot?.settlement_id === 'string' ? [snapshot.settlement_id] : [],
       ),
   );
+  // Only the repayments the owner confirmed together with the edit may move with it.
   const overridden = new Set(
     entries
       .filter(
@@ -609,15 +662,17 @@ export function assertContactUndoDependencies(
       .flatMap((e) => [e.before, e.after])
       .flatMap((snapshot) => {
         try {
-          const marker = JSON.parse(String(snapshot?.value ?? 'null')) as { bookingId?: unknown };
-          return typeof marker?.bookingId === 'string' ? [marker.bookingId] : [];
+          const marker = JSON.parse(String(snapshot?.value ?? 'null')) as {
+            settlementIds?: unknown[];
+          };
+          return (marker?.settlementIds ?? []).filter((v): v is string => typeof v === 'string');
         } catch {
           return [];
         }
       }),
   );
   for (const t of targets) {
-    if (reallocated.has(t.settlementId) || overridden.has(t.bookingId)) continue;
+    if (reallocated.has(t.settlementId) || overridden.has(t.settlementId)) continue;
     for (const entry of entries) {
       const fields =
         entry.entityType === 'booking' && entry.entityId === t.bookingId

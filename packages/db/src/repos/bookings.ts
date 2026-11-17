@@ -868,7 +868,7 @@ function updateBookingImpl(
       Object.entries(patch)
         .filter(([, v]) => v !== undefined)
         .map(([k]) => k),
-      { unlockLinked: options.unlockContactLinked ?? false },
+      { unlockLinked: options.unlockContactLinked ?? false, groupId: grouped.groupId },
     );
     // Reconciled bookings: only flag and memo are free; a status change also needs the unlock.
     const touchesLocked = Object.entries(patch).some(
@@ -1313,6 +1313,7 @@ function deleteBookingImpl(
     for (const leg of legs)
       assertContactBookingWrite(tx, leg.id, 'delete', [], {
         unlockLinked: options.unlockContactLinked ?? false,
+        groupId: grouped.groupId,
       });
     for (const leg of legs) assertStatementBookingWrite(tx, leg.id, 'delete');
     assertUnlocked(

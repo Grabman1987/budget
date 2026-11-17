@@ -104,6 +104,31 @@ export function allocateContactReceipt(
   return { allocations, creditCents: amountCents - allocated };
 }
 
+/** Credit a contact holds that a new shared outlay can use (`categoryId` null = any category). */
+export interface ContactCreditPool {
+  remainingCents: number;
+  categoryId: string | null;
+}
+
+/**
+ * Take credit for one new outlay exactly like the statement replay does: credits in receipt order,
+ * a category-bound credit only for its category. Mutates the pool; returns the cents covered.
+ */
+export function consumeContactCredit(
+  pool: ContactCreditPool[],
+  categoryId: string | null,
+  outlayCents: number,
+): number {
+  let uncovered = outlayCents;
+  for (const credit of pool) {
+    if (credit.categoryId && credit.categoryId !== categoryId) continue;
+    const used = Math.min(credit.remainingCents, uncovered);
+    credit.remainingCents -= used;
+    uncovered -= used;
+  }
+  return outlayCents - uncovered;
+}
+
 /** Replay actual movements. Saved allocation and credit are validated, never silently replaced. */
 export function contactStatement<T extends ContactMovement>(
   movements: readonly T[],

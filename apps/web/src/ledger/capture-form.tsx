@@ -461,17 +461,11 @@ export function CaptureForm({
   const creditReports = useQueries({
     queries: shareContactIds.map((id) => contactReportQuery(id, parsedDate ?? today, true)),
   });
-  const contactCredit = (contactId: string, categoryId: string) => {
+  const contactCredits = (contactId: string) => {
     const credits = creditReports[shareContactIds.indexOf(contactId)]?.data?.credits;
-    if (!credits) return undefined;
     return credits
-      .filter(
-        (c) =>
-          !c.targetOutlaySplitId &&
-          (!c.categoryId || c.categoryId === categoryId) &&
-          c.onBudget === from?.onBudget,
-      )
-      .reduce((sum, c) => sum + c.remainingCents, 0);
+      ?.filter((c) => !c.targetOutlaySplitId && c.onBudget === from?.onBudget)
+      .map((c) => ({ remainingCents: c.remainingCents, categoryId: c.categoryId }));
   };
   const budget = useQuery(budgetQuery(month));
   const all = useMemo(
@@ -1102,7 +1096,7 @@ export function CaptureForm({
       accounts={open}
       accountId={accountId}
       contacts={contacts}
-      contactCredit={contactCredit}
+      contactCredits={contactCredits}
       hasAdvanceCategory={Boolean(advanceCategoryId)}
       locked={splitLocked}
       error={splitError ?? errors.category}

@@ -1,4 +1,4 @@
-import { and, eq, isNull } from 'drizzle-orm';
+import { and, eq, isNull, sql } from 'drizzle-orm';
 import { appSetting, booking, bookingSplit, contactAllocation, contactSettlement } from '../schema';
 import { insertTracked, updateTracked, withGroup, type AuditContext } from './audit';
 import { getBooking, type BookingPatch } from './bookings';
@@ -44,6 +44,7 @@ export function releaseLinkedAllocations(
         receiptSplitId: contactSettlement.receiptSplitId,
         contactId: contactSettlement.contactId,
         date: booking.date,
+        order: sql<number>`${booking}.rowid`,
       })
       .from(contactAllocation)
       .innerJoin(bookingSplit, eq(bookingSplit.id, contactAllocation.outlaySplitId))
@@ -66,6 +67,9 @@ export function releaseLinkedAllocations(
       if (planned.splits) {
         const next =
           planned.splits.length === cur.splits.length ? planned.splits[index] : undefined;
+        // A new category (or to/from Auslagen) would leave the repayment's category return behind
+        // on the old one: release the whole allocation first, the new outlay starts unallocated.
+        if ((next?.categoryId ?? null) !== (cur.splits[index]?.categoryId ?? null)) return 0;
         return next?.contactId &&
           next.amountCents < 0 &&
           contactIdentityIds(tx, contactId).includes(next.contactId)
@@ -82,7 +86,7 @@ export function releaseLinkedAllocations(
     for (const splitId of new Set(allocations.map((a) => a.outlaySplitId))) {
       const onSplit = allocations
         .filter((a) => a.outlaySplitId === splitId)
-        .sort((a, b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id));
+        .sort((a, b) => b.date.localeCompare(a.date) || b.order - a.order);
       const size = sizeAfter(splitId, onSplit[0]!.contactId);
       if (size === null) continue;
       let excess = onSplit.reduce((sum, a) => sum + a.amountCents, 0) - size;
@@ -130,14 +134,21 @@ export function releaseLinkedAllocations(
     }
 
     const id = `${CONTACT_LINKED_OVERRIDE_PREFIX}${grouped.groupId}`;
+    const current = tx.select().from(appSetting).where(eq(appSetting.id, id)).get();
+    const previous = current
+      ? (JSON.parse(current.value) as { bookingIds: string[]; settlementIds: string[] })
+      : { bookingIds: [], settlementIds: [] };
     const value = JSON.stringify({
-      bookingId,
+      bookingIds: [...new Set([...previous.bookingIds, bookingId])],
+      // Every repayment that allocated this outlay when the owner confirmed: only these may move
+      // with it on Undo. A repayment added later by another action keeps the normal guard.
+      settlementIds: [
+        ...new Set([...previous.settlementIds, ...allocations.map((a) => a.settlementId)]),
+      ],
       operation: planned === 'delete' ? 'delete' : 'update',
       reason: options.reason?.trim() || 'Auslage mit Rückzahlung verknüpft, Änderung bestätigt',
       releasedCents,
-      settlementIds: [...touched.keys()],
     });
-    const current = tx.select().from(appSetting).where(eq(appSetting.id, id)).get();
     if (current) updateTracked(tx, appSetting, [id], { value }, grouped);
     else insertTracked(tx, appSetting, { id, value }, grouped);
     return { releasedCents, settlementIds: [...touched.keys()] };

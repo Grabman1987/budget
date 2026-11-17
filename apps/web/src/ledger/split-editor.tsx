@@ -1,5 +1,5 @@
 ﻿import { useAmountPrivacy, AmountInput, Button, Segmented, maskMoneyText } from '@budget/ui';
-import { parseAmount } from '@budget/domain';
+import { consumeContactCredit, parseAmount, type ContactCreditPool } from '@budget/domain';
 import { ChevronDown, Plus, X, Info, Tag } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import { KontenMenu } from './konten-menu';
@@ -53,7 +53,7 @@ export interface SplitEditorProps {
    * Credit (cents) a contact already holds that a new share in this category would be settled
    * against (#1147); `undefined` while unknown or not applicable.
    */
-  contactCredit?: (contactId: string, categoryId: string) => number | undefined;
+  contactCredits?: (contactId: string) => ContactCreditPool[] | undefined;
 }
 
 /** Retain stored rows independently: the ledger does not store a gross-line grouping. */
@@ -103,7 +103,7 @@ export function SplitEditor({
   contactHost,
   compact = false,
   allowReadyToAssign = false,
-  contactCredit,
+  contactCredits,
 }: SplitEditorProps) {
   useAmountPrivacy();
   const editorRef = useRef<HTMLFieldSetElement>(null);
@@ -118,8 +118,9 @@ export function SplitEditor({
   const rest = splitRemainder(draft.amount, lines);
   const expanded = expandBookingLines({ ...draft, lines });
   const sharingInvalid = lines.some((line) => line.shares.length) && !expanded.splits.length;
-  // Credit left per contact while the shares are listed in order: it is used up once, never twice.
-  const creditLeft = new Map<string, number>();
+  // Credit left per contact while the shares are listed in order: used up once, never twice, and
+  // per credit exactly as the server books it (a category-bound credit only for its category).
+  const creditLeft = new Map<string, ContactCreditPool[]>();
   const update = (
     next: BookingLineDraft[] | ((current: BookingLineDraft[]) => BookingLineDraft[]),
   ) =>
@@ -267,14 +268,21 @@ export function SplitEditor({
               const shareAmount = parseAmount(
                 expanded.splits.find((s) => s.key === share.key)?.amount ?? '',
               );
-              const before = share.contactId
-                ? (creditLeft.get(share.contactId) ??
-                  contactCredit?.(share.contactId, line.categoryId))
-                : undefined;
+              let pool = share.contactId ? creditLeft.get(share.contactId) : undefined;
+              if (share.contactId && !pool) {
+                pool = contactCredits?.(share.contactId)?.map((c) => ({ ...c }));
+                if (pool) creditLeft.set(share.contactId, pool);
+              }
               const shareCents = shareAmount.ok ? shareAmount.cents : 0;
-              const used = before && shareCents > 0 ? Math.min(before, shareCents) : 0;
-              if (share.contactId && before !== undefined)
-                creditLeft.set(share.contactId, before - used);
+              const before = pool
+                ? pool
+                    .filter((c) => !c.categoryId || c.categoryId === line.categoryId)
+                    .reduce((sum, c) => sum + c.remainingCents, 0)
+                : undefined;
+              const used =
+                pool && shareCents > 0
+                  ? consumeContactCredit(pool, line.categoryId, shareCents)
+                  : 0;
               covered += used;
               if (shareCents === 0 || used < shareCents) allCovered = false;
               return (

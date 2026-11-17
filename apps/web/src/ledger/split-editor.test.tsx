@@ -233,7 +233,7 @@ it.each([
           accounts={[]}
           accountId="account-example"
           contacts={[{ id: 'contact-example', name: 'Kontakt Muster' }]}
-          contactCredit={() => credit}
+          contactCredits={() => [{ remainingCents: credit, categoryId: null }]}
           hasAdvanceCategory
           locked={false}
           error={undefined}
