@@ -271,6 +271,8 @@ function verdictCopy(op: SourceOperation, verdict: OperationVerdict | undefined)
     return { title: base, closed: matchedResolution(verdict.refs) };
   if (verdict?.status === 'informational')
     return { title: base, closed: informationalResolution(verdict.reason) };
+  if (verdict?.status === 'unreadable')
+    return { title: `Quellbewegung: Datenformat prüfen (${verdict.field})`, closed: null };
   if (verdict?.status === 'unmapped')
     return { title: 'Quellbewegung: Zuordnung fehlt', closed: null };
   if (verdict?.status === 'missing' && verdict.ambiguous)

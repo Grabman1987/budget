@@ -1,5 +1,13 @@
 import { addDays, daysBetween, todayInVienna } from './date/date';
-import { sourceInteger, type SourceMapping, type SourceOperation } from './read-source';
+import {
+  internalTransferKeys,
+  isInternalStakeType,
+  sourceInteger,
+  sourceOperationUnreadableField,
+  type SourceMapping,
+  type SourceOperation,
+} from './read-source';
+import { summarizeOperation } from './read-source-explain';
 
 /**
  * Reconciliation of read-source operations against the existing ledger (Abgleich). Pure and
@@ -52,7 +60,8 @@ export type OperationVerdict =
   | { status: 'matched'; refs: SourceMatchRef[]; by?: 'id' }
   | { status: 'informational'; reason: 'internal' | 'no_movement' }
   | { status: 'missing'; ambiguous?: number }
-  | { status: 'unmapped'; keys: string[] };
+  | { status: 'unmapped'; keys: string[] }
+  | { status: 'unreadable'; field: string };
 
 const REF_LABELS: Record<string, string> = {
   buy: 'Kauf',
@@ -105,7 +114,7 @@ type Tx = SourceOperation['transactions'][number];
 /** Fee, tax and platform-internal legs accompany a movement but are none themselves. */
 const SECONDARY = new Set(['fee', 'tax', 'stake', 'unstake']);
 /** Only the exact stake/unstake types are platform-internal; `staking_reward` is a reward. */
-export const isInternalStakeType = (type: string) => /^(un)?stake$/.test(type);
+export { internalTransferKeys, isInternalStakeType } from './read-source';
 const SAVINGS_PLAN_TYPE = /(^|_)savings_plan(_|$)/;
 
 /**
@@ -165,25 +174,6 @@ interface Leg {
 }
 
 const abs = (n: number | null) => (n === null ? null : Math.abs(n));
-
-/**
- * `transfer` legs whose incoming and outgoing amounts cancel per asset are wallet moves inside
- * the platform; an unbalanced one is an external movement (deposit/withdrawal of a token).
- */
-export function internalTransferKeys(op: SourceOperation): Set<string> {
-  const net = new Map<string, bigint>();
-  for (const t of op.transactions) {
-    if (t.type !== 'transfer') continue;
-    const units = sourceInteger(t.amount.value, 8);
-    const key = keyOf(t.amount);
-    net.set(
-      key,
-      (net.get(key) ?? 0n) +
-        (units === null ? 1n : BigInt(units) * (t.flow === 'INCOMING' ? 1n : -1n)),
-    );
-  }
-  return new Set([...net].filter(([, n]) => n === 0n).map(([k]) => k));
-}
 
 /** Split an operation into primary legs (trade groups collapse their cash and asset legs). */
 function legsOf(op: SourceOperation): Leg[] {
@@ -420,7 +410,42 @@ export function matchSourceOperations(
       ) || a.id.localeCompare(b.id),
   );
   for (const op of sorted) {
-    const legs = isInternalStakeType(op.type) ? [] : legsOf(op);
+    const field = sourceOperationUnreadableField(op);
+    const summary = summarizeOperation(op);
+    const unknownAsset = summary.assets.findIndex((a) => a.netE8 === null);
+    if (field || unknownAsset !== -1) {
+      verdicts.set(op.id, {
+        status: 'unreadable',
+        field: field ?? `assets[${unknownAsset}].netE8`,
+      });
+      continue;
+    }
+    const internal = internalTransferKeys(op);
+    const primaryFiat = op.transactions.some(
+      (t) =>
+        !t.amount.assetId &&
+        !SECONDARY.has(t.type) &&
+        !(t.type === 'transfer' && internal.has(keyOf(t.amount))),
+    );
+    if (primaryFiat && summary.fiatCents === null) {
+      verdicts.set(op.id, { status: 'unreadable', field: 'fiatCents' });
+      continue;
+    }
+    const movement = op.transactions.filter((t) => t.type !== 'fee' && t.type !== 'tax');
+    const internalOnly =
+      movement.length > 0 &&
+      movement.every(
+        (t) =>
+          (t.type === 'transfer' || isInternalStakeType(t.type)) && internal.has(keyOf(t.amount)),
+      );
+    const hasOpenStake = movement.some(
+      (t) => isInternalStakeType(t.type) && !internal.has(keyOf(t.amount)),
+    );
+    if ((isInternalStakeType(op.type) && !internalOnly) || hasOpenStake) {
+      verdicts.set(op.id, { status: 'missing' });
+      continue;
+    }
+    const legs = internalOnly ? [] : legsOf(op);
     const linked = (legs.length ? (byLinkedId.get(op.id) ?? []) : [])
       .filter(({ trade, exclusive }) => !exclusive || !exclusiveOwner.has(trade.id))
       .map(({ trade, exclusive }) => {
@@ -439,7 +464,7 @@ export function matchSourceOperations(
     if (!legs.length) {
       verdicts.set(op.id, {
         status: 'informational',
-        reason: isInternalStakeType(op.type) ? 'internal' : 'no_movement',
+        reason: internalOnly ? 'internal' : 'no_movement',
       });
       continue;
     }

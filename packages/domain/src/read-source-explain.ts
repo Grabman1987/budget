@@ -1,5 +1,9 @@
-import { sourceInteger, type SourceOperation } from './read-source';
-import { internalTransferKeys, isInternalStakeType } from './read-source-match';
+import {
+  sourceInteger,
+  internalTransferKeys,
+  isInternalStakeType,
+  type SourceOperation,
+} from './read-source';
 
 /**
  * Operation-level view of a source operation (pure, read-only). Several source transactions
@@ -36,13 +40,13 @@ export interface OperationSummary {
 }
 
 const REWARD = /(^|_)(reward|bonus|premium|giveaway)(_|$)/;
-const SECONDARY_TX = new Set(['fee', 'tax', 'stake', 'unstake']);
+const SECONDARY_TX = new Set(['fee', 'tax']);
 
 /** Exact integer sum; null as soon as a part is unknown or the sum leaves the safe range. */
 const sum = (...parts: Array<number | null>): number | null => {
   let total = 0;
   for (const p of parts) {
-    if (p === null) return null;
+    if (p === null || !Number.isSafeInteger(p)) return null;
     total += p;
     if (!Number.isSafeInteger(total)) return null;
   }
@@ -56,10 +60,20 @@ const units = (v: string): number | null => {
 type Tx = SourceOperation['transactions'][number];
 
 export function summarizeOperation(op: SourceOperation): OperationSummary {
-  const internal = isInternalStakeType(op.type);
   const internalKeys = internalTransferKeys(op);
+  const movements = op.transactions.filter((t) => t.type !== 'fee' && t.type !== 'tax');
+  const internal =
+    isInternalStakeType(op.type) &&
+    movements.length > 0 &&
+    movements.every(
+      (t) =>
+        (t.type === 'transfer' || isInternalStakeType(t.type)) &&
+        internalKeys.has(
+          t.amount.assetId ? 'asset:' + t.amount.assetId : 'currency:' + t.amount.currencyId,
+        ),
+    );
   const isInternalLeg = (t: Tx) =>
-    t.type === 'transfer' &&
+    (t.type === 'transfer' || isInternalStakeType(t.type)) &&
     internalKeys.has(
       t.amount.assetId ? 'asset:' + t.amount.assetId : 'currency:' + t.amount.currencyId,
     );
@@ -84,14 +98,15 @@ export function summarizeOperation(op: SourceOperation): OperationSummary {
     }
     for (const e of byAsset.values()) {
       // A fee-only effect (no primary leg) always reduces the holding.
-      e.netE8 =
+      const net =
         e.grossE8 === null || e.feeE8 === null
           ? null
           : e.grossE8 === 0
-            ? -e.feeE8
+            ? sum(-e.feeE8)
             : e.incoming
-              ? e.grossE8 - e.feeE8
-              : -sum(e.grossE8, e.feeE8)!;
+              ? sum(e.grossE8, -e.feeE8)
+              : sum(-e.grossE8, -e.feeE8);
+      e.netE8 = net === 0 ? 0 : net;
     }
   }
   const fiat = primary.filter((t) => !t.amount.assetId && t.amount.cents !== null);

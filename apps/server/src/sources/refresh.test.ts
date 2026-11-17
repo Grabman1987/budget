@@ -714,6 +714,48 @@ describe('source start date (Bewegungen ab)', () => {
 });
 
 describe('ledger matching (Abgleich)', () => {
+  it('keeps unreadable transfers and net overflow open with the failing field across repeated reconciliation', () => {
+    const unreadable = buy('unreadable-transfer', '2026-03-10');
+    unreadable.type = 'transfer';
+    unreadable.transactions = [
+      {
+        ...unreadable.transactions[1]!,
+        type: 'transfer',
+        tradeId: null,
+        amount: { value: '0.123456789', assetId: 'coin', currencyId: null, cents: null },
+      },
+      {
+        ...unreadable.transactions[1]!,
+        id: 'out',
+        type: 'transfer',
+        flow: 'OUTGOING',
+        tradeId: null,
+        amount: { value: '0.00000001', assetId: 'coin', currencyId: null, cents: null },
+      },
+    ];
+    const overflow = buy('overflow', '2026-03-10');
+    overflow.type = 'sell';
+    overflow.transactions = [
+      {
+        ...overflow.transactions[1]!,
+        type: 'sell',
+        flow: 'OUTGOING',
+        amount: { value: '90071992.54740991', assetId: 'coin', currencyId: null, cents: null },
+        fee: { value: '0.00000001', assetId: 'coin', currencyId: null, cents: null },
+      },
+    ];
+    stage([unreadable, overflow]);
+    for (const [id, field] of [
+      ['unreadable-transfer', 'transactions[0].amount.value'],
+      ['overflow', 'assets[0].netE8'],
+    ] as const) {
+      expect(row(id)).toMatchObject({ resolvedAt: null, resolution: null });
+      expect(row(id).title).toContain(field);
+    }
+    const before = inbox();
+    expect(reconcileReadSource(opened.db, ctx).groupId).toBeNull();
+    expect(inbox()).toEqual(before);
+  });
   const MATCHED = 'Bereits in der App erfasst';
   const CLEANUP = 'Vor dem Übernahme-Stichtag 03.10.2026: Bestände stammen aus der Übernahme.';
   const OWNER = 'Vom Nutzer als erledigt markiert';
@@ -753,6 +795,14 @@ describe('ledger matching (Abgleich)', () => {
         id: id + '-tx',
         type: 'stake',
         flow: 'OUTGOING',
+        creditedAt: day + 'T10:00:00.000Z',
+        amount: { value: '1', assetId: 'coin', currencyId: null, cents: null },
+      },
+      {
+        ...operation.transactions[0]!,
+        id: id + '-incoming',
+        type: 'stake',
+        flow: 'INCOMING',
         creditedAt: day + 'T10:00:00.000Z',
         amount: { value: '1', assetId: 'coin', currencyId: null, cents: null },
       },

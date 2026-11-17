@@ -322,8 +322,18 @@ describe('rewards and deliveries', () => {
 
 describe('informational and unmapped operations', () => {
   it('resolves stake and unstake as informational, even without any mapping', () => {
-    const stake = op('st', 'stake', { type: 'stake', flow: 'OUTGOING', amount: coin('1') });
-    const unstake = op('un', 'unstake', { type: 'unstake', flow: 'INCOMING', amount: coin('1') });
+    const stake = op(
+      'st',
+      'stake',
+      { type: 'stake', flow: 'OUTGOING', amount: coin('1') },
+      { type: 'stake', flow: 'INCOMING', amount: coin('1') },
+    );
+    const unstake = op(
+      'un',
+      'unstake',
+      { type: 'unstake', flow: 'INCOMING', amount: coin('1') },
+      { type: 'unstake', flow: 'OUTGOING', amount: coin('1') },
+    );
     expect(verdictOf(stake, ledger(), [])).toEqual({ status: 'informational', reason: 'internal' });
     expect(verdictOf(unstake, ledger(), [])).toEqual({
       status: 'informational',

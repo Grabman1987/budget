@@ -101,7 +101,9 @@ bookings or trades. Result per operation:
   missing movement for the owner to record.
 - **ohne Zuordnung** (open, title "Quellbewegung: Zuordnung fehlt"): a needed asset or currency has
   no mapping yet. Nothing is guessed.
-- **informativ** (resolved, "Informativ: …"): stake/unstake and platform-internal moves, or an
+- **unreadable** (open): an amount, precision or aggregate cannot be read safely; the failing
+  field is named without its value. This takes priority over provider-id links.
+- **informativ** (resolved, "Informativ: …"): positively identified platform-internal moves, or an
   operation that only carries fee/tax legs. No ledger effect.
 
 Provider ids come first (#1205): a trade whose import key was written from a source operation
@@ -111,7 +113,8 @@ every other movement. Savings-plan fiat movements may find their bank booking up
 (second pass, after all exact-window matches). Fee legs in another token, stake/unstake and
 reward commission stay part of their operation and never produce a fiat booking or a sale.
 `summarizeOperation` (`packages/domain/src/read-source-explain.ts`) states per operation and asset
-the gross, fee and net units; EUR values come only from the source.
+the gross, fee and net units; EUR values come only from the source. All inputs and sums
+must be safe integers; overflow remains unknown, and zero net units are always positive zero.
 
 Ties are never guessed: if several equal ledger rows fit one cash movement at the best distance and
 the match is not one-to-one, the movement stays open as "Quellbewegung mehrdeutig (N gleich passende
@@ -126,7 +129,8 @@ Tolerances and rules:
 | buy, sell, savings plan, swap legs, dust swap | Trade of the mapped instrument in the mapped account (buy/sell, deliveries accepted), +-2 days. Units within 1e-8, else amount within 1 cent, else amount and units both within 0.5 %. Fee and tax (stated by the source or on the trade) may explain amount differences. Each trade leg of a swap must match. |
 | reward, bonus, staking reward, merger | Delivery in/out (or buy/sell) of the mapped instrument by units, +-2 days. A commission in the same asset is subtracted (the ledger records the net units). |
 | deposit, withdrawal, cash refund/reward | Booking on the mapped cash account with exact cents (a stated fee may be added or subtracted), +-3 days; positive cash credits may also match an interest/dividend trade of a mapped account. Settlement bookings of trades and transfers between two mapped accounts are internal and never match. |
-| stake, unstake, fee/tax-only operations | Informational. |
+| stake, unstake, transfer | Internal only with readable incoming and outgoing legs of the same asset/currency and an exact zero sum (no tolerance). Missing or unbalanced staking legs stay open; unreadable amounts/precision stay unreadable. |
+| fee/tax-only operations | Informational only when amounts and aggregates are readable. |
 
 A ledger row serves one source movement only (best match first: tier, then day distance, then
 operation order), so two identical purchases need two trades. Operations are always matched

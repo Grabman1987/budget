@@ -207,6 +207,105 @@ describe('provider id links are strict and claimed once', () => {
 });
 
 describe('operation types', () => {
+  it('rejects unsafe supplied cents and aggregated cents', () => {
+    const unsafe = op('cents', 'deposit', {
+      type: 'deposit',
+      flow: 'INCOMING',
+      amount: { value: '1.00', assetId: null, currencyId: EUR, cents: 9_007_199_254_740_992 },
+    });
+    expect(verdictOf(unsafe, ledger())).toEqual({
+      status: 'unreadable',
+      field: 'transactions[0].amount.cents',
+    });
+    const aggregate = op(
+      'total',
+      'deposit',
+      {
+        type: 'deposit',
+        flow: 'INCOMING',
+        amount: {
+          value: '90071992547409.91',
+          assetId: null,
+          currencyId: EUR,
+          cents: 9_007_199_254_740_991,
+        },
+      },
+      {
+        type: 'deposit',
+        flow: 'INCOMING',
+        amount: { value: '0.01', assetId: null, currencyId: EUR, cents: 1 },
+      },
+    );
+    expect(verdictOf(aggregate, ledger())).toEqual({ status: 'unreadable', field: 'fiatCents' });
+  });
+  it.each(['0.123456789', 'invalid', '90071992.54740992'])(
+    'keeps unreadable transfer amount %s open with its field, even with a provider id link',
+    (value) => {
+      const o = op(
+        'bad-transfer',
+        'transfer',
+        { type: 'transfer', flow: 'INCOMING', amount: coin(value) },
+        { type: 'transfer', flow: 'OUTGOING', amount: coin('0.00000001') },
+      );
+      expect(
+        verdictOf(
+          o,
+          ledger([trade({ unitsE8: 1, amountCents: 0, importKey: 'rebuild:bad-transfer:0' })]),
+        ),
+      ).toEqual({
+        status: 'unreadable',
+        field: 'transactions[0].amount.value',
+      });
+    },
+  );
+  it('keeps outgoing net overflow open for owner review', () => {
+    const o = op('overflow', 'sell', {
+      type: 'sell',
+      flow: 'OUTGOING',
+      amount: coin('90071992.54740991'),
+    });
+    o.transactions[0]!.fee = coin('0.00000001');
+    expect(verdictOf(o, ledger())).toEqual({ status: 'unreadable', field: 'assets[0].netE8' });
+  });
+  it('does not infer an internal move from a missing, different-asset or unbalanced leg', () => {
+    for (const parts of [
+      [{ type: 'stake', flow: 'OUTGOING' as const, amount: coin('1') }],
+      [
+        { type: 'transfer', flow: 'OUTGOING' as const, amount: coin('1') },
+        { type: 'transfer', flow: 'INCOMING' as const, amount: coin('1', OTHER) },
+      ],
+      [
+        { type: 'stake', flow: 'OUTGOING' as const, amount: coin('1') },
+        { type: 'stake', flow: 'INCOMING' as const, amount: coin('0.99999999') },
+      ],
+    ])
+      expect(status(op('unproven', 'stake', ...parts), ledger())).toBe('missing');
+  });
+  it('names unreadable stake precision and unsafe cents instead of resolving internally', () => {
+    const o = op('stake-bad', 'stake', {
+      type: 'stake',
+      flow: 'OUTGOING',
+      amount: coin('0.123456789'),
+    });
+    expect(verdictOf(o, ledger())).toEqual({
+      status: 'unreadable',
+      field: 'transactions[0].amount.value',
+    });
+    const fiat = op('fiat-bad', 'transfer', {
+      type: 'transfer',
+      flow: 'INCOMING',
+      amount: {
+        value: '90071992547409.92',
+        assetId: null,
+        currencyId: EUR,
+        cents: 9_007_199_254_740_992,
+      },
+    });
+    expect(verdictOf(fiat, ledger())).toEqual({
+      status: 'unreadable',
+      field: 'transactions[0].amount.value',
+    });
+  });
   const incoming = (id: string, type: string, units: string) =>
     op(id, type, { type, flow: 'INCOMING', amount: coin(units) });
   it('a staking_reward is a reward to match, not an internal move', () => {
@@ -219,7 +318,15 @@ describe('operation types', () => {
   it('stake and unstake stay informational', () => {
     for (const type of ['stake', 'unstake'])
       expect(
-        verdictOf(op(type + '1', type, { type, flow: 'OUTGOING', amount: coin('1') }), ledger()),
+        verdictOf(
+          op(
+            type + '1',
+            type,
+            { type, flow: 'OUTGOING', amount: coin('1') },
+            { type, flow: 'INCOMING', amount: coin('1') },
+          ),
+          ledger(),
+        ),
       ).toEqual({ status: 'informational', reason: 'internal' });
   });
   it('an unbalanced token transfer is a movement; a balanced one is internal', () => {

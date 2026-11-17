@@ -38,6 +38,49 @@ const op = (type: string, ...transactions: SourceOperation['transactions']): Sou
 });
 
 describe('summarizeOperation', () => {
+  it('does not discard a reward accompanying balanced transfer legs in a stake operation', () => {
+    expect(
+      summarizeOperation(
+        op(
+          'stake',
+          tx('transfer', 'OUTGOING', amt('1', COIN)),
+          tx('transfer', 'INCOMING', amt('1', COIN)),
+          tx('reward', 'INCOMING', amt('0.2', COIN)),
+        ),
+      ).assets,
+    ).toEqual([{ assetId: COIN, grossE8: 20_000_000, feeE8: 0, netE8: 20_000_000 }]);
+  });
+  it('keeps an outgoing gross-plus-fee overflow unknown instead of negative zero', () => {
+    const s = summarizeOperation(
+      op(
+        'sell',
+        tx('sell', 'OUTGOING', amt('90071992.54740991', COIN), {
+          fee: amt('0.00000001', COIN),
+        }),
+      ),
+    );
+    expect(s.assets).toEqual([
+      { assetId: COIN, grossE8: 9_007_199_254_740_991, feeE8: 1, netE8: null },
+    ]);
+  });
+  it('normalizes zero fee-only and outgoing effects to positive zero', () => {
+    for (const type of ['fee', 'sell']) {
+      const s = summarizeOperation(op(type, tx(type, 'OUTGOING', amt('0', COIN))));
+      expect(s.assets[0]!.netE8).toBe(0);
+      expect(Object.is(s.assets[0]!.netE8, -0)).toBe(false);
+    }
+  });
+  it('rejects unsafe holding inputs before cancellation can hide them', () => {
+    expect(
+      explainHoldingDifference({
+        mapped: true,
+        appE8: 9_007_199_254_740_992,
+        sourceE8: 1,
+        assetId: COIN,
+        openOperations: [],
+      }),
+    ).toMatchObject({ cause: 'source_unreadable', differenceE8: null });
+  });
   it('purchase with the fee in the platform token: token holding falls, fiat is only the stated amount', () => {
     const s = summarizeOperation(
       op(
@@ -73,7 +116,9 @@ describe('summarizeOperation', () => {
   });
   it('internal staking transfers are not a sale and change no holding', () => {
     for (const type of ['stake', 'unstake']) {
-      const s = summarizeOperation(op(type, tx(type, 'OUTGOING', amt('1', COIN))));
+      const s = summarizeOperation(
+        op(type, tx(type, 'OUTGOING', amt('1', COIN)), tx(type, 'INCOMING', amt('1', COIN))),
+      );
       expect(s).toMatchObject({ class: 'staking_transfer', assets: [] });
     }
   });
