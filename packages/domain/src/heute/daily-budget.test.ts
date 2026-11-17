@@ -25,7 +25,6 @@ it.each([
           overdraftLimitCents: null,
         },
       ],
-      expectedInflows: [],
       openOutflows: [{ id: 'bill', label: 'Synthetic bill', day: addDays(today, -1), cents: 101 }],
     });
     expect(lead.freeCents).toBe(freeCents);

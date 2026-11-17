@@ -225,7 +225,7 @@ Five main areas plus settings (profile menu). Registers are the second level; no
 
 | Area | Question | Registers / views (prototype file) |
 | --- | --- | --- |
-| Heute | Hält der Monat? | Leitmaß "frei verfügbar bis Gehalt" (cash-flow figure: cash balance of the budget cash accounts today + expected inflows before payday - open outflows due before payday + activated Dispo; owner decision 2026-11-14, #1084), pace, upcoming payments, Finanz-Check KPI, net worth (`index.html`) |
+| Heute | Hält der Monat? | Leitmaß "frei verfügbar bis Gehalt" (cash-flow figure: cash balance of the budget cash accounts today - open outflows due before payday, no Dispo and no expected inflows, Dispo shown as the separate line "Letzte Reserve"; owner decisions 2026-11-14 #1084 and 2026-11-17 #1227), pace, upcoming payments, Finanz-Check KPI, net worth (`index.html`) |
 | Plan | Jeder Euro hat einen Job | Monat · Jahr · Zahlungen · Ziele · Prognose (`/plan/prognose`, formerly `/reports/liquiditaet`); Monat with views Wasserfall / Zeit / Gruppen / Klassen / Triage, Geld verteilen (`plan.html`) |
 | Konten | Was ist passiert? | Übersicht · Buchungen · Prüfen (`/konten/pruefen`, legacy `/konten/posteingang` redirects, including details) · Kontakte; Einzelkonto with Kontostand prüfen (`konten.html`) |
 | Vermögen | Was besitze ich, was entscheide ich? | Nettovermögen, Portfolio (Soll/Ist, Rebalancing, Sparpläne), Schulden (Sondertilgung), Freiheitszahl with Soll-Pfad (`vermoegen.html`) |
@@ -268,6 +268,25 @@ Invariants (binding):
 - Contact receipts default to the oldest open outlay first; the user may edit allocation before saving. Cash, allocation and excess contact credit are one audited, undoable action. Excess is a negative contact balance owed to the contact, never income or a gift.
 - Zero-balance contacts hide from the normal overview; retained identity and ledger history remain selectable. A new nonzero balance restores visibility.
 - Derived contact receivables and credit do not enter net worth. Actual account balances and investment holdings remain its valuation sources: an outlay lowers cash/net worth until actual repayment. Explicit receivable accounts keep ordinary account valuation.
+
+### Financial terms (owner decisions 2026-11-17, epic #1225)
+
+Every figure below has exactly one definition and one exported domain function; pages and rules read that function and never recompute it locally. `scripts/verify-product-docs.ts` and the unit test `scripts/ci/financial-terms.test.mjs` fail when a row names a function that is not exported from its module. Rows marked "planned" are not yet implemented and name `-` as module.
+
+| Term (UI) | Definition | Function | Module |
+| --- | --- | --- | --- |
+| Kontostand (as of a day, incl. vorgemerkt) | Opening balance + every booking dated from the opening date to the day, pending bookings included. A transfer dated before either account opening is not net-worth-neutral under this rule; the app must refuse or warn (documented requirement only). The balance shown on Heute and the account page. | `balanceOn` | `packages/domain/src/ledger/balances.ts` |
+| Kontostand (nur gebucht) | Same, booked (confirmed) bookings only; used for Kontostand prüfen against a bank statement. | `bookedBalance` | `packages/db/src/repos/reconciliation.ts` |
+| Kontostand (Bewertung mit Unterwegs) | Pending-inclusive valuation corrected by whole bank transfers in transit (debited, not yet received); never a booking. | `bankTransferTransitCents` | `packages/domain/src/ledger/bank-transfer-transit.ts` |
+| Zu verteilen | Cash of the budget accounts - envelope available - held - credit overspending - next-month income already received. Target 0; a negative value is a hint, not a block. | `budgetMonths` | `packages/domain/src/ledger/budget.ts` |
+| Gebundene Rücklagen | Let F be positive future-envelope available, Ron/Roff positive on/off-budget reserve-role balances, R = Ron + Roff, and T = targetMonths times average need (`emergencyTargetCents`). Committed = max(R, T) + F - min(F, max(0, Ron - max(0, T - Roff))). Accounts cover the target first; only on-budget surplus above it overlaps envelopes. Exposes accounts, target shortfall, envelopes and netted overlap. No sweep buffer. | `committedReserves` | `packages/domain/src/kpi/committed-reserves.ts` |
+| Frei bis Gehalt | Cash balance of the open EUR on-budget cash accounts with role budget and opening date no later than today - open outflows due before the next payday (all category classes including Zukunft; planned, overdue and future-dated links, each deducted once). No overdraft and no expected inflows: those never count as free money. Expected inflows appear only in the forecast. | `freeUntilPayday` | `packages/domain/src/kpi/free-until-payday.ts` |
+| Letzte Reserve (Dispo) | Unused part of the activated overdraft limits (limit minus the amount overdrawn, per account, never below 0). Credit that must be repaid; a separate line, never part of Frei bis Gehalt or of the squeeze verdict (R07). Heute and the forecast show the same figure. | `overdraftLastResort` | `packages/domain/src/kpi/free-until-payday.ts` |
+| Verbindlichkeiten | Gross liabilities (`liabilitiesCents`), labelled Verbindlichkeiten: the magnitude of every negative account value (loans, card balances, used overdraft), any role. Unused overdraft limit is no debt; derived contact receivables are no asset and no debt. | `netWorthSides` | `packages/domain/src/heute/net-worth.ts` |
+| Nettovermögen | Sum of all account valuations (balances plus market value, transit-aware); one calculation on every page. | `netWorthAsOf` | `packages/db/src/repos/portfolio.ts` |
+| Investierbarer Betrag | Cash on budget accounts - obligations until the payday + 30 days - gebundene Rücklagen - available in need/want envelopes of the current month. Never from expected income. | `investableAmount` (planned, F6 #1225) | `-` |
+
+Known variants kept on purpose: the liquidity forecast (`liquidityForecast`, `packages/domain/src/forecast/liquidity.ts`) is the only place where expected inflows and the sweep appear; `netWorthParts` splits the same total into liquid/invested/debt for the Maßkette (a positive balance on a debt-role account reduces its debt side there, the total is identical). `debtCents` is the signed net debt component (Schulden netto), whereas `liabilitiesCents` is gross liabilities (Verbindlichkeiten). Roleless accounts remain in the parts as liquidity (negative values as debt), preserving the valuation total. Forecast day zero deducts overdue open payments immediately; the actual account balance remains unchanged. Lead chains retain cents everywhere.
 
 ## 6. KPIs and calculations
 

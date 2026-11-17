@@ -178,13 +178,15 @@ export function OfflineState({ onCapture }: { onCapture: () => void }) {
                   <dd>{eur(heute.lead.balanceCents)}</dd>
                 </div>
                 <div>
-                  <dt>Erwartete Eingänge</dt>
-                  <dd>{eur(heute.lead.inflowCents)}</dd>
-                </div>
-                <div>
                   <dt>Offene Zahlungen</dt>
                   <dd>{eur(heute.lead.openCents)}</dd>
                 </div>
+                {(heute.lead.lastResortCents ?? 0) > 0 && (
+                  <div>
+                    <dt>Letzte Reserve (Dispo)</dt>
+                    <dd>{eur(heute.lead.lastResortCents)}</dd>
+                  </div>
+                )}
                 <div>
                   <dt>Budgetkonten</dt>
                   <dd>{eur(heute.stand.budgetBalanceCents)}</dd>
@@ -366,8 +368,8 @@ export function OfflineState({ onCapture }: { onCapture: () => void }) {
                       {REDESIGN_ENABLED
                         ? heute.netWorth.debtCents > 0
                           ? 'Guthaben auf Schuldkonten (netto)'
-                          : 'Schulden (netto)'
-                        : 'Schulden'}
+                          : 'Schulden netto'
+                        : 'Schulden netto'}
                     </dt>
                     <dd>{eur(heute.netWorth.debtCents)}</dd>
                   </div>

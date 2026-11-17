@@ -4,8 +4,9 @@ import { cents } from '../money/cents';
 
 /**
  * "Frei bis Gehalt" (the Leitmaß of Heute) as a cash-flow figure: cash balance of the budget cash
- * accounts today + expected inflows before payday - open outflows due before payday + the
- * activated overdraft headroom (sum of the limits of accounts that have one). Integer cents.
+ * accounts today - open outflows due before payday. Owner decisions 2026-11-17: neither the
+ * overdraft nor expected inflows count as free money; the overdraft is the separate line
+ * `lastResortCents`, expected inflows exist only in `liquidityForecast`. Integer cents.
  */
 
 export interface FreeAccount {
@@ -15,15 +16,6 @@ export interface FreeAccount {
   balanceCents: number;
   /** Activated overdraft limit (positive); null/0 = no Dispo. */
   overdraftLimitCents: number | null;
-}
-
-export interface ExpectedInflow {
-  id: string;
-  label: string;
-  /** Due day `YYYY-MM-DD`. */
-  day: string;
-  /** Positive amount still expected. */
-  cents: number;
 }
 
 export interface OpenOutflow {
@@ -38,62 +30,77 @@ export interface OpenOutflow {
 export interface FreeUntilPaydayInput {
   /** Budget cash accounts. */
   accounts: ReadonlyArray<FreeAccount>;
-  /** Inflows that are not received yet. Those due on or after payday are ignored. */
-  expectedInflows: ReadonlyArray<ExpectedInflow>;
   /** Expected outflows that are not paid yet (paid ones must not be passed). */
   openOutflows: ReadonlyArray<OpenOutflow>;
   /** `YYYY-MM-DD` of the next salary. Items due on or after it are not counted. */
   payday: string;
   today: string;
-  /** Rounding of the chain terms (`balanceChain`). Default: whole euros, the largest term absorbs. */
+  /** Rounding of the chain terms (`balanceChain`). Always cent precision; retained for caller compatibility. */
   precision?: 'euro' | 'cent';
 }
 
 export interface FreeUntilPayday {
   balanceCents: number;
-  inflowCents: number;
   openCents: number;
-  /** Sum of the activated overdraft limits. */
-  overdraftCents: number;
+  /** Letzte Reserve: unused activated overdraft limit; never part of `freeCents`. */
+  lastResortCents: number;
   freeCents: number;
   /** Whole days from today to payday (0 on payday, negative when it has passed). */
   daysToPayday: number;
-  /** Maßkette: Kontostand + Eingänge - offen bis Gehalt + Dispo-Rahmen = frei verfügbar. */
+  /** Maßkette: Kontostand - offen bis Gehalt = frei verfügbar. */
   chain: ChainTerm[];
   /** Drill-down behind the terms. */
   items: {
     accounts: FreeAccount[];
-    inflow: ExpectedInflow[];
     open: OpenOutflow[];
   };
 }
 
 const sum = (xs: ReadonlyArray<number>): number => xs.reduce((a, v) => a + v, 0);
 
+/**
+ * "Letzte Reserve (Dispo)": the unused part of the activated overdraft limits, per account
+ * (limit minus the amount already overdrawn, never below 0). Credit from the bank that has to be
+ * repaid: never free money, shown on its own line, identical on Heute and in the forecast.
+ */
+export function overdraftLastResort(
+  accounts: ReadonlyArray<Pick<FreeAccount, 'balanceCents' | 'overdraftLimitCents'>>,
+): number {
+  accounts.forEach((a) => {
+    cents(a.balanceCents);
+    cents(a.overdraftLimitCents ?? 0);
+  });
+  return cents(
+    sum(
+      accounts.map((a) =>
+        Math.max(0, Math.max(0, a.overdraftLimitCents ?? 0) - Math.max(0, -a.balanceCents)),
+      ),
+    ),
+  );
+}
+
 export function freeUntilPayday(input: FreeUntilPaydayInput): FreeUntilPayday {
-  const inflow = input.expectedInflows.filter((i) => i.day < input.payday);
+  input.accounts.forEach((a) => {
+    cents(a.balanceCents);
+    cents(a.overdraftLimitCents ?? 0);
+  });
+  input.openOutflows.forEach((o) => cents(o.cents));
   const open = input.openOutflows.filter((o) => o.day < input.payday);
   const balanceCents = sum(input.accounts.map((a) => a.balanceCents));
-  const inflowCents = sum(inflow.map((i) => i.cents));
   const openCents = sum(open.map((o) => o.cents));
-  const overdraftCents = sum(input.accounts.map((a) => Math.max(0, a.overdraftLimitCents ?? 0)));
-  const freeCents = balanceCents + inflowCents - openCents + overdraftCents;
+  const freeCents = balanceCents - openCents;
   const terms: ChainTerm[] = [
     { label: 'Kontostand', value: cents(balanceCents) },
-    { label: 'erwartete Eingänge', value: cents(inflowCents), op: '+' },
     { label: 'offen bis Gehalt', value: cents(openCents), op: '-' },
   ];
-  if (overdraftCents > 0)
-    terms.push({ label: 'Dispo-Rahmen', value: cents(overdraftCents), op: '+' });
   terms.push({ label: 'frei verfügbar', value: cents(freeCents), op: '=', result: true });
   return {
     balanceCents,
-    inflowCents,
     openCents,
-    overdraftCents,
+    lastResortCents: overdraftLastResort(input.accounts),
     freeCents,
     daysToPayday: daysBetween(input.today, input.payday),
-    chain: balanceChain(terms, input.precision ?? 'euro'),
-    items: { accounts: [...input.accounts], inflow, open },
+    chain: balanceChain(terms, 'cent'),
+    items: { accounts: [...input.accounts], open },
   };
 }

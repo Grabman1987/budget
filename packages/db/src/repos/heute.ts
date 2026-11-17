@@ -23,7 +23,6 @@ import {
   overspentEnvelopes,
   summarizeMonth,
   type BudgetMonth,
-  type ExpectedInflow,
   type FreeAccount,
   type FreeUntilPayday,
   type HeutePeriod,
@@ -46,6 +45,7 @@ import {
 import { budget as readBudget } from './queries';
 import { queryBookings } from './ledger-queries';
 import { cashSeries, netWorthAsOf, netWorthValuationAsOf } from './portfolio';
+import { isLiquidityAccount } from './liquidity-account';
 import { forecastInputs, loadFacts, scheduled, type RuleFacts } from './rule-inputs';
 import { readInboxCount } from './inbox';
 import { financeCheck, type FinanceCheck } from './rules';
@@ -493,7 +493,7 @@ export function heute(db: Executor, query: HeuteQuery): Heute {
   const todayBudget = facts.budgetByMonth.get(monthOf(today));
   const monthBudget = facts.budgetByMonth.get(month);
   const categories = new Map(facts.categories.map((c) => [c.id, c]));
-  const budgetAccounts = facts.accounts.filter((a) => a.onBudget && a.role === 'budget');
+  const budgetAccounts = facts.accounts.filter((a) => isLiquidityAccount(a, today));
   const budgetIds = budgetAccounts.map((a) => a.id);
   const valuation = netWorthValuationAsOf(db, today);
   // Forecast only consumes budget accounts; an unknown depot cannot block daily cash planning.
@@ -563,32 +563,9 @@ export function heute(db: Executor, query: HeuteQuery): Heute {
       balanceCents: budgetValues[a.id] ?? 0,
       overdraftLimitCents: a.overdraftLimitCents,
     }));
-  // Expected = still to arrive (not overdue), paused salaries excluded, like the cash forecast.
-  const expectedInflows: ExpectedInflow[] = all
-    .filter(
-      (o) =>
-        o.kind === 'inflow' &&
-        o.status === 'expected' &&
-        onLeadAccount(o) &&
-        o.amountCents > 0 &&
-        o.dueDate >= today &&
-        !pausedSalaryDates.has(`${o.paymentId}|${o.dueDate}`),
-    )
-    .map((o) => ({
-      id: o.occurrenceId ?? `${o.paymentId}|${o.dueDate}`,
-      label: o.name,
-      day: o.dueDate,
-      cents: o.amountCents,
-    }));
-  // Open = still expected, not covered by a Zukunft envelope (those are transfers, not spending).
+  // Every payment leaving a budget account before payday reduces liquidity, in every class.
   const openOutflows: OpenOutflow[] = all
-    .filter(
-      (o) =>
-        o.kind === 'outflow' &&
-        o.status === 'expected' &&
-        onLeadAccount(o) &&
-        o.categoryClass !== 'future',
-    )
+    .filter((o) => o.kind === 'outflow' && o.status === 'expected' && onLeadAccount(o))
     .map((o) => ({
       id: o.occurrenceId ?? `${o.paymentId}|${o.dueDate}`,
       label: o.name,
@@ -602,14 +579,12 @@ export function heute(db: Executor, query: HeuteQuery): Heute {
     const mark = facts.planMarks.get(`${o.paymentId}|${o.dueDate}`);
     if (typeof mark !== 'object' || mark.settledOn <= today) continue;
     const id = o.occurrenceId ?? `${o.paymentId}|${o.dueDate}`;
-    if (o.kind === 'outflow' && o.categoryClass !== 'future')
+    // Inflows never count in the free figure (owner decision 2026-11-17); they are forecast only.
+    if (o.kind === 'outflow')
       openOutflows.push({ id, label: o.name, day: mark.settledOn, cents: -o.amountCents });
-    else if (o.kind === 'inflow' && o.amountCents > 0)
-      expectedInflows.push({ id, label: o.name, day: mark.settledOn, cents: o.amountCents });
   }
   const lead = freeUntilPayday({
     accounts,
-    expectedInflows,
     openOutflows,
     payday: payday.day,
     today,
@@ -618,7 +593,7 @@ export function heute(db: Executor, query: HeuteQuery): Heute {
   // ---- balance: actual up to today, forecast after ----
   const actualDays: string[] = [];
   for (let d = window.from; d <= window.to && d <= today; d = addDays(d, 1)) actualDays.push(d);
-  // Same transit-aware cash as `budgetValues` (the forecast start), so the lines meet at today.
+  // Actual transit-aware cash; the projection separately deducts unpaid overdue obligations.
   const series = cashSeries(db, actualDays, budgetIds, true);
   const history = actualDays.map((day, i) => ({
     day,
@@ -699,10 +674,10 @@ export function heute(db: Executor, query: HeuteQuery): Heute {
 
     const roles = new Map(facts.accounts.map((a) => [a.id, a.role]));
     const parts = netWorthParts(
-      Object.entries(nw.byAccount).flatMap(([id, valueCents]) => {
-        const role = roles.get(id);
-        return role ? [{ role, valueCents }] : [];
-      }),
+      Object.entries(nw.byAccount).map(([id, valueCents]) => ({
+        role: roles.get(id) ?? null,
+        valueCents,
+      })),
     );
     const nwSeries = netWorthDays(today).map((day) => {
       if (day === today) return { day, cents: nw.totalCents };

@@ -129,9 +129,9 @@ Gemeinsamer Weg je Regel: Einstellungen › Regelwerk öffnen, die Zeile der Reg
   4. Der Nutzer klickt „Zahlungen prüfen“ (Alle Buchungen) und verschiebt oder streicht Zahlungen oder überträgt Geld.
 - **Ergebnis:** Der Tiefpunkt steigt; die Regel ist eingehalten, sobald er mindestens die Grenze (Standard 0 €) erreicht.
 - **Abnahmekriterien:**
-  1. Tiefpunkt unter der Grenze, aber im Rahmen des eingetragenen Dispos (Einstellungen › Konten): Warnung; darunter verletzt.
+  1. Tiefpunkt unter der Grenze, aber nicht unter 0 €: Warnung; unter 0 € verletzt. Der Dispo zählt nie mit (Entscheidung 17.11.2026); „Letzte Reserve (Dispo)“ steht als eigene Angabe dabei.
   2. Horizont (1–35 Tage) und Mindestbetrag sind einstellbar.
-  3. Das Dispo-Häkchen mit Limit am Konto (E-01) verschiebt die Grenze zwischen Warnung und verletzt.
+  3. Das Dispo-Häkchen mit Limit am Konto (E-01) ändert den Status nicht, nur die Angabe „Letzte Reserve (Dispo)“.
   4. Ohne Prognosedaten steht „Nicht prüfbar“.
 - **Status:** live — **Verweis:** Y23
 

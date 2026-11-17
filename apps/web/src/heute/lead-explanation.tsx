@@ -23,7 +23,6 @@ export function LeadExplanation({ data }: { data: Heute }) {
   });
   const labels = {
     balance: 'Kontostand',
-    inflow: 'Erwartete Eingänge',
     open: 'Offen bis Gehalt',
   };
   return (
@@ -32,14 +31,15 @@ export function LeadExplanation({ data }: { data: Heute }) {
         Frei bis Gehalt <strong>{eur(data.lead.freeCents)}</strong>
       </p>
       <p>
-        EUR · Kontostand der Budget-Konten plus erwartete Eingänge, abzüglich offener Rechnungen bis
-        zum regelbasierten Gehalt am {longDay(data.stand.payday.day)}. Stand heute ·{' '}
-        {longDay(data.stand.today)}.
+        EUR · Kontostand der Budget-Konten, abzüglich offener Rechnungen bis zum regelbasierten
+        Gehalt am {longDay(data.stand.payday.day)}. Stand heute · {longDay(data.stand.today)}.
       </p>
       <p>
-        {data.lead.overdraftCents > 0
-          ? `Darin sind ${eur(data.lead.overdraftCents)} Dispo-Rahmen enthalten: Geld, das die Bank nur überzieht und das du zurückzahlen musst. `
-          : 'Kein Dispo aktiviert: ein negativer Kontostand zählt voll negativ. '}
+        Weder Dispo noch erwartete Eingänge zählen mit; erwartete Eingänge stehen nur in der
+        Prognose.{' '}
+        {data.lead.lastResortCents > 0
+          ? `Letzte Reserve (Dispo): ${eur(data.lead.lastResortCents)}, Bankkredit, den du zurückzahlen musst. `
+          : 'Kein Dispo aktiviert. '}
         Die Kontoprognose verwendet einen festen Zeitraum von 35 Tagen und keine Stellschrauben.
       </p>
       <section id="tagesbudget" aria-label="Tagesbudget bis Gehalt">
@@ -53,36 +53,16 @@ export function LeadExplanation({ data }: { data: Heute }) {
       </section>
       <div id="rechenweg">
         <DimensionChain
-          terms={[
-            { label: 'Kontostand', value: cents(data.lead.balanceCents) },
-            { label: 'erwartete Eingänge', value: cents(data.lead.inflowCents), op: '+' },
-            { label: 'offen bis Gehalt', value: cents(data.lead.openCents), op: '-' },
-            ...(data.lead.overdraftCents > 0
-              ? [
-                  {
-                    label: 'Dispo-Rahmen',
-                    value: cents(data.lead.overdraftCents),
-                    op: '+' as const,
-                  },
-                ]
-              : []),
-            { label: 'frei verfügbar', value: cents(data.lead.freeCents), op: '=', result: true },
-          ]}
+          terms={data.lead.chain.map((term) => ({ ...term, value: cents(term.value) }))}
           precision="cent"
-          label="Kontostand plus erwartete Eingänge minus offene Rechnungen bis Gehalt plus Dispo-Rahmen"
+          label="Kontostand minus offene Rechnungen bis Gehalt"
         />
       </div>
-      {(['balance', 'inflow', 'open'] as const).map((kind) => (
+      {(['balance', 'open'] as const).map((kind) => (
         <section key={kind} className="heute-breakdown" aria-label={labels[kind]}>
           <h3>
             {labels[kind]} ·{' '}
-            {eur(
-              kind === 'balance'
-                ? data.lead.balanceCents
-                : kind === 'inflow'
-                  ? data.lead.inflowCents
-                  : -data.lead.openCents,
-            )}
+            {eur(kind === 'balance' ? data.lead.balanceCents : -data.lead.openCents)}
           </h3>
           {kind === 'open' ? (
             data.lead.items.open.length ? (
@@ -126,21 +106,6 @@ export function LeadExplanation({ data }: { data: Heute }) {
               </ul>
             ) : (
               <EmptyNote>Keine offenen Rechnungen vor dem Gehalt.</EmptyNote>
-            )
-          ) : kind === 'inflow' ? (
-            data.lead.items.inflow.length ? (
-              <ul>
-                {data.lead.items.inflow.map((item) => (
-                  <li key={item.id}>
-                    <span>
-                      {item.label} · {longDay(item.day)}
-                    </span>
-                    <strong>{eur(item.cents)}</strong>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <EmptyNote>Keine erwarteten Eingänge vor dem Gehalt.</EmptyNote>
             )
           ) : data.lead.items.accounts.length ? (
             <ul>
