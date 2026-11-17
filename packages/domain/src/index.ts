@@ -78,3 +78,4 @@ export * from './ledger/account-purpose';
 export * from './receipts';
 export * from './broker-documents/trade-confirmation';
 export * from './broker-documents/trade-proposal';
+export * from './statement-purchase-check';

@@ -436,3 +436,88 @@ it('persists explicit missing identifiers independently of card reference withou
   expect(pending.proposal.draft).toEqual(body.facts);
   expect(financialState()).toBe(before);
 });
+
+it('checks the retained misaligned statement against current EUR card purchases without writing (#1225 F11)', async () => {
+  opened.db.run(sql`UPDATE account SET type='credit_card' WHERE id='giro'`);
+  opened.db.run(
+    sql`INSERT INTO booking (id, account_id, date, amount_cents, currency, memo) VALUES ('synthetic-purchase', 'giro', '2030-12-31', -1234, 'EUR', 'Synthetic shop')`,
+  );
+  opened.db.run(sql`INSERT INTO transfer (id) VALUES ('synthetic-transfer')`);
+  opened.db.run(
+    sql`INSERT INTO booking (id, account_id, date, amount_cents, currency, transfer_id) VALUES ('synthetic-payment', 'giro', '2031-01-04', 9999, 'EUR', 'synthetic-transfer')`,
+  );
+  opened.db.run(
+    sql`INSERT INTO booking (id, account_id, date, amount_cents, currency) VALUES ('synthetic-new', 'giro', '2031-01-20', -4000, 'EUR')`,
+  );
+  const text = [
+    'Datum 19.01.2031',
+    'Datum nächste Umsatznachricht 19.02.2031',
+    'Wird eingezogen am 25.01.2031',
+    'Saldo 12,34-',
+    'Abrechnungszeitraum 20.12.2030 - 19.01.2031',
+    'Karte Umsatz Buchung Buchungstext Branche Betrag Kurs EUR Betrag',
+    '  1 30.12. 31.12. Synthetic shop     12,34-',
+  ];
+  const bytes = await syntheticColumnarPayslipPdf(
+    text.map((text) => [{ x: 40, text }]),
+    '',
+  );
+  const uploaded = await upload(bytes);
+  expect(uploaded.status).toBe(201);
+  const { intake } = (await uploaded.json()) as ApiJson;
+  const facts = Object.fromEntries(
+    Object.entries(intake.proposal.fields).map(([k, v]) => [k, v.value]),
+  );
+  const payload = {
+    revision: intake.revision,
+    accountId: intake.accountId,
+    sha256: intake.sha256,
+    facts,
+  };
+  const before = JSON.stringify(opened.db.all(sql`SELECT * FROM audit_log`)) + financialState();
+  const response = await jsonCall('POST', `/${intake.id}/purchase-check`, payload);
+  expect(response.status).toBe(200);
+  const result = await response.json();
+  expect(result).toMatchObject({
+    extractionIncomplete: false,
+    omittedBookings: 0,
+    check: {
+      sumMatches: true,
+      bookedPurchaseCents: 1234,
+      differenceCents: 0,
+      matched: [
+        { booking: { id: 'synthetic-purchase' }, line: { amountCents: -1234, date: '2030-12-31' } },
+      ],
+      statementOnly: [],
+      bookingOnly: [],
+    },
+  });
+  const second = await jsonCall('POST', `/${intake.id}/purchase-check`, payload);
+  expect(await second.json()).toEqual(result);
+  expect(JSON.stringify(opened.db.all(sql`SELECT * FROM audit_log`)) + financialState()).toBe(
+    before,
+  );
+  opened.db.run(sql`UPDATE booking SET amount_cents=-1235 WHERE id='synthetic-purchase'`);
+  const changed = await jsonCall('POST', `/${intake.id}/purchase-check`, payload);
+  expect(await changed.json()).toMatchObject({
+    check: { sumMatches: false, differenceCents: 1, amountDifferences: [{ differenceCents: -1 }] },
+  });
+  const stale = await jsonCall('POST', `/${intake.id}/purchase-check`, {
+    ...payload,
+    revision: '00000000-0000-4000-8000-000000000000',
+  });
+  expect(stale.status).toBe(409);
+  const unstated = await jsonCall('POST', `/${intake.id}/purchase-check`, {
+    ...payload,
+    facts: { ...facts, periodFrom: null, periodTo: null },
+  });
+  expect(await unstated.json()).toMatchObject({
+    check: { period: null, sumMatches: null, statementOnly: [], bookingOnly: [] },
+  });
+  const anonymous = await app.request(`/api/statement-intake/${intake.id}/purchase-check`, {
+    method: 'POST',
+    headers: { origin, 'content-type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  expect(anonymous.status).toBe(401);
+});

@@ -224,3 +224,41 @@ checks. The guard-ordering probe and real POSIX worker/private-output cases pass
 actual Windows refusal and fresh exact-head aggregate CI remain pending. The
 568-file full check and production build above belong to the earlier `15aa5a8`
 checkpoint, before this CLI correction.
+
+## Card purchases compared with the statement (F11)
+
+The credit-card review offers **Kartenkäufe jetzt abgleichen**. This is an explicit,
+read-only preview using the current form facts and current nondeleted bookings on
+that EUR card account. It compares signed final EUR position amounts, including
+refunds, with purchases booked within the inclusive statement cycle. Whole
+settlement transfers are excluded. A stated cycle can cross month and year ends;
+no cycle is inferred from a calendar month or the issue date. Without a full
+period, the sum and missing-purchase decisions remain unavailable.
+
+**Summe stimmt** means only that purchases minus refunds equal the entered printed
+total to the cent. It does not prove payment, completeness of extraction or unique
+position matching. Same-day/same-amount competitors stay open even when merchant
+names differ. One booking cannot satisfy two positions. A unique same-day merchant
+with a different amount is shown separately. Readable positions remain available
+when other rows are unreadable; missing-purchase capture is suppressed until the
+position list is complete. Mixed transfer/expense bookings and unsupported booking
+currencies are counted as omissions and prevent a sum verdict.
+
+Differences link to the existing booking register or capture page. Capture is an
+explicit owner action; check its date, category and refund treatment before saving.
+The check never calls the automation planner, creates an adjustment, links receipts,
+changes reconciliation status or writes audit history. The existing opt-in upload
+automation remains separate. Rerun after ledger edits; local API writes and changed
+form facts invalidate the displayed preview. Other-device changes require a fresh
+check. Extraction uses the retained original and existing bounded PDF/password
+policy; source revision is checked again after asynchronous extraction.
+
+The #1056 misaligned-column reader is already on main (`1258e732`); F11 reuses it
+and retains its synthetic regression suite. New synthetic coverage uses literal
+cents for exact/missing/duplicate purchases, partial refunds, final EUR amounts,
+cycle boundaries, ambiguity and repeated checks. Retained-PDF API coverage verifies
+fresh booking amounts, source conflicts, authentication and unchanged financial and
+audit tables. These tests do not establish support for every issuer, scanned PDFs,
+private statement acceptance or production reconciliation. Old carried balances,
+fees and manual corrections can still explain differences; none is automatically
+turned into a balancing booking. No database migration is needed.
