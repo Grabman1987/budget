@@ -10,6 +10,7 @@ import {
   type IncomeBySource,
   type SecurityKind,
   type TaxBreakdown,
+  mulDivRound,
 } from '@budget/domain';
 import { isNull } from 'drizzle-orm';
 import { security } from '../schema';
@@ -146,8 +147,7 @@ export function costsTaxesReport(db: Executor, options: { today: string }): Cost
       terCents: summary.costs.terCents,
       fees,
       totalCents: costsCents,
-      costRateBp:
-        summary.valueCents > 0 ? Math.round((costsCents * 10_000) / summary.valueCents) : 0,
+      costRateBp: summary.valueCents > 0 ? mulDivRound(costsCents, 10_000, summary.valueCents) : 0,
       targetBp: COST_RATE_TARGET_BP,
     },
     net: {

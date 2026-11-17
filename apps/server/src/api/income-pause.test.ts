@@ -108,7 +108,7 @@ describe('income pauses for one expected payment', () => {
       { actor: 'tester' },
     );
     const before = (await call('GET', '/heute')).body;
-    expect(before.lead.inflowCents).toBe(10001);
+    expect(before.lead.freeCents).toBe(before.lead.balanceCents - before.lead.openCents);
     const forecastBefore = (await call('GET', '/liquidity?horizon=6m')).body.report.months.find(
       (m: any) => m.month === '2026-03',
     );
@@ -119,7 +119,7 @@ describe('income pauses for one expected payment', () => {
     });
     expect(linked.status).toBe(200);
     const after = (await call('GET', '/heute')).body;
-    expect(after.lead.inflowCents).toBe(0);
+    expect(after.lead.freeCents).toBe(after.lead.balanceCents - after.lead.openCents);
     expect(after.lead.items.accounts).toEqual(before.lead.items.accounts);
     expect(after.lead.balanceCents).toBe(210001);
     expect(
@@ -128,7 +128,7 @@ describe('income pauses for one expected payment', () => {
       ).incomeCents,
     ).toBe(0);
     expect((await call('POST', '/undo', { groupId: linked.body.groupId })).status).toBe(200);
-    expect((await call('GET', '/heute')).body.lead.inflowCents).toBe(10001);
+    expect((await call('GET', '/heute')).body.lead.freeCents).toBe(before.lead.freeCents);
     expect(
       (await call('GET', '/liquidity?horizon=6m')).body.report.months.find(
         (m: any) => m.month === '2026-03',
@@ -144,13 +144,13 @@ describe('income pauses for one expected payment', () => {
       amountCents: 10_001,
     });
     const before = (await call('GET', '/heute')).body;
-    expect(before.lead.inflowCents).toBe(10_001);
+    expect(before.lead.freeCents).toBe(before.lead.balanceCents - before.lead.openCents);
     const closed = await call('POST', `/expected/${sourceId}/skip`, { dueDate: '2026-03-20' });
     expect(closed.status).toBe(200);
     const after = (await call('GET', '/heute')).body;
-    expect(after.lead.inflowCents).toBe(0);
     expect(after.lead.balanceCents).toBe(before.lead.balanceCents);
-    expect(after.lead.freeCents).toBe(before.lead.freeCents - 10_001);
+    // an expected inflow never counts as free money, so closing it leaves the lead unchanged
+    expect(after.lead.freeCents).toBe(before.lead.freeCents);
     const forecast = (await call('GET', '/liquidity?horizon=6m')).body.report;
     expect(forecast.months.find((m: any) => m.month === '2026-03').incomeCents).toBe(0);
     expect(forecast.months.find((m: any) => m.month === '2026-04').incomeCents).toBe(10_001);
@@ -158,7 +158,7 @@ describe('income pauses for one expected payment', () => {
     expect(income.expectedCents).toBe(0);
     expect(income.closedPayments).toMatchObject([{ expectedCents: 10_001, receivedCents: 0 }]);
     expect((await call('POST', '/undo', { groupId: closed.body.groupId })).status).toBe(200);
-    expect((await call('GET', '/heute')).body.lead.inflowCents).toBe(10_001);
+    expect((await call('GET', '/heute')).body.lead.freeCents).toBe(before.lead.freeCents);
     expect((await call('GET', '/expected/income?month=2026-03')).body.closedPayments).toEqual([]);
   });
 

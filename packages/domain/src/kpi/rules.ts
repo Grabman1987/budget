@@ -7,6 +7,7 @@ import {
   type TargetEnvelope,
   type WaterfallRow,
 } from '../ledger/targets';
+import { mulDivRound } from '../wealth/int';
 
 /**
  * Rule checks R04, R05, R06, R09 and R12 (concept §3.5) as pure functions. They return the facts
@@ -93,7 +94,7 @@ export function windfallSplit(input: {
   enjoyBp?: number;
 }): WindfallSplit {
   const amount = Math.max(0, input.amountCents);
-  const enjoyCents = Math.round((amount * (input.enjoyBp ?? WINDFALL_ENJOY_BP)) / 10_000);
+  const enjoyCents = mulDivRound(amount, input.enjoyBp ?? WINDFALL_ENJOY_BP, 10_000);
   const restCents = amount - enjoyCents;
   const fill = waterfallFill(input.rows, restCents);
   const placed = Object.values(fill).reduce((a, v) => a + v, 0);
@@ -121,8 +122,10 @@ export function windfallCheck(input: {
   assignedOtherCents: number;
   enjoyBp?: number;
 }): WindfallCheck {
-  const expectedEnjoyCents = Math.round(
-    (Math.max(0, input.amountCents) * (input.enjoyBp ?? WINDFALL_ENJOY_BP)) / 10_000,
+  const expectedEnjoyCents = mulDivRound(
+    Math.max(0, input.amountCents),
+    input.enjoyBp ?? WINDFALL_ENJOY_BP,
+    10_000,
   );
   const enjoyDiffCents = input.assignedEnjoyCents - expectedEnjoyCents;
   const undistributedCents =

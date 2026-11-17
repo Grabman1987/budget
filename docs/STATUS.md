@@ -68,6 +68,8 @@ Bank read connection (#361) is live: the nightly read on 2026-10-10 linked most 
 
 Everything below remains open and needs the owner; nothing here is promoted to a sign-off by this update.
 
+Acceptance tolerances, the parallel-run protocol and the delivery report template are fixed in [acceptance-tolerances.md](acceptance-tolerances.md).
+
 | Gate / item | Current acceptance status | Next evidence |
 | --- | --- | --- |
 | 1: design and device acceptance | Open | #310 iPhone timing (Heute answer ≤ 5 s, booking Save reachable ≤ 10 s, no real booking); physical screen-reader check of the booking dialog |

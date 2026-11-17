@@ -103,8 +103,14 @@ describe('sample ledger at 17.09.2026', () => {
     expect(latest('R03')?.status).toBe('ok');
   });
 
-  it('R07 the 35-day low point stays above 0 (the prototype sample low is 145 €)', () => {
-    expect(latest('R07')).toMatchObject({ status: 'ok', valueText: 'Tiefpunkt 191 €' });
+  it('R07 includes the overdue reserve payment and warns below zero without overdraft', () => {
+    // 116,700 cash - 30,000 overdue - (10,500 + 2,500 + 1,799) bills
+    // - 207,000 monthly variable spending * 12/30 days = -10,899 cents on 29 September.
+    expect(latest('R07')).toMatchObject({
+      status: 'bad',
+      valueText: 'Tiefpunkt \u2212109 \u20ac',
+      detail: { lowDay: '2026-09-29', lowCents: -10_899 },
+    });
   });
 
   it('R08, R10, R09: quotas from the real contracts, Sondertilgung active', () => {
@@ -161,19 +167,19 @@ describe('financeCheck', () => {
   it('counts, the six key rules by severity, stage and checklist', () => {
     const c = financeCheck(db, TODAY);
     expect(c.counts).toEqual({
-      ok: 9,
+      ok: 8,
       warn: 3,
-      bad: 4,
+      bad: 5,
       total: DEFAULT_ACTIVE_RULE_COUNT,
       notEvaluated: 0,
     });
-    // bad first (R02, R15), then warn (R01, R03 is ok here), ties in the key order of Heute
+    // bad first (R02, R15, R07), then warn (R01, R03 is ok here), ties in the key order of Heute
     expect(c.keyRules.map((r) => r.status)).toEqual(
       [...c.keyRules.map((r) => r.status)].sort(
         (a, b) => ({ bad: 0, warn: 1, ok: 2 })[a] - { bad: 0, warn: 1, ok: 2 }[b],
       ),
     );
-    expect(c.keyRules.slice(0, 2).map((r) => r.code)).toEqual(['R02', 'R15']);
+    expect(c.keyRules.slice(0, 3).map((r) => r.code)).toEqual(['R02', 'R15', 'R07']);
     expect(c.keyRules).toHaveLength(6);
     expect(c.stage).toMatchObject({ stage: 2, label: 'Aufbau' });
     expect(c.netWorthCents).toBe(8_473_000);
@@ -214,7 +220,7 @@ describe('editing', () => {
     evaluateRules(db, TODAY);
     const c = financeCheck(db, TODAY);
     expect(c.counts.total).toBe(DEFAULT_ACTIVE_RULE_COUNT - 1);
-    expect(c.counts.bad).toBe(3);
+    expect(c.counts.bad).toBe(4);
     expect(c.keyRules.map((r) => r.code)).not.toContain('R15');
     expect(ruleResults(db, '2025-09-30', TODAY).rules.map((r) => r.code)).not.toContain('R15');
     updateRule(db, 'R15', { enabled: true }, ctx);

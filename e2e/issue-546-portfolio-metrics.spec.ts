@@ -1,4 +1,3 @@
-import { redesignReportsOn } from './report-frame';
 import { withShellControls } from './shell-actions';
 import AxeBuilder from '@axe-core/playwright';
 import { openDatabase, type PortfolioSummary } from '@budget/db';
@@ -171,9 +170,7 @@ for (const scheme of ['light', 'dark'] as const) {
       await expect(comparison.getByRole('row').nth(1)).toContainText('+5,0 Pp');
       await expect(flows.getByRole('row').nth(1)).toContainText('+100,00 €');
     }
-    const reportTarget = (await redesignReportsOn(page))
-      ? '/reports/vermoegen-schulden'
-      : '/reports/pallocation';
+    const reportTarget = '/reports/pallocation';
     await metrics.getByRole('link', { name: 'Portfolio-Auswertung öffnen' }).click();
     await expect(page).toHaveURL(
       (url) =>

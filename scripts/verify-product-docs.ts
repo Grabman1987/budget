@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { financialTermErrors } from './ci/financial-terms.mjs';
 import { PAGES } from '../apps/web/src/nav/pages';
 import { REPORT_GROUPS } from '../apps/web/src/nav/reports-catalog';
 import { RULE_DEFS } from '../packages/domain/src/rules/definitions';
@@ -101,6 +102,7 @@ for (const [name, text] of docs) {
   }
 }
 for (const id of families) assert.ok(doc('screen-contracts.md').includes(id) || id === 'ONB01');
+assert.deepEqual(financialTermErrors(root), [], 'SPEC Financial terms drift');
 console.log(
   `Product docs verified: ${files.length} files, ${functional.length} functional requirements, ` +
     `${legacy.length} legacy features, ${reports.length} reports, ${RULE_CODES.length} rules, ` +

@@ -61,7 +61,7 @@ beforeEach(() => {
     },
     events: [],
     incomePauses: [],
-    overdraftLimitCents: 0,
+    lastResortCents: 0,
     budgetAccounts: [{ id: 'synthetic', name: 'Synthetic budget account' }],
   };
   client.setQueryData(liquidityQuery('35d', []).queryKey, oldQuery);

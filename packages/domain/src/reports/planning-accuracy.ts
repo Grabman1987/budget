@@ -1,11 +1,12 @@
 import { addMonths } from '../date';
+import { mulDivRound, roundDivCents } from '../wealth/int';
 
 /** Forecast minus actual; zero/net-negative spending has no meaningful relative error. */
 export function forecastAccuracy(projectedCents: number, actualCents: number) {
   const deviationCents = projectedCents - actualCents;
   return {
     deviationCents,
-    deviationBp: actualCents > 0 ? Math.round((deviationCents * 10_000) / actualCents) : null,
+    deviationBp: actualCents > 0 ? mulDivRound(deviationCents, 10_000, actualCents) : null,
     // Compare cents before display rounding, including the exact 5% boundary.
     hit: actualCents > 0 ? Math.abs(deviationCents) * 20 <= actualCents : null,
   };
@@ -24,10 +25,9 @@ export function forecastAccuracySummary(
     hits: comparable.filter((r) => r.hit).length,
     // Integer bp per row, one integer division at the end (half up): order independent.
     meanAbsoluteBp: comparable.length
-      ? Math.floor(
-          (2 * comparable.reduce((sum, r) => sum + Math.abs(r.deviationBp!), 0) +
-            comparable.length) /
-            (2 * comparable.length),
+      ? roundDivCents(
+          comparable.reduce((sum, r) => sum + Math.abs(r.deviationBp!), 0),
+          comparable.length,
         )
       : null,
   };

@@ -42,6 +42,7 @@ import {
   type AllocationQuality,
   type WindowPerformance,
   windowPerformance,
+  mulDivRound,
 } from '@budget/domain';
 import { and, asc, eq, gt, inArray, isNull, lte, ne } from 'drizzle-orm';
 import {
@@ -777,6 +778,39 @@ function performanceStart(db: Executor, options: PortfolioOptions, today: string
   );
 }
 
+/**
+ * Realised gain of all sales up to `today` (cumulative) and whether every basis was documented.
+ * The one definition: the summary and the Jahresreport (difference of two stands) both use it.
+ */
+export function realizedGainAsOf(
+  db: Executor,
+  today: string,
+  loaded: Loaded = load(db),
+  rates: RateTable = ratesAsOf(db, today),
+  costMethod: CostMethod = investmentPreferences(db).costMethod,
+): { realizedGainCents: number; realizedGainComplete: boolean } {
+  const realizedSnapshots = db
+    .select()
+    .from(holding)
+    .where(and(isNull(holding.deletedAt), lte(holding.asOf, today)))
+    .all();
+  const realizedTrades = tradesUpTo(db, today);
+  const realizedResults = [
+    ...realizedByPosition(
+      realizedSnapshots,
+      realizedTrades,
+      loaded.accountCurrency,
+      new Set(loaded.securities.keys()),
+      rates,
+      costMethod,
+    ).values(),
+  ];
+  return {
+    realizedGainCents: realizedResults.reduce((sum, result) => sum + result.cents, 0),
+    realizedGainComplete: realizedResults.every((result) => result.complete),
+  };
+}
+
 function portfolioSummaryInRange(
   db: Executor,
   options: PortfolioOptions,
@@ -794,24 +828,13 @@ function portfolioSummaryInRange(
     ? null
     : lines.reduce((sum, line) => sum + (line.costCents ?? 0), 0);
   const rates = ratesAsOf(db, today);
-  const realizedSnapshots = db
-    .select()
-    .from(holding)
-    .where(and(isNull(holding.deletedAt), lte(holding.asOf, today)))
-    .all();
-  const realizedTrades = tradesUpTo(db, today);
-  const realizedResults = [
-    ...realizedByPosition(
-      realizedSnapshots,
-      realizedTrades,
-      loaded.accountCurrency,
-      new Set(loaded.securities.keys()),
-      rates,
-      costMethod,
-    ).values(),
-  ];
-  const realizedGainCents = realizedResults.reduce((sum, result) => sum + result.cents, 0);
-  const realizedGainComplete = realizedResults.every((result) => result.complete);
+  const { realizedGainCents, realizedGainComplete } = realizedGainAsOf(
+    db,
+    today,
+    loaded,
+    rates,
+    costMethod,
+  );
 
   const investmentAccounts = db
     .select({ id: account.id })
@@ -1100,7 +1123,7 @@ function portfolioSummaryInRange(
     terCents,
     feesCents,
     totalCents: totalCostCents,
-    costRateBp: valueCents > 0 ? Math.round((totalCostCents * 10_000) / valueCents) : 0,
+    costRateBp: valueCents > 0 ? mulDivRound(totalCostCents, 10_000, valueCents) : 0,
     bySecurity: costsBySecurity,
   };
   const income = incomeLast12Months(allTrades, today);
@@ -1200,8 +1223,7 @@ export function exposurePositionLines(
         costCents: split(line.costCents),
         gainCents: split(line.gainCents),
         realizedGainCents: split(line.realizedGainCents) ?? 0,
-        shareBp:
-          line.valueCents > 0 ? Math.round((line.shareBp * valueCents) / line.valueCents) : 0,
+        shareBp: line.valueCents > 0 ? mulDivRound(line.shareBp, valueCents, line.valueCents) : 0,
       };
     });
   });

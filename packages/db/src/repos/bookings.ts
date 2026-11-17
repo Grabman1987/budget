@@ -1,5 +1,5 @@
 import { bookingIncomeDefault } from './income-month';
-import { contactStatement } from '@budget/domain';
+import { contactStatement, mulDivRound } from '@budget/domain';
 import { actualContactMovements, savedContactSettlements } from './contact-invariants';
 import { contactCreditRecords, saveContactCreditRecord } from './contact-credit';
 import { assertContactActive, resolveContactForWrite } from './contact-label';
@@ -133,6 +133,8 @@ export interface WriteOptions {
   unlockReconciled?: boolean;
   /** Owner capture/edit opts into current contact receipts and new shared-category pairs. */
   contactModel?: boolean;
+  /** Owner confirmed editing an outlay that a contact repayment allocates (#1108). */
+  unlockContactLinked?: boolean;
 }
 
 /** Fields of a reconciled booking that stay editable without an unlock (no effect on any figure). */
@@ -228,7 +230,7 @@ function normalizeFx<T extends FxFields>(input: T): T {
   if (!Number.isSafeInteger(rate) || rate <= 0)
     throw new BookingInvariantError(`FX rate ${rate} must be a positive integer (micro-units)`);
   const amount = input.amountCents as number;
-  const converted = Math.round((original * rate) / 1e6);
+  const converted = mulDivRound(original, rate, 1_000_000);
   if (Math.abs(amount - (converted + fee)) > 1) {
     throw new BookingInvariantError(
       `Amount ${amount} cents does not match ${original} × ${rate / 1e6} + fee ${fee} = ${converted + fee} cents`,
@@ -866,6 +868,7 @@ function updateBookingImpl(
       Object.entries(patch)
         .filter(([, v]) => v !== undefined)
         .map(([k]) => k),
+      { unlockLinked: options.unlockContactLinked ?? false, groupId: grouped.groupId },
     );
     // Reconciled bookings: only flag and memo are free; a status change also needs the unlock.
     const touchesLocked = Object.entries(patch).some(
@@ -996,7 +999,9 @@ function updateBookingImpl(
           Object.keys(patch).filter((key) => key === 'date' || key === 'amountCents'),
         );
       // Preserve the existing pair lock for date and amount edits.
-      if (patch.date !== undefined || amountChanged) assertUnlocked([partner], options);
+      // Independently dated bank legs keep their own date, so the partner stays untouched (#1195).
+      if ((patch.date !== undefined && !independentDates) || amountChanged)
+        assertUnlocked([partner], options);
       const partnerPatch: Record<string, unknown> = {};
       if (patch.date !== undefined && !independentDates) partnerPatch['date'] = patch.date;
       if (amountChanged) {
@@ -1307,7 +1312,11 @@ function deleteBookingImpl(
     const legs = transferLegs(tx, cur);
     if (!tradeNative)
       for (const leg of legs) assertTradeSettlementBookingWrite(tx, leg.id, 'delete');
-    for (const leg of legs) assertContactBookingWrite(tx, leg.id, 'delete');
+    for (const leg of legs)
+      assertContactBookingWrite(tx, leg.id, 'delete', [], {
+        unlockLinked: options.unlockContactLinked ?? false,
+        groupId: grouped.groupId,
+      });
     for (const leg of legs) assertStatementBookingWrite(tx, leg.id, 'delete');
     assertUnlocked(
       legs.filter((l) => l.deletedAt === null),

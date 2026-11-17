@@ -5,6 +5,32 @@ import { eur, longDay } from '../ledger/format';
 import { bpText, monthShort } from './spending-shared';
 import { ReportTable } from './report-table';
 
+/** Calendar-year split of the existing monthly bank and interest costs; a year with fewer than 12 months is marked partial. */
+export function bankCostsByYear(monthly: BankCostsReport['monthly']) {
+  const years = new Map<string, { cents: number; months: number }>();
+  for (const row of monthly) {
+    const year = row.month.slice(0, 4);
+    const entry = years.get(year) ?? { cents: 0, months: 0 };
+    entry.cents = cents(entry.cents + row.totalCents);
+    entry.months += 1;
+    years.set(year, entry);
+  }
+  return [...years].sort(([a], [b]) => b.localeCompare(a));
+}
+
+/** The one place that feeds the existing readers' figures into `combinedCosts`. */
+export function combinedCostsOf(bank: BankCostsReport, portfolio: CostsTaxesReport) {
+  return combinedCosts({
+    bankCents: bank.totalCents,
+    portfolioFeeCents:
+      (bank.rows.find((row) => row.key === 'orders')?.cents ?? 0) +
+      (bank.portfolioAccountFeeCents ?? 0),
+    terCents: portfolio.costs.terCents,
+    taxCents: portfolio.taxes.totalCents,
+    valueCents: portfolio.valueCents,
+  });
+}
+
 /**
  * "Kosten gesamt": one annual figure over the two existing readers. Trading fees are counted once
  * (inside the bank costs); TER and the broker's withheld taxes come from the portfolio reader.
@@ -17,18 +43,11 @@ export function CombinedCostsView({
   portfolio: CostsTaxesReport;
 }) {
   useAmountPrivacy();
-  const total = combinedCosts({
-    bankCents: bank.totalCents,
-    portfolioFeeCents:
-      (bank.rows.find((row) => row.key === 'orders')?.cents ?? 0) +
-      (bank.portfolioAccountFeeCents ?? 0),
-    terCents: portfolio.costs.terCents,
-    taxCents: portfolio.taxes.totalCents,
-    valueCents: portfolio.valueCents,
-  });
+  const total = combinedCostsOf(bank, portfolio);
   const bankWindow = bank.months.length
     ? `${monthShort(bank.months[0]!)} bis ${monthShort(bank.months.at(-1)!)}`
     : 'keine geschlossenen Monate';
+  const byYear = bankCostsByYear(bank.monthly ?? []);
   const estimated = bank.rows.some((row) => row.key === 'modeledInterest' && row.cents !== 0);
   const gaps: string[] = [];
   if (bank.modeledInterestMissingFxPeriods)
@@ -117,6 +136,33 @@ export function CombinedCostsView({
           </tr>
         </tbody>
       </ReportTable>
+      {byYear.length > 0 && (
+        <ReportTable
+          caption="Bank- und Zinskosten je Kalenderjahr"
+          regionLabel="Bank- und Zinskosten je Kalenderjahr"
+          className="sr-table"
+          data-testid="cc-years"
+        >
+          <thead>
+            <tr>
+              <th scope="col">Kalenderjahr</th>
+              <th scope="col" className="n">
+                Bank- und Zinskosten
+              </th>
+              <th scope="col">Monate</th>
+            </tr>
+          </thead>
+          <tbody>
+            {byYear.map(([year, entry]) => (
+              <tr key={year}>
+                <th scope="row">{year}</th>
+                <td className="n">{eur(entry.cents)}</td>
+                <td>{entry.months < 12 ? `${entry.months} von 12 Monaten` : '12 Monate'}</td>
+              </tr>
+            ))}
+          </tbody>
+        </ReportTable>
+      )}
       <p className="sr-note">
         Handelsgebühren stehen nur einmal (aus den Bankkosten). Die Kostenquote rechnet nur
         Portfolio-Kosten; Haushalts- und Zinskosten sowie Steuern stehen getrennt. Die Zeiträume

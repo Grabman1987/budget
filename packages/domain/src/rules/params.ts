@@ -67,7 +67,7 @@ export const PARAM_SCHEMAS = {
   R06: z.object({}),
   R07: z.object({
     horizonDays: z.number().int().min(1).max(35).default(35),
-    minCents: z.number().int().default(0),
+    minCents: z.number().int().min(0).default(0),
   }),
   R08: z.object({
     maxBp: bp.default(3000),

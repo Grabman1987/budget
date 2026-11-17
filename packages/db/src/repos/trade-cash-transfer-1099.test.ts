@@ -190,7 +190,7 @@ describe('trade with counter booking on the Verrechnungskonto (#1099)', () => {
         /counter transfer of a deleted trade/,
       );
     // The trade's own settlement booking stays tied to the trade.
-    expect(() => restoreBooking(opened.db, bookingId!, testCtx)).toThrow(/trade settlement/);
+    expect(() => restoreBooking(opened.db, bookingId!, testCtx)).toThrow(/Handelsabrechnung/);
     expect(legs().filter((r) => r.deletedAt === null)).toHaveLength(0);
     expect(balance('giro')).toBe(giroBefore);
     expect(balance('depot')).toBe(0);

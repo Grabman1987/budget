@@ -1,4 +1,5 @@
 import { addDays, addMonths, lastDayOfMonth, monthOf } from '../date';
+import { mulDivRound } from '../wealth/int';
 
 /**
  * Structure of the net worth by account type (report 3.3 Vermögensverläufe): what each type adds
@@ -100,7 +101,7 @@ export function structureRows(start: Structure, now: Structure): StructureRow[] 
         shareBp:
           g.liability || assetsNow <= 0
             ? null
-            : Math.round(((now[g.key]?.assetsCents ?? 0) * 10_000) / assetsNow),
+            : mulDivRound(now[g.key]?.assetsCents ?? 0, 10_000, assetsNow),
       };
     });
 }

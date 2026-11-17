@@ -141,6 +141,15 @@ export function IncomeExpenseCashflow({
               </tr>
             ))}
           </tbody>
+          <tfoot>
+            <tr>
+              <th>Summe · {rows.length} Monate</th>
+              <td>{eur(rows.reduce((a, r) => a + r.income, 0))}</td>
+              <td>{eur(rows.reduce((a, r) => a + r.expenses, 0))}</td>
+              <td>{eur(last.cumulative)}</td>
+              <td>{eur(last.cumulative)}</td>
+            </tr>
+          </tfoot>
         </table>
       </div>
     </section>

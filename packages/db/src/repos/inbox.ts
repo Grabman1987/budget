@@ -43,6 +43,7 @@ import { listReceipts } from './receipts';
 import { accountReminders } from './account-reminders';
 import { savingsExecutionProposals, type SavingsExecutionProposal } from './savings-plans';
 import { candidateMatches } from './bank-followups';
+import { LINK_PROPOSAL_REF, parseLinkProposalId } from './expected-auto-link';
 import { payslipDocumentMetadata } from './payslip-intake';
 import { readAssignmentCandidate } from './assignment-rules';
 import { bookedBalance } from './reconciliation';
@@ -85,6 +86,8 @@ export interface InboxStored {
   /** Price-source warning of an instrument without a current holding (own task group). */
   historical?: true;
   payslipDocument?: ReturnType<typeof payslipDocumentMetadata>;
+  /** Open proposal to link a bank booking to an occurrence of a recurring payment (#1102). */
+  linkProposal?: { occurrenceId: string; bookingId: string };
   bankCandidate?:
     | {
         date: string;
@@ -520,6 +523,12 @@ export function readInbox(
           : {}),
         ...(row.refType === 'bank-sync-candidate' && row.refId
           ? { bankCandidate: candidates.get(row.refId) }
+          : {}),
+        ...(row.refType === LINK_PROPOSAL_REF
+          ? (() => {
+              const linkProposal = parseLinkProposalId(row.id);
+              return linkProposal ? { linkProposal } : {};
+            })()
           : {}),
       }));
     if (stored.some((e) => e.kind === 'stale_value' && e.refType === 'security')) {

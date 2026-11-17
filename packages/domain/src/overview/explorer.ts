@@ -2,6 +2,7 @@ import type { Period } from '../invest/performance';
 import { calendarRangeMonths, isCalendarRange } from '../report-range';
 import { addMonths, monthsBetween } from '../date';
 import type { OverviewClass, OverviewData } from './figures';
+import { roundDivCents } from '../wealth/int';
 
 /**
  * Explorer (report 5.3): a pivot over the booking splits. Rows by Kategorie, Gruppe, Klasse,
@@ -253,8 +254,8 @@ export function explorerPivot(
         values = acc.bookings.map((s) => s.size);
         total = allBookings.size;
       } else if (query.meas === 'avg') {
-        values = acc.cents.map((c, i) => Math.round(c / monthsIn(i)));
-        total = Math.round(sumCents / Math.max(months.length, 1));
+        values = acc.cents.map((c, i) => roundDivCents(c, monthsIn(i)));
+        total = roundDivCents(sumCents, Math.max(months.length, 1));
       } else {
         values = acc.cents;
         total = sumCents;

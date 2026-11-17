@@ -77,7 +77,7 @@ export async function freezeHeuteVisual(page: Page) {
 export async function expectHeuteVisualReady(page: Page) {
   const redesign = (await page.locator('[data-budget-redesign="1"]').count()) === 1;
   if (redesign) {
-    await expect(page.getByTestId('heute-lead-value')).toHaveText('7.062,79 €');
+    await expect(page.getByTestId('heute-lead-value')).toHaveText('−1.549,21 €');
     await expect(page.locator('.hv-grid .hv-number')).toHaveText(['1', '2', '3', '4', '5']);
     await expect(page.getByTestId('liquidity-chart')).toBeVisible();
     await expect(page.getByTestId('heute-wealth-history')).toBeVisible();
@@ -85,7 +85,7 @@ export async function expectHeuteVisualReady(page: Page) {
     return;
   }
   // #571: Frei bis Gehalt (the lead figure) is the middle Kennzahl in the mode Bis Gehalt.
-  await expect(page.getByTestId('heute-lead-value')).toContainText('7.062,79');
+  await expect(page.getByTestId('heute-lead-value')).toContainText('−1.549,21');
   await expect(page.getByTestId('heute-kennzahlen').getByRole('heading', { level: 2 })).toHaveText([
     'Zu verteilen',
     redesign ? 'Verfügbar im Budget' : 'Frei bis Gehalt',

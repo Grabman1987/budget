@@ -36,6 +36,7 @@ export function useCoverAllPreview(month: string, data: BudgetMonthView | undefi
         () => coverAll(month, fromId, preview.data.expectedBasis),
         (res) =>
           `${res.coveredCount} gedeckt, ${res.openCount} offen · ${eur(res.missingCents)} fehlen${res.openCount > 0 ? ' · auf freies Geld begrenzt' : ''}`,
+        { awaitRefresh: false },
       );
       if (result) setOpen(false);
       else setFailed(true);

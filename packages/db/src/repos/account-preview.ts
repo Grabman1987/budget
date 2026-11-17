@@ -19,7 +19,7 @@ import { bookedAmountIn, upcoming } from './expected';
 import { fxRateOnOrBefore } from './prices';
 import { balanceSeries } from './ledger-queries';
 import type { Executor } from './types';
-import { forecastInputs, loadFacts, scheduled } from './rule-inputs';
+import { forecastInputs, isPlannedOccurrence, loadFacts, scheduled } from './rule-inputs';
 import { CategoryRuleError } from './errors';
 import {
   statementForecastLegs,
@@ -173,7 +173,14 @@ export function accountPreview(
         plannedEventOccurrences(e, addDays(asOf, 1), to).length > 0,
     ).length;
     const unassignedPaymentCount = new Set(
-      sharedDue.filter((row) => row.payment.accountId === null).map((row) => row.payment.id),
+      sharedDue
+        .filter(
+          (row) =>
+            row.payment.accountId === null &&
+            // A payment already settled by a booking up to today is no open coverage gap.
+            isPlannedOccurrence(facts!, row.payment.id, row.dueDate, { skipSettledBy: asOf }),
+        )
+        .map((row) => row.payment.id),
     ).size;
     return {
       points: report.points.map((p) => ({ date: p.day, balanceCents: p.balanceCents })),

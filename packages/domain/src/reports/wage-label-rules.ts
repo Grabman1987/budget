@@ -11,5 +11,8 @@ const TRAVEL_EXPENSE = /reisespesen|reisekosten|kilometergeld|taggeld|diaten|die
 export const isReimbursementLabel = (plain: string) =>
   SALARY_ALLOWANCE.test(plain) || TRAVEL_EXPENSE.test(plain);
 
-export const isSalaryAllowanceLabel = (label: string) =>
-  SALARY_ALLOWANCE.test(label.normalize('NFKD').replace(/\p{M}/gu, '').toLowerCase());
+export const isSalaryAllowanceLabel = (label: string) => {
+  const plain = label.normalize('NFKD').replace(/\p{M}/gu, '').toLowerCase();
+  // A mixed label ("Fahrgeld/Reisespesen") stays a reimbursement: never count travel as salary.
+  return SALARY_ALLOWANCE.test(plain) && !TRAVEL_EXPENSE.test(plain);
+};

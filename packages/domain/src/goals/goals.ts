@@ -1,4 +1,4 @@
-import { mulDivRound } from '../wealth/int';
+import { mulDivRound, roundDivCents } from '../wealth/int';
 import { addMonths, monthOf, monthsBetween } from '../date';
 
 /**
@@ -42,7 +42,10 @@ export function neededMonthlyCents(remaining: number, months: number): number {
 export function averageRateCents(monthly: readonly number[]): number {
   const last = monthly.slice(-GOAL_FORECAST_MONTHS);
   if (last.length === 0) return 0;
-  return Math.round(last.reduce((a, v) => a + v, 0) / last.length);
+  return roundDivCents(
+    last.reduce((a, v) => a + v, 0),
+    last.length,
+  );
 }
 
 /**

@@ -1,3 +1,4 @@
+import { chooseReportMenuValue, expectReportMenuValue } from './report-menu';
 import AxeBuilder from '@axe-core/playwright';
 import { expect } from '@playwright/test';
 import { mkdirSync } from 'node:fs';
@@ -19,9 +20,9 @@ for (const [view, selector] of VIEWS) {
   test(`portfolio views retain source scopes, heatmap, class index history and all period parameters · ${view}`, async ({
     page,
   }) => {
-    await page.goto('/reports/vermoegen-schulden?darstellung=rendite&zeitraum=YTD&monat=2026-08');
+    await page.goto('/reports/pallocation?darstellung=rendite&zeitraum=YTD&monat=2026-08');
     if (!(await redesignReportsOn(page))) {
-      await expect(page.locator('.assets-debts-report')).toBeVisible();
+      await expect(page.locator('.portfolio-performance-report')).toBeVisible();
       return;
     }
     const performance = await (
@@ -33,9 +34,7 @@ for (const [view, selector] of VIEWS) {
       await page.request.get('/api/portfolio?period=YTD&view=securities&history=contributions')
     ).json();
 
-    await page
-      .getByRole('combobox', { name: 'Darstellung des Vermögensreports' })
-      .selectOption(view!);
+    await chooseReportMenuValue(page, view!);
     await expect(page.locator(selector!)).toBeVisible();
     expect(new URL(page.url()).searchParams.get('zeitraum')).toBe('YTD');
     expect(new URL(page.url()).searchParams.get('monat')).toBe('2026-08');
@@ -124,17 +123,15 @@ for (const [view, selector] of VIEWS) {
       await page.getByText('Monatliche Klassenverläufe und Werte', { exact: true }).click();
     }
     await page.reload();
-    await expect(
-      page.getByRole('combobox', { name: 'Darstellung des Vermögensreports' }),
-    ).toHaveValue(view!);
+    await expectReportMenuValue(page, view!);
   });
 
   test(`portfolio views retain both theme audits, reflow and evidence · ${view}`, async ({
     page,
   }, info) => {
-    await page.goto(`/reports/vermoegen-schulden?darstellung=${view}&zeitraum=YTD&monat=2026-08`);
+    await page.goto(`/reports/pallocation?darstellung=${view}&zeitraum=YTD&monat=2026-08`);
     if (!(await redesignReportsOn(page))) {
-      await expect(page.locator('.assets-debts-report')).toBeVisible();
+      await expect(page.locator('.portfolio-performance-report')).toBeVisible();
       return;
     }
     const ready = {
@@ -180,22 +177,18 @@ for (const [view, selector] of VIEWS) {
 test('portfolio view switches preserve the complete sequential period/month/reload journey', async ({
   page,
 }) => {
-  await page.goto('/reports/vermoegen-schulden?darstellung=rendite&zeitraum=YTD&monat=2026-08');
+  await page.goto('/reports/pallocation?darstellung=rendite&zeitraum=YTD&monat=2026-08');
   if (!(await redesignReportsOn(page))) {
-    await expect(page.locator('.assets-debts-report')).toBeVisible();
+    await expect(page.locator('.portfolio-performance-report')).toBeVisible();
     return;
   }
   for (const [view, selector] of VIEWS) {
-    await page
-      .getByRole('combobox', { name: 'Darstellung des Vermögensreports' })
-      .selectOption(view);
+    await chooseReportMenuValue(page, view);
     await expect(page.locator(selector)).toBeVisible();
     expect(new URL(page.url()).searchParams.get('zeitraum')).toBe('YTD');
     expect(new URL(page.url()).searchParams.get('monat')).toBe('2026-08');
     await page.reload();
-    await expect(
-      page.getByRole('combobox', { name: 'Darstellung des Vermögensreports' }),
-    ).toHaveValue(view);
+    await expectReportMenuValue(page, view);
     await expect(page.locator(selector)).toBeVisible();
   }
 });

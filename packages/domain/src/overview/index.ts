@@ -27,7 +27,9 @@ export {
 export {
   reportYears,
   yearReport,
+  yearSavingsSplit,
   yearWealthChange,
+  yearWealthColumns,
   type ClassAmounts,
   type YearCategoryRow,
   type YearFinding,

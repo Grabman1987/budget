@@ -1,6 +1,7 @@
 import { ratioBp } from '../kpi/ratios';
 import { householdIncomeCents } from '../overview/figures';
 import type { BudgetClass } from '../ledger/alloc';
+import { roundDivCents } from '../wealth/int';
 
 /**
  * Pure calculations of the report group "Monat und Einkommen" (1.1 Monats-One-Pager, 1.3
@@ -121,9 +122,8 @@ export function sharesOf(values: ReadonlyArray<number>): number[] {
   return floors;
 }
 
-/** Integer division rounding half away from zero. */
-const roundDiv = (a: number, b: number): number =>
-  b === 0 ? 0 : a < 0 ? -Math.floor((2 * -a + b) / (2 * b)) : Math.floor((2 * a + b) / (2 * b));
+/** Average over `b` entries rounded half away from zero; 0 without entries. */
+const roundDiv = (a: number, b: number): number => (b === 0 ? 0 : roundDivCents(a, b));
 
 /** Income by type over the months of a window (the last 12 months, the prototype's "Nach Art"). */
 export function incomeWindow(months: ReadonlyArray<MonthIncome>): IncomeWindow {

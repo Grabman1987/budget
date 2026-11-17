@@ -142,7 +142,7 @@ it('ON keeps selected signed Investiert separate from the positive Anlagen/net-d
   expect((await within(chain).findByRole('button', { name: /Anlagen/ })).textContent).toContain(
     '200',
   );
-  expect(chain.textContent).toContain('Schulden (netto)');
+  expect(chain.textContent).toContain('Schulden netto');
   const source = within(basis).getByRole('link', {
     name: 'Anlagebasis ansehen · Quelle der Anlagebasis',
   });

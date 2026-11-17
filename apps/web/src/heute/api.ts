@@ -87,9 +87,8 @@ export interface Heute extends WithValuationNotes {
   };
   lead: {
     balanceCents: number;
-    inflowCents: number;
     openCents: number;
-    overdraftCents: number;
+    lastResortCents: number;
     freeCents: number;
     daysToPayday: number;
     chain: Array<{ label: string; value: number; op?: '+' | '-' | '='; result?: boolean }>;
@@ -100,7 +99,6 @@ export interface Heute extends WithValuationNotes {
         balanceCents: number;
         overdraftLimitCents: number | null;
       }>;
-      inflow: Array<{ id: string; label: string; day: string; cents: number }>;
       open: Array<{ id: string; label: string; day: string; cents: number }>;
     };
   };

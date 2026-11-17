@@ -5,6 +5,7 @@ import { findReport, type ReportEntry } from '../nav/reports-catalog';
 import { PortfolioAllocationReport } from '../pages/portfolio-allocation-report';
 import { PortfolioContributionsReport } from '../pages/portfolio-contributions-report';
 import { PortfolioPerformanceReport } from '../pages/portfolio-performance-report';
+import { REDESIGN_ENABLED } from '../shell/redesign-flag';
 import './report-views.css';
 
 const VIEWS = [
@@ -18,14 +19,17 @@ export function PortfolioReportViews({ report, meta }: { report: ReportEntry; me
   const search = useSearch({ strict: false }) as { darstellung?: string };
   const navigate = useNavigate();
   const view =
-    search.darstellung === 'rendite' || search.darstellung === 'einzahlungen'
+    search.darstellung === 'rendite' ||
+    search.darstellung === 'einzahlungen' ||
+    (REDESIGN_ENABLED && (search.darstellung === 'kennzahlen' || search.darstellung === 'klassen'))
       ? search.darstellung
       : 'verteilung';
   const source = findReport(
     view === 'rendite' ? 'prendite' : view === 'einzahlungen' ? 'peinzahlungen' : 'pallocation',
   )!;
   const heading = { ...source, name: report.name };
-  const control = (
+  // In the redesign the views are indented sub-reports of the report menu (#1150, #1157).
+  const control = REDESIGN_ENABLED ? undefined : (
     <Segmented
       className="report-view-switch report-wealth-switch report-portfolio-switch"
       label="Ansicht der Portfolio-Auswertung"
@@ -42,8 +46,13 @@ export function PortfolioReportViews({ report, meta }: { report: ReportEntry; me
       }
     />
   );
-  return view === 'rendite' ? (
-    <PortfolioPerformanceReport report={heading} meta={meta} viewControl={control} />
+  return view === 'rendite' || view === 'kennzahlen' || view === 'klassen' ? (
+    <PortfolioPerformanceReport
+      report={heading}
+      meta={meta}
+      viewControl={control}
+      {...(REDESIGN_ENABLED ? { presentation: view === 'rendite' ? ('all' as const) : view } : {})}
+    />
   ) : view === 'einzahlungen' ? (
     <PortfolioContributionsReport report={heading} meta={meta} viewControl={control} />
   ) : (

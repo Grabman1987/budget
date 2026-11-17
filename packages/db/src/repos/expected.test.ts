@@ -244,9 +244,13 @@ describe('matching', () => {
   it('received inside the tolerance, deviating outside, with a version suggestion', () => {
     const p = rent({ amountToleranceCents: 100 });
     book('2026-03-02', -40_050);
-    book('2026-02-01', -42_000);
+    const deviatingBooking = book('2026-02-01', -42_000);
     const summary = matchOccurrences(db, TODAY);
-    expect(summary).toMatchObject({ received: 1, deviating: 1 });
+    // A deviating amount is no unambiguous link (#1102): it waits for the owner under Prüfen.
+    expect(summary).toMatchObject({ received: 1, deviating: 0, proposed: 1 });
+    const february = occurrencesOf(p.id).find((o) => o.dueDate === '2026-02-01')!;
+    expect(february.bookingId).toBeNull();
+    linkOccurrence(db, february.id, deviatingBooking, ctx);
     const rows = upcoming(db, '2026-02-01', '2026-03-31');
     expect(rows.map((r) => r.status)).toEqual(['deviating', 'received']);
     expect(rows[0]?.suggestion).toEqual({
@@ -262,7 +266,13 @@ describe('matching', () => {
     rent({ dateWindowDays: 31 });
     book('2026-03-01', -40_000);
     matchOccurrences(db, TODAY);
-    expect(matchOccurrences(db, TODAY)).toEqual({ received: 0, deviating: 0, missed: 0 });
+    expect(matchOccurrences(db, TODAY)).toMatchObject({
+      received: 0,
+      deviating: 0,
+      missed: 0,
+      proposed: 0,
+      links: [],
+    });
     const linked = occurrencesOf(
       db.select().from(expectedOccurrence).get()!.expectedPaymentId,
     ).filter((o) => o.bookingId !== null);

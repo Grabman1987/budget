@@ -197,6 +197,26 @@ export function spendingGroups(
   return result;
 }
 
+/** Chain "before + more − less = now" from the existing per-category figures; null unless it adds up to the cent. */
+export function spendingChangeChain(
+  data: Pick<SpendingReport, 'breakdown' | 'answerComparison' | 'consumptionCents'>,
+) {
+  const before = data.answerComparison.previousCents;
+  if (before === null) return null;
+  const current = new Map(data.breakdown.map((row) => [row.id, row.cents]));
+  const previous = new Map(data.answerComparison.rows.map((row) => [row.id, row.previousCents]));
+  let more = 0;
+  let less = 0;
+  for (const id of new Set([...current.keys(), ...previous.keys()])) {
+    const delta = checkedSum([current.get(id) ?? 0, -(previous.get(id) ?? 0)]);
+    if (delta > 0) more = checkedSum([more, delta]);
+    else less = checkedSum([less, -delta]);
+  }
+  return checkedSum([before, more, -less]) === data.consumptionCents
+    ? { before, more, less, now: data.consumptionCents }
+    : null;
+}
+
 function SignedBar({
   current,
   previous,
@@ -298,6 +318,7 @@ function Body({
     bis: data.to,
   });
   const comparison = data.answerComparison;
+  const changeChain = REDESIGN_ENABLED ? spendingChangeChain(data) : null;
   const date = data.from && data.to ? `${data.from} · ${data.to}` : '';
   return (
     <>
@@ -346,6 +367,18 @@ function Body({
               Für diesen Zeitraum ist kein vollständig abgedeckter, gleich langer Vorzeitraum
               verfügbar.
             </p>
+          )}
+          {changeChain && (
+            <DimensionChain
+              label="Maßkette Veränderung"
+              precision="cent"
+              terms={[
+                { label: 'Vorzeitraum', value: cents(changeChain.before) },
+                { label: 'Mehr', op: '+', value: cents(changeChain.more) },
+                { label: 'Weniger', op: '-', value: cents(changeChain.less) },
+                { label: 'Jetzt', op: '=', value: cents(changeChain.now), result: true },
+              ]}
+            />
           )}
         </ReportBodyDisclosure>
         <div
@@ -398,7 +431,7 @@ function Body({
                     <span className="sa-delta">
                       {group.previous === null
                         ? '–'
-                        : eur(checkedSum([group.cents, -group.previous]), { sign: true })}
+                        : eur(checkedSum([group.cents, -group.previous]))}
                     </span>
                   </div>
                   <ul id={detailId} className="sa-category-rows" hidden={!open}>
@@ -425,7 +458,7 @@ function Body({
                           {eur(row.cents)}
                         </AppLink>
                         <span className="sa-delta">
-                          {row.change === null ? '–' : eur(row.change, { sign: true })}
+                          {row.change === null ? '–' : eur(row.change)}
                         </span>
                       </li>
                     ))}

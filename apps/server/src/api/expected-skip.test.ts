@@ -90,6 +90,13 @@ const aprilSalary = async () =>
 
 describe('POST /expected/:id/skip and /expected/occurrences/:id/unskip', () => {
   it('moves the low point of the liquidity forecast, and unskip moves it back', async () => {
+    // The unpaid March rent is overdue and would leave on the first forecast day: skip it here.
+    const rentId = (await call('GET', '/expected')).body.payments.find(
+      (p: any) => p.name === 'Miete',
+    ).id;
+    expect((await call('POST', `/expected/${rentId}/skip`, { dueDate: '2026-03-05' })).status).toBe(
+      200,
+    );
     const before = (await call('GET', '/liquidity?horizon=90d')).body.report;
     // Rent on 05.04. leaves 1.100,00 €; the salary of 15.04. lifts it; the May rent is covered.
     expect(before.low).toMatchObject({ day: '2026-04-05', cents: 110_000 });

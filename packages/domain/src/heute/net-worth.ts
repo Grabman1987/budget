@@ -1,4 +1,5 @@
 import { addMonths, lastDayOfMonth, monthOf } from '../date';
+import { mulDivRound } from '../wealth/int';
 
 /**
  * Net worth on Heute: the split into liquidity, invested and debt (the Maßkette), the change
@@ -6,7 +7,7 @@ import { addMonths, lastDayOfMonth, monthOf } from '../date';
  */
 
 export interface NetWorthAccount {
-  role: 'budget' | 'reserve' | 'investment' | 'debt' | 'receivable';
+  role: 'budget' | 'reserve' | 'investment' | 'debt' | 'receivable' | null;
   /** Balance plus positions in EUR cents (negative for a card or loan owed). */
   valueCents: number;
 }
@@ -18,7 +19,7 @@ export interface NetWorthParts {
   investedCents: number;
   /** Open receivables from contacts (role receivable); shown separately, see the owner decision. */
   receivableCents: number;
-  /** Everything owed: every negative account value, any role (≤ 0). */
+  /** Signed net debt: negative values of any role plus positive debt-role balances. */
   debtCents: number;
   /** liquid + invested + receivable + debt = net worth. */
   totalCents: number;
@@ -56,7 +57,7 @@ export function netWorthParts(accounts: ReadonlyArray<NetWorthAccount>): NetWort
 /** Change in basis points of the previous value, rounded half away from zero; `null` from 0. */
 export function changeBp(currentCents: number, previousCents: number): number | null {
   if (previousCents === 0) return null;
-  const v = Math.round(((currentCents - previousCents) * 10_000) / Math.abs(previousCents));
+  const v = mulDivRound(currentCents - previousCents, 10_000, Math.abs(previousCents));
   return v === 0 ? 0 : v;
 }
 

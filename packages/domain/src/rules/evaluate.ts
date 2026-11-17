@@ -8,6 +8,7 @@ import {
   debtOrder,
   debtServiceRatio,
   emergencyCoverage,
+  emergencyTargetCents,
   fixedCostRatio,
   lifestyleInflation,
   payYourselfFirst,
@@ -97,7 +98,7 @@ const r01: Rule<'R01'> = (p, i) => {
   const months = Array.from({ length: 12 }, (_, n) => addMonths(i.refMonth, n - 11)).filter(
     (m) => i.allocByMonth?.[m] !== undefined,
   ).length;
-  const euroOver = Math.round((Math.max(worst, 0) * income) / (10_000 * months));
+  const euroOver = mulDivRound(Math.max(worst, 0), income, 10_000 * months);
   const action = {
     need: `Bedarf liegt über ${formatPercent(p.needMaxBp)} des Einkommens: Fixkosten und Verträge prüfen (${eur(euroOver)} im Monat zu viel).`,
     want: `Wunsch-Envelopes um ${eur(euroOver)} im Monat kürzen.`,
@@ -124,10 +125,15 @@ const r02: Rule<'R02'> = (p, i) => {
   const t = cov.tenthsOfMonth;
   const status: RuleStatus =
     t >= p.targetMonths * 10 ? 'ok' : t >= p.minMonths * 10 ? 'warn' : 'bad';
+  const target = emergencyTargetCents({
+    averageNeedCents: cov.averageNeedCents,
+    targetMonths: p.targetMonths,
+  });
   const goalMonths = status === 'bad' ? p.minMonths : p.targetMonths;
   const missing = Math.max(
     0,
-    goalMonths * cov.averageNeedCents - Math.max(0, i.emergency.reserveCents),
+    (status === 'bad' ? p.minMonths * cov.averageNeedCents : target) -
+      Math.max(0, i.emergency.reserveCents),
   );
   return result(
     status,
@@ -220,13 +226,12 @@ const r07: Rule<'R07'> = (p, i) => {
   if (!f) return null;
   const { low } = budgetLiquidityForecast(f, p.horizonDays);
   if (!low) return null;
-  const status: RuleStatus =
-    low.cents >= p.minCents ? 'ok' : low.cents >= -f.overdraftLimitCents ? 'warn' : 'bad';
+  const status: RuleStatus = low.cents < 0 ? 'bad' : low.cents >= p.minCents ? 'ok' : 'warn';
   return result(
     status,
     `Tiefpunkt ${eur(low.cents)}`,
     `Zahlungen verschieben oder bis zum ${low.day.slice(8)}.${low.day.slice(5, 7)}. ${eur(p.minCents - low.cents)} auf das Budget-Konto übertragen.`,
-    { lowDay: low.day, lowCents: low.cents, overdraftLimitCents: f.overdraftLimitCents },
+    { lowDay: low.day, lowCents: low.cents, lastResortCents: f.lastResortCents },
   );
 };
 
@@ -311,7 +316,7 @@ const r12: Rule<'R12'> = (p, i) => {
     const allowanceBp = p.slackBp + (p.enjoyCategoryIds.length === 0 ? p.enjoyBp : 0);
     const left = Math.max(
       0,
-      w.undistributedCents - Math.round((w.windfallCents * allowanceBp) / 10_000),
+      w.undistributedCents - mulDivRound(w.windfallCents, allowanceBp, 10_000),
     );
     return {
       month: w.month,

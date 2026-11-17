@@ -12,7 +12,7 @@ async function openHeute(page: Page) {
   });
   await page.goto('/?monat=2026-09&period=payday');
   await (await loaded).finished();
-  await expect(page.getByTestId('heute-lead-value')).toHaveText('7.062,79 €');
+  await expect(page.getByTestId('heute-lead-value')).toHaveText('−1.549,21 €');
 }
 
 for (const theme of ['light', 'dark'] as const) {
@@ -23,7 +23,7 @@ for (const theme of ['light', 'dark'] as const) {
     await page.emulateMedia({ colorScheme: theme });
     await openHeute(page);
     await expect(page.locator('.app')).toHaveAttribute('data-budget-redesign', '1');
-    await expect(page.getByTestId('heute-lead-value')).toHaveText('7.062,79 €');
+    await expect(page.getByTestId('heute-lead-value')).toHaveText('−1.549,21 €');
     await expect(page.locator('.hv-revisions tbody tr').first()).toBeVisible();
     await page.evaluate(() => document.fonts.ready);
     const amounts = page.locator('.hv-revisions tbody .hv-task-amount');
@@ -136,7 +136,7 @@ for (const theme of ['light', 'dark'] as const) {
   }) => {
     await page.emulateMedia({ colorScheme: theme });
     await openHeute(page);
-    await expect(page.getByTestId('heute-lead-value')).toHaveText('7.062,79 €');
+    await expect(page.getByTestId('heute-lead-value')).toHaveText('−1.549,21 €');
     expect(
       (await new AxeBuilder({ page }).include('main').include('.m-head').analyze()).violations,
     ).toEqual([]);
