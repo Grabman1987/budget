@@ -72,6 +72,7 @@ export function loadMatchLedger(db: Executor, mappings: SourceMapping[]): Source
       amountCents: t.amountCents,
       feeCents: t.feeCents,
       taxCents: t.taxCents,
+      importKey: t.importKey,
     })),
     bookings: rows
       .filter(

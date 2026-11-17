@@ -28,6 +28,7 @@ export * from './reports/payroll-source';
 export * from './bank-sync';
 export * from './read-source';
 export * from './read-source-match';
+export * from './read-source-explain';
 export * from './source-rebuild';
 export * from './income-month';
 export * from './budget-year';

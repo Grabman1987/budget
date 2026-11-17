@@ -104,6 +104,21 @@ bookings or trades. Result per operation:
 - **informativ** (resolved, "Informativ: …"): stake/unstake and platform-internal moves, or an
   operation that only carries fee/tax legs. No ledger effect.
 
+Provider ids come first (#1205): a trade whose import key was written from a source operation
+(`rebuild:<operation-id>:<leg>`, or the monthly reward aggregate `…:source:[ids]`) belongs to that
+operation, whatever its date or amount; the operation is "erfasst" and the trade is unavailable to
+every other movement. Savings-plan fiat movements may find their bank booking up to ten days away
+(second pass, after all exact-window matches). Fee legs in another token, stake/unstake and
+reward commission stay part of their operation and never produce a fiat booking or a sale.
+`summarizeOperation` (`packages/domain/src/read-source-explain.ts`) states per operation and asset
+the gross, fee and net units; EUR values come only from the source.
+
+Ties are never guessed: if several equal ledger rows fit one cash movement at the best distance and
+the match is not one-to-one, the movement stays open as "Quellbewegung mehrdeutig (N gleich passende
+Gegenbuchungen)". Id links use the exact rebuild key formats only (single operation: that operation;
+aggregate: exactly its listed ids). Only the exact generated resolution texts count as automatic,
+an owner's own text is never rewritten. A reconcile run that writes nothing returns no audit group.
+
 Tolerances and rules:
 
 | Source | Ledger counterpart |
@@ -124,6 +139,12 @@ others reopened. Items the owner resolved by hand ("Vom Nutzer als erledigt mark
 before the start day are never touched. The run is one audit group (undo via the button or
 `POST /undo`), idempotent, and also runs, for the fetched page only, whenever operations are
 staged. The Krypto-Lesequelle section shows a live preview of the four counts.
+
+After a run the holdings comparison (app units vs. source units per asset) is recomputed from
+the last fetched balances inside the same audit group. A difference names its cause: mapping
+problem (no mapping or no source balance), missing movement (the open movements of that asset add
+up exactly to the difference), partly missing movement, or real difference. Operations that fail
+validation are quarantined with the failing field name (never a value).
 
 Owner steps before the first run: fetch once so the source balances are known, map every source
 currency to its cash account and every asset to its investment account and instrument

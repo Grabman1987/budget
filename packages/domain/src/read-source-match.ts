@@ -15,7 +15,9 @@ export const MATCH_TRADE_DAYS = 2;
 export const MATCH_CASH_DAYS = 3;
 export const MATCH_UNITS_E8 = 1;
 export const MATCH_AMOUNT_CENTS = 1;
-export const MATCH_RELATIVE = 0.005;
+export const MATCH_RELATIVE_PER_MILLE = 5;
+/** Savings plans: bank debit, platform reservation and execution lie on different days. */
+export const MATCH_SAVINGS_PLAN_DAYS = 10;
 
 export interface SourceMatchTrade {
   id: string;
@@ -27,6 +29,8 @@ export interface SourceMatchTrade {
   amountCents: number;
   feeCents: number;
   taxCents: number;
+  /** Import key of the ledger row; keys written by the source rebuild carry provider operation ids. */
+  importKey?: string | null;
 }
 export interface SourceMatchBooking {
   id: string;
@@ -45,9 +49,9 @@ export interface SourceMatchRef {
   date: string;
 }
 export type OperationVerdict =
-  | { status: 'matched'; refs: SourceMatchRef[] }
+  | { status: 'matched'; refs: SourceMatchRef[]; by?: 'id' }
   | { status: 'informational'; reason: 'internal' | 'no_movement' }
-  | { status: 'missing' }
+  | { status: 'missing'; ambiguous?: number }
   | { status: 'unmapped'; keys: string[] };
 
 const REF_LABELS: Record<string, string> = {
@@ -77,20 +81,58 @@ export function informationalResolution(reason: 'internal' | 'no_movement'): str
     ? `${INFORMATIONAL_RESOLUTION}: Stake/Unstake bzw. Umbuchung verschiebt Bestände innerhalb der Plattform, keine Auswirkung auf das Hauptbuch.`
     : `${INFORMATIONAL_RESOLUTION}: Nur Gebühr, Steuer oder Nullbetrag, keine eigene Buchung nötig.`;
 }
-/** Resolutions that the automatic matching (or the manual cut-off cleanup) may revise. */
-export const AUTOMATIC_RESOLUTION_PREFIXES = [
-  'Vor dem Übernahme-Stichtag',
-  'Vor dem Startdatum',
-  MATCHED_RESOLUTION,
-  INFORMATIONAL_RESOLUTION,
-];
+/**
+ * Resolutions that the automatic matching (or the documented operator cut-off cleanup) may revise:
+ * only the exact generated texts, so an owner's free text that starts alike is never overwritten.
+ */
+const REF_WORDS = Object.values(REF_LABELS).concat('Trade').join('|');
+const DAY_REF = String.raw`(?:${REF_WORDS}) \d{2}\.\d{2}\.\d{4}`;
+const MATCHED_RE = new RegExp(
+  String.raw`^${MATCHED_RESOLUTION} \(${DAY_REF}(?:, ${DAY_REF})?(?:, \+\d+ weitere)?\)$`,
+);
+const CLEANUP_RE =
+  /^Vor dem Übernahme-Stichtag \d{2}\.\d{2}\.\d{4}: Bestände stammen aus der Übernahme\.$/;
+const START_DAY_RESOLUTION = 'Vor dem Startdatum – bereits in der App erfasst.';
 export const isAutomaticResolution = (resolution: string | null) =>
-  resolution !== null && AUTOMATIC_RESOLUTION_PREFIXES.some((p) => resolution.startsWith(p));
+  resolution !== null &&
+  (MATCHED_RE.test(resolution) ||
+    CLEANUP_RE.test(resolution) ||
+    resolution === START_DAY_RESOLUTION ||
+    resolution === informationalResolution('internal') ||
+    resolution === informationalResolution('no_movement'));
 
 type Tx = SourceOperation['transactions'][number];
 /** Fee, tax and platform-internal legs accompany a movement but are none themselves. */
-const SECONDARY = new Set(['fee', 'tax', 'transfer', 'stake', 'unstake']);
-const INTERNAL_TYPE = /(^|_)(un)?stak(e|ing)(_|$)/;
+const SECONDARY = new Set(['fee', 'tax', 'stake', 'unstake']);
+/** Only the exact stake/unstake types are platform-internal; `staking_reward` is a reward. */
+export const isInternalStakeType = (type: string) => /^(un)?stake$/.test(type);
+const SAVINGS_PLAN_TYPE = /(^|_)savings_plan(_|$)/;
+
+/**
+ * Provider operation ids a ledger row's import key names, by the exact formats the source rebuild
+ * writes: `rebuild:<operation-id>:<leg-index>` / `…:merger:in|out` (one operation) and
+ * `rebuild:…:source:[<ids>]` (an aggregate that covers exactly its listed ids). Anything else
+ * links nothing. `exclusive` rows serve their one operation only.
+ */
+export function linkedSourceIds(importKey: string | null | undefined): {
+  ids: string[];
+  exclusive: boolean;
+} {
+  if (!importKey?.startsWith('rebuild:')) return { ids: [], exclusive: false };
+  const list = /:source:(\[[^\]]*\])(?::(?:div|buy))?$/.exec(importKey);
+  if (list) {
+    try {
+      const ids: unknown = JSON.parse(list[1]!);
+      if (Array.isArray(ids) && ids.every((i) => typeof i === 'string'))
+        return { ids: ids as string[], exclusive: false };
+    } catch {
+      /* Not a readable list: links nothing. */
+    }
+    return { ids: [], exclusive: false };
+  }
+  const single = /^rebuild:([^:]+):(?:\d+|merger:(?:in|out))(?::cash.*)?$/.exec(importKey);
+  return single ? { ids: [single[1]!], exclusive: true } : { ids: [], exclusive: false };
+}
 
 const dayOf = (iso: string): string | null => {
   const ms = Date.parse(iso);
@@ -118,9 +160,30 @@ interface Leg {
   taxes: number[];
   /** Reward-like legs without cash counterpart prefer deliveries over buys. */
   reward: boolean;
+  /** Savings-plan leg: cash may be booked up to MATCH_SAVINGS_PLAN_DAYS away (second pass only). */
+  plan: boolean;
 }
 
 const abs = (n: number | null) => (n === null ? null : Math.abs(n));
+
+/**
+ * `transfer` legs whose incoming and outgoing amounts cancel per asset are wallet moves inside
+ * the platform; an unbalanced one is an external movement (deposit/withdrawal of a token).
+ */
+export function internalTransferKeys(op: SourceOperation): Set<string> {
+  const net = new Map<string, bigint>();
+  for (const t of op.transactions) {
+    if (t.type !== 'transfer') continue;
+    const units = sourceInteger(t.amount.value, 8);
+    const key = keyOf(t.amount);
+    net.set(
+      key,
+      (net.get(key) ?? 0n) +
+        (units === null ? 1n : BigInt(units) * (t.flow === 'INCOMING' ? 1n : -1n)),
+    );
+  }
+  return new Set([...net].filter(([, n]) => n === 0n).map(([k]) => k));
+}
 
 /** Split an operation into primary legs (trade groups collapse their cash and asset legs). */
 function legsOf(op: SourceOperation): Leg[] {
@@ -128,13 +191,28 @@ function legsOf(op: SourceOperation): Leg[] {
     const days = txs.map((t) => dayOf(t.creditedAt)).filter((d): d is string => d !== null);
     return days.length ? days.sort().at(-1)! : null;
   };
-  const primary = op.transactions.filter((t) => !SECONDARY.has(t.type));
+  const internal = internalTransferKeys(op);
+  const primary = op.transactions.filter(
+    (t) => !SECONDARY.has(t.type) && !(t.type === 'transfer' && internal.has(keyOf(t.amount))),
+  );
   const secondary = op.transactions.filter((t) => t.type === 'fee' || t.type === 'tax');
-  const fees = (txs: Tx[]) =>
-    txs.flatMap((t) => [abs(t.tradeFee?.cents ?? null), abs(t.fee?.cents ?? null)]);
-  const centsOf = (txs: Tx[], type: string) =>
+  // Only fiat fees in the leg's own currency may explain a cash difference; a fee in another
+  // asset (platform token) reduces that token's holding and never widens a tolerance.
+  const fees = (txs: Tx[], currencyId: string | null) =>
+    txs.flatMap((t) =>
+      [t.tradeFee, t.fee].map((f) =>
+        f && !f.assetId && f.currencyId === currencyId ? abs(f.cents) : null,
+      ),
+    );
+  const centsOf = (txs: Tx[], type: string, currencyId: string | null) =>
     txs
-      .filter((t) => t.type === type && t.amount.cents !== null)
+      .filter(
+        (t) =>
+          t.type === type &&
+          !t.amount.assetId &&
+          t.amount.currencyId === currencyId &&
+          t.amount.cents !== null,
+      )
       .map((t) => Math.abs(t.amount.cents!));
   const legs: Leg[] = [];
   const groups = new Map<string, Tx[]>();
@@ -150,6 +228,10 @@ function legsOf(op: SourceOperation): Leg[] {
       if (cashTx && !tx.amount.assetId) continue; // The cash leg is part of its asset leg.
       const asset = Boolean(tx.amount.assetId);
       const pair = asset && assets.length === 1 ? cashTx : null;
+      const feeCurrency = asset ? (pair?.amount.currencyId ?? null) : tx.amount.currencyId;
+      const unitFee =
+        asset && tx.fee?.assetId === tx.amount.assetId ? abs(sourceInteger(tx.fee.value, 8)) : 0;
+      const exactUnits = asset ? sourceInteger(tx.amount.value, 8) : null;
       legs.push({
         opId: op.id,
         day: day(txs),
@@ -158,17 +240,17 @@ function legsOf(op: SourceOperation): Leg[] {
         key: keyOf(tx.amount),
         asset,
         incoming: tx.flow === 'INCOMING',
-        unitsE8: asset ? sourceInteger(tx.amount.value, 8) : null,
-        unitFee:
-          asset && tx.fee?.assetId === tx.amount.assetId
-            ? Math.abs(sourceInteger(tx.fee.value, 8) ?? 0)
-            : 0,
+        // An unreadable fee makes the units unknown: never treated as zero.
+        unitsE8: unitFee === null ? null : exactUnits,
+        unitFee: unitFee ?? 0,
         cents: asset ? (pair?.amount.cents ?? null) : tx.amount.cents,
-        fees: [...fees([tx, ...(pair ? [pair] : [])]), ...centsOf(secondary, 'fee')].filter(
-          (n): n is number => n !== null && n > 0,
-        ),
-        taxes: centsOf(secondary, 'tax').filter((n) => n > 0),
+        fees: [
+          ...fees([tx, ...(pair ? [pair] : [])], feeCurrency),
+          ...centsOf(secondary, 'fee', feeCurrency),
+        ].filter((n): n is number => n !== null && n > 0),
+        taxes: centsOf(secondary, 'tax', feeCurrency).filter((n) => n > 0),
         reward: asset && !tx.tradeId,
+        plan: SAVINGS_PLAN_TYPE.test(op.type),
       });
     }
   }
@@ -176,8 +258,9 @@ function legsOf(op: SourceOperation): Leg[] {
 }
 
 const within = (a: number, b: number) => Math.abs(a - b) <= MATCH_AMOUNT_CENTS;
+/** |a - b| <= 0.5 % of |scale|, in integers (MATCH_RELATIVE_PER_MILLE = 5). */
 const relative = (a: number, b: number, scale: number) =>
-  scale !== 0 && Math.abs(a - b) <= Math.abs(scale) * MATCH_RELATIVE;
+  scale !== 0 && Math.abs(a - b) * 1000 <= Math.abs(scale) * MATCH_RELATIVE_PER_MILLE;
 
 /** Ledger cash values of a trade that may correspond to the source cash amount. */
 function tradeValues(t: SourceMatchTrade): number[] {
@@ -218,6 +301,8 @@ interface Edge {
   leg: number;
   ref: SourceMatchRef;
   claim: string;
+  /** Cash edges: a tie between several rows must not be resolved by guessing. */
+  checkTies?: boolean;
 }
 
 function tradeEdge(
@@ -272,15 +357,18 @@ function cashEdges(
   const edges: Edge[] = [];
   for (const b of bookings) {
     const distance = Math.abs(daysBetween(leg.day, b.date));
-    if (distance > MATCH_CASH_DAYS || !wanted.includes(b.amountCents)) continue;
-    // A direct (unadjusted) value ranks before one that needed a fee or tax adjustment.
+    const limit = leg.plan ? MATCH_SAVINGS_PLAN_DAYS : MATCH_CASH_DAYS;
+    if (distance > limit || !wanted.includes(b.amountCents)) continue;
+    // A direct (unadjusted) value ranks before one that needed a fee or tax adjustment; a date
+    // beyond the usual window ranks after every nearer match (second pass).
     edges.push({
-      tier: b.amountCents === wanted[0] ? 1 : 2,
+      tier: distance > MATCH_CASH_DAYS ? 4 : b.amountCents === wanted[0] ? 1 : 2,
       distance,
       penalty: 0,
       leg: index,
       ref: { type: 'booking', id: b.id, kind: 'booking', date: b.date },
       claim: 'booking:' + b.id,
+      checkTies: true,
     });
   }
   if (leg.incoming)
@@ -295,6 +383,7 @@ function cashEdges(
         leg: index,
         ref: { type: 'trade', id: t.id, kind: t.kind, date: t.date },
         claim: 'trade:' + t.id,
+        checkTies: true,
       });
     }
   return edges;
@@ -313,6 +402,17 @@ export function matchSourceOperations(
   const mappedAccounts = new Set(mappings.map((m) => m.accountId));
   const verdicts = new Map<string, OperationVerdict>();
   const todo: Array<{ op: SourceOperation; legs: Leg[] }> = [];
+  // Provider ids first: a ledger row written from an operation id belongs to that operation,
+  // whatever its date or amount, and is not available to the heuristic matching below. A row
+  // from a single operation serves that operation only; an aggregate serves exactly its listed ids.
+  const byLinkedId = new Map<string, Array<{ trade: SourceMatchTrade; exclusive: boolean }>>();
+  for (const t of ledger.trades) {
+    const { ids, exclusive } = linkedSourceIds(t.importKey);
+    for (const linked of new Set(ids))
+      byLinkedId.set(linked, [...(byLinkedId.get(linked) ?? []), { trade: t, exclusive }]);
+  }
+  const idClaimed = new Set<string>();
+  const exclusiveOwner = new Map<string, string>();
   const sorted = [...operations].sort(
     (a, b) =>
       (dayOf(a.transactions[0]?.creditedAt ?? '') ?? '').localeCompare(
@@ -320,11 +420,26 @@ export function matchSourceOperations(
       ) || a.id.localeCompare(b.id),
   );
   for (const op of sorted) {
-    const legs = INTERNAL_TYPE.test(op.type) ? [] : legsOf(op);
+    const legs = isInternalStakeType(op.type) ? [] : legsOf(op);
+    const linked = (legs.length ? (byLinkedId.get(op.id) ?? []) : [])
+      .filter(({ trade, exclusive }) => !exclusive || !exclusiveOwner.has(trade.id))
+      .map(({ trade, exclusive }) => {
+        if (exclusive) exclusiveOwner.set(trade.id, op.id);
+        return trade;
+      });
+    if (linked.length) {
+      for (const t of linked) idClaimed.add(t.id);
+      verdicts.set(op.id, {
+        status: 'matched',
+        by: 'id',
+        refs: linked.map((t) => ({ type: 'trade', id: t.id, kind: t.kind, date: t.date })),
+      });
+      continue;
+    }
     if (!legs.length) {
       verdicts.set(op.id, {
         status: 'informational',
-        reason: INTERNAL_TYPE.test(op.type) ? 'internal' : 'no_movement',
+        reason: isInternalStakeType(op.type) ? 'internal' : 'no_movement',
       });
       continue;
     }
@@ -335,14 +450,15 @@ export function matchSourceOperations(
   const flat = todo.flatMap(({ legs }) => legs);
   const edges: Edge[] = [];
   const tradesByKey = new Map<string, SourceMatchTrade[]>();
-  for (const t of ledger.trades) {
+  const free = ledger.trades.filter((t) => !idClaimed.has(t.id));
+  for (const t of free) {
     const key = t.accountId + '|' + t.securityId;
     tradesByKey.set(key, [...(tradesByKey.get(key) ?? []), t]);
   }
   const bookingsByAccount = new Map<string, SourceMatchBooking[]>();
   for (const b of ledger.bookings)
     bookingsByAccount.set(b.accountId, [...(bookingsByAccount.get(b.accountId) ?? []), b]);
-  const income = ledger.trades.filter(
+  const income = free.filter(
     (t) => INCOME_KINDS.includes(t.kind) && mappedAccounts.has(t.accountId),
   );
   flat.forEach((leg, index) => {
@@ -364,19 +480,85 @@ export function matchSourceOperations(
   );
   const claimed = new Set<string>();
   const matched = new Map<number, SourceMatchRef>();
-  for (const edge of edges) {
-    if (matched.has(edge.leg) || claimed.has(edge.claim)) continue;
-    matched.set(edge.leg, edge.ref);
-    claimed.add(edge.claim);
+  const ambiguous = new Map<number, number>();
+  // Edges of one level (tier, distance, penalty) compete on equal terms. Trade edges keep the
+  // deterministic first-come order. Cash edges form groups of legs and rows that tie: the group is
+  // matched only if it is one-to-one (as many rows as legs, so the attribution is immaterial);
+  // with more candidate rows than movements the choice would be a guess, so the movements stay
+  // open as ambiguous and their candidate rows are reserved, not given to somebody else.
+  const levelOf = (e: Edge) => `${e.tier}|${e.distance}|${e.penalty}`;
+  for (let start = 0; start < edges.length;) {
+    let end = start;
+    while (end < edges.length && levelOf(edges[end]!) === levelOf(edges[start]!)) end++;
+    const level = edges.slice(start, end);
+    start = end;
+    const open = (e: Edge) => !matched.has(e.leg) && !ambiguous.has(e.leg) && !claimed.has(e.claim);
+    for (const edge of level.filter((e) => !e.checkTies && open(e))) {
+      if (!open(edge)) continue;
+      matched.set(edge.leg, edge.ref);
+      claimed.add(edge.claim);
+    }
+    const cash = level.filter((e) => e.checkTies && open(e));
+    const parent = new Map<string, string>();
+    const find = (x: string): string => {
+      while (parent.get(x) !== x) {
+        parent.set(x, parent.get(parent.get(x)!)!);
+        x = parent.get(x)!;
+      }
+      return x;
+    };
+    for (const e of cash)
+      for (const node of ['L' + e.leg, 'C' + e.claim])
+        if (!parent.has(node)) parent.set(node, node);
+    for (const e of cash) parent.set(find('L' + e.leg), find('C' + e.claim));
+    const groups = new Map<string, Edge[]>();
+    for (const e of cash) {
+      const root = find('L' + e.leg);
+      groups.set(root, [...(groups.get(root) ?? []), e]);
+    }
+    for (const group of groups.values()) {
+      const legs = [...new Set(group.map((e) => e.leg))].sort((a, b) => a - b);
+      const rows = [...new Set(group.map((e) => e.claim))].sort();
+      if (rows.length > legs.length) {
+        for (const leg of legs) ambiguous.set(leg, rows.length);
+        for (const row of rows) claimed.add(row);
+        continue;
+      }
+      // One row per movement (augmenting paths), in a fixed order.
+      const owner = new Map<string, Edge>();
+      const assign = (leg: number, seen: Set<string>): boolean => {
+        for (const e of group.filter((x) => x.leg === leg)) {
+          if (seen.has(e.claim)) continue;
+          seen.add(e.claim);
+          const holder = owner.get(e.claim);
+          if (!holder || assign(holder.leg, seen)) {
+            owner.set(e.claim, e);
+            return true;
+          }
+        }
+        return false;
+      };
+      for (const leg of legs) assign(leg, new Set());
+      for (const e of owner.values()) {
+        matched.set(e.leg, e.ref);
+        claimed.add(e.claim);
+      }
+    }
   }
   let index = 0;
   for (const { op, legs } of todo) {
     const refs = legs.map(() => matched.get(index++));
+    const candidates = Math.max(
+      0,
+      ...legs.map((_, i) => ambiguous.get(index - legs.length + i) ?? 0),
+    );
     verdicts.set(
       op.id,
       refs.every((r): r is SourceMatchRef => r !== undefined)
         ? { status: 'matched', refs }
-        : { status: 'missing' },
+        : candidates > 0
+          ? { status: 'missing', ambiguous: candidates }
+          : { status: 'missing' },
     );
   }
   return verdicts;
