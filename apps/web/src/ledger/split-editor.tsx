@@ -1,10 +1,4 @@
-﻿import {
-  useAmountPrivacy,
-  AmountInput,
-  Button,
-  Segmented,
-  maskMoneyText,
-} from '@budget/ui';
+﻿import { useAmountPrivacy, AmountInput, Button, Segmented, maskMoneyText } from '@budget/ui';
 import { parseAmount } from '@budget/domain';
 import { ChevronDown, Plus, X, Info, Tag } from 'lucide-react';
 import { createPortal } from 'react-dom';

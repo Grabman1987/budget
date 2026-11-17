@@ -46,9 +46,23 @@ describe('prices', () => {
         priceMicro: 101_500_000,
         currency: 'EUR',
         source: 'manual',
+        sourceCurrency: null,
+        sourcePriceMicro: null,
+        fxRateMicro: null,
       },
     ]);
     expect(db.select().from(auditLog).all()).toHaveLength(before);
+  });
+
+  it('audits a re-upsert only when conversion metadata is lost', () => {
+    const conv = { sourceCurrency: 'USD', sourcePriceMicro: 110_000_000, fxRateMicro: 1_100_000 };
+    const audits = () => db.select().from(priceAudit).all().length;
+    upsertPrice(db, p('2026-01-03', 100_000_000, conv));
+    const start = audits();
+    upsertPrice(db, p('2026-01-03', 100_000_000, { ...conv, fxRateMicro: 1_200_000 }));
+    expect(audits()).toBe(start);
+    upsertPrice(db, p('2026-01-03', 100_000_000));
+    expect(audits()).toBe(start + 1);
   });
 
   it('undoes and redoes an initial manual price insertion', () => {

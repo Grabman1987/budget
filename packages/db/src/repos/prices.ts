@@ -53,9 +53,8 @@ export function upsertPrice(db: Executor, input: PriceInput): boolean {
       existing &&
       (existing.priceMicro !== input.priceMicro ||
         existing.source !== input.source ||
-        existing.sourceCurrency !== (input.sourceCurrency ?? null) ||
-        existing.sourcePriceMicro !== (input.sourcePriceMicro ?? null) ||
-        existing.fxRateMicro !== (input.fxRateMicro ?? null))
+        // Conversion metadata that gets lost is a change worth an audit entry.
+        (existing.sourceCurrency !== null && (input.sourceCurrency ?? null) === null))
     ) {
       tx.insert(priceAudit)
         .values({
