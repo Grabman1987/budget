@@ -19,9 +19,7 @@ for (const width of [390, 1440]) {
         await expect(dialog.locator('.bk-foot')).toHaveCount(0);
         await expect(dialog.getByRole('button', { name: /^Markierung/ })).toHaveCount(0);
         await expect(dialog.getByLabel('Markierung', { exact: true })).toHaveCount(0);
-        await expect(dialog.locator('.bk-body .bk-form-actions')).toContainText(
-          'Speichern und neu',
-        );
+        await expect(dialog.locator('.bk-form-actions')).toContainText('Speichern und neu');
         await expect(save).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
       } else {
         await expect(dialog.getByRole('button', { name: 'Schließen', exact: true })).toBeVisible();
@@ -61,14 +59,19 @@ for (const width of [390, 1440]) {
         await expect(save).toBeEnabled();
         await expect(save).not.toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
         await page.setViewportSize({ width, height: 430 });
-        await save.scrollIntoViewIfNeeded();
+        // The actions are pinned below the scrolling body (#1146): on a short screen only the
+        // body scrolls and Speichern stays reachable at the same position.
+        await expect(save).toBeInViewport();
         const before = (await save.boundingBox())!.y;
-        const scrolled = await dialog.locator('.bk-body').evaluate((el) => el.scrollTop);
-        expect(scrolled).toBeGreaterThan(0);
+        const scrollable = await dialog
+          .locator('.bk-body')
+          .evaluate((el) => el.scrollHeight > el.clientHeight);
+        expect(scrollable).toBe(true);
         await dialog.locator('.bk-body').evaluate((el) => {
-          el.scrollTop = 0;
+          el.scrollTop = el.scrollHeight;
         });
-        expect((await save.boundingBox())!.y).toBeGreaterThan(before);
+        await expect(save).toBeInViewport();
+        expect((await save.boundingBox())!.y).toBe(before);
         await page.setViewportSize({ width, height: 900 });
         await close.click();
         await expect(
