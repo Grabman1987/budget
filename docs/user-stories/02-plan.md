@@ -84,7 +84,7 @@ Bereich: Plan (`/plan/monat`, `/plan/jahr`, `/plan/erwartet`, `/plan/sparziele`,
 - **Story:** Als Nutzer möchte ich am Gehaltstag Schritt für Schritt Geld verteilen, damit ich keine Kategorie vergesse und am Ende weiß, dass jeder Euro eine Aufgabe hat.
 - **Ausgangslage:** Das Gehalt ist da, „Zu verteilen“ ist positiv (oder es ist zu viel zugewiesen).
 - **Ablauf:**
-  1. Ich tippe in Heute bei „Als Nächstes“ auf „Verteilen“ oder in Plan › Monat auf „Geld verteilen“ (Menü „Verteilen“ › „Schritt für Schritt verteilen“).
+  1. Ich tippe in Heute auf den Wert „Zu verteilen“ (sobald er nicht null ist) oder bei „Als Nächstes“ auf „Verteilen“ oder in Plan › Monat auf „Geld verteilen“ (Menü „Verteilen“ › „Schritt für Schritt verteilen“).
   2. Schritt „Eingang prüfen“: gebuchte Einnahmen im Budgetmonat und erwartete Zahlungen werden gezeigt; nur Gebuchtes ist verteilbar.
   3. Schritt „Lücken“: unterfinanzierte und überzogene Kategorien werden aufgelistet.
   4. Schritt „Zuweisen“: Ich wähle eine historische Vorlage für Kategorien ohne Ziel, passe die Vorschau an und bestätige „Vorlage zuweisen“. Alternativ weise ich je Zielkategorie zu; „Zu verteilen jetzt“ sinkt mit.

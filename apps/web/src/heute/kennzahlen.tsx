@@ -92,7 +92,18 @@ export function Kennzahlen({
           reserveLine
           alert={(summary?.toBeAssignedCents ?? 0) < 0}
           nonpositive={summary?.toBeAssignedCents === 0}
-          href={summary ? { to: '/plan/monat', search: { monat: scope.month } } : undefined}
+          href={
+            summary
+              ? {
+                  to: '/plan/monat',
+                  // #1055: money left to distribute (or over-assigned) opens the guided flow.
+                  search:
+                    summary.toBeAssignedCents !== 0
+                      ? { monat: scope.month, ablauf: 'verteilen' }
+                      : { monat: scope.month },
+                }
+              : undefined
+          }
           bar={
             summary && {
               value: summary.assignedCents,
