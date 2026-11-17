@@ -22,6 +22,12 @@ updates:
         update-types: ['version-update:semver-major']
       - dependency-name: '@eslint/js'
         update-types: ['version-update:semver-major']
+      # @types/node must match the runtime major (Node 22/24 per engines).
+      - dependency-name: '@types/node'
+        update-types: ['version-update:semver-major']
+      # jsdom 31 breaks the unit suite (#1030); keep 30 until the test setup is adapted.
+      - dependency-name: jsdom
+        update-types: ['version-update:semver-major']
     groups:
       npm-minor-patch:
         update-types: [minor, patch]

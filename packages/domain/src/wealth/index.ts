@@ -51,7 +51,7 @@ export {
   type FreedomProjection,
   type SollPfad,
 } from './freedom';
-export { mulDivRound, shareBps } from './int';
+export { mulDivRound, roundDivCents, shareBps } from './int';
 export {
   allocationTimeline,
   allocationChartPositions,

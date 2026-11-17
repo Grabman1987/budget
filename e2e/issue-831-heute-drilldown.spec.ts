@@ -44,14 +44,12 @@ test('lead → exact terms → category/payment → return retains viewed month 
     page.getByRole('heading', { name: 'Frei bis Gehalt · Herleitung', exact: true }),
   ).toBeFocused();
   const detail = page.locator('.heute-dimension');
-  for (const amount of [
-    data.lead.balanceCents,
-    data.lead.inflowCents,
-    data.lead.openCents,
-    data.lead.freeCents,
-  ]) {
+  for (const amount of [data.lead.balanceCents, data.lead.openCents, data.lead.freeCents]) {
     await expect(detail).toContainText(eur(amount));
   }
+  await expect(detail.getByRole('region', { name: 'Erwartete Eingänge', exact: true })).toHaveCount(
+    0,
+  );
   await expect(detail).toContainText('EUR');
   await expect(detail).toContainText('35 Tagen');
   const need = page

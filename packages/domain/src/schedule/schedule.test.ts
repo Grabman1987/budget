@@ -7,6 +7,7 @@ import {
   monthlyEquivalent,
   occurrenceStatus,
   occurrences,
+  settleMatches,
   shareOf,
   versionOn,
   versionSuggestion,
@@ -281,5 +282,68 @@ describe('equivalents', () => {
     // the interval is ignored for every other rhythm
     expect(monthlyEquivalent('monthly', 1599, 2)).toBe(1599);
     expect(yearlyEquivalent('quarterly', 3000, 2)).toBe(12000);
+  });
+});
+
+describe('settleMatches (#1102)', () => {
+  const input = (key: string, over: Record<string, unknown> = {}) => ({
+    key,
+    group: key,
+    occurrence: occ(),
+    candidates: [cand()],
+    toleranceCents: 0,
+    windowDays: 3,
+    ...over,
+  });
+
+  it('is unambiguous when exactly one booking fits exactly one occurrence', () => {
+    const result = settleMatches([input('a')], new Set());
+    expect(result.get('a')).toMatchObject({ status: 'received', doubt: null });
+  });
+
+  it('never calls a deviating amount unambiguous', () => {
+    const result = settleMatches(
+      [input('a', { candidates: [cand({ amountCents: -5400 })] })],
+      new Set(),
+    );
+    expect(result.get('a')).toMatchObject({ status: 'deviating', doubt: 'amount' });
+  });
+
+  it('doubts a booking that a second payment could claim as well', () => {
+    const result = settleMatches([input('a'), input('b')], new Set());
+    expect([...result.values()].filter((m) => m.doubt === 'several')).toHaveLength(1);
+    expect(result.size).toBe(1);
+  });
+
+  it('doubts an occurrence with two bookings inside the tolerance', () => {
+    const result = settleMatches(
+      [input('a', { candidates: [cand({ id: 'x' }), cand({ id: 'y' })] })],
+      new Set(),
+    );
+    expect(result.get('a')?.doubt).toBe('several');
+  });
+
+  it('ignores a second booking outside the tolerance and bookings that are already claimed', () => {
+    const far = cand({ id: 'far', amountCents: -9000 });
+    expect(
+      settleMatches([input('a', { candidates: [cand(), far] })], new Set()).get('a')?.doubt,
+    ).toBeNull();
+    const taken = cand({ id: 'taken' });
+    expect(
+      settleMatches([input('a', { candidates: [cand(), taken] })], new Set(['taken'])).get('a')
+        ?.doubt,
+    ).toBeNull();
+  });
+
+  it('does not let neighbouring occurrences of the same payment rival each other', () => {
+    const march = input('march', { group: 'rent', occurrence: occ({ dueDate: '2026-03-10' }) });
+    const april = input('april', {
+      group: 'rent',
+      occurrence: occ({ dueDate: '2026-04-10' }),
+      candidates: [cand({ id: 'b2', date: '2026-04-10' })],
+    });
+    const result = settleMatches([march, april], new Set());
+    expect(result.get('march')?.doubt).toBeNull();
+    expect(result.get('april')?.doubt).toBeNull();
   });
 });

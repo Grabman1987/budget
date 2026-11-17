@@ -1,8 +1,10 @@
 import AxeBuilder from '@axe-core/playwright';
 import type { Page } from '@playwright/test';
-import { sampleTest as test, expect } from './sample';
+import { test, expect } from './seeded-heute';
 import { MIN_TARGET_PX } from './ledger-helpers';
 
+// Seed schedule: cash 116,700 - bills 171,621 - Zukunft (30,000 + 40,000) = -124,921.
+// No materialised overdue Notgroschen exists in this read-only sample.
 async function openHeute(page: Page) {
   const loaded = page.waitForResponse((response) => {
     const url = new URL(response.url());
@@ -12,7 +14,7 @@ async function openHeute(page: Page) {
   });
   await page.goto('/?monat=2026-09&period=payday');
   await (await loaded).finished();
-  await expect(page.getByTestId('heute-lead-value')).toHaveText('7.062,79 €');
+  await expect(page.getByTestId('heute-lead-value')).toHaveText('−1.249,21 €');
 }
 
 for (const theme of ['light', 'dark'] as const) {
@@ -23,7 +25,7 @@ for (const theme of ['light', 'dark'] as const) {
     await page.emulateMedia({ colorScheme: theme });
     await openHeute(page);
     await expect(page.locator('.app')).toHaveAttribute('data-budget-redesign', '1');
-    await expect(page.getByTestId('heute-lead-value')).toHaveText('7.062,79 €');
+    await expect(page.getByTestId('heute-lead-value')).toHaveText('−1.249,21 €');
     await expect(page.locator('.hv-revisions tbody tr').first()).toBeVisible();
     await page.evaluate(() => document.fonts.ready);
     const amounts = page.locator('.hv-revisions tbody .hv-task-amount');
@@ -136,7 +138,7 @@ for (const theme of ['light', 'dark'] as const) {
   }) => {
     await page.emulateMedia({ colorScheme: theme });
     await openHeute(page);
-    await expect(page.getByTestId('heute-lead-value')).toHaveText('7.062,79 €');
+    await expect(page.getByTestId('heute-lead-value')).toHaveText('−1.249,21 €');
     expect(
       (await new AxeBuilder({ page }).include('main').include('.m-head').analyze()).violations,
     ).toEqual([]);

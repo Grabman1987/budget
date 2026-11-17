@@ -649,7 +649,11 @@ function OverviewAccount({
               <div>
                 <dt>Veränderung im Verlauf</dt>
                 <dd>
-                  {delta === null ? 'Nicht verfügbar' : nativeCurrency(delta, a.currency, true)}
+                  {delta === null
+                    ? seriesLoading
+                      ? 'Wird geladen …'
+                      : 'Nicht verfügbar'
+                    : nativeCurrency(delta, a.currency, true)}
                 </dd>
               </div>
               {shown?.cashCents != null && (
@@ -692,15 +696,19 @@ function OverviewAccount({
               </p>
             )}
             <BankBalance account={{ ...a, name }} />
-            <MiniLine
-              points={points}
-              currency={a.currency}
-              days={WINDOW_DAYS}
-              requireQuality
-              quality={quality}
-              label={name}
-              table
-            />
+            {seriesLoading ? (
+              <span className="overview-line-empty">Verlauf lädt …</span>
+            ) : (
+              <MiniLine
+                points={points}
+                currency={a.currency}
+                days={WINDOW_DAYS}
+                requireQuality
+                quality={quality}
+                label={name}
+                table
+              />
+            )}
           </td>
         </tr>
       )}

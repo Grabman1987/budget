@@ -90,6 +90,7 @@ describe('prototype figures reproduced', () => {
 
   it('deducts the literal scheduled bills before 15 October, excluding bills due on payday', () => {
     expect(month.lead.items.open.map((o) => [o.day, o.label, o.cents])).toEqual([
+      ['2026-09-16', 'Notgroschen', 30_000],
       ['2026-09-20', 'Streaming', 1799],
       ['2026-09-22', 'Mobilfunk', 2500],
       ['2026-09-25', 'Strom', 10_500],
@@ -97,6 +98,8 @@ describe('prototype figures reproduced', () => {
       ['2026-10-01', 'Fitnessstudio', 4_200],
       ['2026-10-01', 'Miete', 89_000],
       ['2026-10-03', 'Kreditrate', 41_200],
+      ['2026-10-03', 'Sondertilgung', 30_000],
+      ['2026-10-05', 'Investieren (ETF-Sparplan)', 40_000],
       ['2026-10-05', 'Zeitung digital', 1_290],
       // USD 20/10 at the fixture's last known EUR rate (rounded to cents).
       ['2026-10-08', 'KI-Assistent', 1_695],
@@ -106,7 +109,7 @@ describe('prototype figures reproduced', () => {
       ['2026-10-12', 'Geschenke (Oktober)', 10_000],
       ['2026-10-14', 'KI-Bildtool', 848],
     ]);
-    expect(month.lead.openCents).toBe(171_621);
+    expect(month.lead.openCents).toBe(271_621);
   });
 
   it('five envelopes are pinned in the prototype order', () => {
@@ -150,10 +153,10 @@ describe('figures that differ from the prototype, by design of the ledger', () =
   // The ledger derives them from 36 months of bookings, so these are the real figures.
   it('free until payday is the cash-flow figure, the chain adds up', () => {
     const lead = month.lead;
-    expect(lead.freeCents).toBe(706_279);
-    expect(lead.balanceCents + lead.inflowCents - lead.openCents + lead.overdraftCents).toBe(
-      lead.freeCents,
-    );
+    // Fixture bank cash 116,700 minus bills 171,621 minus Zukunft payments
+    // (overdue emergency 30,000 + extra repayment 30,000 + ETF 40,000) = -154,921 cents.
+    expect(lead.freeCents).toBe(-154_921);
+    expect(lead.balanceCents - lead.openCents).toBe(lead.freeCents);
     const terms = lead.chain.slice(0, -1);
     const sum = terms.reduce((a, t) => a + (t.op === '-' ? -t.value : t.value), 0);
     expect(sum).toBe(lead.chain.at(-1)?.value);
@@ -176,7 +179,8 @@ describe('figures that differ from the prototype, by design of the ledger', () =
     expect(month.balance.actual.at(-1)).toEqual({ day: TODAY, balanceCents: 116_700 });
     expect(month.stand.budgetBalanceCents).toBe(116_700);
     const fc = month.balance.forecast;
-    expect(fc[0]).toMatchObject({ day: TODAY, balanceCents: 116_700 });
+    // Projected start deducts the stored overdue 30,000-cent emergency payment.
+    expect(fc[0]).toMatchObject({ day: TODAY, balanceCents: 86_700 });
     expect(fc.at(-1)?.day).toBe('2026-10-02');
     expect(month.balance.low).toMatchObject({ day: '2026-09-16', cents: -607_900 });
     expect(Math.min(...[...month.balance.actual, ...fc].map((d) => d.balanceCents))).toBe(
@@ -229,9 +233,17 @@ describe('without materialised occurrences', () => {
   it('reads payday, open bills and the forecast from the schedule', () => {
     expect(unrefreshed.stand.payday).toEqual(month.stand.payday);
     const noIds = (h: Heute) => h.lead.items.open.map((o) => [o.day, o.label, o.cents]);
-    expect(noIds(unrefreshed)).toEqual(noIds(month));
-    expect({ ...unrefreshed.lead, items: [] }).toEqual({ ...month.lead, items: [] });
-    expect(unrefreshed.balance).toEqual(month.balance);
+    expect(noIds(unrefreshed)).toEqual(noIds(month).filter(([day]) => String(day) >= TODAY));
+    // The schedule alone does not invent an overdue open occurrence.
+    expect(unrefreshed.lead).toMatchObject({
+      balanceCents: 116_700,
+      openCents: 241_621,
+      freeCents: -124_921,
+    });
+    expect(unrefreshed.balance.actual).toEqual(month.balance.actual);
+    expect(unrefreshed.balance.forecast.map((d) => d.balanceCents)).toEqual(
+      month.balance.forecast.map((d) => d.balanceCents + 30_000),
+    );
     expect(unrefreshed.pace.figures).toEqual(month.pace.figures);
     expect(unrefreshed.upcoming14.every((o) => o.occurrenceId === null)).toBe(true);
     expect(month.upcoming14.every((o) => o.occurrenceId !== null)).toBe(true);

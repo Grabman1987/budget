@@ -169,7 +169,7 @@ async function mount(page: 'list' | 'statement') {
 }
 
 it.each(['discard', 'save'] as const)(
-  'retains the real booking draft and localized allocation refusal through read failure, then clears the reverted refusal on %s',
+  'retains the real booking draft and linked-edit confirmation through read failure, then clears the reverted refusal on %s',
   async (finish) => {
     const view = await mount('statement');
     const original = (await (await view.api.request(`/bookings/${view.older.id}`)).json()).booking;
@@ -195,13 +195,18 @@ it.each(['discard', 'save'] as const)(
       ]),
     );
     const refusal =
-      'Diese Buchung ist bereits einer Rückzahlung zugeordnet. Mache zuerst die zugehörige Rückzahlung rückgängig, bevor du Betrag oder Zuordnung änderst.';
+      'Undo the related contact settlement before changing its receipt or allocated outlay';
+    const confirmation = await within(dialog).findByRole('alertdialog', {
+      name: 'Verknüpfte Auslage wirklich bearbeiten?',
+    });
+    expect(confirmation.textContent).toContain('02.09.2026');
+    const cancel = within(confirmation).getByRole('button', { name: 'Abbrechen' });
     await waitFor(() => expect(view.container.querySelector('.contacts-balance')).toBeNull());
     expect(view.container.querySelector('.contact-movements')).toBeNull();
-    await waitFor(() => expect(within(dialog).getByRole('alert').textContent).toBe(refusal));
+    expect(device.rows[0]?.reason).toBe(refusal);
     expect(within(dialog).getByRole('combobox', { name: 'Kategorie' })).toBe(category);
     expect((category as HTMLInputElement).value).toBe('Reise');
-    expect(document.activeElement).toBe(category);
+    expect(document.activeElement).toBe(cancel);
     await act(async () => {
       view.release(
         new Response(JSON.stringify({ error: 'unavailable', message: 'Synthetische Lesepause' }), {
@@ -211,7 +216,8 @@ it.each(['discard', 'save'] as const)(
     });
     await screen.findByRole('button', { name: 'Erneut versuchen' });
     expect(view.container.querySelector('.contacts-balance')).toBeNull();
-    expect(within(dialog).getByRole('alert').textContent).toBe(refusal);
+    expect(within(dialog).getByRole('alertdialog')).toBe(confirmation);
+    expect(device.rows[0]?.reason).toBe(refusal);
     fireEvent.click(screen.getByRole('button', { name: 'Erneut versuchen' }));
     await waitFor(() =>
       expect(view.container.querySelector('.contacts-balance')?.textContent).toBe(
@@ -220,14 +226,20 @@ it.each(['discard', 'save'] as const)(
     );
     expect(within(dialog).getByRole('combobox', { name: 'Kategorie' })).toBe(category);
     expect((category as HTMLInputElement).value).toBe('Reise');
-    expect(within(dialog).getByRole('alert').textContent).toBe(refusal);
+    expect(within(dialog).getByRole('alertdialog')).toBe(confirmation);
+    expect(device.rows[0]?.reason).toBe(refusal);
     expect((await (await view.api.request(`/bookings/${view.older.id}`)).json()).booking).toEqual(
       original,
     );
     expect(device.rows).toHaveLength(1);
+    fireEvent.click(cancel);
+    expect(within(dialog).queryByRole('alertdialog')).toBeNull();
+    await waitFor(() => expect(document.activeElement).toBe(category));
     // Reverting the fields still requires discarding the persisted refusal.
     await user.clear(category);
     await user.type(category, 'Freund');
+    expect((category as HTMLInputElement).value).toBe('Freund');
+    expect(category.getAttribute('aria-expanded')).toBe('true');
     await user.click(await within(dialog).findByRole('option', { name: /Freund/ }));
     if (finish === 'discard') {
       fireEvent.click(within(dialog).getByRole('button', { name: 'Schließen' }));
@@ -237,6 +249,7 @@ it.each(['discard', 'save'] as const)(
     expect((await (await view.api.request(`/bookings/${view.older.id}`)).json()).booking).toEqual(
       original,
     );
+    expect(view.writes).toEqual([`PATCH /api/bookings/${view.older.id}`]);
   },
 );
 

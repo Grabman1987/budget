@@ -39,12 +39,14 @@ it.each(['occurrence', 'payment|2026-09-20'])(
       dailyBudget: { remainingDays: 14, perDayCents: 79 },
       lead: {
         balanceCents: 1001,
-        inflowCents: 202,
         openCents: 103,
-        overdraftCents: 0,
-        freeCents: 1100,
-        // Older API responses round their overview chain; the full explanation must retain cents.
-        chain: [{ label: 'Kontostand', value: 1000 }],
+        lastResortCents: 500,
+        freeCents: 898,
+        chain: [
+          { label: 'Server-Kontostand', value: 1001 },
+          { label: 'offen bis Gehalt', value: 103, op: '-' },
+          { label: 'frei verfügbar', value: 898, op: '=', result: true },
+        ],
         items: {
           accounts: [
             {
@@ -54,7 +56,6 @@ it.each(['occurrence', 'payment|2026-09-20'])(
               overdraftLimitCents: null,
             },
           ],
-          inflow: [{ id: 'in', label: 'Synthetic inflow', day: '2026-09-22', cents: 202 }],
           open: [{ id: identity, label: 'Synthetic payment', day: '2026-09-20', cents: 103 }],
         },
       },
@@ -94,16 +95,15 @@ it.each(['occurrence', 'payment|2026-09-20'])(
         <LeadExplanation data={data} />
       </QueryClientProvider>,
     );
+    expect(view.container.textContent).toContain('Server-Kontostand');
     expect(view.container.textContent).toContain('10,01 €');
-    expect(view.container.textContent).toContain('2,02 €');
+    expect(view.container.textContent).not.toContain('Erwartete Eingänge');
+    expect(view.container.textContent).toContain('Letzte Reserve (Dispo): 5,00 €');
     expect(view.container.textContent).toContain('1,03 €');
-    expect(view.container.textContent).toContain('11,00 €');
+    expect(view.container.textContent).toContain('8,98 €');
     expect(view.container.textContent).toContain('17.09.2026');
     expect(screen.getByRole('region', { name: 'Kontostand' }).textContent).toContain(
       'Synthetic account',
-    );
-    expect(screen.getByRole('region', { name: 'Erwartete Eingänge' }).textContent).toContain(
-      'Synthetic inflow',
     );
     expect(screen.getByRole('link', { name: /Synthetic payment/ }).getAttribute('href')).toContain(
       '/plan/erwartet/payment?',

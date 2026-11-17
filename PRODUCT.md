@@ -206,7 +206,7 @@ Datenquellen: Enable Banking (PSD2) für österreichische Banken, Bitpanda-Lese-
 
 | Bereich | Leitfrage |
 | --- | --- |
-| Heute | Hält der Monat? (Leitzahl: frei verfügbar bis Gehalt, eine Cashflow-Zahl: Kontostand der Budget-Konten + erwartete Eingänge vor dem Gehalt − offene Zahlungen vor dem Gehalt + aktivierter Dispo-Rahmen) |
+| Heute | Hält der Monat? (Leitzahl: frei verfügbar bis Gehalt, eine Cashflow-Zahl: Kontostand der Budget-Konten − offene Zahlungen vor dem Gehalt; ohne Dispo und ohne erwartete Eingänge, der Dispo steht als eigene Zeile „Letzte Reserve“) |
 | Plan | Jeder Euro hat einen Job |
 | Konten | Was ist passiert? |
 | Vermögen | Was besitze ich? |
@@ -273,7 +273,7 @@ Alle Reports rechnen aus demselben Hauptbuch; Nettovermögen, Rendite und Regels
 ## Brand Commitments
 
 - **Sprache der Oberfläche:** Deutsch (de-AT), Beträge `1.234,56 €`, Minus als echtes „−“, Einnahmen mit „+“. Kennzahlen ohne Cent, Listen mit Cent. Code, Kommentare und technische Doku auf Englisch.
-- **Eigenes Glossar statt Fremdbegriffen (Prinzip 1):** „Zu verteilen“, „Verfügbar“, „Bestätigt“, „Kontostand prüfen“, „Erwartet“, „Prüfen“ (früher „Posteingang“), „Kontakt“, „Anteil“, „Umbuchung“. Keine Begriffe wie „Abgleichbuchung“, „cleared“ oder „Bei Bank gebucht“. Jeder Begriff steht im Glossar.
+- **Eigenes Glossar statt Fremdbegriffen (Prinzip 1):** „Zu verteilen“, „Verfügbar“, „Bestätigt“, „Kontostand prüfen“, „Erwartet“, „Prüfen“ (früher „Posteingang“), „Kontakt“, „Anteil“, „Umbuchung“. Keine Begriffe wie „Abgleichbuchung“, „cleared“ oder „Bei Bank gebucht“. Jeder Begriff steht im Glossar (Finanzbegriffe: siehe „Glossar Finanzbegriffe“ unten).
 - **Generisch statt personenbezogen (Prinzip 2):** Kein Personen- oder Anbietername im Code, in UI-Texten oder in Beispielen. Personen sind Kontakte, Anbieter sind Institutionen, beides Daten.
 - **Name:** Budget.
 - **Visuelle Welt:** Kapitel 10 des Konzepts (Manrope, Farb-Tokens, Akzent, Klassenfarben, helle Kacheln) und die Mockups in `03_Mockups` sind nur Entwurf. Vom Nutzer festgelegt (28.09.2026): **Blautöne und Blaupausen-Look** – technisch, klar, stilsicher, „feine Klinge“; nicht generisch. Abgelehnt: Braun-/Rams-Industriedesign. Details entstehen über `/impeccable` und landen in DESIGN.md. Präzisionsschicht (Entscheidung 02.10.2026, „Architect / Precision Fintech“): kühler Slate-Grund mit weißen Karten, eisblaue Seitenleiste mit Kontenhierarchie, Waldgrün als Signal für vorhandenes Geld (Hero-Kennzahl, Mint-Pillen), Zeichenraster nur als ausgeblendeter Eckakzent, Plan › Monat dreispaltig mit Inspektor; der dunkle Modus bleibt Preußischblau; die Mockups in `design/screens` sind keine Prüfreferenz mehr (DESIGN.md). Verbindlich ist außerdem die Bedeutungslogik: Die drei Klassen Bedarf/Wunsch/Zukunft, Richtung (Einnahme/Ausgabe) und Status (erfüllt/Warnung/verletzt) brauchen je eine eigene, überall gleiche Kennzeichnung.
@@ -309,3 +309,18 @@ Owner UX Q1 (2026-10-14, #464): normal text has at least 4.5:1 contrast and cont
 - Berührflächen mindestens 44 × 44 px; Erfassung und Suchfelder sind mit Tastatur und Touch bedienbar (eigene Combobox statt `<datalist>`, die auf iOS Safari versagt).
 - Reduzierte Bewegung wird respektiert.
 - Vollwertiger Dunkelmodus.
+
+## Glossar Finanzbegriffe
+
+Verbindliche Definitionen mit der jeweils einen Funktion: SPEC „Financial terms“.
+
+- **Kontostand:** Saldo zu einem Tag inklusive vorgemerkter Buchungen; „nur gebucht“ gilt nur beim Kontostand prüfen; die Bewertung berücksichtigt Überweisungen unterwegs.
+- **Zu verteilen:** Geld auf den Budget-Konten, das noch keinem Umschlag gehört.
+- **Gebundene Rücklagen:** Rücklage-Konten decken zuerst das Notgroschen-Ziel (Zielmonate × durchschnittlicher Bedarf). Hinzu kommen fehlendes Zielgeld und verfügbare Zukunfts-Umschläge. Nur der Überschuss auf Budget-Rücklage-Konten oberhalb des Ziels wird mit den Umschlägen verrechnet, damit kein Geld doppelt zählt. Rücklagen außerhalb des Budgets werden nicht mit Umschlägen verrechnet.
+- **Frei bis Gehalt:** Kontostand der Budget-Konten minus offene Zahlungen bis zum nächsten Gehalt. Weder Dispo noch erwartete Eingänge zählen mit.
+- **Letzte Reserve (Dispo):** der noch nicht genutzte Dispo-Rahmen; Bankkredit, nie freies Geld, eigene Zeile.
+- **Verbindlichkeiten (brutto):** alles, was du schuldest: jeder negative Kontowert (Kredit, Karte, genutzter Dispo).
+- **Nettovermögen:** Summe aller Kontowerte; auf jeder Seite gleich.
+- **Investierbarer Betrag:** Geld, das nach Pflichten bis Gehalt + 30 Tage, gebundenen Rücklagen und verfügbaren Bedarf-/Wunsch-Umschlägen übrig ist; nie aus erwartetem Einkommen (noch nicht umgesetzt).
+
+Schulden netto bezeichnet die signierte Schuldenkomponente der Vermögensaufteilung: negative Kontowerte plus positive Guthaben auf Konten mit Schuldenrolle. Verbindlichkeiten zeigen dagegen die Summe aller negativen Kontowerte als positiven Bruttobetrag.

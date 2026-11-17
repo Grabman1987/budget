@@ -106,7 +106,7 @@ export async function verifyT3InvestmentBasis(page: Page, origin: string, bookma
     if ((await more.getAttribute('aria-expanded')) === 'false') await more.click();
     const chain = page.getByTestId('heute-networth-chart');
     await expect(chain.getByRole('button', { name: /Anlagen.*200,00/ })).toBeVisible();
-    await expect(chain.getByRole('button', { name: /Schulden \(netto\).*95,00/ })).toBeVisible();
+    await expect(chain.getByRole('button', { name: /Schulden netto.*95,00/ })).toBeVisible();
     await investmentScreenshots(page, 'basis');
     await investmentScreenshots(page, 'chain');
     await basis

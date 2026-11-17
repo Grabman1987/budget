@@ -134,7 +134,7 @@ test('explains plan-rest behind the derivation of the negative payday room on ph
   const response = await page.request.get('/api/heute?month=2026-09&period=payday');
   expect(response.ok()).toBe(true);
   const data: Heute = await response.json();
-  data.lead.freeCents = -10_000;
+  data.lead.freeCents = -25_000;
   data.budgetAnswer = {
     spentCents: 60_000,
     plannedCents: 100_000,
@@ -143,14 +143,12 @@ test('explains plan-rest behind the derivation of the negative payday room on ph
     daysInMonth: 30,
   };
   data.lead.balanceCents = 25_000;
-  data.lead.inflowCents = 15_000;
-  data.lead.overdraftCents = 0;
+  data.lead.lastResortCents = 0;
   data.lead.openCents = 50_000;
   data.lead.chain = [
     { label: 'Kontostand', value: 25_000 },
-    { label: 'erwartete Eingänge', value: 15_000, op: '+' },
     { label: 'offen bis Gehalt', value: 50_000, op: '-' },
-    { label: 'frei verfügbar', value: -10_000, op: '=', result: true },
+    { label: 'frei verfügbar', value: -25_000, op: '=', result: true },
   ];
   // Same figures in both modes: Bis Gehalt shows the lead, Monat the envelope sum.
   await page.route('**/api/heute?**', (route) =>
@@ -176,7 +174,7 @@ test('explains plan-rest behind the derivation of the negative payday room on ph
     ? page.getByRole('region', { name: 'Spielraum bis Gehalt' })
     : page.locator('.heute-kennzahl').nth(1);
   await expect(budget.getByRole('heading', { name: 'Frei bis Gehalt' })).toBeVisible();
-  await expect(page.getByTestId('heute-lead-value')).toHaveText('−100,00 €');
+  await expect(page.getByTestId('heute-lead-value')).toHaveText('−250,00 €');
   const derivation = budget.getByRole('button', {
     name: redesign ? /^Herleitung (zeigen|ausblenden)$/ : 'Herleitung Frei bis Gehalt',
   });
@@ -191,13 +189,13 @@ test('explains plan-rest behind the derivation of the negative payday room on ph
   );
   await expect(note).toContainText('Ausgabenplan: 600,00 € ausgegeben von 1.000,00 €');
   await expect(note).toContainText(
-    'Kontostand der Budget-Konten plus erwartete Eingänge, abzüglich der Rechnungen, die vor dem Gehalt noch fällig sind',
+    'Kontostand der Budget-Konten, abzüglich der Rechnungen, die vor dem Gehalt noch fällig sind',
   );
   await expect(note).toContainText('Plan-Rest 400,00 €');
   await expect(note).toContainText('kein Kontoguthaben');
   if (!redesign) await page.getByTestId('heute-lead-value').click();
   await expect(page.locator('#heute-lead-chain')).toContainText('offen bis Gehalt');
-  await expect(page.locator('#heute-lead-chain')).toContainText('−100');
+  await expect(page.locator('#heute-lead-chain')).toContainText('−250');
   await expect(page.locator('#heute-lead-chain')).toBeVisible();
   const dir = 'docs/evidence/heute-hints-1009/budget';
   mkdirSync(dir, { recursive: true });

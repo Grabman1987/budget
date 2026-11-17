@@ -9,6 +9,10 @@ export interface QueuedBooking {
   draft: BookingDraft;
   change?: { bookingId: string; patch: BookingPatch };
   reason?: string;
+  /** The server refused this entry (4xx or an unhandled 500): parked as a draft, never retried. */
+  rejected?: true;
+  /** Server error id of a rejected 500, for the log lookup (#1144). */
+  errorId?: string;
   /** A lost response might already have booked this exact payload. Resolve before editing. */
   uncertain: boolean;
   sending?: boolean;
@@ -130,8 +134,10 @@ export async function editQueued(id: string, input: BookingCreate, draft: Bookin
       throw new Error(
         'Prüfe zuerst mit „Jetzt senden“, ob der Server diese Buchung schon erhalten hat.',
       );
-    const { reason, ...rest } = current;
+    const { reason, rejected, errorId, ...rest } = current;
     void reason;
+    void rejected;
+    void errorId;
     if (current.change) throw new Error('Diese Änderung kann nur gesendet oder gelöscht werden.');
     await putQueued({ ...rest, input, draft });
   });
@@ -227,6 +233,8 @@ export function setQueuedSending(id: string, sending: boolean) {
 export const queuedStatus = (item: QueuedBooking) =>
   isQueuedSending(item.id) || item.sending
     ? 'Wird gesendet'
-    : item.reason || item.uncertain
-      ? 'Fehlgeschlagen'
-      : 'Lokal gespeichert';
+    : item.rejected
+      ? 'Buchung abgelehnt'
+      : item.reason || item.uncertain
+        ? 'Fehlgeschlagen'
+        : 'Lokal gespeichert';

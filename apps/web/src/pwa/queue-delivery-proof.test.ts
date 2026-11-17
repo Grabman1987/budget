@@ -421,6 +421,9 @@ describe('real queued booking delivery assurance (#559, no physical-file queue)'
     opened.sqlite.exec('DROP TRIGGER reject_delivery');
     const sent = vi.fn();
     await sendQueue(sent);
+    // Automatic triggers leave a rejected draft alone; only "Jetzt senden" retries it.
+    expect(sent).not.toHaveBeenCalled();
+    await sendQueue(sent, () => undefined, true);
     expect(device.rows).toEqual([]);
     expect(sent).toHaveBeenCalledTimes(1);
     const first = replies[1]!.data as Reply;

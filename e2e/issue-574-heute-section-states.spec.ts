@@ -1,10 +1,13 @@
 import { detectHeuteRedesign, heuteReviewUrl } from './heute-visual-fixture';
 import AxeBuilder from '@axe-core/playwright';
 import type { Locator, Page } from '@playwright/test';
-import { sampleTest as test, expect as baseExpect } from './sample';
+import { test, expect as baseExpect } from './seeded-heute';
 import type { Heute } from '../apps/web/src/heute/api';
 import type { SavingsExecutionProposal } from '../apps/web/src/wealth/savings-api';
 
+// Seed-only forecast: 116,700 cash - Streaming 1,799 - Mobilfunk 2,500
+// - Strom 10,500 - remaining variable budget 82,800 = 19,101 cents on 29 September.
+// Unlike a refreshed fixture, this read-only seed has no overdue 30,000-cent occurrence.
 let redesign = false;
 test.beforeAll(async ({ browser }) => {
   redesign = await detectHeuteRedesign(browser);

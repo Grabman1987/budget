@@ -54,13 +54,7 @@ export function DimensionPage() {
     liquid: 'Liquidität',
     invested: REDESIGN_ENABLED ? 'Anlagen' : 'Investiert',
     receivable: 'Forderungen',
-    debt: REDESIGN_ENABLED
-      ? net && net.debtCents > 0
-        ? 'Guthaben auf Schuldkonten (netto)'
-        : 'Schulden (netto)'
-      : net && net.debtCents > 0
-        ? 'Guthaben auf Schuldkonten'
-        : 'Schulden',
+    debt: net && net.debtCents > 0 ? 'Guthaben auf Schuldkonten (netto)' : 'Schulden netto',
   };
   const title = names[kind];
   const heading = useRef<HTMLHeadingElement>(null);
@@ -188,13 +182,7 @@ function NetWorthDetails({
     liquid: 'Liquidität',
     invested: REDESIGN_ENABLED ? 'Anlagen' : 'Investiert',
     receivable: 'Forderungen',
-    debt: REDESIGN_ENABLED
-      ? net.debtCents > 0
-        ? 'Guthaben auf Schuldkonten (netto)'
-        : 'Schulden (netto)'
-      : net.debtCents > 0
-        ? 'Guthaben auf Schuldkonten'
-        : 'Schulden',
+    debt: net.debtCents > 0 ? 'Guthaben auf Schuldkonten (netto)' : 'Schulden netto',
   };
   const totals = {
     liquid: net.liquidCents,
@@ -217,7 +205,7 @@ function NetWorthDetails({
       if (value < 0 || account.role === 'debt') return false;
       if (kind === 'invested') return account.role === 'investment';
       if (kind === 'receivable') return account.role === 'receivable';
-      return account.role === 'budget' || account.role === 'reserve';
+      return account.role === 'budget' || account.role === 'reserve' || account.role === null;
     }) ?? [];
   return (
     <div className="heute-breakdown">
@@ -227,8 +215,8 @@ function NetWorthDetails({
       </p>
       {kind === 'liquid' && (
         <p>
-          Positive Salden aus Budget- und Reservekonten. Negative Kontosalden zählen zu Schulden;
-          das Maß ist kein frei verfügbares Budget.
+          Positive Salden aus Budget-, Reservekonten und Konten ohne Rolle. Negative Kontosalden
+          zählen zu Schulden; das Maß ist kein frei verfügbares Budget.
         </p>
       )}
       {REDESIGN_ENABLED && kind === 'debt' && (

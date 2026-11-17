@@ -145,3 +145,20 @@ it('draws the provisional remaining-plan forecast from the first week', () => {
   expect(curve[0]).toBe(80000);
   expect(curve.at(-1)).toBe(100000);
 });
+
+it('keeps valuations with an unknown role in the net-worth parts', () => {
+  const parts = netWorthParts([
+    { role: null, valueCents: 1234 },
+    { role: null, valueCents: -2000 },
+    { role: 'debt', valueCents: 500 },
+  ]);
+  expect(parts).toEqual({
+    liquidCents: 1234,
+    investedCents: 0,
+    receivableCents: 0,
+    debtCents: -1500,
+    totalCents: -266,
+  });
+  const sides = netWorthSides([1234, -2000, 500]);
+  expect(sides.assetsCents - sides.liabilitiesCents).toBe(-266);
+});

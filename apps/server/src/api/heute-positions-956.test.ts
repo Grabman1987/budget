@@ -7,6 +7,8 @@ import { afterAll, beforeAll, expect, it, vi } from 'vitest';
 import { migrateDatabase, openDatabase, type OpenedDatabase } from '@budget/db';
 import { FIXTURE_DAY } from '../../../../scripts/perf/api-read-fixture';
 import { seedHeuteFixture } from '../../../../scripts/perf/heute-fixture-956';
+import { resetReviewEventCache } from '../../../../packages/db/src/repos/account-review-chronology';
+import { resetGoalAuditCache } from '../../../../packages/db/src/repos/goal-lifecycle';
 import { createLedgerApi } from './index';
 import { readModelOffload } from './read-model-offload';
 import baseline from './heute-positions-956.responses.json';
@@ -43,13 +45,29 @@ afterAll(() => {
   rmSync(directory, { recursive: true, force: true });
 });
 
-// Digests captured from the stock main API on this synthetic ledger before the read changes.
-it.each(baseline.responses)('keeps the stock response bytes of $path', async ({ path, digest }) => {
-  const response = await api().request(path);
-  expect(response.status).toBe(200);
-  const body = Buffer.from(await response.arrayBuffer());
-  expect(`${body.length}:${createHash('sha256').update(body).digest('hex')}`).toBe(digest);
-});
+// Non-Heute digests retain the stock read baseline; Heute follows SPEC Financial terms (F2).
+it.each(baseline.responses)(
+  'keeps the reviewed response bytes of $path',
+  async ({ path, digest }) => {
+    const response = await api().request(path);
+    expect(response.status).toBe(200);
+    const body = Buffer.from(await response.arrayBuffer());
+    if (path.startsWith('/heute?')) {
+      const payload = JSON.parse(body.toString('utf8'));
+      // Synthetic cash 4,707,357 minus 241,621 open cents, including 70,000 Zukunft cents.
+      expect(payload.lead).toMatchObject({
+        balanceCents: 4_707_357,
+        openCents: 241_621,
+        freeCents: 4_465_736,
+        lastResortCents: 600_000,
+      });
+      expect(payload.lead).not.toHaveProperty('inflowCents');
+      expect(payload.lead).not.toHaveProperty('overdraftCents');
+      expect(payload.dailyBudget.perDayCents).toBe(159_491);
+    }
+    expect(`${body.length}:${createHash('sha256').update(body).digest('hex')}`).toBe(digest);
+  },
+);
 
 /** Rows each table returned to one request (a structural budget, independent of machine speed). */
 async function rowsRead(path: string) {
@@ -87,6 +105,9 @@ async function rowsRead(path: string) {
 }
 
 it('reads the price and rate history at most once per Heute request', async () => {
+  // Earlier digest reads warm connection-local audit caches; this budget measures a cold read.
+  resetReviewEventCache(opened.db);
+  resetGoalAuditCache(opened.db);
   const fxRows = (opened.sqlite.prepare('select count(*) n from fx_rate').get() as { n: number }).n;
   const rows = await rowsRead('/heute?period=month');
   // Before #956: about 243k price rows (two full scans) and 10 full rate reads.

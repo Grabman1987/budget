@@ -8,7 +8,11 @@ import type { Heute } from './api';
 import { Kennzahlen } from './kennzahlen';
 
 vi.mock('../shell/app-link', () => ({
-  AppLink: ({ children }: { children: ReactNode }) => <a href="#source">{children}</a>,
+  AppLink: ({ children, search }: { children: ReactNode; search?: Record<string, string> }) => (
+    <a href="#source" data-search={JSON.stringify(search ?? {})}>
+      {children}
+    </a>
+  ),
 }));
 afterEach(cleanup);
 
@@ -204,4 +208,22 @@ it('labels the current figures for another month and shows the nearest goal only
   render(<Kennzahlen data={heute} budget={query()} onLeadClick={() => {}} />);
   expect(screen.queryByText(/Stand heute/)).toBeNull();
   expect(screen.queryByText(/gespart/)).toBeNull();
+});
+
+it('links Zu verteilen to the guided flow unless nothing is left to distribute', () => {
+  const link = () =>
+    document
+      .querySelector('a[data-search]:has([data-kennzahl="zu-verteilen"])')!
+      .getAttribute('data-search');
+  const withAmount = (toBeAssignedCents: number) =>
+    query({
+      data: { ...month, summary: { ...month.summary, toBeAssignedCents } } as BudgetMonthView,
+    });
+  for (const cents of [10_000, -500]) {
+    render(<Kennzahlen data={heute} budget={withAmount(cents)} onLeadClick={() => {}} />);
+    expect(link()).toContain('"ablauf":"verteilen"');
+    cleanup();
+  }
+  render(<Kennzahlen data={heute} budget={withAmount(0)} onLeadClick={() => {}} />);
+  expect(link()).not.toContain('ablauf');
 });

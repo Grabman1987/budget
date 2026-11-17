@@ -1,5 +1,6 @@
 import { addDays, monthOf } from '../date';
 import { dayDistance, dueDates, weekInterval, type Rhythm, type ScheduleRule } from './due-dates';
+import { roundDivCents } from '../wealth/int';
 
 /**
  * `missed` (ausgefallen) is a warning: it should have come. `skipped` (gestrichen) is a deliberate
@@ -86,10 +87,7 @@ const PER_YEAR: Record<Rhythm, number> = {
 };
 
 /** `num / den` rounded to whole cents half away from zero (`den` > 0). */
-const roundDiv = (num: number, den: number): number => {
-  const rounded = Math.floor((Math.abs(num) * 2 + den) / (den * 2));
-  return num < 0 && rounded !== 0 ? -rounded : rounded;
-};
+const roundDiv = roundDivCents;
 
 /**
  * Yearly equivalent of one payment of `amountCents` (keeps the sign). A weekly rhythm with
@@ -224,6 +222,8 @@ export function matchOccurrence(
 
 export interface AssignInput {
   key: string;
+  /** The payment the occurrence belongs to; occurrences of one payment never rival each other. */
+  group?: string;
   /** A `skipped` (gestrichen) occurrence is never matched, not even by a booking that fits. */
   status?: OccurrenceStatus;
   occurrence: Occurrence;
@@ -268,6 +268,76 @@ export function assignMatches(
       result.set(input.key, match);
       taken.add(match.candidate.id);
     }
+  }
+  return result;
+}
+
+/**
+ * Why an assigned match is not safe to store without the owner: several pairings are possible
+ * (`several`) or the amount is outside the tolerance (`amount`).
+ */
+export type MatchDoubt = 'several' | 'amount';
+
+export interface SettledMatch extends Match {
+  /** Null: the only possible pairing, amount inside the tolerance. Else the owner decides. */
+  doubt: MatchDoubt | null;
+}
+
+/**
+ * `assignMatches` plus a verdict per pairing (#1102): a pairing is unambiguous when no other free
+ * booking could take its place and the booking could not settle an occurrence of another payment.
+ * For a match inside the tolerance only rivals inside the tolerance count; for a deviating match
+ * every booking or occurrence in the date window counts, and a deviating amount is never
+ * unambiguous (`amount`): the owner confirms it. Occurrences of the same payment
+ * (`group`) are no rivals: there the nearest due date decides, and a booking that was assigned to
+ * a neighbouring occurrence of the same payment is no rival booking either.
+ */
+export function settleMatches(
+  inputs: readonly AssignInput[],
+  claimed: ReadonlySet<string>,
+): Map<string, SettledMatch> {
+  const assigned = assignMatches(inputs, claimed);
+  const live = inputs.filter((input) => input.status !== 'skipped');
+  const free = new Map(
+    live.map((input) => [
+      input.key,
+      rank(input.occurrence, input.candidates, input.windowDays).filter(
+        (r) => !claimed.has(r.candidate.id),
+      ),
+    ]),
+  );
+  const byKey = new Map(live.map((input) => [input.key, input]));
+  const owner = new Map<string, AssignInput>();
+  for (const [key, match] of assigned) owner.set(match.candidate.id, byKey.get(key)!);
+  const samePayment = (a: AssignInput | undefined, b: AssignInput) =>
+    a !== undefined && a.group !== undefined && a.group === b.group;
+
+  const result = new Map<string, SettledMatch>();
+  for (const [key, match] of assigned) {
+    const input = byKey.get(key)!;
+    const strict = match.status === 'received';
+    const counts = (other: AssignInput, amountDelta: number) =>
+      !strict || amountDelta <= other.toleranceCents;
+    const rivalBooking = free
+      .get(key)!
+      .some(
+        (r) =>
+          r.candidate.id !== match.candidate.id &&
+          counts(input, r.amountDelta) &&
+          !samePayment(owner.get(r.candidate.id), input),
+      );
+    const rivalOccurrence = live.some(
+      (other) =>
+        other.key !== key &&
+        !samePayment(other, input) &&
+        free
+          .get(other.key)!
+          .some((r) => r.candidate.id === match.candidate.id && counts(other, r.amountDelta)),
+    );
+    result.set(key, {
+      ...match,
+      doubt: rivalBooking || rivalOccurrence ? 'several' : strict ? null : 'amount',
+    });
   }
   return result;
 }

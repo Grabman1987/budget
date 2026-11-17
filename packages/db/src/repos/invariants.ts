@@ -242,8 +242,9 @@ export function assertTradeSettlementBookingWrite(
     [...fields].every((field) => ['memo', 'status', 'flag'].includes(field))
   )
     return;
+  const verb = { update: 'geändert', delete: 'gelöscht', restore: 'wiederhergestellt' }[operation];
   throw new BookingInvariantError(
-    `Cannot ${operation} a trade settlement; change the trade instead`,
+    `Eine Handelsabrechnung kann nicht ${verb} werden. Bitte den Handel ändern.`,
   );
 }
 

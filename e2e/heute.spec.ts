@@ -1,14 +1,14 @@
 import { captureSaveControl } from './ledger-helpers';
 import { detectHeuteRedesign, heuteReviewUrl } from './heute-visual-fixture';
 import { test as isolatedTest } from './isolated-ledger';
-import { sampleTest as test, expect as baseExpect } from './sample';
+import { test, expect as baseExpect } from './seeded-heute';
 import AxeBuilder from '@axe-core/playwright';
 import { test as ledgerTest, type Page } from '@playwright/test';
 import type { LiquidityReportView } from '../apps/web/src/reports/liquidity-api';
 import type { Heute } from '../apps/web/src/heute/api';
 import { MAIN_URL } from '../playwright.config';
 import { pickCategory, toast } from './ledger-helpers';
-import { addDays, daysBetween } from '@budget/domain';
+import { addDays, cents, daysBetween } from '@budget/domain';
 import { eur, shortDay } from '../apps/web/src/ledger/format';
 
 const expect = baseExpect.configure({ timeout: 15_000 });
@@ -63,6 +63,9 @@ async function currentForecast(page: Page, month = '2026-09') {
   return { card, chart, report: source.report };
 }
 
+// These legacy window checks deliberately include the stored overdue emergency payment.
+test.use({ materializedSample: true });
+
 let redesign = false;
 test.beforeAll(async ({ browser }) => {
   redesign = await detectHeuteRedesign(browser);
@@ -73,14 +76,41 @@ test('daily budget uses the live lead and next payday, wraps and explains the fo
 }, info) => {
   await page.goto(heuteReviewUrl(redesign, '/?monat=2026-09&period=payday'));
   const data: Heute = await (await page.request.get('/api/heute?period=payday')).json();
-  expect(data.lead.freeCents).toBeGreaterThan(0);
+  expect(data.lead.freeCents).toBe(-154_921);
+  expect(data.dailyBudget.perDayCents).toBeNull();
+  // Preserve positive daily-budget coverage with an explicit synthetic cash-only lead.
+  await page.route('**/api/heute?**', async (route) => {
+    const response = await route.fetch();
+    const json: Heute = await response.json();
+    json.lead.balanceCents = 38_000;
+    json.lead.lastResortCents = 0;
+    json.lead.openCents = 0;
+    json.lead.freeCents = 38_000;
+    json.lead.items = {
+      accounts: [
+        {
+          id: 'synthetic',
+          name: 'Synthetic cash',
+          balanceCents: 38_000,
+          overdraftLimitCents: null,
+        },
+      ],
+      open: [],
+    };
+    json.lead.chain = [
+      { label: 'Kontostand', value: cents(38_000) },
+      { label: 'offen bis Gehalt', value: cents(0), op: '-' },
+      { label: 'frei verf\u00fcgbar', value: cents(38_000), op: '=', result: true },
+    ];
+    json.dailyBudget.perDayCents = 1357; // 38,000 / 28 days, rounded to the nearest cent.
+    await route.fulfill({ response, json });
+  });
+  await page.reload();
   expect(data.dailyBudget.remainingDays).toBe(data.lead.daysToPayday);
-  expect(data.dailyBudget.perDayCents).toBe(
-    Math.round(data.lead.freeCents / data.dailyBudget.remainingDays),
-  );
+  expect(data.dailyBudget.remainingDays).toBe(28);
   const line = page.getByTestId('heute-daily-budget');
   await expect(line).toContainText(
-    `≈ ${eur(data.dailyBudget.perDayCents!, { cents: false })} pro Tag · noch ${data.dailyBudget.remainingDays} Tage bis zum Gehalt`,
+    `≈ ${eur(1357, { cents: false })} pro Tag · noch ${data.dailyBudget.remainingDays} Tage bis zum Gehalt`,
   );
   for (const colorScheme of ['light', 'dark'] as const) {
     await page.emulateMedia({ colorScheme, reducedMotion: 'reduce' });
@@ -149,7 +179,9 @@ test('Heute month forecast ends two days after month end and names payments in t
   expect(salary.items.map((item) => item.label)).toEqual(
     expect.arrayContaining(['Gehalt', 'Kontoführung']),
   );
-  expect(data.balance.actual.at(-1)!.balanceCents).toBe(data.balance.forecast[0]!.balanceCents);
+  // Cash stays 116,700 cents; day zero also reserves the overdue Notgroschen (30,000).
+  expect(data.balance.actual.at(-1)!.balanceCents).toBe(116_700);
+  expect(data.balance.forecast[0]!.balanceCents).toBe(86_700);
   const group = current.chart.locator('..');
   await group.focus();
   const index = current.report.points.findIndex((point) => point.day === '2026-09-30');
@@ -184,7 +216,9 @@ test('Heute payday forecast follows the bracket and last axis label', async ({ p
   expect(data.stand.to).toBe('2026-10-17');
   expect(data.balance.forecast.at(-1)!.day).toBe('2026-10-17');
   expect(data.balance.actual[0]!.day).toBe(addDays(data.stand.today, -14));
-  expect(data.balance.actual.at(-1)!.balanceCents).toBe(data.balance.forecast[0]!.balanceCents);
+  // Cash stays 116,700 cents; day zero also reserves the overdue Notgroschen (30,000).
+  expect(data.balance.actual.at(-1)!.balanceCents).toBe(116_700);
+  expect(data.balance.forecast[0]!.balanceCents).toBe(86_700);
   expect(
     data.balance.forecast
       .flatMap((point) => point.items)
@@ -234,7 +268,9 @@ test('R07 remembers Heute period and retains its API forecast and low point in e
     expect(data.stand.period).toBe(period);
     expect(data.stand.to).toBe(period === 'month' ? '2026-10-02' : '2026-10-17');
     expect(data.balance.forecast.at(-1)!.day).toBe(data.stand.to);
-    expect(data.balance.actual.at(-1)!.balanceCents).toBe(data.balance.forecast[0]!.balanceCents);
+    // Cash stays 116,700 cents; day zero also reserves the overdue Notgroschen (30,000).
+    expect(data.balance.actual.at(-1)!.balanceCents).toBe(116_700);
+    expect(data.balance.forecast[0]!.balanceCents).toBe(86_700);
     expect(data.balance.low!.cents).toBe(
       Math.min(
         ...[...data.balance.actual, ...data.balance.forecast].map((point) => point.balanceCents),
@@ -284,7 +320,7 @@ test('Heute uses live API data and period, expands the lead chain, and links to 
   const response = await page.request.get('/api/heute?period=month&month=2026-09');
   expect(response.ok()).toBe(true);
   const initial: Heute = await response.json();
-  expect(initial.lead.freeCents).toBe(706_279);
+  expect(initial.lead.freeCents).toBe(-154_921);
   const badRules =
     'unavailable' in initial.financeCheck
       ? []
@@ -326,15 +362,15 @@ test('Heute uses live API data and period, expands the lead chain, and links to 
     'Nettovermögen',
   ]);
   await expect(page.getByTestId('heute-lead-value')).toBeVisible();
-  await expect(page.getByTestId('heute-lead-value')).toContainText('7.062');
-  await expect(page.getByTestId('heute-lead-value')).toContainText(',79 €');
+  await expect(page.getByTestId('heute-lead-value')).toContainText('1.549');
+  await expect(page.getByTestId('heute-lead-value')).toContainText(',21 €');
   await page.getByTestId('heute-lead-value').click();
   await expect(
     page.getByRole('button', { name: 'Herleitung ausblenden', exact: true }),
   ).toHaveAttribute('aria-expanded', 'true');
   const leadChain = page.getByRole('group', { name: /Maßkette: Kontostand/ });
   await expect(leadChain).toBeVisible();
-  await expect(leadChain.getByRole('button', { name: /^erwartete Eingänge/ })).toBeVisible();
+  await expect(leadChain.getByRole('button', { name: /^erwartete Eingänge/ })).toHaveCount(0);
   await expect(leadChain.getByRole('button', { name: /^offen bis Gehalt/ })).toBeVisible();
   await leadChain.getByRole('button', { name: /^Kontostand/ }).click();
   await expect(page.getByRole('heading', { name: 'Budget-Konten', exact: true })).toBeVisible();
@@ -396,7 +432,7 @@ test('Heute uses live API data and period, expands the lead chain, and links to 
   for (const [name, account, total] of [
     ['Liquidität', 'Girokonto', '9.356,00 €'],
     [redesign ? 'Anlagen' : 'Investiert', 'Depot', '88.000,00 €'],
-    [redesign ? 'Schulden (netto)' : 'Schulden', 'Kredit', '−12.626,00 €'],
+    ['Schulden netto', 'Kredit', '−12.626,00 €'],
   ]) {
     const segment = page
       .getByRole('group', { name: 'Maßkette Nettovermögen' })
@@ -421,7 +457,7 @@ test('Heute uses live API data and period, expands the lead chain, and links to 
     .getByRole('button', { name: /^Schulden/ })
     .press('Enter');
   const source = page
-    .getByRole('region', { name: redesign ? 'Schulden (netto)' : 'Schulden', exact: true })
+    .getByRole('region', { name: 'Schulden netto', exact: true })
     .getByRole('link', { name: 'Kredit', exact: true });
   const target = new URL((await source.getAttribute('href'))!, page.url());
   await source.click();
@@ -750,11 +786,11 @@ test('a failed Heute request offers a working retry', async ({ page }) => {
   );
   await alert.getByRole('button', { name: 'Erneut versuchen' }).click();
   await retried;
-  await expect(page.getByTestId('heute-lead-value')).toContainText('7.062');
+  await expect(page.getByTestId('heute-lead-value')).toContainText('1.549');
   await expect(page.getByRole('alert')).toBeHidden();
 });
 
-test('settled balance reaches the forecast and the composition measures its parts in both motion modes', async ({
+test('settled balance and overdue forecast reserve remain distinct and the composition measures its parts in both motion modes', async ({
   page,
 }, info) => {
   test.setTimeout(120_000);
@@ -790,11 +826,13 @@ test('settled balance reaches the forecast and the composition measures its part
       );
     });
     // Old report-mode segment join is retained in charts.test.tsx; the real source opening
-    // equality remains exact here. The active card has forecast only, with current markers.
+    // and overdue reserve remain exact here. The active card has forecast only, with current markers.
     const data: Heute = await (
       await page.request.get('/api/heute?month=2026-09&period=payday')
     ).json();
-    expect(data.balance.actual.at(-1)!.balanceCents).toBe(data.balance.forecast[0]!.balanceCents);
+    // Cash stays 116,700 cents; day zero also reserves the overdue Notgroschen (30,000).
+    expect(data.balance.actual.at(-1)!.balanceCents).toBe(116_700);
+    expect(data.balance.forecast[0]!.balanceCents).toBe(86_700);
     expect(data.balance.actual.at(-1)!.day).toBe(data.balance.forecast[0]!.day);
     await expect(
       page.getByTestId('heute-wealth-history').locator('path.l-actual').first(),
@@ -1020,6 +1058,11 @@ test('mobile attention remains reachable above the floating capture button in bo
   await page.goto(heuteReviewUrl(redesign, '/'));
   const attention = page.locator('.heute-attention');
   await expect(attention).toBeVisible();
+  // The attention can precede lazy charts/fonts. Finish their layout before measuring page-end reach.
+  await expect(page.getByTestId('heute-networth-chart')).toBeVisible();
+  await expect(page.getByTestId('heute-wealth-history')).toBeVisible();
+  await expect(page.locator('.heute [aria-busy="true"]')).toHaveCount(0);
+  await page.evaluate(() => document.fonts.ready);
   // The FAB is fixed and hides while scrolling down (#468), so measure its slot once at the top.
   const fab = (await page.locator('.fab').boundingBox())!;
   for (const theme of ['light', 'dark']) {

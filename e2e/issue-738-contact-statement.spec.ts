@@ -226,7 +226,7 @@ for (const profile of ['desktop', 'phone'] as const)
         expect(writes).toEqual([]);
         await expect(page).toHaveURL(new RegExp(`/konten/kontakte/${contact.id}\\?verlauf=1$`));
 
-        // A partially allocated older source remains protected by the existing server guard.
+        // #1108 keeps the server guard and asks for explicit confirmation before retry.
         await region
           .getByRole('button', { name: /Ursprungsbuchung öffnen.*Ältere offene Auslage/ })
           .click();
@@ -248,9 +248,20 @@ for (const profile of ['desktop', 'phone'] as const)
         expect((await refused.json()).message).toBe(
           'Undo the related contact settlement before changing its receipt or allocated outlay',
         );
-        await expect(dialog.getByRole('alert')).toHaveText(
-          'Diese Buchung ist bereits einer Rückzahlung zugeordnet. Mache zuerst die zugehörige Rückzahlung rückgängig, bevor du Betrag oder Zuordnung änderst.',
+        await expect(dialog.getByRole('alert')).toHaveCount(0);
+        const linkedQuestion = dialog.getByRole('alertdialog', {
+          name: 'Verknüpfte Auslage wirklich bearbeiten?',
+        });
+        await expect(linkedQuestion).toBeVisible();
+        await expect(linkedQuestion).toHaveAccessibleDescription(
+          'Diese Auslage ist mit einer Rückzahlung vom 02.09.2026 verknüpft. Passt der neue Betrag noch, bleibt die Zuordnung bestehen. Sonst führt der Kontakt den Rest als Guthaben, nichts geht verloren und nichts wird doppelt gezählt. Die Änderung wird protokolliert und kann mit einem Klick rückgängig gemacht werden.',
         );
+        await expect(
+          linkedQuestion.getByRole('button', { name: 'Bearbeitung bestätigen' }),
+        ).toBeVisible();
+        // Cancel preserves the ledger and the draft without a second PATCH.
+        await linkedQuestion.getByRole('button', { name: 'Abbrechen', exact: true }).click();
+        await expect(linkedQuestion).toHaveCount(0);
         await expect(dialog.getByRole('combobox', { name: 'Kategorie', exact: true })).toHaveValue(
           'Synthetisches Geschenk',
         );

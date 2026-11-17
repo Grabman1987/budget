@@ -225,6 +225,51 @@ Cost: about 23 MB of heap per connection that reads goal lifecycles: the read-mo
 Measured on the synthetic ledger (`scripts/perf/heute-positions-956.ts --only heute`, interleaved with
 stock `main` on the same machine, ms, median of 9): see PR #1073 for the numbers; digests unchanged.
 
+### Heute cold read, stage 4 (#1073, train 8)
+
+Stage breakdown of one cold `GET /api/heute?period=month` on the synthetic ledger
+(`scripts/perf/heute-positions-956.ts`, 2 vCPU class laptop, quiet machine, process warm, fresh
+read-model cache; median of 5; 1160 ms, 782 statements, SQL about 600 ms). Per-stage inclusive ms:
+
+| Stage | ms | Notes |
+| --- | ---: | --- |
+| `accountReminders` (chronology, audit replay + 16 balance sums) | 220 | one 13.5k-row `json_extract` query |
+| `wholePicture` (month change only) | 197 | needs only three totals of the full report |
+| `listGoals` (goal lifecycles) | 129 | cache warm; replay and fingerprint remain |
+| `financeCheck` | 115 | |
+| `netWorthAsOf` x 10 month ends | 108 | one valuation per day |
+| `loadFacts` | 93 | |
+| net worth valuation (today) | 65 | |
+| inbox count / pace / month result / cash series | 60 / 56 / 39 / 20 | |
+
+Changes in this stage (responses stay byte-identical, `heute-positions-956.test.ts` holds the stock digests):
+
+1. **Account review chronology** keeps the *projection* of each booking/checkpoint audit row
+   (`beforeLive`, `afterLive`, `financialChange`, ...) per connection, filled rowid-incrementally,
+   and decides in memory (live bookings, current checkpoints) which rows count, as the SQL filter did.
+   Same trust rule as the goal cache (same row count up to the cached rowid, same id there; failures
+   fall back to the reference SQL). The 13.5k-row join with ten `json_extract` pairs per edit is gone
+   from every request after the first on a connection; `account-review-578.test.ts` compares the warm
+   answer with a cold one after edits, undo and a rolled-back insert.
+2. **Cache prefix check without a table scan.** Both audit caches asked
+   `count(*) WHERE rowid <= last`, which walks the whole table including its JSON pages (27 ms on
+   15k rows). They now ask `count(*)` minus the rows after `last` (0.4 ms, same value).
+3. **`accountBalances(db, asOf)`** (16 calls per Heute request, one grouped scan of all bookings
+   each, 58 ms) reads the live booking amounts per account and day once per request
+   (`memoizedShared`) and sums per date in memory: same rule (opening date, `<= asOf`), same order.
+
+Not measured after the change: the machine was shared with other agents at 90-100 % CPU during this
+work, so wall times were 10-40x the quiet ones and no honest "after" table could be taken. Expected
+effect from the stage table: about 150 ms (chronology), 20 + 20 ms (two prefix checks), 35 ms
+(balances); remeasure with `--samples 9` on a quiet machine. Remaining to reach 500 ms: `wholePicture`
+for the current month only (about 100 ms: skip the cashflow report and the debt-principal loop),
+goal lifecycle replay/fingerprint (about 100 ms), month-end net worth series from one pass over trades
+and prices (about 80 ms), `loadFacts`/Finanz-Check row mapping with raw prepared statements (about
+100 ms) and the `structuredClone` of `memoized` results. `--top N` of the benchmark prints the
+slowest statements of the last sample. An index would not help (the audit queries already use
+`audit_entity_idx`; the cost was scanning and parsing); a faster machine or `shared-cpu-2x` would
+help every stage roughly in proportion, owner decision.
+
 ## CI flakes
 
 - `e2e/shell.spec.ts` route sweep (`main` landmark within 5 s on `/reports/finanzcheck`,
