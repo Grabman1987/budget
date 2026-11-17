@@ -57,3 +57,24 @@ it('names an incomplete bank report and keeps a tax refund negative', () => {
     /Steuern \(einbehalten\/erstattet\)[^A-Za-z]*40,00/,
   );
 });
+
+it('splits bank and interest costs by calendar year, newest first, and marks partial years', () => {
+  const bank = {
+    totalCents: 1_000,
+    portfolioAccountFeeCents: 0,
+    months: ['2026-09'],
+    rows: [],
+    modeledInterestMissingFxPeriods: 0,
+    skippedForeignTrades: 0,
+    monthly: [
+      { month: '2025-12', totalCents: 700 },
+      { month: '2026-01', totalCents: 200 },
+      { month: '2026-02', totalCents: 150 },
+    ],
+  } as unknown as BankCostsReport;
+  render(<CombinedCostsView bank={bank} portfolio={portfolio} />);
+  const text = screen.getByTestId('cc-years').textContent ?? '';
+  expect(text.indexOf('2026')).toBeLessThan(text.indexOf('2025'));
+  expect(text).toMatch(/2026[^0-9]*3,50[^0-9]*2 von 12 Monaten/);
+  expect(text).toMatch(/2025[^0-9]*7,00[^0-9]*1 von 12 Monaten/);
+});
