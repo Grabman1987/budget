@@ -167,10 +167,12 @@ function GroupForm({ group, onDone }: { group: GroupRow | undefined; onDone: () 
       ? await write(
           () => renameGroup(group.id, name),
           () => `Gruppe heißt jetzt „${name.trim()}“.`,
+          { awaitRefresh: false },
         )
       : await write(
           () => createGroup(name),
           () => `Gruppe „${name.trim()}“ angelegt.`,
+          { awaitRefresh: false },
         );
     busy.current = false;
     if (done) onDone();
@@ -334,6 +336,7 @@ function CategoryForm({
           ? patchCategory(c.id, { ...fields, hidden, ...withTarget })
           : createCategory({ ...fields, ...withTarget }),
       (r) => (c ? `„${r.category.name}“ gespeichert.` : `Kategorie „${r.category.name}“ angelegt.`),
+      { awaitRefresh: false },
     );
     saving.current = false;
     if (done) {
@@ -614,6 +617,7 @@ function MergeForm({
       () => mergeCategories([source.id], targetId),
       (r) =>
         `„${source.name}“ in „${target?.name ?? ''}“ zusammengeführt (${r.movedSplits} Buchungen).`,
+      { awaitRefresh: false },
     );
     if (done) onDone();
   };
@@ -720,6 +724,7 @@ function SplitForm({
     const done = await write(
       () => splitOff(source.id, [...chosen], target),
       (r) => `${r.moved} Buchungen verschoben.`,
+      { awaitRefresh: false },
     );
     if (done) onDone();
   };

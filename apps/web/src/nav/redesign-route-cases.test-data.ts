@@ -212,6 +212,7 @@ export const plannedStable16 = [
   ['explorer', '/reports/explorer', 'explorer'],
   ['vermoegen-schulden', '/reports/vermoegen-schulden', 'assetsDebts'],
   ['pdepots', '/reports/pdepots', 'depots'],
+  ['pallocation', '/reports/pallocation', 'portfolioReport'],
   ['psteuern', '/reports/psteuern', 'costs'],
   ['einnahmen-ausgaben', '/reports/einnahmen-ausgaben', 'incomeExpense'],
   ['ausgaben', '/reports/ausgaben', 'spending'],

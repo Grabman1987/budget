@@ -1,3 +1,4 @@
+import { HUB_REPORT_COUNT } from './report-menu';
 import AxeBuilder from '@axe-core/playwright';
 import { sampleTest as test, expect } from './sample';
 
@@ -9,6 +10,7 @@ const identities = [
   'explorer',
   'vermoegen-schulden',
   'pdepots',
+  'pallocation',
   'psteuern',
   'einnahmen-ausgaben',
   'ausgaben',
@@ -20,7 +22,7 @@ const identities = [
   'inflation',
 ];
 
-test('catalog preserves all sixteen destinations, legacy names and usable fallback readers', async ({
+test('catalog preserves all seventeen destinations, legacy names and usable fallback readers', async ({
   page,
 }, info) => {
   for (const theme of ['light', 'dark'] as const) {
@@ -30,7 +32,7 @@ test('catalog preserves all sixteen destinations, legacy names and usable fallba
     await expect(page.locator('.report-hub')).toBeVisible();
     const redesign = (await page.locator('[data-budget-redesign="1"]').count()) > 0;
     await expect(page.locator('.report-hub-v2')).toHaveCount(redesign ? 1 : 0);
-    await expect(page.locator('.report-hub-list > li')).toHaveCount(16);
+    await expect(page.locator('.report-hub-list > li')).toHaveCount(HUB_REPORT_COUNT);
     if (!redesign) continue;
     expect(
       await page
@@ -45,7 +47,7 @@ test('catalog preserves all sixteen destinations, legacy names and usable fallba
     });
     for (const [name, id] of [
       ['Finanz-Check-Verlauf', 'onepager'],
-      ['Rendite und Kennzahlen', 'vermoegen-schulden'],
+      ['Rendite und Kennzahlen', 'pallocation'],
       ['Jahresansicht', 'explorer'],
       ['Gesamttabelle', 'explorer'],
     ]) {
@@ -64,9 +66,9 @@ test('catalog preserves all sixteen destinations, legacy names and usable fallba
     await expect(
       page.getByRole('link', { name: 'Finanz-Check-Verlauf', exact: true }),
     ).toHaveAttribute('href', '/reports/finanzcheck');
-    await expect(
-      page.getByRole('link', { name: 'Portfolio-Auswertung', exact: true }),
-    ).toHaveAttribute('href', '/reports/pallocation');
+    await expect(page.locator('.report-hub-list a[href="/reports/pallocation"]')).toContainText(
+      'Portfolio-Auswertung',
+    );
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
       true,
     );
@@ -93,7 +95,7 @@ test('catalog search and legacy report bookmarks retain their destinations and s
   for (const [term, label] of [
     ['Monats-One-Pager', '1 Monatsbericht'],
     ['Vermögensreport', '6 Vermögensreport'],
-    ['Gehaltsreport', '11 Gehalt'],
+    ['Gehaltsreport', '12 Gehalt'],
     ['Liquiditätsprognose', 'Plan · Prognose'],
   ]) {
     await palette.fill(term!);
@@ -101,7 +103,7 @@ test('catalog search and legacy report bookmarks retain their destinations and s
   }
   await palette.press('Escape');
   for (const [alias, target, view] of [
-    ['prendite', 'vermoegen-schulden', 'rendite'],
+    ['prendite', 'pallocation', 'rendite'],
     ['cashflow', 'einnahmen-ausgaben', 'cashflow'],
     ['finanzcheck', 'onepager', 'finanzcheck'],
   ]) {

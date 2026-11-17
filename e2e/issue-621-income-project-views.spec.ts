@@ -86,7 +86,9 @@ async function inspect(page: Page, info: TestInfo, label: string) {
     return {
       header: rect(header),
       controls: rect(element),
-      views: rect(element.querySelector('.report-view-switch')!),
+      views: element.querySelector('.report-view-switch')
+        ? rect(element.querySelector('.report-view-switch')!)
+        : null,
       project: rect(element.querySelector('.report-project-select')!),
       labels: Array.from(element.querySelectorAll('button')).map((button) => {
         const range = document.createRange();
@@ -111,19 +113,22 @@ async function inspect(page: Page, info: TestInfo, label: string) {
     expect(layout.controls.top).toBeGreaterThanOrEqual(layout.header.top);
     expect(layout.controls.bottom).toBeLessThanOrEqual(layout.header.bottom);
   } else expect(layout.controls.top).toBeGreaterThanOrEqual(layout.header.bottom);
-  expect(
-    layout.views.right <= layout.project.left ||
-      layout.project.right <= layout.views.left ||
-      layout.views.bottom <= layout.project.top ||
-      layout.project.bottom <= layout.views.top,
-  ).toBe(true);
-  if (on)
+  if (on) {
+    // The views are indented entries of the report menu (#1150), not a select next to the project filter.
+    expect(layout.views).toBeNull();
     await expect(
-      controls
-        .getByRole('combobox', { name: 'Ansicht von Einnahmen und Cashflow' })
-        .locator('option'),
-    ).toHaveText(['Einnahmen', 'Einnahmen und Ausgaben', 'Cashflow', 'Projekt-Ergebnisse']);
-  else
+      controls.getByRole('combobox', { name: 'Ansicht von Einnahmen und Cashflow' }),
+    ).toHaveCount(0);
+  } else {
+    const views = layout.views!;
+    expect(
+      views.right <= layout.project.left ||
+        layout.project.right <= views.left ||
+        views.bottom <= layout.project.top ||
+        layout.project.bottom <= views.top,
+    ).toBe(true);
+  }
+  if (!on)
     expect(layout.labels.slice(0, 3).map((entry) => entry.label)).toEqual([
       'Einnahmen',
       'Einnahmen und Ausgaben',

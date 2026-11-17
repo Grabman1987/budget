@@ -16,7 +16,7 @@ async function portfolioTitleVisible(page: Page, info: TestInfo) {
       : page.locator('.m-title-text');
   await expect(title).toBeVisible();
   await title.scrollIntoViewIfNeeded();
-  await expect(title).toHaveText(on ? 'Vermögensreport' : 'Portfolio-Auswertung');
+  await expect(title).toHaveText('Portfolio-Auswertung');
   const geometry = await title.evaluate((element) => {
     const range = document.createRange();
     range.selectNodeContents(element);
@@ -319,15 +319,11 @@ for (const [view, legacy, bodySelector] of [
       await expect(body).toHaveText(content, { useInnerText: true });
       await revealReportDetail(page);
       await expect(page.getByTestId('report-verdict')).toHaveText(verdict, { useInnerText: true });
-      await expect(page).toHaveTitle(
-        (await redesignReportsOn(page)) ? /Vermögensreport/ : /Portfolio-Auswertung/,
-      );
+      await expect(page).toHaveTitle(/Portfolio-Auswertung/);
       await portfolioTitleVisible(page, info);
       if (view === 'einzahlungen') await monthlyTableReachable(page, info);
       if (info.project.name !== 'desktop')
-        await expect(page.locator('.m-title-text')).toHaveText(
-          (await redesignReportsOn(page)) ? 'Vermögensreport' : 'Portfolio-Auswertung',
-        );
+        await expect(page.locator('.m-title-text')).toHaveText('Portfolio-Auswertung');
       if (view === 'einzahlungen')
         await expect(page.getByTestId('report-trend-line')).not.toHaveCount(0);
       await expectWealthReportView(
@@ -424,7 +420,7 @@ test('487 Portfolio switching preserves literal performance and contribution amo
   await noClearMoney(page, /300[,.]03|1[.\s]?500[,.]06/);
   await privacy(page, false);
   await expect(page.getByTestId('contributions-end-value')).toHaveText('1.500,06 €');
-  await expect(page.getByTestId('contributions-months')).toContainText('+300,03 €');
+  await expect(page.getByTestId('contributions-months')).toContainText('300,03 €');
   await expect(page.getByTestId('contributions-period')).toHaveText(
     '01.08.2026 bis 31.08.2026 · 31 Tage',
   );

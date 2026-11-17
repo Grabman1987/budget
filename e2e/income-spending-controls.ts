@@ -1,12 +1,16 @@
+import { chooseReportMenuView } from './report-menu';
 import { expect, type Page } from '@playwright/test';
 import { redesignReportsOn } from './report-frame';
 
 export async function chooseReportView(page: Page, label: string, view: string) {
   if (await redesignReportsOn(page)) {
+    // Controls that stayed a select (e.g. the period of Geldfluss) keep working; views are menu entries (#1150).
     const select = page.getByRole('combobox', { name: label, exact: true });
-    await select.focus();
-    await select.selectOption({ label: view });
-    await expect(select).toBeFocused();
+    if (await select.count()) {
+      await select.focus();
+      await select.selectOption({ label: view });
+      await expect(select).toBeFocused();
+    } else await chooseReportMenuView(page, view);
   } else
     await page
       .getByRole('group', { name: label, exact: true })

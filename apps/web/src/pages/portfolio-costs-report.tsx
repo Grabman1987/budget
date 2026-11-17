@@ -1,8 +1,6 @@
-import { useId } from 'react';
 import { BankCostsReportPage, bankCostsQuery } from '../reports/bank-costs-report';
-import { CombinedCostsView } from '../reports/combined-costs-view';
-import { useNavigate, useSearch } from '@tanstack/react-router';
-import { Select } from '@budget/ui';
+import { CombinedCostsView, combinedCostsOf } from '../reports/combined-costs-view';
+import { useSearch } from '@tanstack/react-router';
 import { REDESIGN_ENABLED } from '../shell/redesign-flag';
 import { PortfolioRecordedCostHistory } from '../reports/portfolio-recorded-cost-history';
 import { PortfolioIncomeDepth } from '../reports/portfolio-income-depth';
@@ -43,9 +41,7 @@ const costsQuery = queryOptions({
 
 export function PortfolioCostsReport({ report, meta }: { report: ReportEntry; meta: PageMeta }) {
   useAmountPrivacy();
-  const viewId = useId();
   const search = useSearch({ strict: false }) as { darstellung?: string };
-  const navigate = useNavigate();
   const view =
     REDESIGN_ENABLED &&
     ['ertraege', 'kostenverlauf', 'bankkosten', 'gesamt'].includes(search.darstellung ?? '')
@@ -54,31 +50,8 @@ export function PortfolioCostsReport({ report, meta }: { report: ReportEntry; me
   const query = useQuery({ ...costsQuery, enabled: view !== 'bankkosten' });
   const bankQuery = useQuery({ ...bankCostsQuery, enabled: view === 'gesamt' });
   const data = query.data?.costs;
-  const control = REDESIGN_ENABLED ? (
-    <label className="wealth-report-view-select" htmlFor={viewId}>
-      <span>Darstellung</span>
-      <Select
-        id={viewId}
-        aria-label="Darstellung von Kosten, Steuern und Erträgen"
-        value={view}
-        onChange={(event) =>
-          void navigate({
-            to: '.',
-            search: ((previous: Record<string, unknown>) => ({
-              ...previous,
-              darstellung: event.target.value,
-            })) as never,
-          })
-        }
-      >
-        <option value="gesamt">Kosten gesamt</option>
-        <option value="bankkosten">Bank- und Zinskosten</option>
-        <option value="gebuehren">Gebühren und Steuern</option>
-        <option value="ertraege">Erträge</option>
-        <option value="kostenverlauf">Kosten im Verlauf</option>
-      </Select>
-    </label>
-  ) : undefined;
+  // The views are indented sub-reports of the report menu (#1150).
+  const control = undefined;
   if (view === 'bankkosten')
     return <BankCostsReportPage report={report} meta={meta} viewControl={control} />;
   return (
@@ -132,6 +105,18 @@ export function PortfolioCostsReport({ report, meta }: { report: ReportEntry; me
           : undefined
       }
       reportControls={control}
+      {...(view === 'gesamt' && data && bankQuery.data && !query.isFetching && !bankQuery.isFetching
+        ? {
+            statement: (() => {
+              const total = combinedCostsOf(bankQuery.data, data);
+              return `Kosten gesamt (12 Monate): ${eur(total.totalCents)}; Portfolio-Kostenquote ${
+                total.ratioBp === null
+                  ? 'nicht berechenbar'
+                  : `${bpText(total.ratioBp, { digits: 1 })} des Portfoliowerts`
+              }.`;
+            })(),
+          }
+        : {})}
       verdict={
         view !== 'gesamt' && data && !query.isFetching && !query.isError
           ? {

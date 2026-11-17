@@ -127,54 +127,34 @@ export function payrollTotals(slips: PayslipInput[]) {
   };
 }
 
+/** Salary allowances (Telearbeit, Fahrgeld) of one slip; they are remuneration, travel expenses are not. */
+export function salaryAllowanceCents(slip: PayslipInput) {
+  return slip.lines
+    .filter((l) => l.section === 'reimbursement' && isSalaryAllowanceLabel(l.label))
+    .reduce((n, l) => n + l.amountCents, 0);
+}
+
 /** Net pay of one slip counting allowances (Telearbeit, Fahrgeld) as salary; travel expenses stay out. */
 export function payslipPayNetCents(slip: PayslipInput) {
-  return (
-    payrollTotals([slip]).salaryNetCents +
-    slip.lines
-      .filter((l) => l.section === 'reimbursement' && isSalaryAllowanceLabel(l.label))
-      .reduce((n, l) => n + l.amountCents, 0)
-  );
+  return payrollTotals([slip]).salaryNetCents + salaryAllowanceCents(slip);
 }
 
 /**
- * A regular slip that evidently carries a special payment: net above gross, an additional
- * earning line, or (via `unknownNetIds`) a special/variable wage component from the source.
+ * Per month: pay of the running slips, pay of separately captured special-payment slips and the
+ * monthly total (both added). A combined slip is never split: its whole pay is carried in its month
+ * (owner decision 2026-11-17). Tax is never re-allocated between the parts.
  */
-export function regularSlipMixesSpecial(
-  slip: PayslipInput,
-  unknownNetIds: ReadonlySet<string> & { has(id: string): boolean },
-  id?: string,
-) {
-  return (
-    (id !== undefined && unknownNetIds.has(id)) ||
-    slip.netCents > payrollTotals([slip]).grossCents ||
-    slip.lines.some((l) => l.section === 'earning')
-  );
-}
-
-/**
- * Per month: running pay, special payments and the monthly total. A regular slip that mixes in a
- * special payment is "split unclear": its whole pay counts in the total, the running part is null.
- * Tax is never re-allocated between the parts.
- */
-export function payrollNetComposition(
-  slips: CapturedPayslip[],
-  month: string,
-  unknownNetIds: ReadonlySet<string> = new Set(),
-) {
+export function payrollNetComposition(slips: CapturedPayslip[], month: string) {
   const inMonth = slips.filter((p) => p.month === month);
   const regular = inMonth.filter((p) => p.kind === 'regular');
   const special = inMonth.filter((p) => p.kind === 'special');
   const sum = (list: CapturedPayslip[]) => list.reduce((n, p) => n + payslipPayNetCents(p), 0);
-  const splitUnclear = regular.some((p) => regularSlipMixesSpecial(p, unknownNetIds, p.id));
   return {
     month,
     recorded: inMonth.length > 0,
-    runningCents: regular.length && !splitUnclear ? sum(regular) : null,
+    runningCents: regular.length ? sum(regular) : null,
     specialCents: special.length ? sum(special) : 0,
     totalCents: inMonth.length ? sum(inMonth) : null,
-    splitUnclear,
     specialSlipIds: special.map((p) => p.id),
   };
 }
@@ -183,7 +163,6 @@ export function payrollNetComposition(
 export function payrollReport(
   slips: CapturedPayslip[],
   month: string,
-  unknownNetIds: ReadonlySet<string> = new Set(),
   sourceSpecialGross: ReadonlyMap<string, number | null> = new Map(),
 ) {
   const selected = slips.filter((p) => p.month === month);
@@ -232,15 +211,8 @@ export function payrollReport(
     );
     return {
       position: i + 1,
-      netCents:
-        matched.length && !matched.some((p) => unknownNetIds.has(p.id))
-          ? payrollTotals(matched).netCents
-          : null,
-      salaryNetCents:
-        matched.length && !matched.some((p) => unknownNetIds.has(p.id))
-          ? payrollTotals(matched).salaryNetCents
-          : null,
-      netSplitUnknown: matched.some((p) => unknownNetIds.has(p.id)),
+      netCents: matched.length ? payrollTotals(matched).netCents : null,
+      salaryNetCents: matched.length ? payrollTotals(matched).salaryNetCents : null,
       reimbursementsCents: matched.length ? payrollTotals(matched).reimbursementsCents : null,
       ids: matched.map((p) => p.id),
     };
@@ -267,15 +239,20 @@ export function payrollReport(
     otherSpecialCents: payrollTotals(
       slips.filter((p) => p.month.startsWith(year) && p.specialType === 'other'),
     ).netCents,
-    timeline: months.map((m) => ({
-      month: m,
-      composition: payrollNetComposition(slips, m, unknownNetIds),
-      ...payrollTotals(slips.filter((p) => p.month === m && p.kind === 'regular')),
-      recorded: slips.some((p) => p.month === m && p.kind === 'regular'),
-      netSplitUnknown: slips.some(
-        (p) => p.month === m && p.kind === 'regular' && unknownNetIds.has(p.id),
-      ),
-    })),
+    // Every month carries all its slips (running and special); nothing is dropped or split.
+    timeline: months.map((m) => {
+      const inMonth = slips.filter((p) => p.month === m);
+      const allowanceCents = inMonth.reduce((n, p) => n + salaryAllowanceCents(p), 0);
+      const totals = payrollTotals(inMonth);
+      return {
+        month: m,
+        composition: payrollNetComposition(slips, m),
+        ...totals,
+        payGrossCents: totals.grossCents + allowanceCents,
+        payNetCents: totals.salaryNetCents + allowanceCents,
+        recorded: inMonth.length > 0,
+      };
+    }),
   };
 }
 

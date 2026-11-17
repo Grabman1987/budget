@@ -261,9 +261,9 @@ function ContributionsBody({
                 <tr key={m.to}>
                   <th scope="row">{m.to.slice(0, 7)}</th>
                   <td className="n">{eur(m.startValueCents)}</td>
-                  <td className="n">{eur(m.inflowsCents, { sign: true })}</td>
-                  <td className="n">{eur(m.outflowsCents, { sign: true })}</td>
-                  <td className="n">{eur(m.gainCents, { sign: true })}</td>
+                  <td className="n">{eur(m.inflowsCents)}</td>
+                  <td className="n">{eur(m.outflowsCents)}</td>
+                  <td className="n">{eur(m.gainCents)}</td>
                   <td className="n">{eur(m.valueCents)}</td>
                 </tr>
               ))}
@@ -302,8 +302,8 @@ function ContributionsBody({
                     ) : null}
                   </td>
                   <td className="n">{eur(performance.startValueCents)}</td>
-                  <td className="n">{eur(performance.contributionsCents, { sign: true })}</td>
-                  <td className="n">{eur(performance.gainCents, { sign: true })}</td>
+                  <td className="n">{eur(performance.contributionsCents)}</td>
+                  <td className="n">{eur(performance.gainCents)}</td>
                   <td className="n">
                     <strong>{eur(performance.endValueCents)}</strong>
                   </td>

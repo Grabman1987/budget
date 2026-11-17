@@ -731,16 +731,8 @@ const redirects = [
   redirectRoute('/reports/gesamtuebersicht', '/reports/vermoegen-schulden', {
     darstellung: 'gesamt',
   }),
-  redirectRoute(
-    '/reports/peinzahlungen',
-    REDESIGN_ENABLED ? '/reports/vermoegen-schulden' : '/reports/pallocation',
-    { darstellung: 'einzahlungen' },
-  ),
-  redirectRoute(
-    '/reports/prendite',
-    REDESIGN_ENABLED ? '/reports/vermoegen-schulden' : '/reports/pallocation',
-    { darstellung: 'rendite' },
-  ),
+  redirectRoute('/reports/peinzahlungen', '/reports/pallocation', { darstellung: 'einzahlungen' }),
+  redirectRoute('/reports/prendite', '/reports/pallocation', { darstellung: 'rendite' }),
   redirectRoute('/reports/jahresansicht', '/reports/explorer', { vorlage: 'year' }, 'YTD'),
   redirectRoute('/reports/kategorien', '/reports/explorer', { vorlage: 'category' }, 'YTD'),
   redirectRoute('/reports/gesamttabelle', '/reports/explorer', { vorlage: 'total' }, 'Alles'),
@@ -847,6 +839,18 @@ const reportRoute = createRoute({
       target.searchParams.delete('darstellung');
       throw redirect({ href: `${target.pathname}${target.search}${target.hash}`, replace: true });
     }
+    // The portfolio views left the wealth report (#1157); old addresses land in the Portfolio group.
+    if (
+      REDESIGN_ENABLED &&
+      params.reportId === 'vermoegen-schulden' &&
+      ['verteilung', 'einzahlungen', 'rendite', 'kennzahlen', 'klassen'].includes(
+        String(search.darstellung),
+      )
+    )
+      throw redirect({
+        href: `/reports/pallocation${location.searchStr}${location.hash ? `#${location.hash}` : ''}`,
+        replace: true,
+      });
     if (REDESIGN_ENABLED && params.reportId === 'abos' && search.darstellung === 'bankkosten')
       throw redirect({
         href: `/reports/psteuern${location.searchStr}${location.hash ? `#${location.hash}` : ''}`,
@@ -870,19 +874,6 @@ const reportRoute = createRoute({
         hash: location.hash,
         replace: true,
       });
-    if (!REDESIGN_ENABLED || params.reportId !== 'pallocation') return;
-    const target = new URL(
-      `/reports/vermoegen-schulden${location.searchStr}${location.hash ? `#${location.hash}` : ''}`,
-      'https://budget.invalid',
-    );
-    const intendedView = target.searchParams.get('darstellung');
-    if (
-      !['verteilung', 'einzahlungen', 'rendite', 'kennzahlen', 'klassen'].includes(
-        intendedView ?? '',
-      )
-    )
-      target.searchParams.set('darstellung', 'verteilung');
-    throw redirect({ href: `${target.pathname}${target.search}${target.hash}`, replace: true });
   },
   staticData: { meta: { ...REPORTS_CATALOG, title: 'Report', register: 'katalog' } },
   loaderDeps: ({ search }) => ({

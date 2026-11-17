@@ -146,6 +146,7 @@ export function EventPanel({
         }
       },
       () => (action === 'remove' ? 'Ereignis entfernt.' : 'Ereignis gespeichert.'),
+      { awaitRefresh: false },
     );
     saving.current = false;
     setBusy(false);

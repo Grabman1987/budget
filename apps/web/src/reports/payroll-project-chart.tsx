@@ -69,7 +69,7 @@ export function PayrollProjectChart({
           gross && focusSalary
             ? 'Laufendes Nettogehalt ohne steuerfreie Erstattungen; fehlende Werte unterbrechen die Linie.'
             : gross
-              ? 'Brutto und Nettogehalt ohne steuerfreie Erstattungen laufend je Monat; fehlende Werte unterbrechen die Linie.'
+              ? 'Brutto und Netto je Monat inklusive Sonderzahlungen, Telearbeit und Fahrgeld zählen als Gehalt, Reisespesen nicht; fehlende Werte unterbrechen die Linie.'
               : 'Projektergebnis je Monat, Balken über und unter Null.'
         }
       >

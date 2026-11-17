@@ -1,3 +1,4 @@
+import { expectReportMenuView } from './report-menu';
 import type { Page } from '@playwright/test';
 import { redesignReportsOn } from './report-frame';
 import { expect, sampleTest as test } from './sample';
@@ -50,34 +51,23 @@ async function selectedView(page: Page, target: string, view: string) {
     return;
   }
   if ((await redesignReportsOn(page)) && target === '/reports/psteuern') {
-    await expect(
-      page.getByRole('combobox', { name: 'Darstellung von Kosten, Steuern und Ertr\u00e4gen' }),
-    ).toHaveValue('bankkosten');
+    await expectReportMenuView(page, 'Bank- und Zinskosten');
     return;
   }
   if (
     (await redesignReportsOn(page)) &&
-    ['/reports/einnahmen-ausgaben', '/reports/ausgaben', '/reports/abos'].includes(target)
+    ['/reports/einnahmen-ausgaben', '/reports/ausgaben'].includes(target)
   ) {
-    const label =
-      target === '/reports/abos'
-        ? 'Ansicht von Verträgen und Kosten'
-        : target === '/reports/ausgaben'
-          ? 'Ansicht der Ausgabenanalyse'
-          : 'Ansicht von Einnahmen und Cashflow';
-    await expect(
-      page.getByRole('combobox', { name: label, exact: true }).locator('option:checked'),
-    ).toHaveText(view);
+    await expectReportMenuView(page, view);
   } else if ((await redesignReportsOn(page)) && target === '/reports/explorer') {
     await expect(
       page.getByRole('combobox', { name: 'Darstellung der Auswertung' }).locator('option:checked'),
     ).toHaveText(view);
-  } else if ((await redesignReportsOn(page)) && target === '/reports/vermoegen-schulden') {
-    await expect(
-      page
-        .getByRole('combobox', { name: 'Darstellung des Vermögensreports' })
-        .locator('option:checked'),
-    ).toHaveText(view);
+  } else if (
+    (await redesignReportsOn(page)) &&
+    ['/reports/vermoegen-schulden', '/reports/pallocation'].includes(target)
+  ) {
+    await expectReportMenuView(page, view);
   } else {
     await expect(
       page.getByRole('button', { name: view, exact: true, pressed: true }),
@@ -100,11 +90,9 @@ for (const [slug, target, view] of landings) {
         ? '/reports/psteuern'
         : redesign && slug === 'kontakte'
           ? '/reports/kontakte'
-          : redesign && ['pallocation', 'peinzahlungen', 'prendite'].includes(slug)
-            ? '/reports/vermoegen-schulden'
-            : finanzcheck
-              ? '/reports/onepager'
-              : target;
+          : finanzcheck
+            ? '/reports/onepager'
+            : target;
     await expect.poll(() => new URL(page.url()).pathname).toBe(expectedTarget);
     if (finanzcheck) {
       expect(new URL(page.url()).searchParams.get('darstellung')).toBe('finanzcheck');

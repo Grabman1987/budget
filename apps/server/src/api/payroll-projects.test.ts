@@ -137,7 +137,7 @@ describe('payslip API and grouped audit', () => {
       label: 'Synthetic special',
       amountCents: 400000,
     });
-    expect(report.salaries[10]).toMatchObject({ netCents: null, salaryNetCents: null });
+    expect(report.salaries[10]).toMatchObject({ netCents: 590000 });
     expect(report.links[0]).toMatchObject({
       status: 'ok',
       differenceCents: 0,

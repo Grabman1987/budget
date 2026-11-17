@@ -119,9 +119,7 @@ describe.each([false, true])('actual A2 router, redesign=%s', (enabled) => {
               ? '/'
               : enabled && from === '/vermoegen'
                 ? '/vermoegen'
-                : enabled && target === '/reports/pallocation'
-                  ? '/reports/vermoegen-schulden'
-                  : concrete(target),
+                : concrete(target),
       );
       expect(router.state.location.hash).toBe('details');
       expect(router.state.matches.at(-1)?.search).toMatchObject({
@@ -166,7 +164,7 @@ describe.each([false, true])('actual A2 router, redesign=%s', (enabled) => {
 
   it.each([
     ['/vermoegen/freiheit', '/vermoegen/freiheit', undefined],
-    ['/vermoegen/portfolio/kennzahlen', '/reports/vermoegen-schulden', 'rendite'],
+    ['/vermoegen/portfolio/kennzahlen', '/reports/pallocation', 'rendite'],
     ['/vermoegen/nettovermoegen', '/vermoegen', undefined],
   ])(
     'retains wealth alias intent and every incoming context field: %s',
