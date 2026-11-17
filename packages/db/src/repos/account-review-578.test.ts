@@ -17,7 +17,11 @@ import { undo } from './audit';
 import { accountReminders, accountReviewSummaries } from './account-reminders';
 import { accountSummaries } from './ledger-queries';
 import { ReconciledLockedError } from './errors';
-import { accountReviewChronology, resetReviewEventCache } from './account-review-chronology';
+import {
+  accountReviewChronology,
+  resetReviewEventCache,
+  type ReviewCheckpoint,
+} from './account-review-chronology';
 import type { Executor } from './types';
 
 let opened: OpenedDatabase;
@@ -384,7 +388,7 @@ describe('read-only account review chronology (#578)', () => {
       return accountReviewChronology(opened.db, today, checkpoints());
     };
     const checkpoints = () => {
-      const map = new Map<string, import('./account-review-chronology').ReviewCheckpoint>();
+      const map = new Map<string, ReviewCheckpoint>();
       for (const row of opened.db.select().from(accountReconciliation).all())
         if (!row.deletedAt)
           map.set(row.accountId, {

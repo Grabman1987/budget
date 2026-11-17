@@ -271,7 +271,7 @@ it('asks once for an Auslage allocated by a repayment, then retries with the con
     ],
   } as ListedBooking;
   patch.mockRejectedValueOnce(
-    new ledgerHttp.ApiError(422, 'contact_linked', 'Synthetic', [], [], ['2026-10-02']),
+    new ledgerHttp.ApiError(422, 'contact_linked', 'Synthetic', [], [], undefined, ['2026-10-02']),
   );
   render(
     <QueryClientProvider
