@@ -573,7 +573,22 @@ Historical references follow `docs/FEATURES.md` (positions 1.1–5.6). The hub r
   - Vorjahreswerte nutzen die gemeinsamen Monatsfiguren und die gemeinsame Sparquote. Fehlende Vorjahresmonate werden nicht auf ein Jahr hochgerechnet; der Vergleich ist dann „nicht ermittelbar“ mit Grund. Ein Vorjahreswert null verhindert nur dessen Prozentänderung.
   - Die Summe der Geldwerte bleibt centgenau; keine Buchung und keine zentrale Finanzkennzahl wird geändert.
 - **Status:** implemented locally; PR review and live acceptance pending · **Verweis:** 5.1, #1118
-- **Remaining scope:** Investment values/contributions/TTWROR/money-weighted return; trading activity/results/costs/hit rate; household with/without market; investment/cash savings split; prior-year comparisons for wealth and the new investment/trading figures (including relative savings-rate change). Slice 2 context (inflation, benchmark, debt, income sources, spending changes, reserves, goals) remains open. RP-20's existing live status does not imply these additions are live.
+- **Remaining scope:** (investments, trading, wealth with/without market and split savings rate: see RP-20b) household income/consumption with/without market; prior-year comparisons for the new investment/trading figures (including relative savings-rate change). Slice 2 context (inflation, benchmark, debt, income sources, spending changes, reserves, goals) remains open. RP-20's existing live status does not imply these additions are live.
+
+### RP-20b – Investments, Trading und geteilte Sparquote (#1118, slice 1b)
+- **Story:** Als Nutzer möchte ich im Jahresreport sehen, wie sich meine Investments und mein Trading entwickelt haben und wie viel meiner Sparquote in Investments statt auf Bargeldkonten floss, damit ich das Jahr beurteilen kann.
+- **Ausgangslage:** Mindestens ein voller Monat im Hauptbuch; Redesign aktiv.
+- **Ablauf:**
+  1. Reports › Jahresreport öffnen, Jahr wählen, auf Blatt 2 Abschnitt I lesen.
+  2. Vermögenszuwachs ohne Markt (eigener Beitrag) und mit Markt nebeneinander vergleichen.
+  3. Sparquote gesamt, davon in Investments, davon auf Kontos lesen.
+  4. Investments: Wert Anfang/Ende, Netto-Einzahlungen, Marktergebnis, TTWROR, Dietz-Rendite, Erträge; Trading: Käufe/Verkäufe, Sparplan-Käufe, realisierter Gewinn, Gebühren, Steuern.
+- **Abnahmekriterien:**
+  - Wert, Einzahlungen, Marktergebnis, TTWROR und Dietz-Rendite sind centgenau/identisch mit dem Portfolio-Report für denselben Zeitraum (Test); Erträge, Gebühren und Steuern nutzen die Vermögen-Helfer auf den Trades der enthaltenen Monate; realisierter Gewinn ist die Differenz zweier Stände derselben Funktion wie im Portfolio.
+  - Investiert + Bargeld ergeben exakt die Sparquote (Cent und Basispunkte, Test); Bargeld ist der Rest.
+  - Ohne Kurse oder Depotdaten steht „nicht ermittelbar“ mit Grund; nichts wird geschätzt. Die Trefferquote geschlossener Positionen fehlt, weil kein Gewinn je Position vorliegt.
+- **Status:** implemented locally; PR review and live acceptance pending · **Verweis:** 5.1, #1118
+- **Remaining scope:** Vorjahresvergleich der neuen Investment-/Trading-Zahlen; Slice 2.
 
 ### RP-21a – Finanz-Check-Verlauf
 - **Story:** Als Nutzer möchte ich sehen, welche Regeln verletzt sind und seit wann, damit ich zuerst die offene Regel der aktuellen Stufe behebe.

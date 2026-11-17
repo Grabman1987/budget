@@ -1,6 +1,7 @@
 import { addMonths } from '../date';
 import { changeBp } from '../heute/net-worth';
 import { percentShares } from '../ledger/alloc';
+import { ratioBp } from '../kpi/ratios';
 import {
   overviewSavingsRate,
   overviewYearMonths,
@@ -275,6 +276,48 @@ export function yearWealthChange(netWorth: YearNetWorth | null) {
         deltaCents: netWorth.endCents - netWorth.startCents,
         changeBp: changeBp(netWorth.endCents, netWorth.startCents),
       };
+}
+
+/**
+ * Wealth growth without and with the market move, from the one net worth chain (own contribution +
+ * market move = end - start). Percentages are against the start value, like `yearWealthChange`.
+ */
+export function yearWealthColumns(netWorth: YearNetWorth | null) {
+  if (netWorth === null) return null;
+  return {
+    withoutMarket: {
+      deltaCents: netWorth.ownCents,
+      changeBp: changeBp(netWorth.startCents + netWorth.ownCents, netWorth.startCents),
+    },
+    withMarket: {
+      deltaCents: netWorth.endCents - netWorth.startCents,
+      changeBp: changeBp(netWorth.endCents, netWorth.startCents),
+    },
+  };
+}
+
+/**
+ * Sparquote split into the part that flowed into investments (net contributions of the portfolio
+ * report) and the rest that stayed on cash. The cash part is the remainder, so the parts add up
+ * to the Sparquote of the report exactly, in cents and in basis points.
+ */
+export function yearSavingsSplit(input: {
+  incomeCents: number;
+  consumptionCents: number;
+  investedCents: number | null;
+}) {
+  const savedCents = input.incomeCents - input.consumptionCents;
+  const totalBp = overviewSavingsRate(input);
+  if (totalBp === null || input.investedCents === null) return null;
+  const investedBp = ratioBp(input.investedCents, input.incomeCents) as number;
+  return {
+    savedCents,
+    investedCents: input.investedCents,
+    cashCents: savedCents - input.investedCents,
+    totalBp,
+    investedBp,
+    cashBp: totalBp - investedBp,
+  };
 }
 
 /** Years that can be chosen: from the first data year up to the year of the last full month. */

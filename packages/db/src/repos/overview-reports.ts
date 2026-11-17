@@ -15,6 +15,8 @@ import {
   overviewYearMonths,
   reportYears,
   yearReport,
+  yearSavingsSplit,
+  yearWealthColumns,
   ExchangeRateUnavailableError,
   PriceUnavailableError,
   type ClassAmounts,
@@ -28,9 +30,11 @@ import {
   type YearReport,
 } from '@budget/domain';
 import { allocationMonth } from './allocation';
+import { MissingFxRateError } from './errors';
 import { earliestAccountDate, netWorthAsOf, netWorthDaily } from './portfolio';
 import { budget } from './queries';
 import { ruleResults } from './rules';
+import { yearInvestments, type YearInvestments } from './year-investments';
 import type { Executor } from './types';
 
 /**
@@ -115,6 +119,13 @@ export interface YearReportRead extends OverviewFrame {
   /** Stored Finanz-Check of the last included month end; `null` when none was stored. */
   rules: YearRules | null;
   specialIncomeTypeIds: string[];
+  /** Investments and trading of the included months; `null` without history or prices. */
+  investments: YearInvestments | null;
+  investmentsUnavailable: string | null;
+  /** Wealth growth without and with the market move (from the net worth chain). */
+  wealthColumns: ReturnType<typeof yearWealthColumns>;
+  /** Sparquote split into invested and cash; the parts add up to `report.totals.savingsRateBp`. */
+  savingsSplit: ReturnType<typeof yearSavingsSplit>;
 }
 
 /** Net worth chain and month ends of the included months, from the same series as Vermögen. */
@@ -210,6 +221,19 @@ export function yearReportRead(db: Executor, year: number, today: string): YearR
         cells,
       };
   }
+  let investments: YearInvestments | null = null;
+  let investmentsUnavailable: string | null = null;
+  try {
+    investments = yearInvestments(db, months);
+  } catch (error) {
+    if (!(
+      error instanceof PriceUnavailableError ||
+      error instanceof ExchangeRateUnavailableError ||
+      error instanceof MissingFxRateError
+    ))
+      throw error;
+    investmentsUnavailable = error.message;
+  }
   return {
     ...frame,
     years: reportYears(data.firstMonth, frame.ref),
@@ -217,5 +241,13 @@ export function yearReportRead(db: Executor, year: number, today: string): YearR
     netWorthUnavailable,
     rules,
     specialIncomeTypeIds,
+    investments,
+    investmentsUnavailable,
+    wealthColumns: yearWealthColumns(report.netWorth),
+    savingsSplit: yearSavingsSplit({
+      incomeCents: report.totals.incomeCents,
+      consumptionCents: report.totals.consumptionCents,
+      investedCents: investments?.performance?.contributionsCents ?? null,
+    }),
   };
 }
