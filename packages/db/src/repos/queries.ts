@@ -32,27 +32,49 @@ export interface AccountBalance {
  * opening balance plus every booking dated on or after the opening date.
  */
 export function accountBalances(db: Executor, asOfDate?: string): AccountBalance[] {
-  const sum = sql`${account.openingBalanceCents} + COALESCE(SUM(${booking.amountCents}), 0)`;
-  const balance =
-    asOfDate === undefined
-      ? sum
-      : sql`CASE WHEN ${account.openingDate} <= ${asOfDate} THEN ${sum} ELSE 0 END`;
-  return db
-    .select({ accountId: account.id, balanceCents: sql<number>`${balance}`.mapWith(Number) })
-    .from(account)
-    .leftJoin(
-      booking,
-      and(
-        eq(booking.accountId, account.id),
-        isNull(booking.deletedAt),
-        gte(booking.date, account.openingDate),
-        asOfDate === undefined ? undefined : lte(booking.date, asOfDate),
-      ),
-    )
-    .where(isNull(account.deletedAt))
-    .groupBy(account.id)
-    .orderBy(asc(account.sortOrder), asc(account.name), asc(account.id))
-    .all();
+  const { accounts, daysByAccount } = balanceLedger(db);
+  return accounts.map((a) => {
+    // Same rule as the SQL it replaces: bookings dated on or after the opening date, up to asOfDate.
+    let sum = 0;
+    for (const day of daysByAccount.get(a.id) ?? [])
+      if (day.date >= a.openingDate && (asOfDate === undefined || day.date <= asOfDate))
+        sum += day.cents;
+    const balance = a.openingBalanceCents + sum;
+    return {
+      accountId: a.id,
+      balanceCents: asOfDate === undefined || a.openingDate <= asOfDate ? balance : 0,
+    };
+  });
+}
+
+/**
+ * Live accounts and the live booking amounts per account and day, read once per request and
+ * database state: Heute and the reports ask for the balance on a dozen dates, each of which used
+ * to aggregate all bookings again.
+ */
+function balanceLedger(db: Executor) {
+  return memoizedShared(db, 'accountBalanceLedger', () => {
+    const accounts = db
+      .select({
+        id: account.id,
+        openingDate: account.openingDate,
+        openingBalanceCents: account.openingBalanceCents,
+      })
+      .from(account)
+      .where(isNull(account.deletedAt))
+      .orderBy(asc(account.sortOrder), asc(account.name), asc(account.id))
+      .all();
+    const daysByAccount = new Map<string, { date: string; cents: number }[]>();
+    for (const row of db.all<{ accountId: string; date: string; cents: number }>(
+      sql`SELECT account_id AS accountId, date, SUM(amount_cents) AS cents FROM booking
+        WHERE deleted_at IS NULL GROUP BY account_id, date`,
+    )) {
+      const list = daysByAccount.get(row.accountId) ?? [];
+      list.push({ date: row.date, cents: Number(row.cents) });
+      daysByAccount.set(row.accountId, list);
+    }
+    return { accounts, daysByAccount };
+  });
 }
 
 /**

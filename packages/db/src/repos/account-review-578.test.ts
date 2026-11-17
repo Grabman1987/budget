@@ -17,7 +17,7 @@ import { undo } from './audit';
 import { accountReminders, accountReviewSummaries } from './account-reminders';
 import { accountSummaries } from './ledger-queries';
 import { ReconciledLockedError } from './errors';
-import { accountReviewChronology } from './account-review-chronology';
+import { accountReviewChronology, resetReviewEventCache } from './account-review-chronology';
 import type { Executor } from './types';
 
 let opened: OpenedDatabase;
@@ -84,6 +84,7 @@ const balance = () =>
 
 /** Fixture metadata only: preserve all snapshots while proving ordinal order with equal clocks. */
 function sameClock() {
+  resetReviewEventCache(opened.db); // the fixture rewrites audit clocks; the cache assumes none do
   const ts = '2026-09-10T12:00:00.000Z';
   for (const table of ['booking', 'account_reconciliation', 'valuation'])
     opened.sqlite.prepare(`UPDATE ${table} SET created_at = ?, updated_at = ?`).run(ts, ts);
@@ -102,6 +103,7 @@ describe('read-only account review chronology (#578)', () => {
     make();
     book();
     const read = (db: Executor) => {
+      resetReviewEventCache(db);
       const raw = vi.spyOn(db, 'all');
       try {
         expect(accountReviewChronology(db, '2026-10-19', new Map()).get('a')).toEqual({
@@ -371,5 +373,67 @@ describe('read-only account review chronology (#578)', () => {
     }
     expect(snapshot()).toBe(before);
     expect(balance()).toBe(9850);
+  });
+  it('answers from the per-connection event cache exactly as the full audit read does (#1073)', () => {
+    make();
+    make('b');
+    const today = '2026-10-19';
+    // The chronology as a cold read (cache dropped) answers it.
+    const expected = () => {
+      resetReviewEventCache(opened.db);
+      return accountReviewChronology(opened.db, today, checkpoints());
+    };
+    const checkpoints = () => {
+      const map = new Map<string, import('./account-review-chronology').ReviewCheckpoint>();
+      for (const row of opened.db.select().from(accountReconciliation).all())
+        if (!row.deletedAt)
+          map.set(row.accountId, {
+            id: row.id,
+            accountId: row.accountId,
+            entityType: 'account_reconciliation',
+            date: row.date,
+            createdAt: row.createdAt,
+          });
+      return map;
+    };
+    const warm = () => accountReviewChronology(opened.db, today, checkpoints());
+    const same = () => {
+      const cached = warm();
+      expect([...cached]).toEqual([...expected()]);
+    };
+    warm();
+    book('2026-08-20');
+    same();
+    const first = check('2026-09-01');
+    same();
+    const edited = book('2026-09-05', 'confirmed', -200);
+    same();
+    updateBooking(opened.db, edited.id, { amountCents: -250 }, context());
+    same();
+    undo(opened.db, { groupId: first.groupId }, context());
+    same();
+    deleteBooking(opened.db, edited.id, context());
+    same();
+    // A rolled-back write whose audit rowids are reused by later rows must not leave stale events.
+    warm();
+    expect(() =>
+      opened.db.transaction((tx) => {
+        createBooking(
+          tx,
+          {
+            accountId: 'a',
+            date: '2026-09-06',
+            status: 'confirmed',
+            amountCents: -1,
+            splits: [{ amountCents: -1, categoryId: null }],
+          },
+          context(),
+        );
+        warm(); // the cache sees the uncommitted row inside the transaction
+        throw new Error('rollback');
+      }),
+    ).toThrow('rollback');
+    book('2026-09-07', 'confirmed', -7, 'b');
+    same();
   });
 });
