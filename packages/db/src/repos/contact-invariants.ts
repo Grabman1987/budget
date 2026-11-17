@@ -15,12 +15,18 @@ import {
   contactSettlement,
   payee,
   auditLog,
+  appSetting,
 } from '../schema';
-import { BookingInvariantError, ConflictError, ReconciledLockedError } from './errors';
+import {
+  BookingInvariantError,
+  ConflictError,
+  ContactLinkedError,
+  ReconciledLockedError,
+} from './errors';
 import { assertNoActiveAlias, contactIdentityIds, normalizeContactLabel } from './contact-label';
 import { memoizedShared } from './request-memo';
 import type { Executor } from './types';
-import { CONTACT_UNLOCK_PREFIX } from './contact-allocation-lock';
+import { CONTACT_LINKED_OVERRIDE_PREFIX, CONTACT_UNLOCK_PREFIX } from './contact-allocation-lock';
 
 /** Check only the changed identity: legacy contacts are not renamed or merged implicitly. */
 export function assertContactName(tx: Executor, id: string) {
@@ -229,6 +235,7 @@ export function assertContactSettlementInvariants(tx: Executor): void {
         'A contact with live ledger movements must retain its identity',
       );
   }
+  assertLiveAllocationsFit(tx);
   const creditRecords = contactCreditRecords(tx);
   for (const s of tx.select().from(contactSettlement).all()) {
     const modeled = creditRecords.some(
@@ -339,6 +346,32 @@ export function assertContactSettlementInvariants(tx: Executor): void {
   assertContactCreditRecords(tx, uses, creditRecords);
 }
 
+/** Every live allocation points to a live outlay split, and a split never carries more than it is. */
+function assertLiveAllocationsFit(tx: Executor): void {
+  const rows = tx
+    .select({
+      splitId: contactAllocation.outlaySplitId,
+      amountCents: contactAllocation.amountCents,
+      split: bookingSplit.amountCents,
+      bookingDeletedAt: booking.deletedAt,
+    })
+    .from(contactAllocation)
+    .innerJoin(contactSettlement, eq(contactSettlement.id, contactAllocation.settlementId))
+    .leftJoin(bookingSplit, eq(bookingSplit.id, contactAllocation.outlaySplitId))
+    .leftJoin(booking, eq(booking.id, bookingSplit.bookingId))
+    .where(and(isNull(contactAllocation.deletedAt), isNull(contactSettlement.deletedAt)))
+    .all();
+  const sums = new Map<string, number>();
+  for (const r of rows) {
+    if (r.split === null || r.bookingDeletedAt !== null || r.split >= 0)
+      throw new BookingInvariantError('A contact allocation must point to a live outlay');
+    const sum = (sums.get(r.splitId) ?? 0) + r.amountCents;
+    if (sum > -r.split)
+      throw new BookingInvariantError('Contact allocations exceed the outlay they settle');
+    sums.set(r.splitId, sum);
+  }
+}
+
 /** Write-offs are plain zero bookings, so their outlay must stay unchanged until they are undone. */
 function assertNoLaterWriteOff(tx: Executor, bookingId: string): void {
   const row = tx.select().from(booking).where(eq(booking.id, bookingId)).get();
@@ -372,12 +405,50 @@ function assertNoLaterWriteOff(tx: Executor, bookingId: string): void {
   }
 }
 
+/** Did `releaseLinkedAllocations` run for this booking inside the action's audit group? */
+function linkedOverrideCovers(tx: Executor, groupId: string, bookingId: string): boolean {
+  const row = tx
+    .select()
+    .from(appSetting)
+    .where(eq(appSetting.id, `${CONTACT_LINKED_OVERRIDE_PREFIX}${groupId}`))
+    .get();
+  if (!row) return false;
+  try {
+    return (
+      (JSON.parse(row.value) as { bookingIds?: string[] }).bookingIds?.includes(bookingId) === true
+    );
+  } catch {
+    return false;
+  }
+}
+
+/** Dates of the live repayments that allocate this booking's outlay splits, oldest first. */
+export function linkedSettlementDates(tx: Executor, bookingId: string): string[] {
+  return tx
+    .selectDistinct({ date: booking.date, id: contactSettlement.id })
+    .from(contactAllocation)
+    .innerJoin(bookingSplit, eq(bookingSplit.id, contactAllocation.outlaySplitId))
+    .innerJoin(contactSettlement, eq(contactSettlement.id, contactAllocation.settlementId))
+    .innerJoin(booking, eq(booking.id, contactSettlement.bookingId))
+    .where(
+      and(
+        eq(bookingSplit.bookingId, bookingId),
+        isNull(contactAllocation.deletedAt),
+        isNull(contactSettlement.deletedAt),
+      ),
+    )
+    .all()
+    .map((r) => r.date)
+    .sort();
+}
+
 /** Economic edits of a settlement or its allocated outlay must go through undo of the settlement. */
 export function assertContactBookingWrite(
   tx: Executor,
   bookingId: string,
   operation: 'update' | 'delete' | 'restore',
   fields: Iterable<string> = [],
+  options: { unlockLinked?: boolean; groupId?: string } = {},
 ): void {
   const settlement = tx
     .select()
@@ -418,6 +489,29 @@ export function assertContactBookingWrite(
     return;
   if (operation === 'update' && [...fields].every((f) => ['memo', 'status', 'flag'].includes(f)))
     return;
+  // #1108: an outlay that only carries allocations of plain repayments may be edited after the
+  // owner's confirmation. Receipts, gifts, credit uses and category returns keep the refusal.
+  if (
+    allocated &&
+    !settlement &&
+    !creditRecord?.decision &&
+    !creditRecord?.waiver &&
+    !creditRecord?.adjustmentFor &&
+    !creditRecord?.uses?.length &&
+    !creditRecord?.repayments?.length &&
+    !creditRecord?.refundCorrections?.length &&
+    !creditRecord?.repaymentRefundCorrections?.length
+  ) {
+    // The flag alone is not enough: the release of the allocations must have run in this action.
+    if (
+      options.unlockLinked &&
+      operation !== 'restore' &&
+      options.groupId &&
+      linkedOverrideCovers(tx, options.groupId, bookingId)
+    )
+      return;
+    throw new ContactLinkedError(bookingId, linkedSettlementDates(tx, bookingId));
+  }
   throw new BookingInvariantError(
     'Undo the related contact settlement before changing its receipt or allocated outlay',
   );
@@ -539,13 +633,46 @@ export function assertContactUndoDependencies(
     if (locked.length) throw new ReconciledLockedError(locked);
   }
   const targets = tx
-    .select({ splitId: bookingSplit.id, bookingId: bookingSplit.bookingId })
+    .select({
+      splitId: bookingSplit.id,
+      bookingId: bookingSplit.bookingId,
+      settlementId: contactAllocation.settlementId,
+    })
     .from(contactAllocation)
     .innerJoin(contactSettlement, eq(contactSettlement.id, contactAllocation.settlementId))
     .innerJoin(bookingSplit, eq(bookingSplit.id, contactAllocation.outlaySplitId))
     .where(and(isNull(contactAllocation.deletedAt), isNull(contactSettlement.deletedAt)))
     .all();
+  // An action that moved the allocation together with its outlay (#1108) is undone as a whole.
+  const reallocated = new Set(
+    entries
+      .filter((e) => e.entityType === 'contact_allocation')
+      .flatMap((e) => [e.before, e.after])
+      .flatMap((snapshot) =>
+        typeof snapshot?.settlement_id === 'string' ? [snapshot.settlement_id] : [],
+      ),
+  );
+  // Only the repayments the owner confirmed together with the edit may move with it.
+  const overridden = new Set(
+    entries
+      .filter(
+        (e) =>
+          e.entityType === 'app_setting' && e.entityId.startsWith(CONTACT_LINKED_OVERRIDE_PREFIX),
+      )
+      .flatMap((e) => [e.before, e.after])
+      .flatMap((snapshot) => {
+        try {
+          const marker = JSON.parse(String(snapshot?.value ?? 'null')) as {
+            settlementIds?: unknown[];
+          };
+          return (marker?.settlementIds ?? []).filter((v): v is string => typeof v === 'string');
+        } catch {
+          return [];
+        }
+      }),
+  );
   for (const t of targets) {
+    if (reallocated.has(t.settlementId) || overridden.has(t.settlementId)) continue;
     for (const entry of entries) {
       const fields =
         entry.entityType === 'booking' && entry.entityId === t.bookingId

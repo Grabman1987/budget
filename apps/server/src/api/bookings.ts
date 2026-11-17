@@ -17,6 +17,7 @@ import {
   type BookingBulkItem,
   type BookingBulkReason,
   ReconciledLockedError,
+  releaseLinkedAllocations,
   relatedTransferBookings,
   connectedTransferBookings,
   runInTransaction,
@@ -317,7 +318,7 @@ export function bookingRoutes(db: Db, today = () => todayInVienna()): Hono {
   app.patch('/:id', async (c) => {
     const id = c.req.param('id');
     const body = await readBody(c, bookingPatch);
-    const { repeat, unlockReconciled, splits, ...rest } = body;
+    const { repeat, unlockReconciled, unlockContactLinked, overrideReason, splits, ...rest } = body;
     const key = c.req.header('Idempotency-Key');
     if (key !== undefined && !/^[a-zA-Z0-9-]{16,80}$/.test(key))
       throw new ApiError(400, 'invalid', 'Ungültiger Sendeschlüssel.');
@@ -361,9 +362,15 @@ export function bookingRoutes(db: Db, today = () => todayInVienna()): Hono {
         (patch.splits ?? previous?.splits ?? []).some((s) => s.contactId && s.amountCents > 0)
       )
         throw new ApiError(422, 'future_receipt', 'A contact receipt must be an actual payment');
+      if (unlockContactLinked)
+        releaseLinkedAllocations(tx, id, patch, ctx, today(), {
+          unlockReconciled: unlockReconciled ?? false,
+          ...(overrideReason ? { reason: overrideReason } : {}),
+        });
       updateBooking(tx, id, patch, ctx, {
         unlockReconciled: unlockReconciled ?? false,
         contactModel: true,
+        unlockContactLinked: unlockContactLinked ?? false,
       });
       if (repeat) repeatFrom(tx, id, repeat, ctx);
       const response = {
@@ -382,7 +389,10 @@ export function bookingRoutes(db: Db, today = () => todayInVienna()): Hono {
 
   app.delete('/:id', (c) => {
     const id = c.req.param('id');
-    const { unlock, previewRevision } = readQuery(c, bookingDeleteQuery);
+    const { unlock, unlockLinked, overrideReason, previewRevision } = readQuery(
+      c,
+      bookingDeleteQuery,
+    );
     if (!getBooking(db, id)) throw new ApiError(404, 'not_found', 'Booking not found');
     const ctx = audit();
     runInTransaction(db, (tx) => {
@@ -392,7 +402,15 @@ export function bookingRoutes(db: Db, today = () => todayInVienna()): Hono {
           'stale_delete_preview',
           'Die Buchung wurde geändert. Bitte erneut prüfen.',
         );
-      deleteBooking(tx, id, ctx, { unlockReconciled: unlock !== undefined });
+      if (unlockLinked !== undefined)
+        releaseLinkedAllocations(tx, id, 'delete', ctx, today(), {
+          unlockReconciled: unlock !== undefined,
+          ...(overrideReason ? { reason: overrideReason } : {}),
+        });
+      deleteBooking(tx, id, ctx, {
+        unlockReconciled: unlock !== undefined,
+        unlockContactLinked: unlockLinked !== undefined,
+      });
     });
     return c.json({ deleted: id, groupId: ctx.groupId });
   });

@@ -7,6 +7,7 @@ import { ToastProvider } from '@budget/ui';
 import { CaptureForm } from './capture-form';
 import * as ledgerApi from './api';
 import type * as Http from '../api/http';
+import * as ledgerHttp from '../api/http';
 import type * as ReceiptModule from '../receipts/receipt-section';
 import type { ListedBooking } from './types';
 
@@ -234,6 +235,76 @@ it.each([
     });
   },
 );
+
+it('asks once for an Auslage allocated by a repayment, then retries with the confirmed flag (#1108)', async () => {
+  flags.REDESIGN_ENABLED = true;
+  const booking = {
+    id: 'synthetic-linked',
+    accountId: 'giro',
+    accountName: 'Giro Muster',
+    date: '2026-10-01',
+    amountCents: -1000,
+    status: 'confirmed',
+    payeeId: null,
+    payeeName: null,
+    memo: null,
+    flag: null,
+    transferId: null,
+    transferAccountId: null,
+    transferAccountName: null,
+    projectId: null,
+    currency: 'EUR',
+    originalAmountCents: null,
+    originalCurrency: null,
+    balanceAfterCents: null,
+    splits: [
+      {
+        id: 'synthetic-linked-split',
+        categoryId: null,
+        categoryName: null,
+        amountCents: -1000,
+        contactId: null,
+        incomeTypeId: null,
+        memo: null,
+        transferId: null,
+      },
+    ],
+  } as ListedBooking;
+  patch.mockRejectedValueOnce(
+    new ledgerHttp.ApiError(422, 'contact_linked', 'Synthetic', [], [], ['2026-10-02']),
+  );
+  render(
+    <QueryClientProvider
+      client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
+    >
+      <ToastProvider>
+        <CaptureForm
+          state={{ mode: 'edit', booking }}
+          onDone={vi.fn()}
+          dirtyRef={{ current: false }}
+          requestClose={vi.fn()}
+          discard={{ asking: false, keep: vi.fn(), discard: vi.fn() }}
+        />
+      </ToastProvider>
+    </QueryClientProvider>,
+  );
+  await screen.findByRole('option', { name: 'Giro Muster' });
+  fireEvent.change(screen.getByLabelText('Betrag', { exact: true }), {
+    target: { value: '4,00' },
+  });
+  fireEvent.click(screen.getByRole('button', { name: 'Speichern' }));
+  const dialog = await screen.findByRole('alertdialog');
+  expect(dialog.textContent).toContain('02.10.2026');
+  expect(dialog.textContent).toContain('Guthaben');
+  expect(patch).toHaveBeenCalledTimes(1);
+  expect(patch.mock.calls[0]![0].patch.unlockContactLinked).toBeUndefined();
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Bearbeitung bestätigen' }));
+  await waitFor(() => expect(patch).toHaveBeenCalledTimes(2));
+  expect(patch.mock.calls[1]![0].patch).toMatchObject({
+    amountCents: -400,
+    unlockContactLinked: true,
+  });
+});
 
 it('shifts mobile keypad digits into cents and retains paste, validation and save semantics', async () => {
   flags.REDESIGN_ENABLED = true;
