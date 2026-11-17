@@ -127,4 +127,10 @@ export const bankConfirmSchema = z
         !v.actions?.incomeTypeId &&
         !v.actions?.transferAccountId),
     'Eigene Aufteilung ersetzt Regel und Kategorie.',
+  )
+  .refine(
+    // Policy (#1048): a zero line carries no value and the client refuses it; the same category on
+    // several lines stays allowed (as in the booking API), e.g. with different notes.
+    (v) => !v.splits?.some((line) => line.amountCents === 0),
+    'Aufteilungszeilen dürfen nicht 0,00 € sein.',
   );

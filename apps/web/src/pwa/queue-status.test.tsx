@@ -76,3 +76,25 @@ it('shows exactly one status per change as local, sending, failed and acknowledg
 it('shows an interrupted uncertain delivery as failed after restart, never as saved', () => {
   expect(queuedStatus({ ...pending, uncertain: true })).toBe('Fehlgeschlagen');
 });
+
+it('shows a rejected entry as a draft with its error id and copies the details', async () => {
+  const writeText = vi.fn(async () => {});
+  Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText } });
+  device.items = [
+    { ...pending, reason: 'Synthetic failure', rejected: true, errorId: 'abc123def456' },
+  ];
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  render(
+    <QueryClientProvider client={client}>
+      <QueueProvider>
+        <QueueList />
+      </QueueProvider>
+    </QueryClientProvider>,
+  );
+  await waitFor(() => expect(screen.getByRole('status').textContent).toBe('Buchung abgelehnt'));
+  expect(screen.getByText('Fehler-ID: abc123def456')).toBeTruthy();
+  expect(screen.getByRole('button', { name: 'Bearbeiten' }).hasAttribute('disabled')).toBe(false);
+  act(() => screen.getByRole('button', { name: 'Details kopieren' }).click());
+  expect(writeText).toHaveBeenCalledWith('Synthetic failure · Fehler-ID: abc123def456');
+  client.clear();
+});

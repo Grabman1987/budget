@@ -2,12 +2,12 @@ import {
   addDays,
   amountGap,
   addMonths,
-  assignMatches,
   candidateFits,
   lastDayOfMonth,
   monthOf,
   monthlyEquivalent,
   occurrences,
+  settleMatches,
   versionOn,
   versionSuggestion,
   yearlyEquivalent,
@@ -45,6 +45,20 @@ import {
 import { createEntity, getEntity, restoreEntity, softDeleteEntity, updateEntity } from './entities';
 import type { NewRow, RowPatch } from './entities';
 import { ConflictError, EntityNotFoundError } from './errors';
+import {
+  bankPayeeFacts,
+  closeStaleLinkProposals,
+  ensureLinkProposal,
+  isRejectedPair,
+  previouslyLinkedBookingIds,
+  rejectedBookingIds,
+  rejectedOccurrenceIds,
+  rejectedLinkPairs,
+  resolveLinkProposals,
+  RESOLUTION_AUTO,
+  RESOLUTION_LINKED,
+  RESOLUTION_MISSED,
+} from './expected-auto-link';
 import { bookedAmountIn, expectedLinkPatches, expectedLinkedStatus } from './expected-links';
 import { runInTransaction, type Executor } from './types';
 import {
@@ -679,6 +693,11 @@ interface BookingRow {
   originalAmountCents: number | null;
   originalCurrency: string | null;
   facts: BookingFacts;
+  payeeId: string | null;
+  importKey: string | null;
+  bankRawPayee: string | null;
+  bankRawText: string | null;
+  bankSourceId: string | null;
 }
 
 /** Live bookings on the given accounts between two days, with payee contact, categories, income types. */
@@ -695,6 +714,10 @@ function loadBookings(tx: Executor, accountIds: string[], from: string, to: stri
       originalCurrency: booking.originalCurrency,
       payeeId: booking.payeeId,
       payeeContactId: payee.contactId,
+      importKey: booking.importKey,
+      bankRawPayee: booking.bankRawPayee,
+      bankRawText: booking.bankRawText,
+      bankSourceId: booking.bankSourceId,
     })
     .from(booking)
     .leftJoin(payee, eq(payee.id, booking.payeeId))
@@ -733,6 +756,11 @@ function loadBookings(tx: Executor, accountIds: string[], from: string, to: stri
     currency: r.currency,
     originalAmountCents: r.originalAmountCents,
     originalCurrency: r.originalCurrency,
+    payeeId: r.payeeId,
+    importKey: r.importKey,
+    bankRawPayee: r.bankRawPayee,
+    bankRawText: r.bankRawText,
+    bankSourceId: r.bankSourceId,
     facts: {
       accountId: r.accountId,
       payeeId: r.payeeId,
@@ -776,10 +804,21 @@ const liveClaimedBookings = (tx: Executor): Set<string> =>
       .map((r) => r.bookingId!),
   ]);
 
+/** One recurring debit the system linked on its own; `groupId` undoes exactly this link. */
+export interface AutoLink {
+  occurrenceId: string;
+  bookingId: string;
+  groupId: string;
+}
+
 export interface MatchSummary {
   received: number;
   deviating: number;
   missed: number;
+  /** Proposals opened under Konten › Prüfen by this run (#1102). */
+  proposed: number;
+  /** Recurring debits linked by this run, each undoable on its own (#1102). */
+  links: AutoLink[];
 }
 
 /**
@@ -789,17 +828,27 @@ export interface MatchSummary {
  * nearest amount. Fits inside the tolerance are assigned before deviating ones, and a booking
  * belongs to at most one occurrence (also enforced by a unique index). Existing live links only
  * have their amount status refreshed; unlinked or manually missed occurrences are left alone.
+ *
+ * Recurring debits (kind `outflow`, #1102) are stricter: only an unambiguous pairing
+ * (`settleMatches`) is stored, in an audit group of its own; any other pairing becomes a proposal
+ * under Konten › Prüfen. A bank line without a payee is identified by its learned bank alias, and
+ * a pairing the owner undid or dismissed is not stored or proposed again. Inflows are unchanged.
+ * `autoOnly` limits a bank-sync run to new debit links/proposals: income, existing links and
+ * overdue unmatched occurrences remain untouched.
  */
 export function matchOccurrences(
   db: Executor,
   today: string,
   ctx: AuditContext = SYSTEM_ACTOR,
+  options: { autoOnly?: boolean } = {},
 ): MatchSummary {
   const grouped = withGroup(ctx);
   return runInTransaction(db, (tx) => {
-    const summary: MatchSummary = { received: 0, deviating: 0, missed: 0 };
-    for (const { id, patch } of expectedLinkPatches(tx))
-      updateTracked(tx, expectedOccurrence, [id], patch, grouped);
+    const summary: MatchSummary = { received: 0, deviating: 0, missed: 0, proposed: 0, links: [] };
+    if (!options.autoOnly) {
+      for (const { id, patch } of expectedLinkPatches(tx))
+        updateTracked(tx, expectedOccurrence, [id], patch, grouped);
+    }
     const openCandidates = tx
       .select({ occ: expectedOccurrence, payment: expectedPayment })
       .from(expectedOccurrence)
@@ -809,6 +858,8 @@ export function matchOccurrences(
           isNull(expectedOccurrence.deletedAt),
           isNull(expectedPayment.deletedAt),
           eq(expectedOccurrence.status, 'expected'),
+          options.autoOnly ? eq(expectedPayment.kind, 'outflow') : undefined,
+          options.autoOnly ? isNull(expectedOccurrence.bookingId) : undefined,
         ),
       )
       .all()
@@ -820,7 +871,10 @@ export function matchOccurrences(
     const open = openCandidates.filter(
       (r) => !paymentOpenSuppressed(lifecycle.get(r.payment.id), r.occ),
     );
-    if (open.length === 0) return summary;
+    if (open.length === 0) {
+      closeStaleLinkProposals(tx, liveClaimedBookings(tx), grouped);
+      return summary;
+    }
 
     const versions = versionsByPayment(tx, [...new Set(open.map((r) => r.payment.id))]);
     const accountIds = [
@@ -828,6 +882,32 @@ export function matchOccurrences(
     ];
     const dues = open.map((r) => r.occ.dueDate).sort();
     const bookings = loadBookings(tx, accountIds, addDays(dues[0]!, -31), addDays(today, 62));
+    const debits = open.filter((r) => r.payment.kind === 'outflow');
+    const rejected = rejectedLinkPairs(
+      tx,
+      debits.map((r) => r.occ.id),
+    );
+    const rejectedBookings = new Set([
+      ...rejectedBookingIds(rejected),
+      ...previouslyLinkedBookingIds(
+        tx,
+        bookings.map((b) => b.id),
+      ),
+    ]);
+    const rejectedOccurrences = rejectedOccurrenceIds(rejected);
+    const bookingById = new Map(bookings.map((b) => [b.id, b]));
+    /** Automatic debit links require a matching payee, contact or learned bank alias. */
+    const sameCounterparty = (payment: Payment, bookingId: string) => {
+      const facts = bookingById.get(bookingId);
+      if (!facts || payment.accountId === null) return false;
+      const known = { ...facts.facts, ...bankPayees.get(bookingId) };
+      return (
+        (payment.payeeId !== null && known.payeeId === payment.payeeId) ||
+        (payment.contactId !== null && known.payeeContactId === payment.contactId)
+      );
+    };
+    const bankPayees = debits.length > 0 ? bankPayeeFacts(tx, bookings) : new Map<string, never>();
+    const debitFacts = (b: BookingRow): BookingFacts => ({ ...b.facts, ...bankPayees.get(b.id) });
 
     const inputs: AssignInput[] = open.map(({ occ, payment }) => {
       const version = versionOn(versions.get(payment.id) ?? [], occ.dueDate);
@@ -840,11 +920,17 @@ export function matchOccurrences(
         categoryId: payment.categoryId,
         incomeTypeId: payment.incomeTypeId,
       };
+      const debit = payment.kind === 'outflow';
       const candidates: MatchCandidate[] = bookings
-        .filter((b) => candidateFits(target, b.facts))
+        .filter(
+          (b) =>
+            candidateFits(target, debit ? debitFacts(b) : b.facts) &&
+            !(debit && isRejectedPair(rejected, occ.id, b.id)),
+        )
         .map((b) => ({ id: b.id, date: b.date, amountCents: bookedAmountIn(b, currency) }));
       return {
         key: occ.id,
+        group: payment.id,
         status: occ.status,
         occurrence: planned,
         candidates,
@@ -853,23 +939,75 @@ export function matchOccurrences(
       };
     });
 
-    const matches = assignMatches(inputs, liveClaimedBookings(tx));
+    const matches = settleMatches(inputs, liveClaimedBookings(tx));
     for (const { occ, payment } of open) {
       const match = matches.get(occ.id);
-      if (match) {
+      const debit = payment.kind === 'outflow';
+      const needsOwner =
+        debit &&
+        !!match &&
+        (match.doubt !== null ||
+          rejectedBookings.has(match.candidate.id) ||
+          rejectedOccurrences.has(occ.id) ||
+          !sameCounterparty(payment, match.candidate.id));
+      if (match && !needsOwner) {
+        // A recurring debit is one decision of its own: undoing it must not touch other links.
+        const linkCtx = debit ? withGroup({ actor: grouped.actor }) : grouped;
         updateTracked(
           tx,
           expectedOccurrence,
           [occ.id],
           { status: match.status, bookingId: match.candidate.id },
+          linkCtx,
+        );
+        if (debit) {
+          // In the run's group, not the link's: undoing the link must not reopen the proposal.
+          resolveLinkProposals(
+            tx,
+            { occurrenceId: occ.id, bookingId: match.candidate.id },
+            RESOLUTION_AUTO,
+            grouped,
+          );
+          summary.links.push({
+            occurrenceId: occ.id,
+            bookingId: match.candidate.id,
+            groupId: linkCtx.groupId,
+          });
+        }
+        summary[match.status]++;
+        continue;
+      }
+      if (match) {
+        const version = versionOn(versions.get(payment.id) ?? [], occ.dueDate);
+        const proposal = ensureLinkProposal(
+          tx,
+          {
+            occurrence: occ,
+            payment,
+            currency: version?.currency ?? 'EUR',
+            booking: match.candidate,
+            reason:
+              match.doubt === 'amount'
+                ? 'Betrag außerhalb der Toleranz'
+                : match.doubt === 'several'
+                  ? 'mehrere Zuordnungen möglich'
+                  : rejectedBookings.has(match.candidate.id) || rejectedOccurrences.has(occ.id)
+                    ? 'früher abgelehnt'
+                    : !sameCounterparty(payment, match.candidate.id)
+                      ? 'Empfänger nicht bestätigt'
+                      : 'bitte bestätigen',
+          },
           grouped,
         );
-        summary[match.status]++;
-      } else if (today > addDays(occ.dueDate, payment.dateWindowDays)) {
+        if (proposal.created) summary.proposed++;
+      }
+      // The window closes as before; an open proposal stays confirmable for a missed occurrence.
+      if (!options.autoOnly && today > addDays(occ.dueDate, payment.dateWindowDays)) {
         updateTracked(tx, expectedOccurrence, [occ.id], { status: 'missed' }, grouped);
         summary.missed++;
       }
     }
+    closeStaleLinkProposals(tx, liveClaimedBookings(tx), grouped);
     return summary;
   });
 }
@@ -930,6 +1068,8 @@ export function linkOccurrence(
     if (other) throw new ConflictError('This booking already belongs to another occurrence');
     const status = expectedLinkedStatus(tx, occ, payment, b);
     updateTracked(tx, expectedOccurrence, [occurrenceId], { status, bookingId }, grouped);
+    // The owner decided: proposals of this occurrence and this booking close in the same step.
+    resolveLinkProposals(tx, { occurrenceId, bookingId }, RESOLUTION_LINKED, grouped);
     return { occurrence: liveOccurrence(tx, occurrenceId).occ, groupId: grouped.groupId };
   });
 }
@@ -1093,6 +1233,7 @@ export function markOccurrenceMissed(
     if (occ.status === 'skipped')
       throw new ConflictError('This occurrence is skipped (gestrichen); bring it back first');
     updateTracked(tx, expectedOccurrence, [occurrenceId], { status: 'missed' }, grouped);
+    resolveLinkProposals(tx, { occurrenceId }, RESOLUTION_MISSED, grouped);
     return { occurrence: liveOccurrence(tx, occurrenceId).occ, groupId: grouped.groupId };
   });
 }

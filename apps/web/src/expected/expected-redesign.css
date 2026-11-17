@@ -30,6 +30,9 @@
 }
 
 /* The default payment list follows the compact source columns; details keep every action. */
+.plan-v2-page.payments-reference {
+  gap: var(--space-xs);
+}
 .payments-reference .plan-v2-page-actions {
   flex-wrap: wrap;
   justify-content: flex-end;
