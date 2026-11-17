@@ -1,3 +1,4 @@
+import { expectReportMenuView } from './report-menu';
 import AxeBuilder from '@axe-core/playwright';
 import type { Page } from '@playwright/test';
 import { mkdirSync } from 'node:fs';
@@ -45,10 +46,7 @@ for (const id of SAMPLE) {
       await expect(
         page.getByRole('combobox', { name: 'Darstellung der Auswertung', exact: true }),
       ).toHaveValue('category');
-    if (redesign && id === 'vermoegen')
-      await expect(
-        page.getByRole('combobox', { name: 'Darstellung des Vermögensreports' }),
-      ).toHaveValue('verlauf');
+    if (redesign && id === 'vermoegen') await expectReportMenuView(page, 'Vermögensverlauf');
     await expect(page.getByRole('checkbox', { name: 'Trendlinie' })).toHaveCount(0);
     await expect(rangeButton(page)).toBeVisible();
     if (phone(page)) return;

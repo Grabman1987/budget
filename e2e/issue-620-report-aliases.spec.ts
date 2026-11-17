@@ -1,3 +1,4 @@
+import { expectReportMenuView } from './report-menu';
 import type { Page } from '@playwright/test';
 import { redesignReportsOn } from './report-frame';
 import { expect, sampleTest as test } from './sample';
@@ -57,27 +58,15 @@ async function selectedView(page: Page, target: string, view: string) {
   }
   if (
     (await redesignReportsOn(page)) &&
-    ['/reports/einnahmen-ausgaben', '/reports/ausgaben', '/reports/abos'].includes(target)
+    ['/reports/einnahmen-ausgaben', '/reports/ausgaben'].includes(target)
   ) {
-    const label =
-      target === '/reports/abos'
-        ? 'Ansicht von Verträgen und Kosten'
-        : target === '/reports/ausgaben'
-          ? 'Ansicht der Ausgabenanalyse'
-          : 'Ansicht von Einnahmen und Cashflow';
-    await expect(
-      page.getByRole('combobox', { name: label, exact: true }).locator('option:checked'),
-    ).toHaveText(view);
+    await expectReportMenuView(page, view);
   } else if ((await redesignReportsOn(page)) && target === '/reports/explorer') {
     await expect(
       page.getByRole('combobox', { name: 'Darstellung der Auswertung' }).locator('option:checked'),
     ).toHaveText(view);
   } else if ((await redesignReportsOn(page)) && target === '/reports/vermoegen-schulden') {
-    await expect(
-      page
-        .getByRole('combobox', { name: 'Darstellung des Vermögensreports' })
-        .locator('option:checked'),
-    ).toHaveText(view);
+    await expectReportMenuView(page, view);
   } else {
     await expect(
       page.getByRole('button', { name: view, exact: true, pressed: true }),

@@ -1,3 +1,4 @@
+import { expectReportMenuView } from './report-menu';
 import { retainExplorerReaders } from './explorer-controls';
 import { openR8BodyDetails } from './income-spending-controls';
 import { portfolioReportPath, expectWealthReportView } from './wealth-report-controls';
@@ -573,17 +574,9 @@ for (const [slug, legacyPath, legacyIntent, view, legacyBody] of reportAliases)
       } else if (view) {
         if (
           (await redesignReportsOn(page)) &&
-          ['/reports/einnahmen-ausgaben', '/reports/ausgaben', '/reports/abos'].includes(path)
+          ['/reports/einnahmen-ausgaben', '/reports/ausgaben'].includes(path)
         ) {
-          const label =
-            path === '/reports/abos'
-              ? 'Ansicht von Verträgen und Kosten'
-              : path === '/reports/ausgaben'
-                ? 'Ansicht der Ausgabenanalyse'
-                : 'Ansicht von Einnahmen und Cashflow';
-          await expect(
-            page.getByRole('combobox', { name: label, exact: true }).locator('option:checked'),
-          ).toHaveText(view);
+          await expectReportMenuView(page, view);
         } else if ((await redesignReportsOn(page)) && path === '/reports/explorer') {
           await expect(
             page

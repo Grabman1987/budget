@@ -65,13 +65,16 @@ export function IncomeCashflowReport({
   const heading = { ...report, name: 'Einnahmen und Cashflow' };
   const controls = (
     <div className="report-income-controls" role="region" aria-label="Ansicht und Projekt">
-      <ReportViewControl
-        className="report-view-switch"
-        label="Ansicht von Einnahmen und Cashflow"
-        options={INCOME_VIEWS}
-        value={view}
-        onChange={(value) => change({ darstellung: value })}
-      />
+      {/* In the redesign the views are indented sub-reports of the report menu (#1150). */}
+      {!REDESIGN_ENABLED && (
+        <ReportViewControl
+          className="report-view-switch"
+          label="Ansicht von Einnahmen und Cashflow"
+          options={INCOME_VIEWS}
+          value={view}
+          onChange={(value) => change({ darstellung: value })}
+        />
+      )}
       <label className="report-project-select">
         <span>Projekt</span>
         <select

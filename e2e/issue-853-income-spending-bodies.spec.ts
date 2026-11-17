@@ -36,15 +36,12 @@ for (const [name, path, ready] of [
     }
     await expect(page.getByTestId('report-frame-result')).not.toHaveText('—');
     await expect(page.getByTestId('report-frame-source')).toContainText(/Datenbasis/);
+    // The views are indented entries of the report menu (#1150), not a select.
     await expect(
       page.getByRole('combobox', {
-        name:
-          name === 'spending' || name === 'payees'
-            ? 'Ansicht der Ausgabenanalyse'
-            : 'Ansicht von Einnahmen und Cashflow',
-        exact: true,
+        name: /^Ansicht (der Ausgabenanalyse|von Einnahmen und Cashflow)$/,
       }),
-    ).toBeVisible();
+    ).toHaveCount(0);
     if (name === 'overview') {
       await expect(page.getByTestId('income-overview-summary')).toBeVisible();
       await expect(page.locator('.r8-income-details')).not.toHaveAttribute('open');

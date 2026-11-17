@@ -1,3 +1,4 @@
+import { chooseReportMenuView } from './report-menu';
 import { chooseReportView } from './income-spending-controls';
 import { redesignReportsOn } from './report-frame';
 import { withShellControls } from './shell-actions';
@@ -273,9 +274,7 @@ for (const theme of ['light', 'dark']) {
       ['Gesamtübersicht', '.whole-picture', ''],
     ] as const) {
       if (await redesignReportsOn(page)) {
-        await page
-          .getByRole('combobox', { name: 'Darstellung des Vermögensreports' })
-          .selectOption({ label: name });
+        await chooseReportMenuView(page, name);
       } else {
         await page
           .getByRole('group', { name: 'Ansicht von Vermögen und Schulden', exact: true })

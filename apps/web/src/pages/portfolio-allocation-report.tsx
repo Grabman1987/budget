@@ -526,9 +526,7 @@ function ClassTable({ groups, totalCents }: { groups: AllocationGroup[]; totalCe
                   <span title="Nicht alle Klassen haben ein Soll">teilweise</span>
                 )}
               </td>
-              <td className="n">
-                {g.deviationBp === null ? '–' : bpText(g.deviationBp, { sign: true })}
-              </td>
+              <td className="n">{g.deviationBp === null ? '–' : bpText(g.deviationBp)}</td>
               <td />
             </tr>
             {g.classes.map((c) => (
@@ -546,9 +544,7 @@ function ClassTable({ groups, totalCents }: { groups: AllocationGroup[]; totalCe
                   <td className="n">{bpText(c.shareBp)}</td>
                   <td className="n">{bpText(c.portfolioShareBp)}</td>
                   <td className="n">{c.targetBp === null ? '–' : bpText(c.targetBp)}</td>
-                  <td className="n">
-                    {c.deviationBp === null ? '–' : bpText(c.deviationBp, { sign: true })}
-                  </td>
+                  <td className="n">{c.deviationBp === null ? '–' : bpText(c.deviationBp)}</td>
                   <td />
                 </tr>
                 {c.products.map((p) => (
@@ -573,7 +569,7 @@ function ClassTable({ groups, totalCents }: { groups: AllocationGroup[]; totalCe
                     <td />
                     <td />
                     <td />
-                    <td className="n">{percentText(p.ttwror12, { sign: true })}</td>
+                    <td className="n">{percentText(p.ttwror12)}</td>
                   </tr>
                 ))}
                 {c.assignedSecurities
@@ -703,7 +699,7 @@ function SollTable({ data }: { data: AllocationReport }) {
                 </td>
                 <td className="n">{c.valueCents < 0 ? eur(c.valueCents) : bpText(c.shareBp)}</td>
                 <td className={`n${c.breach && c.confidence === 'exact' ? ' prep-bad' : ''}`}>
-                  {c.deviationBp === null ? '–' : `${bpText(c.deviationBp, { sign: true })}`}
+                  {c.deviationBp === null ? '–' : `${bpText(c.deviationBp)}`}
                 </td>
                 <td>
                   {c.targetBp === null ? (

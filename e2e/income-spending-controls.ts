@@ -1,12 +1,10 @@
+import { chooseReportMenuView } from './report-menu';
 import { expect, type Page } from '@playwright/test';
 import { redesignReportsOn } from './report-frame';
 
 export async function chooseReportView(page: Page, label: string, view: string) {
   if (await redesignReportsOn(page)) {
-    const select = page.getByRole('combobox', { name: label, exact: true });
-    await select.focus();
-    await select.selectOption({ label: view });
-    await expect(select).toBeFocused();
+    await chooseReportMenuView(page, view);
   } else
     await page
       .getByRole('group', { name: label, exact: true })

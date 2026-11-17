@@ -1,3 +1,4 @@
+import { chooseReportMenuValue, expectReportMenuValue } from './report-menu';
 import AxeBuilder from '@axe-core/playwright';
 import { expect } from '@playwright/test';
 import { mkdirSync } from 'node:fs';
@@ -50,9 +51,7 @@ test('867 comparison and costs keep canonical totals; income detail has currency
   await expect(page.getByTestId('costs-net')).toHaveText(eur(costs.costs.net.netCents));
   await expect(page.getByTestId('report-frame-result')).toHaveText(eur(costs.costs.net.netCents));
   await capture('kosten');
-  await page
-    .getByRole('combobox', { name: 'Darstellung von Kosten, Steuern und Erträgen' })
-    .selectOption('ertraege');
+  await chooseReportMenuValue(page, 'ertraege');
   await expect(page).toHaveURL(/darstellung=ertraege/);
   await expect(page.getByTestId('report-frame-result')).toHaveText(
     eur(costs.costs.income.grossCents),
@@ -85,12 +84,8 @@ test('867 comparison and costs keep canonical totals; income detail has currency
   ).toBeVisible();
   await capture('ertraege');
   await page.reload();
-  await expect(
-    page.getByRole('combobox', { name: 'Darstellung von Kosten, Steuern und Erträgen' }),
-  ).toHaveValue('ertraege');
-  await page
-    .getByRole('combobox', { name: 'Darstellung von Kosten, Steuern und Erträgen' })
-    .selectOption('kostenverlauf');
+  await expectReportMenuValue(page, 'ertraege');
+  await chooseReportMenuValue(page, 'kostenverlauf');
   await expect(page.getByTestId('portfolio-cost-history-EUR')).toBeVisible();
   await expect(page.getByTestId('report-frame-result')).toHaveText(
     eur(costs.costs.costs.totalCents),
@@ -100,9 +95,7 @@ test('867 comparison and costs keep canonical totals; income detail has currency
   await page.getByText('Gebuchte Monatskosten als Tabelle · EUR', { exact: true }).click();
   await capture('kostenverlauf');
   await page.reload();
-  await expect(
-    page.getByRole('combobox', { name: 'Darstellung von Kosten, Steuern und Erträgen' }),
-  ).toHaveValue('kostenverlauf');
+  await expectReportMenuValue(page, 'kostenverlauf');
   await page.setViewportSize({ width: 320, height: 844 });
   await page.emulateMedia({ reducedMotion: 'reduce' });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);

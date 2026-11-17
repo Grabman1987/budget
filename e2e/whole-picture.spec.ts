@@ -1,3 +1,4 @@
+import { expectReportMenuValue } from './report-menu';
 import { redesignReportsOn, openPaperView } from './report-frame';
 import AxeBuilder from '@axe-core/playwright';
 import { expect } from '@playwright/test';
@@ -29,9 +30,7 @@ sampleTest(
         url.searchParams.get('darstellung') === 'gesamt',
     );
     if (await redesignReportsOn(page)) {
-      await expect(
-        page.getByRole('combobox', { name: 'Darstellung des Vermögensreports' }),
-      ).toHaveValue('gesamt');
+      await expectReportMenuValue(page, 'gesamt');
     } else {
       await expect(
         page.getByRole('button', { name: 'Gesamtübersicht', exact: true }),

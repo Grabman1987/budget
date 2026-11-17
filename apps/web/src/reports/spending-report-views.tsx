@@ -37,15 +37,12 @@ export function SpendingReportViews({ report, meta }: { report: ReportEntry; met
     });
   const changePeriod = (period: SpendingPeriod) =>
     update({ zeitraum: period, empfaenger: undefined }, true);
-  const control = (
+  // In the redesign the views are indented sub-reports of the report menu (#1150).
+  const control = REDESIGN_ENABLED ? undefined : (
     <ReportViewControl
       className="report-view-switch"
       label="Ansicht der Ausgabenanalyse"
-      options={
-        REDESIGN_ENABLED
-          ? SPENDING_VIEWS
-          : SPENDING_VIEWS.filter((option) => option.value !== 'kategorien')
-      }
+      options={SPENDING_VIEWS.filter((option) => option.value !== 'kategorien')}
       value={view}
       onChange={(value) => update({ darstellung: value })}
     />
