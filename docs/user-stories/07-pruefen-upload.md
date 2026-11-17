@@ -11,6 +11,7 @@ Bildschirm Prüfen: `/konten/pruefen` (Konten › Prüfen). Zähler: „Umsätze
   2. Die App zeigt je Bankkandidat Empfänger, Konto · Quelle, Vorschlag, Kategorie (bei Umbuchungen Gegenkonto), Betrag und Aktionen. Detailprüfungen laden beim Fokussieren oder Berühren der Zeile.
   3. Nutzer wählt Empfänger, Regelvorschlag oder Kategorie direkt in der Zeile. Vorschläge stehen zuerst und sind gestrichelt; die ausdrückliche Auswahl macht sie durchgezogen. Eine gültige letzte Einzelkategorie des Empfängers dient als Vorschlag, wenn kein gespeicherter Standard besteht. Kategorien lassen sich getrennt neu anlegen.
   4. Erst das Hakerl „Übernehmen“ bucht. Doppelklick auf die Zeile, Enter auf der fokussierten Zeile oder der Stift „Prüfen“ öffnen weiterhin „Buchung übernehmen“ für Aufteilung, Anteile, Notiz und Datum. Am Handy bleibt zusätzlich „Auswählen“ im Menü.
+  4a. Der geöffnete Dialog „Buchung übernehmen“ bleibt offen, auch wenn die Liste im Hintergrund neu geladen wird und die Zeile dabei neu aufgebaut wird (#1215).
   5. Die App legt die Buchung an, löst den Eintrag auf und senkt den Zähler um 1. Ein Hinweis bietet „Rückgängig“ an.
   6. Alternativ klickt der Nutzer das X „Nicht übernehmen“. Dann entsteht keine Buchung. Pfeil auf/ab wechseln die Zeile; Enter öffnet die fokussierte Zelle, Escape verlässt die Zellbearbeitung ohne Änderung.
 - **Ergebnis:** Bestätigt: Buchung mit Status „Bestätigt“ in Konten › Alle Buchungen, Saldo aktualisiert. Nicht übernommen: Eintrag erledigt, keine Buchung, der Bankumsatz bleibt in der Quelle nachvollziehbar.

@@ -140,6 +140,7 @@ function GoalBody({
         await write(
           () => createGoal(month, values),
           () => `Sparziel „${values.name}“ angelegt`,
+          { awaitRefresh: false },
         )
       )
         onDone();
@@ -158,6 +159,7 @@ function GoalBody({
       await write(
         () => patchGoal(month, goal.id, changed),
         () => `${values.name} geändert`,
+        { awaitRefresh: false },
       )
     )
       onDone();

@@ -9,7 +9,15 @@ import {
 } from '@budget/ui';
 import { X } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type ReactNode,
+} from 'react';
 import { request } from '../api/http';
 import type { AttachedReceipt } from '../receipts/receipt-section';
 import { BankAllFieldsSection } from './bank-all-fields';
@@ -87,6 +95,39 @@ export function BankReview({
   );
 }
 
+/**
+ * #1215: which review dialogs are open lives outside the row. A list refresh that remounts the row
+ * (Undo, the prepared-rows payload) must not drop a dialog the owner just opened.
+ */
+const openReviews = new Set<string>();
+const openListeners = new Set<() => void>();
+function setReviewOpen(id: string, open: boolean) {
+  if (openReviews.has(id) === open) return;
+  if (open) openReviews.add(id);
+  else openReviews.delete(id);
+  openListeners.forEach((listener) => listener());
+}
+const mountedReviews = new Map<string, number>();
+function useReviewOpen(id: string) {
+  // A real unmount closes the dialog; a remount (same commit, new instance) keeps it.
+  useEffect(() => {
+    mountedReviews.set(id, (mountedReviews.get(id) ?? 0) + 1);
+    return () => {
+      mountedReviews.set(id, (mountedReviews.get(id) ?? 1) - 1);
+      queueMicrotask(() => {
+        if (!mountedReviews.get(id)) setReviewOpen(id, false);
+      });
+    };
+  }, [id]);
+  return useSyncExternalStore(
+    (listener) => {
+      openListeners.add(listener);
+      return () => void openListeners.delete(listener);
+    },
+    () => openReviews.has(id),
+  );
+}
+
 export function BankCandidate({
   id,
   onConfirmed,
@@ -109,10 +150,13 @@ export function BankCandidate({
   openRequest?: number;
 }) {
   useAmountPrivacy();
-  const [open, setOpen] = useState(false);
+  const open = useReviewOpen(id);
+  const setOpen = (value: boolean) => setReviewOpen(id, value);
   const [busy, setBusy] = useState(false);
   const [visited, setVisited] = useState(false);
   const [closedRequest, setClosedRequest] = useState(0);
+  // A dialog restored after a remount stays mounted while it closes, like an opened one.
+  if (open && !visited) setVisited(true);
   // Row keyboard/double-click activation must not synthesize a pointer click: the dialog
   // should return focus to the actual row opener, just like the regular button path.
   const expanded = open || openRequest > closedRequest;
@@ -144,7 +188,7 @@ export function BankCandidate({
           {triggerLabel ?? 'Übernehmen'}
         </Button>
       )}
-      {(visited || openRequest > 0) && (
+      {(visited || open || openRequest > 0) && (
         <FormDialog
           open={expanded}
           onClose={close}
