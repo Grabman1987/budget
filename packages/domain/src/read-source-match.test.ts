@@ -426,9 +426,17 @@ describe('resolution texts', () => {
     );
   });
   it('recognises automatic resolutions but not the owner decision', () => {
-    expect(isAutomaticResolution(matchedResolution([]))).toBe(true);
+    expect(
+      isAutomaticResolution(
+        matchedResolution([{ type: 'trade', id: 't', kind: 'buy', date: '2026-03-10' }]),
+      ),
+    ).toBe(true);
     expect(isAutomaticResolution(informationalResolution('internal'))).toBe(true);
-    expect(isAutomaticResolution('Vor dem Übernahme-Stichtag 03.10.2026: Bestände')).toBe(true);
+    expect(
+      isAutomaticResolution(
+        'Vor dem Übernahme-Stichtag 03.10.2026: Bestände stammen aus der Übernahme.',
+      ),
+    ).toBe(true);
     expect(isAutomaticResolution('Vor dem Startdatum – bereits in der App erfasst.')).toBe(true);
     expect(isAutomaticResolution('Vom Nutzer als erledigt markiert')).toBe(false);
     expect(isAutomaticResolution(null)).toBe(false);

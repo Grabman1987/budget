@@ -35,7 +35,7 @@ interface MatchCounts {
   informational: number;
 }
 interface ReconcileResult extends MatchCounts {
-  groupId: string;
+  groupId: string | null;
   changed: number;
   ownerResolved: number;
 }
@@ -248,7 +248,7 @@ function MatchSection({ match, disabled }: { match: MatchCounts; disabled: boole
           ? 'Abgleich ausgeführt. Keine Änderung an den Quellbewegungen.'
           : `Abgleich ausgeführt. ${result.changed} ${result.changed === 1 ? 'Eintrag' : 'Einträge'} in der Datenquelle aktualisiert.`,
       );
-      setUndoable(result.changed > 0 ? result.groupId : null);
+      setUndoable(result.groupId);
       await refreshViews();
     } catch {
       setMessage('Abgleich nicht ausgeführt. Anmeldung prüfen und erneut versuchen.');

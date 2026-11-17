@@ -912,7 +912,7 @@ describe('ledger matching (Abgleich)', () => {
     );
     // Two movements plus the holdings warning that the run recomputes.
     expect(touched.size).toBe(3);
-    const undone = undo(opened.db, { groupId: first.groupId }, ctx);
+    const undone = undo(opened.db, { groupId: first.groupId! }, ctx);
     expect(JSON.stringify(inbox())).toBe(snapshot);
     undo(opened.db, { groupId: undone.groupId }, ctx);
     expect(JSON.stringify(inbox())).toBe(after);
@@ -1006,7 +1006,7 @@ describe('ledger matching (Abgleich)', () => {
     deleteTrade(opened.db, linked.id, ctx);
     const reopened = reconcileReadSource(opened.db, ctx);
     expect(row('id-linked-operation-0001').resolvedAt).toBeNull();
-    undo(opened.db, { groupId: reopened.groupId }, ctx);
+    undo(opened.db, { groupId: reopened.groupId! }, ctx);
     expect(row('id-linked-operation-0001').resolvedAt).toBeTruthy();
   });
   it('names the cause of a holdings difference and recomputes it after matching', () => {
@@ -1047,6 +1047,56 @@ describe('ledger matching (Abgleich)', () => {
     appTrade('2026-03-10', 5, 0);
     reconcileReadSource(opened.db, ctx);
     expect(warning()).toBeUndefined();
+  });
+  it('keeps an ambiguous movement open with its candidate count and reports no group when nothing changed', () => {
+    mapAll();
+    for (const day of ['2026-03-09', '2026-03-11'])
+      createBooking(
+        opened.db,
+        { accountId: 'cash', date: day, amountCents: 2000, splits: [{ amountCents: 2000 }] },
+        ctx,
+      );
+    stage([deposit('d1', '2026-03-10', 20)]);
+    expect(row('d1')).toMatchObject({
+      resolvedAt: null,
+      title: 'Quellbewegung mehrdeutig (2 gleich passende Gegenbuchungen): Umbuchung abgleichen',
+    });
+    reconcileReadSource(opened.db, ctx);
+    expect(reconcileReadSource(opened.db, ctx).groupId).toBeNull();
+  });
+  it('names an unreadable source balance as its own cause, not a mapping problem', () => {
+    mapAll();
+    const duplicate: SourceBalance = { ...asset, issue: 'duplicate' };
+    saveReadSourceState(
+      opened.db,
+      { ...readSourceState(opened.db), balances: [balance, duplicate] },
+      ctx,
+    );
+    reconcileReadSource(opened.db, ctx);
+    const warning = inbox().find((i) => i.title === 'Quellsaldo: Abgleich offen' && !i.resolvedAt);
+    expect(JSON.parse(warning!.detail!)).toMatchObject({
+      reason: 'duplicate_rows',
+      cause: 'source_unreadable',
+    });
+  });
+  it('states the fetch time when a recomputation closes a balance warning', () => {
+    mapAll();
+    const bigger: SourceBalance = { ...asset, amount: { ...asset.amount, value: '0.00000008' } };
+    saveReadSourceState(
+      opened.db,
+      {
+        ...readSourceState(opened.db),
+        balances: [balance, bigger],
+        lastSuccess: '2026-10-01T10:00:00.000Z',
+      },
+      ctx,
+    );
+    reconcileReadSource(opened.db, ctx);
+    expect(inbox().some((i) => i.title === 'Quellsaldo weicht ab' && !i.resolvedAt)).toBe(true);
+    appTrade('2026-03-10', 5, 0);
+    reconcileReadSource(opened.db, ctx);
+    const closed = inbox().find((i) => i.title === 'Quellsaldo weicht ab');
+    expect(closed?.resolution).toBe('Quellsaldo stimmte beim Abruf vom 01.10.2026 überein.');
   });
   it('applies the same rules during a refresh', async () => {
     mapAll();

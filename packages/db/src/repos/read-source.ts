@@ -1,3 +1,4 @@
+import { eq } from 'drizzle-orm';
 import { createHash } from 'node:crypto';
 import {
   todayInVienna,
@@ -13,7 +14,7 @@ import {
   type SourceOperation,
   type SourceFailureCategory,
 } from '@budget/domain';
-import { appSetting, inboxItem, account, security } from '../schema';
+import { appSetting, auditLog, inboxItem, account, security } from '../schema';
 import { getEntity, createEntity, updateEntity } from './entities';
 import { withGroup, type AuditContext, type GroupedContext } from './audit';
 import { runInTransaction, type Executor } from './types';
@@ -272,6 +273,11 @@ function verdictCopy(op: SourceOperation, verdict: OperationVerdict | undefined)
     return { title: base, closed: informationalResolution(verdict.reason) };
   if (verdict?.status === 'unmapped')
     return { title: 'Quellbewegung: Zuordnung fehlt', closed: null };
+  if (verdict?.status === 'missing' && verdict.ambiguous)
+    return {
+      title: `Quellbewegung mehrdeutig (${verdict.ambiguous} gleich passende Gegenbuchungen): ${kindLabel(op)}`,
+      closed: null,
+    };
   if (verdict?.status === 'missing')
     return { title: `Quellbewegung fehlt in der App: ${kindLabel(op)}`, closed: null };
   return { title: base, closed: null };
@@ -402,7 +408,8 @@ export function readSourceMatchSummary(db: Executor): ReadSourceMatchCounts {
   });
 }
 export interface ReadSourceReconcileResult extends ReadSourceMatchCounts {
-  groupId: string;
+  /** The audit group of this run, or null when the run wrote nothing (nothing to undo). */
+  groupId: string | null;
   /** Items whose state this run changed. */
   changed: number;
   /** Items resolved by the owner, left untouched. */
@@ -420,7 +427,7 @@ export function reconcileReadSource(db: Executor, ctx: AuditContext): ReadSource
     const verdicts = evaluateReadSource(tx, readSourceMappings(tx), since);
     const result: ReadSourceReconcileResult = {
       ...emptyCounts(),
-      groupId: grouped.groupId,
+      groupId: null,
       changed: 0,
       ownerResolved: 0,
     };
@@ -436,8 +443,22 @@ export function reconcileReadSource(db: Executor, ctx: AuditContext): ReadSource
     }
     // The holdings comparison depends on which movements are still open: recompute it from the
     // balances of the last fetch (same audit group, so the undo covers it).
-    const balances = readSourceState(tx).balances;
-    if (balances.length) compareSourceBalances(tx, balances, new Date().toISOString(), grouped);
+    const state = readSourceState(tx);
+    if (state.balances.length)
+      compareSourceBalances(
+        tx,
+        state.balances,
+        new Date().toISOString(),
+        grouped,
+        state.lastSuccess,
+      );
+    const wrote = tx
+      .select({ id: auditLog.id })
+      .from(auditLog)
+      .where(eq(auditLog.groupId, grouped.groupId))
+      .limit(1)
+      .all();
+    result.groupId = wrote.length ? grouped.groupId : null;
     return result;
   });
 }
@@ -451,7 +472,12 @@ function compareSourceBalances(
   balances: SourceBalance[],
   now: string,
   grouped: GroupedContext,
+  /** When the balances were fetched, if that was not `now` (a recomputation after matching). */
+  fetchedAt: string | null = null,
 ) {
+  const matchText = fetchedAt
+    ? `Quellsaldo stimmte beim Abruf vom ${fetchedAt.slice(8, 10)}.${fetchedAt.slice(5, 7)}.${fetchedAt.slice(0, 4)} überein.`
+    : 'Quellsaldo stimmt beim Abruf überein.';
   const day = todayInVienna(new Date(now));
   const accounts = accountSummaries(tx, day);
   const holdings = holdingValuationExportAsOf(tx, day);
@@ -464,12 +490,19 @@ function compareSourceBalances(
   const openOperations = stagedOperations(tx)
     .filter(({ row }) => !row.resolvedAt)
     .map(({ op }) => op);
-  const causeOf = (key: string, mapped: boolean, appE8: number, sourceE8: number | null) =>
+  const causeOf = (
+    key: string,
+    mapped: boolean,
+    appE8: number,
+    sourceE8: number | null,
+    sourceUnreadable: boolean,
+  ) =>
     key.startsWith('asset:')
       ? explainHoldingDifference({
           mapped,
           appE8,
           sourceE8,
+          sourceUnreadable,
           openOperations,
           assetId: key.slice('asset:'.length),
         })
@@ -483,9 +516,7 @@ function compareSourceBalances(
         warning.id,
         {
           detail,
-          ...(!warning.resolvedAt
-            ? { resolvedAt: now, resolution: 'Quellsaldo stimmt beim Abruf überein.' }
-            : {}),
+          ...(!warning.resolvedAt ? { resolvedAt: now, resolution: matchText } : {}),
         },
         grouped,
       );
@@ -561,7 +592,13 @@ function compareSourceBalances(
           )?.unitsE8 ?? 0)
         : acc.balanceCents;
     if (local === null || source === null || local !== source) {
-      const cause = causeOf(balance.key, Boolean(valid), local ?? 0, source);
+      const cause = causeOf(
+        balance.key,
+        Boolean(valid),
+        local ?? 0,
+        source,
+        Boolean(balance.issue) || source === null,
+      );
       item(
         tx,
         'balance:' + balance.key,

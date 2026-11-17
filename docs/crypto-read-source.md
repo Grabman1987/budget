@@ -113,6 +113,12 @@ reward commission stay part of their operation and never produce a fiat booking 
 `summarizeOperation` (`packages/domain/src/read-source-explain.ts`) states per operation and asset
 the gross, fee and net units; EUR values come only from the source.
 
+Ties are never guessed: if several equal ledger rows fit one cash movement at the best distance and
+the match is not one-to-one, the movement stays open as "Quellbewegung mehrdeutig (N gleich passende
+Gegenbuchungen)". Id links use the exact rebuild key formats only (single operation: that operation;
+aggregate: exactly its listed ids). Only the exact generated resolution texts count as automatic,
+an owner's own text is never rewritten. A reconcile run that writes nothing returns no audit group.
+
 Tolerances and rules:
 
 | Source | Ledger counterpart |
