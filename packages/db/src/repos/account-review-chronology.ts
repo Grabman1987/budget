@@ -1,4 +1,4 @@
-import { and, asc, eq, gte, inArray, isNull, lte, or, sql } from 'drizzle-orm';
+import { and, asc, eq, gte, inArray, isNull, lte, or, sql, type SQL } from 'drizzle-orm';
 import { account, auditLog, booking } from '../schema';
 import type { Executor } from './types';
 
@@ -14,6 +14,199 @@ interface CheckEvent {
   sequence: number;
   ts: string;
   groupId: string | null;
+}
+
+interface AuditEvent {
+  id: string;
+  sequence: number;
+  ts: string;
+  entityId: string;
+  entityType: string;
+  action: string;
+  groupId: string | null;
+  undoOfId: string | null;
+  beforeExists: number;
+  beforeLive: number;
+  afterLive: number;
+  financialChange: number;
+  afterAccountId: string | null;
+}
+
+const beforeLive =
+  sql<boolean>`(${auditLog.beforeJson} IS NOT NULL AND json_extract(${auditLog.beforeJson}, '$.deleted_at') IS NULL)`.mapWith(
+    Boolean,
+  );
+const afterLive =
+  sql<boolean>`(${auditLog.afterJson} IS NOT NULL AND json_extract(${auditLog.afterJson}, '$.deleted_at') IS NULL)`.mapWith(
+    Boolean,
+  );
+const moneyFields = [
+  'account_id',
+  'date',
+  'amount_cents',
+  'status',
+  'currency',
+  'original_amount_cents',
+  'original_currency',
+  'fx_rate_micro',
+  'fx_fee_cents',
+  'transfer_id',
+];
+// Only a live-to-live booking edit uses this predicate below. CASE avoids extracting ten
+// pairs of fields for creations, deletions and checkpoints, preserving scalar IS semantics.
+// Project only predicates/identity, never whole private snapshots or money values into this model.
+const financialChange = sql<boolean>`CASE WHEN ${auditLog.entityType} = 'booking'
+    AND ${beforeLive} AND ${afterLive} THEN (${sql.join(
+      moneyFields.map(
+        (field) =>
+          sql`json_extract(${auditLog.beforeJson}, ${`$.${field}`}) IS NOT json_extract(${auditLog.afterJson}, ${`$.${field}`})`,
+      ),
+      sql` OR `,
+    )}) ELSE 0 END`.mapWith(Boolean);
+const projection = {
+  id: auditLog.id,
+  sequence: sql<number>`${auditLog}.rowid`.as('sequence'),
+  ts: auditLog.ts,
+  entityId: sql<string>`${auditLog.entityId}`.as('entityId'),
+  entityType: sql<string>`${auditLog.entityType}`.as('entityType'),
+  action: auditLog.action,
+  groupId: sql<string | null>`${auditLog.groupId}`.as('groupId'),
+  undoOfId: sql<string | null>`${auditLog.undoOfId}`.as('undoOfId'),
+  beforeExists: sql<number>`${auditLog.beforeJson} IS NOT NULL`.as('beforeExists'),
+  beforeLive: beforeLive.as('beforeLive'),
+  afterLive: afterLive.as('afterLive'),
+  financialChange: financialChange.as('financialChange'),
+  afterAccountId: sql<string | null>`json_extract(${auditLog.afterJson}, '$.account_id')`.as(
+    'afterAccountId',
+  ),
+};
+
+/** The reference reader: filters in SQL by the live bookings and the current checkpoints. */
+function readReviewEventsUncached(
+  db: Executor,
+  eligible: SQL | undefined,
+  reconciliations: string[],
+  valuations: string[],
+): AuditEvent[] {
+  const eventQuery = db
+    .select(projection)
+    .from(auditLog)
+    .leftJoin(booking, and(eq(auditLog.entityType, 'booking'), eq(auditLog.entityId, booking.id)))
+    .leftJoin(account, eq(account.id, booking.accountId))
+    .where(
+      or(
+        and(eq(auditLog.entityType, 'booking'), eligible),
+        reconciliations.length
+          ? and(
+              eq(auditLog.entityType, 'account_reconciliation'),
+              inArray(auditLog.entityId, reconciliations),
+            )
+          : undefined,
+        valuations.length
+          ? and(eq(auditLog.entityType, 'valuation'), inArray(auditLog.entityId, valuations))
+          : undefined,
+      ),
+    )
+    .orderBy(asc(sql`${auditLog}.rowid`));
+  // SQLite already returns these projected primitives. Avoid ORM field/decoder mapping for
+  // every audit row; the predicates are 0/1 and are consumed only as truth values below.
+  return db.all<AuditEvent>(eventQuery.getSQL());
+}
+
+/**
+ * The projection of one audit row depends on that row alone, and the audit log is append-only at
+ * run time (nothing updates or deletes a row; migrations run before the server starts). So the
+ * projected booking/checkpoint rows are kept per connection and only rows added since the last
+ * read are fetched; which of them count is decided afterwards, in memory, from the live bookings
+ * and the current checkpoints, exactly as the SQL filter of `readReviewEventsUncached` does. The
+ * cache is trusted only while its prefix is provably the same (same number of audit rows up to
+ * its last rowid, same id there; a rolled-back insert whose rowid was reused has a different id);
+ * on any doubt or failure the reference reader answers, so results never depend on the cache.
+ */
+interface EventCache {
+  events: AuditEvent[];
+  lastRowid: number;
+  lastId: string | null;
+  total: number;
+}
+const eventCaches = new WeakMap<object, EventCache>();
+const connectionOf = (db: Executor): object | undefined =>
+  (db as unknown as { session?: { client?: object } }).session?.client;
+
+/** Forget the cached events of a connection (tests). */
+export function resetReviewEventCache(db: Executor): void {
+  const connection = connectionOf(db);
+  if (connection) eventCaches.delete(connection);
+}
+
+function cachedEvents(db: Executor): AuditEvent[] | null {
+  const connection = connectionOf(db);
+  if (!connection) return null;
+  let cache = eventCaches.get(connection);
+  if (cache) {
+    // Rows up to the cached rowid = all rows minus the (few) rows after it: no table scan.
+    const check = db.get<{ n: number; id: string | null }>(
+      sql`SELECT (SELECT count(*) FROM audit_log) - (SELECT count(*) FROM audit_log WHERE rowid > ${cache.lastRowid}) AS n,
+        (SELECT id FROM audit_log WHERE rowid = ${cache.lastRowid}) AS id`,
+    );
+    if (check?.n !== cache.total || check.id !== cache.lastId) cache = undefined;
+  }
+  const known: EventCache = cache ?? { events: [], lastRowid: 0, lastId: null, total: 0 };
+  // Everything below is bounded by one `max(rowid)` so the cache never skips a concurrent commit.
+  const edge = db.get<{ m: number | null; n: number }>(
+    sql`SELECT max(rowid) AS m, count(*) AS n FROM audit_log WHERE rowid > ${known.lastRowid}`,
+  );
+  if (edge?.m != null) {
+    const fresh = db.all<AuditEvent>(
+      db
+        .select(projection)
+        .from(auditLog)
+        .where(
+          and(
+            sql`${auditLog}.rowid > ${known.lastRowid} AND ${auditLog}.rowid <= ${edge.m}`,
+            inArray(auditLog.entityType, ['booking', 'account_reconciliation', 'valuation']),
+          ),
+        )
+        .orderBy(asc(sql`${auditLog}.rowid`))
+        .getSQL(),
+    );
+    const last = db.get<{ id: string | null }>(
+      sql`SELECT id FROM audit_log WHERE rowid = ${edge.m}`,
+    );
+    for (const event of fresh) known.events.push(event);
+    known.lastRowid = edge.m;
+    known.lastId = last?.id ?? null;
+    known.total += edge.n;
+  }
+  eventCaches.set(connection, known);
+  return known.events;
+}
+
+function readEvents(
+  db: Executor,
+  eligible: SQL | undefined,
+  reconciliations: string[],
+  valuations: string[],
+  currentBookings: ReadonlyMap<string, unknown>,
+): AuditEvent[] {
+  let all: AuditEvent[] | null = null;
+  try {
+    all = cachedEvents(db);
+  } catch {
+    // A failing cache read proves nothing: drop it, the reference reader decides (and throws as before).
+    const connection = connectionOf(db);
+    if (connection) eventCaches.delete(connection);
+  }
+  if (!all) return readReviewEventsUncached(db, eligible, reconciliations, valuations);
+  const recon = new Set(reconciliations);
+  const valued = new Set(valuations);
+  return all.filter((e) =>
+    e.entityType === 'booking'
+      ? currentBookings.has(e.entityId)
+      : e.entityType === 'account_reconciliation'
+        ? recon.has(e.entityId)
+        : valued.has(e.entityId),
+  );
 }
 
 /** Read-only chronology: statement dates and actual user ceremonies are different clocks. */
@@ -45,90 +238,8 @@ export function accountReviewChronology(
     .filter((c) => c.entityType === 'account_reconciliation')
     .map((c) => c.id);
   const valuations = checks.filter((c) => c.entityType === 'valuation').map((c) => c.id);
-  const beforeLive =
-    sql<boolean>`(${auditLog.beforeJson} IS NOT NULL AND json_extract(${auditLog.beforeJson}, '$.deleted_at') IS NULL)`.mapWith(
-      Boolean,
-    );
-  const afterLive =
-    sql<boolean>`(${auditLog.afterJson} IS NOT NULL AND json_extract(${auditLog.afterJson}, '$.deleted_at') IS NULL)`.mapWith(
-      Boolean,
-    );
-  const moneyFields = [
-    'account_id',
-    'date',
-    'amount_cents',
-    'status',
-    'currency',
-    'original_amount_cents',
-    'original_currency',
-    'fx_rate_micro',
-    'fx_fee_cents',
-    'transfer_id',
-  ];
-  // Only a live-to-live booking edit uses this predicate below. CASE avoids extracting ten
-  // pairs of fields for creations, deletions and checkpoints, preserving scalar IS semantics.
-  // Project only predicates/identity, never whole private snapshots or money values into this model.
-  const financialChange = sql<boolean>`CASE WHEN ${auditLog.entityType} = 'booking'
-    AND ${beforeLive} AND ${afterLive} THEN (${sql.join(
-      moneyFields.map(
-        (field) =>
-          sql`json_extract(${auditLog.beforeJson}, ${`$.${field}`}) IS NOT json_extract(${auditLog.afterJson}, ${`$.${field}`})`,
-      ),
-      sql` OR `,
-    )}) ELSE 0 END`.mapWith(Boolean);
-  const eventQuery = db
-    .select({
-      id: auditLog.id,
-      sequence: sql<number>`${auditLog}.rowid`.as('sequence'),
-      ts: auditLog.ts,
-      entityId: sql<string>`${auditLog.entityId}`.as('entityId'),
-      entityType: sql<string>`${auditLog.entityType}`.as('entityType'),
-      action: auditLog.action,
-      groupId: sql<string | null>`${auditLog.groupId}`.as('groupId'),
-      undoOfId: sql<string | null>`${auditLog.undoOfId}`.as('undoOfId'),
-      beforeExists: sql<number>`${auditLog.beforeJson} IS NOT NULL`.as('beforeExists'),
-      beforeLive: beforeLive.as('beforeLive'),
-      afterLive: afterLive.as('afterLive'),
-      financialChange: financialChange.as('financialChange'),
-      afterAccountId: sql<string | null>`json_extract(${auditLog.afterJson}, '$.account_id')`.as(
-        'afterAccountId',
-      ),
-    })
-    .from(auditLog)
-    .leftJoin(booking, and(eq(auditLog.entityType, 'booking'), eq(auditLog.entityId, booking.id)))
-    .leftJoin(account, eq(account.id, booking.accountId))
-    .where(
-      or(
-        and(eq(auditLog.entityType, 'booking'), eligible),
-        reconciliations.length
-          ? and(
-              eq(auditLog.entityType, 'account_reconciliation'),
-              inArray(auditLog.entityId, reconciliations),
-            )
-          : undefined,
-        valuations.length
-          ? and(eq(auditLog.entityType, 'valuation'), inArray(auditLog.entityId, valuations))
-          : undefined,
-      ),
-    )
-    .orderBy(asc(sql`${auditLog}.rowid`));
-  // SQLite already returns these projected primitives. Avoid ORM field/decoder mapping for
-  // every audit row; the predicates are 0/1 and are consumed only as truth values below.
-  const events = db.all<{
-    id: string;
-    sequence: number;
-    ts: string;
-    entityId: string;
-    entityType: string;
-    action: string;
-    groupId: string | null;
-    undoOfId: string | null;
-    beforeExists: number;
-    beforeLive: number;
-    afterLive: number;
-    financialChange: number;
-    afterAccountId: string | null;
-  }>(eventQuery.getSQL());
+  const currentBookings = new Map(live.map((row) => [row.id, row]));
+  const events = readEvents(db, eligible, reconciliations, valuations, currentBookings);
 
   const checkpointKey = (type: string, id: string) => `${type}:${id}`;
   const currentCheck = new Map<string, CheckEvent | null>();
@@ -171,7 +282,6 @@ export function accountReviewChronology(
     }
   >();
   const eventfulBookings = new Set<string>();
-  const currentBookings = new Map(live.map((row) => [row.id, row]));
   for (const row of live) {
     const value = evidence.get(row.accountId) ?? {
       bookingCount: 0,

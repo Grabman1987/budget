@@ -73,6 +73,7 @@ crypto.randomUUID = () => '00000000-0000-4000-8000-000000000956';
 syncBuiltinESMExports();
 
 const stats = { count: 0, ms: 0 };
+const bySql = new Map<string, { n: number; ms: number }>(); // --top N: slowest statements of the last sample
 const prepare = sqlite.prepare.bind(sqlite);
 sqlite.prepare = ((sql: string) => {
   const statement = prepare(sql);
@@ -84,8 +85,13 @@ sqlite.prepare = ((sql: string) => {
       try {
         return original(...params);
       } finally {
+        const took = performance.now() - start;
         stats.count++;
-        stats.ms += performance.now() - start;
+        stats.ms += took;
+        const row = bySql.get(sql) ?? { n: 0, ms: 0 };
+        row.n++;
+        row.ms += took;
+        bySql.set(sql, row);
       }
     };
   }
@@ -102,23 +108,35 @@ const digests: Record<string, string> = {};
 for (const path of HEUTE_956_ROUTES) {
   if (option('--only') && !path.includes(option('--only')!)) continue;
   const times: number[] = [];
+  const cpus: number[] = [];
   let digest = '';
   for (let s = 0; s < samples; s++) {
     const handler = app(); // fresh read-model cache: a miss, as after any write
     await new Promise((done) => setImmediate(done));
     stats.count = 0;
     stats.ms = 0;
+    bySql.clear();
+    const cpu0 = process.cpuUsage();
     const start = performance.now();
     const response = await handler.request(`/api${path}`);
     const body = Buffer.from(await response.arrayBuffer());
     times.push(performance.now() - start);
+    const cpu = process.cpuUsage(cpu0); // own CPU time: steadier than wall time on a busy machine
+    cpus.push((cpu.user + cpu.system) / 1000);
     assert.equal(response.status, 200, path);
     digest = `${body.length}:${crypto.createHash('sha256').update(body).digest('hex')}`;
   }
   digests[path] = digest;
+  for (const [sql, row] of [...bySql]
+    .sort((a, b) => b[1].ms - a[1].ms)
+    .slice(0, Number(option('--top') ?? 0)))
+    console.log(
+      `  ${row.ms.toFixed(1).padStart(7)} ms x${String(row.n).padStart(3)}  ${sql.replace(/\s+/g, ' ').slice(0, 150)}`,
+    );
   times.sort((a, b) => a - b);
+  cpus.sort((a, b) => a - b);
   console.log(
-    `${path.padEnd(58)} median ${times[times.length >> 1]!.toFixed(0).padStart(5)} ms  min ${times[0]!.toFixed(0).padStart(5)} ms  statements ${stats.count}  sql ${stats.ms.toFixed(0)} ms`,
+    `${path.padEnd(58)} median ${times[times.length >> 1]!.toFixed(0).padStart(5)} ms  min ${times[0]!.toFixed(0).padStart(5)} ms  cpu ${cpus[cpus.length >> 1]!.toFixed(0).padStart(5)} ms  statements ${stats.count}  sql ${stats.ms.toFixed(0)} ms`,
   );
 }
 const capture = option('--capture');

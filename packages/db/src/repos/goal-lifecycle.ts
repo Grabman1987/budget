@@ -221,7 +221,7 @@ export function readEntries(db: Executor, after = 0): Entry[] {
   if (cache) {
     try {
       const check = db.get<{ n: number; id: string | null }>(
-        sql`SELECT (SELECT count(*) FROM audit_log WHERE rowid <= ${cache.lastRowid}) AS n,
+        sql`SELECT (SELECT count(*) FROM audit_log) - (SELECT count(*) FROM audit_log WHERE rowid > ${cache.lastRowid}) AS n,
           (SELECT id FROM audit_log WHERE rowid = ${cache.lastRowid}) AS id`,
       );
       const intact =
