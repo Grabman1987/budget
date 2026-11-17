@@ -122,7 +122,7 @@ export function EnvelopeBody({
     id === '' ? 'Zu verteilen' : (rows.find((o) => o.id === id)?.name ?? '');
 
   const run = async (fn: () => Promise<{ groupId: string }>, message: string) => {
-    if (await write(fn, () => message)) onDone();
+    if (await write(fn, () => message, { awaitRefresh: false })) onDone();
   };
   const coverFrom = useCover(month, name);
   const suggestedCoverCents = Math.min(r.overspentCents, sourceFree);
