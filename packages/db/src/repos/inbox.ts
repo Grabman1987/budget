@@ -46,6 +46,7 @@ import { candidateMatches } from './bank-followups';
 import { payslipDocumentMetadata } from './payslip-intake';
 import { readAssignmentCandidate } from './assignment-rules';
 import { bookedBalance } from './reconciliation';
+import { heldSecurityIds } from './quote-source-decision';
 import { AUTO_RESOLVED_HISTORY_DAYS, autoResolvedWarnings } from './market';
 
 export type BankSuggestion = { label: string; needsReview: boolean };
@@ -81,6 +82,8 @@ export interface InboxStored {
   refId: string | null;
   urgent: boolean;
   createdAt: string;
+  /** Price-source warning of an instrument without a current holding (own task group). */
+  historical?: true;
   payslipDocument?: ReturnType<typeof payslipDocumentMetadata>;
   bankCandidate?:
     | {
@@ -519,6 +522,12 @@ export function readInbox(
           ? { bankCandidate: candidates.get(row.refId) }
           : {}),
       }));
+    if (stored.some((e) => e.kind === 'stale_value' && e.refType === 'security')) {
+      const held = heldSecurityIds(tx, today);
+      for (const e of stored)
+        if (e.kind === 'stale_value' && e.refType === 'security' && e.refId && !held.has(e.refId))
+          e.historical = true;
+    }
     let entries: InboxEntry[] =
       readSource || options.bankAccountId
         ? stored

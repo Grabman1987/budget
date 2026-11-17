@@ -54,6 +54,8 @@ export interface InboxStored {
   refId: string | null;
   urgent: boolean;
   createdAt: string;
+  /** Price-source warning of an instrument without a current holding. */
+  historical?: true;
   bankCandidate?:
     | {
         date: string;

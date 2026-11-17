@@ -207,14 +207,22 @@ related working pages and prototype charts do not make these reports finished.
 Each needs connected data, period controls, the specified chart, booking drill-down,
 consistent totals, desktop/mobile checks and printing where required.
 
+Issue #1149, second slice: the redesign contact report lists every contact with an open amount one under the other, each with its own account sheet; settled contacts appear only in the collapsed shared history. Figures unchanged (same contact statement queries). No migration.
+
+Issue #1160, total view: `darstellung=gesamt` in the cost report adds one annual "Kosten gesamt" figure (`combinedCosts` in the domain: bank and interest costs + TER + broker taxes, trading fees counted once, ratio against the portfolio value). No new calculation of the parts; windows of the two readers stay named. No migration.
+
 Issue #1158, first consolidation slice (review pending): the redesign spending report
 adds `darstellung=kategorien`, reusing the existing monthly category table and trend.
 It defaults to the largest absolute category change, with stable ID ordering for ties
 and unavailable comparisons last. Period and category selections survive view changes
 and reload; amount privacy and the OFF view set remain intact. The Explorer and old
-category bookmark keep their existing behavior. Remaining scope: unified Ausgaben
-title/menu hierarchy, group trends/change ordering, comparison modes with URL state
-(previous period/year/custom), and final legacy-address consolidation. No migration.
+category bookmark keep their existing behavior. Second slice: the group view has a
+comparison mode "Vorperiode" (default, equally long window before) or "Vorjahr" (same days
+one year earlier; 29 February falls back to 28 February), kept in the address as
+`vergleich=vorjahr` (`basis=previous-year` on `GET /api/reports/spending/analysis`). Same
+calculation as before, only the window differs; the Empfänger view stays inside the same
+report (`darstellung=empfaenger`). Remaining: custom comparison window and final
+legacy-address consolidation. No migration.
 
 | ID | Report | Prototype calculation/view reference | Remaining status |
 | --- | --- | --- | --- |

@@ -26,7 +26,13 @@ it('ON frame receives the original independent receivable, payable and net cents
     asOf: '2026-10-02',
     currency: 'EUR',
     contacts: [],
-    totals: { receivableCents: 5000, payableCents: 2000, balanceCents: 3000 },
+    totals: {
+      receivableCents: 5000,
+      payableCents: 2000,
+      balanceCents: 3000,
+      reviewCount: 0,
+      reviewBalanceCents: 0,
+    },
   });
   expect(calc.terms.map((term) => [term.label, term.value, term.op])).toEqual([
     ['Wir bekommen', 5000, undefined],

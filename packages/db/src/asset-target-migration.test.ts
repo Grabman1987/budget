@@ -62,7 +62,19 @@ it('0035 is generated from main 0034, preserves every existing row/value, repeat
           }))
         : tables[i] === 'account'
           ? records.map((row) => ({ ...(row as Record<string, unknown>), purpose: null }))
-          : records,
+          : tables[i] === 'price'
+            ? records.map((row) => ({
+                ...(row as Record<string, unknown>),
+                source_currency: null,
+                source_price_micro: null,
+                fx_rate_micro: null,
+              }))
+            : tables[i] === 'security'
+              ? records.map((row) => ({
+                  ...(row as Record<string, unknown>),
+                  quote_fx_currency: null,
+                }))
+              : records,
     );
     await opened.sqlite.backup(join(dir, 'before.sqlite'));
     migrateDatabase(opened.db);

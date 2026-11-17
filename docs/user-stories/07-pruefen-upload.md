@@ -188,13 +188,16 @@ Bildschirm Prüfen: `/konten/pruefen` (Konten › Prüfen). Zähler: „Umsätze
   3. Die Quelle lässt sich über „Instrument öffnen“ ändern (Symbol, Börse, Ariva-Link).
   4. Ist sie nicht reparierbar, trägt der Nutzer einen Grund ein und klickt „Nur manuelle Kurse“. Ohne aktuellen Bestand gibt es zusätzlich „Abruf abschalten (historischer Bestand)“.
   5. Der automatische Abruf ist aus, die Warnung ist mit dem Grund erledigt, „Rückgängig“ stellt beides wieder her.
-- **Ergebnis:** Kein Kurs wird gespeichert oder umgerechnet; ein Fremdwährungskurs wird nie als EUR abgelegt.
+  6. Liefert die Quelle in einer anderen Währung, bietet die Vorschau „Mit EZB-Kurs umrechnen (USD → EUR)“ an. Ab dem nächsten Abruf wird jeder Kurs mit dem EZB-Kurs seines Tages umgerechnet (fehlt der Tag, gilt der letzte frühere, höchstens 5 Tage zurück; sonst wird der Tag ausgelassen und gemeldet; ausgelassene Tage werden beim nächsten Abruf bis 10 Tage zurück erneut versucht). Eine Zahl ohne Währungsangabe der Quelle wird bei gewählter Umrechnung nicht als Instrumentenwährung gespeichert. Originalkurs, Währung und Wechselkurs bleiben beim Kurs gespeichert; „Umrechnung aufheben“ und „Rückgängig“ stellen den alten Zustand her.
+  7. Die Ursachenansicht zeigt Zeit und Ergebnis des letzten Abrufversuchs (HTTP-Status oder „keine Zeilen“), den letzten Erfolg und die letzten Versuche (je Instrument die jüngsten 30 bleiben erhalten).
+  8. Kurswarnungen von Instrumenten ohne aktuellen Bestand stehen in der Aufgabenliste in einer eigenen Gruppe „Historische Bestände“.
+- **Ergebnis:** Ohne Entscheidung des Nutzers wird kein Fremdwährungskurs gespeichert; mit Entscheidung nur umgerechnet in die Instrumentwährung, nie unumgerechnet als EUR. Bewertungen lesen weiter den umgerechneten Kurs.
 - **Abnahmekriterien:**
   1. Ein manueller Kurs schließt die Quellwarnung nicht.
   2. Ohne Grund sind die Knöpfe gesperrt.
   3. Der erste erfolgreiche automatische Abruf schließt Abruf-Warnungen weiter von selbst (#1101).
   4. „Abruf abschalten“ wird bei vorhandenem Bestand vom Server abgelehnt.
-- **Status:** teilweise — Test, Quellanzeige und Abschalten mit Grund umgesetzt (Entwurfs-PR); offen: Umrechnung mit EZB-Kurs (braucht Schema), Zeitpunkt des letzten Abrufs je Instrument, Gruppe „historische Bestände“ in der Liste. — **Verweis:** #1203 (Teil A), #1081, #1101
+- **Status:** in Arbeit (Entwurfs-PR, enthält Migration 0055, vor Veröffentlichung Sicherung und Durchsicht); offen: End-to-End-Test je Teil. — **Verweis:** #1203 (Teil A), #1081, #1101
 
 ### I-06 – Gehaltszettel automatisch lesen und bestätigen
 - **Story:** Als Nutzer möchte ich Gehaltszettel automatisch auslesen lassen und die Vorschläge nur noch bestätigen, damit ich Brutto, Abzüge und Auszahlung nicht abtippen muss.

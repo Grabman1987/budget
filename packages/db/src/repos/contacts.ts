@@ -47,6 +47,30 @@ import type { ContactAllocationOptions } from './contact-allocation-lock';
 export { adoptContactRepayment } from './contact-reallocation';
 export { waiveContactOutlay } from './contact-waiver';
 
+/** Identity fields of one contact; shared by the statement and the review fallback of the list. */
+function contactHeader(db: Executor, id: string, ids: readonly string[]) {
+  const row = db.select().from(contact).where(eq(contact.id, id)).get();
+  if (!row) throw new EntityNotFoundError('contact', id);
+  return {
+    id: row.id,
+    name: row.name,
+    note: row.note,
+    archivedAt: row.archivedAt,
+    mergedIntoId: row.mergedIntoId,
+    mergedFrom: ids
+      .filter((other) => other !== id)
+      .map((other) => ({
+        id: other,
+        name: db.select().from(contact).where(eq(contact.id, other)).get()?.name ?? other,
+      })),
+    aliases: listContactAliases(db, row.id).map((a) => ({
+      id: a.id,
+      alias: a.alias,
+      updatedAt: a.updatedAt,
+    })),
+  };
+}
+
 /**
  * The statement of an identity: a merged source id resolves to its target (#871) and the result
  * is the plain union of the original rows of both ids (`resolvedFromId` names the asked id).
@@ -127,24 +151,7 @@ export function contactStatementOf(
       : [];
   });
   return {
-    contact: {
-      id: row.id,
-      name: row.name,
-      note: row.note,
-      archivedAt: row.archivedAt,
-      mergedIntoId: row.mergedIntoId,
-      mergedFrom: ids
-        .filter((other) => other !== id)
-        .map((other) => ({
-          id: other,
-          name: db.select().from(contact).where(eq(contact.id, other)).get()?.name ?? other,
-        })),
-      aliases: listContactAliases(db, row.id).map((a) => ({
-        id: a.id,
-        alias: a.alias,
-        updatedAt: a.updatedAt,
-      })),
-    },
+    contact: contactHeader(db, row.id, ids),
     asOf,
     ...(resolvedFromId ? { resolvedFromId } : {}),
     currency: 'EUR' as const,
@@ -169,14 +176,36 @@ export function listContactStatements(db: Executor, asOf: string, history = fals
     .where(and(isNull(contact.deletedAt), isNull(contact.mergedIntoId)))
     .all()
     .map((c) => {
-      const s = getContactStatement(db, c.id, asOf, records);
-      return {
-        ...s.contact,
-        updatedAt: c.updatedAt,
-        balanceCents: s.balanceCents,
-        creditCents: s.creditCents,
-        receivableCents: s.outlays.reduce((sum, o) => sum + o.remainingCents, 0),
-      };
+      try {
+        const s = getContactStatement(db, c.id, asOf, records);
+        return {
+          ...s.contact,
+          updatedAt: c.updatedAt,
+          balanceCents: s.balanceCents,
+          creditCents: s.creditCents,
+          receivableCents: s.outlays.reduce((sum, o) => sum + o.remainingCents, 0),
+          allocationNeedsReview: false,
+        };
+      } catch (error) {
+        // One contradictory stored settlement must not take the whole list down (#1174): the
+        // contact keeps its plain balance (sum of its movements) and is flagged for review.
+        if (!(error instanceof ContactAllocationError)) throw error;
+        const ids = contactIdentityIds(db, c.id);
+        const balanceCents = actualContactMovements(db, ids, asOf, records).reduce(
+          (sum, m) => sum - m.amountCents,
+          0,
+        );
+        if (!Number.isSafeInteger(balanceCents))
+          throw new BookingInvariantError('Contact balance exceeds integer range');
+        return {
+          ...contactHeader(db, c.id, ids),
+          updatedAt: c.updatedAt,
+          balanceCents,
+          creditCents: Math.max(0, -balanceCents),
+          receivableCents: Math.max(0, balanceCents),
+          allocationNeedsReview: true,
+        };
+      }
     })
     .filter((c) => history || c.receivableCents !== 0 || c.creditCents !== 0);
 }
@@ -202,8 +231,9 @@ export function readOverdueContactReminders(db: Executor, today: string) {
       statement = getContactStatement(db, row.id, today, records);
     } catch (error) {
       if (
-        error instanceof BookingInvariantError &&
-        error.message === 'Contact statements require EUR movements'
+        error instanceof ContactAllocationError ||
+        (error instanceof BookingInvariantError &&
+          error.message === 'Contact statements require EUR movements')
       ) {
         unavailableCount++;
         continue;

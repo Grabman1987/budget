@@ -3,7 +3,8 @@ import { contactBalanceLine } from '../contacts/contact-balance';
 import { Button, useAmountPrivacy } from '@budget/ui';
 import { cents } from '@budget/domain';
 import { useRef, useState, type MouseEvent, type RefObject } from 'react';
-import type { UseQueryResult } from '@tanstack/react-query';
+import { useQueries, type UseQueryResult } from '@tanstack/react-query';
+import { ApiError } from '../api/http';
 import { ContactWriteOffDialog } from '../contacts/contacts-page';
 import { eur, longDay } from '../ledger/format';
 import { EmptyNote, LoadingNote } from '../ledger/states';
@@ -11,7 +12,11 @@ import { AppLink } from '../shell/app-link';
 import { ReportFrame } from './report-frame';
 import { ReportViewControl } from './report-view-control';
 import { ContactReportRows } from './contact-report-rows';
-import type { ContactOverview, ContactReportStatement } from './contact-api';
+import {
+  contactReportQuery,
+  type ContactOverview,
+  type ContactReportStatement,
+} from './contact-api';
 import { ContactReportError } from './contact-report';
 import './contact-report-redesign.css';
 
@@ -52,9 +57,8 @@ export function ContactForgivenessAction({
 export function ContactReportRedesign({
   overview,
   statement,
-  view,
+  view: currentView,
   selected,
-  person,
   history,
   heading,
   unsupported,
@@ -64,7 +68,6 @@ export function ContactReportRedesign({
   statement: UseQueryResult<ContactReportStatement>;
   view: ContactOverview | undefined;
   selected: string;
-  person: ContactReportStatement | undefined;
   history: boolean;
   heading: RefObject<HTMLHeadingElement | null>;
   unsupported: boolean;
@@ -85,10 +88,12 @@ export function ContactReportRedesign({
   const [forgiving, setForgiving] = useState<{ id: string; name: string; balanceCents: number }>();
   const opener = useRef<HTMLButtonElement>(null);
   const root = useRef<HTMLDivElement>(null);
-  const [previousPerson, setPreviousPerson] = useState<ContactReportStatement>();
-  if (person && person !== previousPerson) setPreviousPerson(person);
-  const retainedPerson =
-    person ?? (previousPerson?.contact.id === selected ? previousPerson : undefined);
+  const [settledOpen, setSettledOpen] = useState(false);
+  // A failed refresh keeps the last confirmed sheets (and an open source dialog) on screen, marked
+  // as not confirmed; the overview figures stay hidden.
+  const [previousView, setPreviousView] = useState<ContactOverview>();
+  if (currentView && currentView !== previousView) setPreviousView(currentView);
+  const baseView = currentView ?? previousView;
   const closeForgiveness = () => {
     setForgiving(undefined);
     requestAnimationFrame(() =>
@@ -97,12 +102,72 @@ export function ContactReportRedesign({
       }),
     );
   };
-  const ready = Boolean(view && !overview.isFetching && !overview.isError && !unsupported);
-  const detailReady = ready && statement.isSuccess && !statement.isFetching && !statement.isError;
-  const current = view?.contacts.find((contact) => contact.id === forgiving?.id);
+  const ready = Boolean(currentView && !overview.isFetching && !overview.isError && !unsupported);
   const hasOpenAmount = (contact: { balanceCents: number; creditCents: number }) =>
     contact.balanceCents !== 0 || contact.creditCents > 0;
+  const openContacts = baseView?.contacts.filter(hasOpenAmount) ?? [];
+  const settledContacts = baseView?.contacts.filter((contact) => !hasOpenAmount(contact)) ?? [];
+  const settledShown =
+    history && (settledOpen || settledContacts.some((contact) => contact.id === selected));
+  const sheetIds = [
+    ...new Set([
+      ...(selected ? [selected] : []),
+      ...openContacts.map((contact) => contact.id),
+      ...(settledShown ? settledContacts.map((contact) => contact.id) : []),
+    ]),
+  ];
+  const asOf = baseView?.asOf ?? '';
+  const results = useQueries({
+    queries: sheetIds.map((id) => contactReportQuery(id, asOf, ready && !!asOf)),
+  });
+  const queries = new Map(sheetIds.map((id, index) => [id, results[index]!]));
+  // Mixed currencies: one statement that cannot be computed in EUR hides EVERY figure and ledger.
+  // A retry clears Query's error before the response arrives, so the gap stays known per contact.
+  const [blockedSheets, setBlockedSheets] = useState<Record<string, ApiError>>({});
+  const nextBlocked = { ...blockedSheets };
+  for (const [id, result] of queries) {
+    const error: unknown = result.isError ? result.error : undefined;
+    if (error instanceof ApiError && error.status === 422) nextBlocked[id] = error;
+    else if (result.isSuccess) delete nextBlocked[id];
+  }
+  const blockedIds = Object.keys(nextBlocked);
+  if (
+    blockedIds.length !== Object.keys(blockedSheets).length ||
+    blockedIds.some((id) => blockedSheets[id] !== nextBlocked[id])
+  )
+    setBlockedSheets(nextBlocked);
+  const sheetBlocked = blockedIds.length > 0;
+  const view = sheetBlocked ? undefined : currentView;
+  const retained = !view && !unsupported && !sheetBlocked ? baseView : undefined;
+  const sheetView = view ?? retained;
+  const blockedError = unsupported ? detailError : nextBlocked[blockedIds[0]!];
+  const current = view?.contacts.find((contact) => contact.id === forgiving?.id);
   const visible = view?.contacts.filter((contact) => history || hasOpenAmount(contact)) ?? [];
+  const sheet = (id: string) => (
+    <ContactSheetCard
+      key={id}
+      contactId={id}
+      query={queries.get(id)!}
+      ready={ready}
+      selected={selected === id}
+      heading={heading}
+      relation={relation}
+      onForgive={(contact, button) => {
+        opener.current = button;
+        setForgiving(contact);
+        if (!search.kontakt)
+          void navigate({
+            to: '.',
+            replace: true,
+            search: ((previous: Record<string, unknown>) => ({
+              ...previous,
+              kontakt: contact.id,
+            })) as never,
+          });
+        void overview.refetch();
+      }}
+    />
+  );
   const relation = (balance: number, credit = 0) =>
     credit > 0
       ? 'Guthaben des Kontakts'
@@ -126,7 +191,7 @@ export function ContactReportRedesign({
       reportDataBasis={
         view
           ? `Gesamte Historie bis ${longDay(view.asOf)} · EUR`
-          : overview.isError || unsupported
+          : overview.isError || unsupported || sheetBlocked
             ? 'nicht verfügbar'
             : 'wird geladen'
       }
@@ -146,25 +211,26 @@ export function ContactReportRedesign({
     >
       <div className="r4-contact-report" ref={root} tabIndex={-1}>
         {overview.isPending && <LoadingNote what="Kontaktabrechnung" />}
-        {(overview.isError || unsupported) && (
+        {(overview.isError || unsupported || sheetBlocked) && (
           <div>
             <ContactReportError
               what="Kontaktabrechnung"
-              error={unsupported ? detailError : overview.error}
+              error={unsupported || sheetBlocked ? blockedError : overview.error}
               retry={() => {
                 void overview.refetch();
                 if (unsupported) void statement.refetch();
+                for (const id of blockedIds) void queries.get(id)?.refetch();
               }}
             />
             <p>Der Report ist nicht verfügbar. Es wird kein Teilsaldo gezeigt.</p>
           </div>
         )}
-        {(view || retainedPerson) && (
+        {(view || retained) && (
           <>
-            {!ready && view && (
+            {!ready && sheetView && (
               <p role="status">
-                Letzter verfügbarer Stand {longDay(view.asOf)} · Salden werden geprüft. Schulden
-                können erst nach einer aktuellen Prüfung erlassen werden.
+                Letzter verfügbarer Stand {longDay(sheetView.asOf)} · Salden werden geprüft.
+                Schulden können erst nach einer aktuellen Prüfung erlassen werden.
               </p>
             )}
             <div className="r4-contact-columns">
@@ -236,80 +302,19 @@ export function ContactReportRedesign({
                 </section>
               )}
               <div className="r4-contact-detail">
-                {selected && statement.isPending && <LoadingNote what="Kontoblatt" />}
-                {selected && statement.isError && (
-                  <ContactReportError
-                    what="Kontoblatt"
-                    error={statement.error}
-                    retry={() => void statement.refetch()}
-                  />
-                )}
-                {retainedPerson && (
-                  <section
-                    className="r4-contact-sheet contacts-statement"
-                    aria-label="Kontaktkontoauszug"
+                {selected && !sheetView?.contacts.some((contact) => contact.id === selected)
+                  ? sheet(selected)
+                  : null}
+                {(sheetView ? openContacts : []).map((contact) => sheet(contact.id))}
+                {sheetView && history && settledContacts.length > 0 && (
+                  <details
+                    className="r4-contact-settled"
+                    open={settledContacts.some((contact) => contact.id === selected) || undefined}
+                    onToggle={(event) => setSettledOpen(event.currentTarget.open)}
                   >
-                    {person && (
-                      <>
-                        <div className="r4-contact-heading">
-                          <h2 id="contact-sheet-title" tabIndex={-1} ref={heading}>
-                            Kontoblatt {person.contact.name}
-                          </h2>
-                          <strong className="contacts-balance">
-                            {person.creditCents > 0
-                              ? `Guthaben · ${eur(person.creditCents)}`
-                              : person.balanceCents === 0
-                                ? `Ausgeglichen · ${eur(person.balanceCents)}`
-                                : contactBalanceLine(person.balanceCents)}
-                          </strong>
-                        </div>
-                        <p className="r4-contact-summary">
-                          Offene Forderung:{' '}
-                          {eur(person.outlays.reduce((sum, o) => sum + o.remainingCents, 0))}
-                          {' · '}Guthaben des Kontakts: {eur(person.creditCents)}
-                        </p>
-                        {person.contact.note && <p>{person.contact.note}</p>}
-                        <p className="r4-source">
-                          {person.movements.length} Bewegungen ·{' '}
-                          {relation(person.balanceCents, person.creditCents)} · Stand{' '}
-                          {longDay(person.asOf)}
-                        </p>
-                        <ContactForgivenessAction
-                          balance={person.balanceCents}
-                          ready={detailReady}
-                          onOpen={(event) => {
-                            opener.current = event.currentTarget;
-                            setForgiving({ ...person.contact, balanceCents: person.balanceCents });
-                            if (!search.kontakt)
-                              void navigate({
-                                to: '.',
-                                replace: true,
-                                search: ((previous: Record<string, unknown>) => ({
-                                  ...previous,
-                                  kontakt: person.contact.id,
-                                })) as never,
-                              });
-                            void overview.refetch();
-                          }}
-                        />
-                      </>
-                    )}
-                    {!detailReady && (
-                      <p role="status">
-                        Kontoblatt derzeit nicht bestätigt. Die Eingaben bleiben erhalten.
-                      </p>
-                    )}
-                    <ContactReportRows
-                      key={retainedPerson.contact.id}
-                      statement={retainedPerson}
-                      ready={detailReady && !!person}
-                    />
-                    {person && !person.movements.length && (
-                      <EmptyNote>
-                        Noch keine Kontaktbuchungen. Der Saldo ist ausgeglichen.
-                      </EmptyNote>
-                    )}
-                  </section>
+                    <summary>Ausgeglichene Kontakte ({settledContacts.length})</summary>
+                    {settledShown && settledContacts.map((contact) => sheet(contact.id))}
+                  </details>
                 )}
               </div>
             </div>
@@ -335,5 +340,100 @@ export function ContactReportRedesign({
         )}
       </div>
     </ReportFrame>
+  );
+}
+
+/** One contact's account sheet. The parent runs the statement queries so one failure can block every sheet. */
+function ContactSheetCard({
+  contactId,
+  query,
+  ready,
+  selected,
+  heading,
+  relation,
+  onForgive,
+}: {
+  contactId: string;
+  query: UseQueryResult<ContactReportStatement>;
+  ready: boolean;
+  selected: boolean;
+  heading: RefObject<HTMLHeadingElement | null>;
+  relation: (balance: number, credit?: number) => string;
+  onForgive: (
+    contact: { id: string; name: string; balanceCents: number },
+    button: HTMLButtonElement,
+  ) => void;
+}) {
+  useAmountPrivacy();
+  const person = query.isSuccess ? query.data : undefined;
+  const detailReady = ready && query.isSuccess && !query.isFetching && !query.isError;
+  return (
+    <section
+      id={`kontakt-${contactId}`}
+      className="r4-contact-sheet contacts-statement"
+      aria-label={
+        selected
+          ? 'Kontaktkontoauszug'
+          : person
+            ? `Kontoauszug ${person.contact.name}`
+            : 'Kontoauszug wird geladen'
+      }
+      aria-current={selected ? 'true' : undefined}
+    >
+      {query.isPending && <LoadingNote what="Kontoblatt" />}
+      {query.isError && (
+        <ContactReportError
+          what="Kontoblatt"
+          error={query.error}
+          retry={() => void query.refetch()}
+        />
+      )}
+      {person && (
+        <>
+          <div className="r4-contact-heading">
+            <h2
+              id={`contact-sheet-title-${contactId}`}
+              tabIndex={-1}
+              ref={selected ? heading : undefined}
+            >
+              Kontoblatt {person.contact.name}
+            </h2>
+            <strong className="contacts-balance">
+              {person.creditCents > 0
+                ? `Guthaben · ${eur(person.creditCents)}`
+                : person.balanceCents === 0
+                  ? `Ausgeglichen · ${eur(person.balanceCents)}`
+                  : contactBalanceLine(person.balanceCents)}
+            </strong>
+          </div>
+          <p className="r4-contact-summary">
+            Offene Forderung: {eur(person.outlays.reduce((sum, o) => sum + o.remainingCents, 0))}
+            {' · '}Guthaben des Kontakts: {eur(person.creditCents)}
+          </p>
+          {person.contact.note && <p>{person.contact.note}</p>}
+          <p className="r4-source">
+            {person.movements.length} Bewegungen ·{' '}
+            {relation(person.balanceCents, person.creditCents)} · Stand {longDay(person.asOf)}
+          </p>
+          <ContactForgivenessAction
+            balance={person.balanceCents}
+            ready={detailReady}
+            onOpen={(event) =>
+              onForgive(
+                { ...person.contact, balanceCents: person.balanceCents },
+                event.currentTarget,
+              )
+            }
+          />
+          {!detailReady && (
+            <p role="status">Kontoblatt derzeit nicht bestätigt. Die Eingaben bleiben erhalten.</p>
+          )}
+          <ContactReportRows statement={person} ready={detailReady} />
+          {!person.movements.length && (
+            <EmptyNote>Noch keine Kontaktbuchungen. Der Saldo ist ausgeglichen.</EmptyNote>
+          )}
+        </>
+      )}
+    </section>
   );
 }

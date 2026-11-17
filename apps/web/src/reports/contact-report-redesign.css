@@ -197,3 +197,16 @@
     padding-inline: 4px;
   }
 }
+[data-budget-redesign='1'] .r4-contact-detail {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+[data-budget-redesign='1'] .r4-contact-settled {
+  display: grid;
+  gap: 12px;
+}
+[data-budget-redesign='1'] .r4-contact-settled > summary {
+  cursor: pointer;
+  font-weight: 600;
+}

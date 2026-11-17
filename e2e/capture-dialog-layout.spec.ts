@@ -2,7 +2,6 @@ import { captureSaveControl } from './ledger-helpers';
 import { captureCloseControl } from './ledger-helpers';
 import { controlBoxes, minimumControlHeight } from './control-geometry';
 import {
-  categorySuggestions,
   redesignLoaded,
   categoryLineControl,
   contactShareControl,
@@ -341,21 +340,8 @@ for (const scenario of ['category', 'outlay', 'percent', 'amount', 'several'] as
       await choose(dialog, 'Kategorie', contact.name, /^Für Kontakt auslegen/);
     else await choose(dialog, 'Kategorie', 'Essen', /^Essen/);
     if (scenario === 'category') {
-      await categorySuggestions(dialog);
-      const rail = dialog.getByRole('group', { name: 'Vorschläge' });
-      // #583: at most three suggestions in the rail.
-      await expect(rail.getByRole('button')).toHaveCount(3);
-      await expect(rail).toHaveCSS('overflow-x', 'auto');
-      const railBox = (await rail.boundingBox())!;
-      expect(railBox.x).toBeGreaterThanOrEqual(0);
-      expect(railBox.x + railBox.width).toBeLessThanOrEqual(page.viewportSize()!.width);
-      const last = rail.getByRole('button').last();
-      await last.scrollIntoViewIfNeeded();
-      await expect(last).toBeInViewport({ ratio: 1 });
-      await rail.evaluate((el) => {
-        el.scrollLeft = 0;
-      });
-      await categorySuggestions(dialog, false);
+      // Owner decision on #1142: no category suggestion chips in the dialog.
+      await expect(dialog.getByRole('group', { name: 'Vorschläge' })).toHaveCount(0);
     }
 
     const save = captureSaveControl(dialog);

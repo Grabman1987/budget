@@ -336,3 +336,14 @@
     min-height: var(--touch);
   }
 }
+.contact-review-hint {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  margin-inline: 8px;
+  padding-inline: 8px;
+  border-radius: 8px;
+  color: var(--red);
+  background: var(--red-soft);
+  font-weight: 600;
+}

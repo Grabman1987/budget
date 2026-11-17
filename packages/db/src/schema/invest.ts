@@ -49,6 +49,19 @@ export const PRICE_SOURCES = [
 ] as const;
 export const MARKET_RUN_STATUSES = ['ok', 'partial', 'failed'] as const;
 export const MARKET_RUN_TRIGGERS = ['nightly', 'manual'] as const;
+/** Outcome of one price-source attempt: success or the error class of `MarketError`. */
+export const MARKET_ATTEMPT_OUTCOMES = [
+  'ok',
+  'network',
+  'timeout',
+  'rate_limited',
+  'not_found',
+  'http',
+  'parse',
+  'empty',
+  'currency_mismatch',
+  'not_configured',
+] as const;
 export const VALUATION_SOURCES = ['manual', 'import', 'statement'] as const;
 
 export const assetClass = sqliteTable('asset_class', {
@@ -138,6 +151,12 @@ export const security = sqliteTable(
     pricesEnabled: integer('prices_enabled', { mode: 'boolean' }).notNull().default(true),
     /** Adjusted close instead of the plain close from the primary source (default: plain). */
     quoteAdjusted: integer('quote_adjusted', { mode: 'boolean' }).notNull().default(false),
+    /**
+     * Owner choice: the source quotes this instrument in this other currency (three letters) and
+     * each quote is converted with the ECB rate of its day (see `price.fx_rate_micro`). Null: a
+     * quote in another currency than `currency` is refused.
+     */
+    quoteFxCurrency: text('quote_fx_currency'),
     ...timestamps(),
   },
   (t) => [oneOf('security_kind_chk', t.kind, SECURITY_KINDS)],
@@ -283,6 +302,11 @@ export const price = sqliteTable(
     priceMicro: integer('price_micro', { mode: 'number' }).notNull(),
     currency: text('currency').notNull().default('EUR'),
     source: text('source', { enum: PRICE_SOURCES }).notNull(),
+    /** ECB-converted quotes only: the currency and value the source delivered, and the rate used. */
+    sourceCurrency: text('source_currency'),
+    sourcePriceMicro: integer('source_price_micro', { mode: 'number' }),
+    /** Rate used: instrument currency per one unit of `source_currency` (ECB rate of the day or the last earlier one). */
+    fxRateMicro: integer('fx_rate_micro', { mode: 'number' }),
   },
   (t) => [
     primaryKey({ columns: [t.securityId, t.date] }),
@@ -381,6 +405,30 @@ export const marketRun = sqliteTable(
     oneOf('market_run_status_chk', t.status, MARKET_RUN_STATUSES),
     isoDay('market_run_as_of_chk', t.asOf),
     index('market_run_finished_idx').on(t.finishedAt),
+  ],
+);
+
+/**
+ * One price-source attempt per security and source (nightly, backfill, manual test): when, the
+ * outcome, the HTTP status if there was one. The newest 30 per security are kept. Never holds URLs
+ * or response bodies; `detail` is a fixed short text.
+ */
+export const marketAttempt = sqliteTable(
+  'market_attempt',
+  {
+    id: id(),
+    securityId: text('security_id')
+      .notNull()
+      .references(() => security.id),
+    source: text('source').notNull(),
+    attemptedAt: text('attempted_at').notNull(),
+    outcome: text('outcome', { enum: MARKET_ATTEMPT_OUTCOMES }).notNull(),
+    httpStatus: integer('http_status'),
+    detail: text('detail'),
+  },
+  (t) => [
+    oneOf('market_attempt_outcome_chk', t.outcome, MARKET_ATTEMPT_OUTCOMES),
+    index('market_attempt_security_idx').on(t.securityId, t.attemptedAt),
   ],
 );
 

@@ -91,7 +91,7 @@ function parsePriceCell(text: string): { priceMicro: number; currency: string | 
  */
 export function parseArivaHtml(
   html: string,
-  ref: Pick<SecurityRef, 'currency'>,
+  ref: Pick<SecurityRef, 'currency' | 'convertFrom'>,
   from: string,
   to: string,
   expectExchange?: string,
@@ -106,6 +106,8 @@ export function parseArivaHtml(
   const [header, ...rows] = tableWithHeader(html, ['Datum', closeHeader]);
   const close = (header as string[]).indexOf(closeHeader);
   const byDate = new Map<string, number>();
+  const foreignDays = new Map<string, string>();
+  const ownDays = new Map<string, string>();
   for (const cells of rows) {
     const date = isoDay(cells[0] ?? '');
     if (!date) continue;
@@ -113,16 +115,30 @@ export function parseArivaHtml(
     if (!/[0-9]/.test(text) || date < from || date > to) continue;
     if ((cells[close + 1] ?? '').includes('*')) continue;
     const { priceMicro, currency } = parsePriceCell(text);
-    if (currency !== undefined && currency !== ref.currency)
+    const foreign = currency !== undefined && currency !== ref.currency ? currency : undefined;
+    if (foreign !== undefined && foreign !== ref.convertFrom)
       throw new MarketError('currency_mismatch', undefined, {
-        currency: currency,
+        currency: foreign,
         origin: 'response',
       });
-    if (priceMicro > 0) byDate.set(date, priceMicro);
+    if (priceMicro > 0) {
+      byDate.set(date, priceMicro);
+      if (foreign !== undefined) foreignDays.set(date, foreign);
+      else if (currency !== undefined) ownDays.set(date, currency);
+    }
   }
   return [...byDate]
     .sort(([a], [b]) => (a < b ? -1 : 1))
-    .map(([date, priceMicro]) => ({ date, priceMicro }));
+    .map(([date, priceMicro]) => {
+      const sourceCurrency = foreignDays.get(date);
+      const own = ownDays.get(date);
+      return {
+        date,
+        priceMicro,
+        ...(sourceCurrency === undefined ? {} : { sourceCurrency }),
+        ...(own === undefined ? {} : { currency: own }),
+      };
+    });
 }
 
 const monthEnd = (month: string): string => {

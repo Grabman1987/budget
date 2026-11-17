@@ -19,9 +19,7 @@ for (const width of [390, 1440]) {
         await expect(dialog.locator('.bk-foot')).toHaveCount(0);
         await expect(dialog.getByRole('button', { name: /^Markierung/ })).toHaveCount(0);
         await expect(dialog.getByLabel('Markierung', { exact: true })).toHaveCount(0);
-        await expect(dialog.locator('.bk-body .bk-form-actions')).toContainText(
-          'Speichern und neu',
-        );
+        await expect(dialog.locator('.bk-form-actions')).toContainText('Speichern und neu');
         await expect(save).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
       } else {
         await expect(dialog.getByRole('button', { name: 'Schließen', exact: true })).toBeVisible();
@@ -61,11 +59,13 @@ for (const width of [390, 1440]) {
         await expect(save).toBeEnabled();
         await expect(save).not.toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
         await page.setViewportSize({ width, height: 430 });
+        // Short viewports (#970, up to 520px high): the actions follow the content and the whole
+        // form scrolls; at normal phone height they are pinned instead (#1146).
         await save.scrollIntoViewIfNeeded();
         const before = (await save.boundingBox())!.y;
-        const scrolled = await dialog.locator('.bk-body').evaluate((el) => el.scrollTop);
-        expect(scrolled).toBeGreaterThan(0);
-        await dialog.locator('.bk-body').evaluate((el) => {
+        const form = dialog.locator('form.bkform');
+        expect(await form.evaluate((el) => el.scrollTop)).toBeGreaterThan(0);
+        await form.evaluate((el) => {
           el.scrollTop = 0;
         });
         expect((await save.boundingBox())!.y).toBeGreaterThan(before);

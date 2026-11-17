@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { costsOverview } from './costs';
+import { combinedCosts, costsOverview } from './costs';
 
 const months = (count: number, from = '2023-10') => {
   const out: string[] = [];
@@ -88,5 +88,49 @@ describe('costsOverview', () => {
         incomeCents: 0,
       }),
     ).toThrow(RangeError);
+  });
+});
+
+describe('combinedCosts', () => {
+  it('relates only portfolio costs to the portfolio value; household costs and taxes stay apart', () => {
+    expect(
+      combinedCosts({
+        bankCents: 12_000,
+        portfolioFeeCents: 2_000,
+        terCents: 3_000,
+        taxCents: 5_000,
+        valueCents: 1_000_000,
+      }),
+    ).toEqual({
+      householdCents: 10_000,
+      portfolioFeeCents: 2_000,
+      terCents: 3_000,
+      portfolioCostCents: 5_000,
+      taxCents: 5_000,
+      totalCents: 20_000,
+      ratioBp: 50,
+    });
+  });
+  it('keeps a tax refund negative and out of the ratio, and rounds half up in basis points', () => {
+    const r = combinedCosts({
+      bankCents: 100,
+      portfolioFeeCents: 100,
+      terCents: 0,
+      taxCents: -4_000,
+      valueCents: 20_000,
+    });
+    expect(r.totalCents).toBe(-3_900);
+    expect(r.portfolioCostCents).toBe(100);
+    expect(r.ratioBp).toBe(50);
+    expect(
+      combinedCosts({ bankCents: 1, portfolioFeeCents: 1, terCents: 0, taxCents: 0, valueCents: 3 })
+        .ratioBp,
+    ).toBe(3_333);
+  });
+  it('has no ratio without a portfolio value', () => {
+    expect(
+      combinedCosts({ bankCents: 1, portfolioFeeCents: 0, terCents: 0, taxCents: 0, valueCents: 0 })
+        .ratioBp,
+    ).toBeNull();
   });
 });

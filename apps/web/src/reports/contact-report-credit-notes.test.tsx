@@ -29,6 +29,7 @@ const contacts: ContactOverview['contacts'] = [
     balanceCents: -5000,
     creditCents: 5000,
     receivableCents: 0,
+    allocationNeedsReview: false,
   },
   {
     id: 'owed',
@@ -42,6 +43,7 @@ const contacts: ContactOverview['contacts'] = [
     balanceCents: 5000,
     creditCents: 0,
     receivableCents: 5000,
+    allocationNeedsReview: false,
   },
   {
     id: 'settled',
@@ -55,13 +57,20 @@ const contacts: ContactOverview['contacts'] = [
     balanceCents: 0,
     creditCents: 0,
     receivableCents: 0,
+    allocationNeedsReview: false,
   },
 ];
 const overview: ContactOverview = {
   asOf: '2026-10-02',
   currency: 'EUR',
   contacts,
-  totals: { receivableCents: 5000, payableCents: 5000, balanceCents: 0 },
+  totals: {
+    receivableCents: 5000,
+    payableCents: 5000,
+    balanceCents: 0,
+    reviewCount: 0,
+    reviewBalanceCents: 0,
+  },
 };
 const note =
   'Gemeinsamer Beispieleinkauf mit einer langen Buchungsnotiz für die vollständige Anzeige bei Tastaturfokus.';

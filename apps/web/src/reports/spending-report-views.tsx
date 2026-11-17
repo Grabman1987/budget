@@ -20,6 +20,7 @@ export function SpendingReportViews({ report, meta }: { report: ReportEntry; met
   const search = useSearch({ strict: false }) as {
     darstellung?: 'gruppen' | 'kategorien' | 'empfaenger';
     empfaenger?: string;
+    vergleich?: 'vorperiode' | 'vorjahr';
   };
   const navigate = useNavigate();
   const view =
@@ -74,6 +75,10 @@ export function SpendingReportViews({ report, meta }: { report: ReportEntry; met
       meta={meta}
       viewControl={control}
       onPeriodChange={changePeriod}
+      comparison={REDESIGN_ENABLED && search.vergleich === 'vorjahr' ? 'vorjahr' : 'vorperiode'}
+      onComparisonChange={(value) =>
+        update({ vergleich: value === 'vorjahr' ? 'vorjahr' : undefined }, true)
+      }
     />
   );
 }

@@ -94,7 +94,13 @@ async function mount({ empty = false, failRead = false } = {}) {
       asOf: '2026-10-15',
       currency: 'EUR',
       contacts: [],
-      totals: { balanceCents: 0, payableCents: 0, receivableCents: 0 },
+      totals: {
+        balanceCents: 0,
+        payableCents: 0,
+        receivableCents: 0,
+        reviewBalanceCents: 0,
+        reviewCount: 0,
+      },
     });
   }
   const writes: string[] = [];

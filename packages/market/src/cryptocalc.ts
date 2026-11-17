@@ -111,7 +111,8 @@ export function cryptocalcSource(options: CryptocalcOptions): QuoteSource {
     async history(ref, from, to) {
       const target = parseCryptocalcUrl(ref.quoteUrl);
       if (!target) throw new MarketError('not_configured', 'quote url');
-      if (target.fiat !== ref.currency)
+      const foreign = target.fiat !== ref.currency;
+      if (foreign && target.fiat !== ref.convertFrom)
         throw new MarketError('currency_mismatch', undefined, {
           currency: target.fiat,
           origin: 'mapping',
@@ -124,7 +125,10 @@ export function cryptocalcSource(options: CryptocalcOptions): QuoteSource {
       });
       await wait();
       const html = await getText(`${base}${target.path}?${query}`, options, 'text/html');
-      return parseCryptocalcHtml(html, from, to, today);
+      const quotes = parseCryptocalcHtml(html, from, to, today);
+      return quotes.map((q) =>
+        foreign ? { ...q, sourceCurrency: target.fiat } : { ...q, currency: target.fiat },
+      );
     },
   };
 }

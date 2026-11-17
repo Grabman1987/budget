@@ -81,7 +81,6 @@ export function ContactReportPage() {
         statement={statement}
         view={view}
         selected={selected}
-        person={person}
         history={history}
         heading={heading}
         unsupported={unsupportedDetail}
