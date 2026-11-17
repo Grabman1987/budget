@@ -41,12 +41,7 @@ for (const [alias, incoming, view, body] of aliases)
 
 const wealthAliases = [
   ['/vermoegen/freiheit', '/vermoegen/freiheit', '', '.freedom-report'],
-  [
-    '/vermoegen/portfolio/kennzahlen',
-    '/reports/vermoegen-schulden',
-    'rendite',
-    '.portfolio-metrics',
-  ],
+  ['/vermoegen/portfolio/kennzahlen', '/reports/pallocation', 'rendite', '.portfolio-metrics'],
   ['/vermoegen/nettovermoegen', '/vermoegen', '', '.wealth-overview'],
   [
     '/vermoegen/nettovermoegen?ansicht=analyse',

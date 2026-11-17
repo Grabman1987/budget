@@ -51,9 +51,7 @@ async function selectedView(page: Page, target: string, view: string) {
     return;
   }
   if ((await redesignReportsOn(page)) && target === '/reports/psteuern') {
-    await expect(
-      page.getByRole('combobox', { name: 'Darstellung von Kosten, Steuern und Ertr\u00e4gen' }),
-    ).toHaveValue('bankkosten');
+    await expectReportMenuView(page, 'Bank- und Zinskosten');
     return;
   }
   if (
@@ -89,11 +87,9 @@ for (const [slug, target, view] of landings) {
         ? '/reports/psteuern'
         : redesign && slug === 'kontakte'
           ? '/reports/kontakte'
-          : redesign && ['pallocation', 'peinzahlungen', 'prendite'].includes(slug)
-            ? '/reports/vermoegen-schulden'
-            : finanzcheck
-              ? '/reports/onepager'
-              : target;
+          : finanzcheck
+            ? '/reports/onepager'
+            : target;
     await expect.poll(() => new URL(page.url()).pathname).toBe(expectedTarget);
     if (finanzcheck) {
       expect(new URL(page.url()).searchParams.get('darstellung')).toBe('finanzcheck');

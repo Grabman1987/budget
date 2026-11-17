@@ -1,4 +1,4 @@
-import { expectReportMenuView } from './report-menu';
+import { expectReportMenuView, hubReportCount } from './report-menu';
 import { retainExplorerReaders } from './explorer-controls';
 import { openR8BodyDetails } from './income-spending-controls';
 import { portfolioReportPath, expectWealthReportView } from './wealth-report-controls';
@@ -282,7 +282,8 @@ const probes = {
   savings,
   debts: (p: Page) => id(p, 'debt-total'),
   freedom: (p: Page) => id(p, 'freedom-chart'),
-  hub: (p: Page) => expect(p.locator('.report-hub-list > li')).toHaveCount(16),
+  hub: async (p: Page) =>
+    expect(p.locator('.report-hub-list > li')).toHaveCount(await hubReportCount(p)),
   reportGroup: (p: Page) => css(p, '.report-hub-list a[href="/reports/einnahmen-ausgaben"]'),
   onepager: async (p: Page) =>
     id(p, (await redesignReportsOn(p)) ? 'r5-month-saved' : 'onepager-saved'), // The real monthly reader in either presentation, never the unrelated rg-all table.
@@ -476,7 +477,7 @@ for (const [row, url, body] of direct)
       : on && [23, 28].includes(row)
         ? row === 23
           ? '/vermoegen'
-          : '/reports/vermoegen-schulden'
+          : '/reports/pallocation'
         : new URL(url, 'http://fixture').pathname;
     const expectedBody = desktopIndex ? (on ? 'profile' : 'accountSettings') : body;
     await loaded(page, path, expectedBody);
@@ -568,9 +569,7 @@ for (const [slug, legacyPath, legacyIntent, view, legacyBody] of reportAliases)
       for (const [key, value] of new URLSearchParams(intent))
         expect(url.searchParams.get(key)).toBe(value);
       if ((await redesignReportsOn(page)) && path === '/reports/psteuern' && slug === 'kosten') {
-        await expect(
-          page.getByRole('combobox', { name: 'Darstellung von Kosten, Steuern und Ertr\u00e4gen' }),
-        ).toHaveValue('bankkosten');
+        await expectReportMenuView(page, 'Bank- und Zinskosten');
       } else if (view) {
         if (
           (await redesignReportsOn(page)) &&

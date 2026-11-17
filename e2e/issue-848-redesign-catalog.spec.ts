@@ -1,3 +1,4 @@
+import { hubReportCount } from './report-menu';
 import AxeBuilder from '@axe-core/playwright';
 import { sampleTest as test, expect } from './sample';
 
@@ -30,7 +31,7 @@ test('catalog preserves all sixteen destinations, legacy names and usable fallba
     await expect(page.locator('.report-hub')).toBeVisible();
     const redesign = (await page.locator('[data-budget-redesign="1"]').count()) > 0;
     await expect(page.locator('.report-hub-v2')).toHaveCount(redesign ? 1 : 0);
-    await expect(page.locator('.report-hub-list > li')).toHaveCount(16);
+    await expect(page.locator('.report-hub-list > li')).toHaveCount(await hubReportCount(page));
     if (!redesign) continue;
     expect(
       await page
@@ -93,7 +94,7 @@ test('catalog search and legacy report bookmarks retain their destinations and s
   for (const [term, label] of [
     ['Monats-One-Pager', '1 Monatsbericht'],
     ['Vermögensreport', '6 Vermögensreport'],
-    ['Gehaltsreport', '11 Gehalt'],
+    ['Gehaltsreport', '12 Gehalt'],
     ['Liquiditätsprognose', 'Plan · Prognose'],
   ]) {
     await palette.fill(term!);

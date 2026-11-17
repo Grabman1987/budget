@@ -371,7 +371,7 @@ test('combined source shows unknown net and editable bank income parts', async (
   await expect(
     page.getByText(/^Bankanteil \u00b7/).filter({ hasText: 'Erstattung' }),
   ).toBeVisible();
-  await expect(page.getByRole('row', { name: /Nov.*nicht bestimmbar/ })).toContainText('100,00');
+  await expect(page.getByRole('row', { name: /Nov.*nicht erfasst/ })).toContainText('100,00');
   await expect(page.locator('.pp-dot')).toHaveCount(0);
   await page.getByText('Einnahmenarten der Bankanteile bearbeiten', { exact: true }).click();
   await page

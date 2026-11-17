@@ -1,3 +1,4 @@
+import { hubReportCount } from './report-menu';
 import { wealthRedesign, portfolioNavigation } from './wealth-navigation';
 import AxeBuilder from '@axe-core/playwright';
 import { expect, sampleTest as test } from './sample';
@@ -134,7 +135,7 @@ test('other area register rows fit or expose their existing scroll fade', async 
     const row = page.getByRole('navigation', { name: `Register von ${area}` });
     if (area === 'Reports') {
       await expect(row).toHaveCount(0);
-      await expect(page.locator('.report-hub-list > li')).toHaveCount(16);
+      await expect(page.locator('.report-hub-list > li')).toHaveCount(await hubReportCount(page));
       await page
         .locator('.report-hub-list')
         .getByRole('link', { name: /Ausgabenanalyse/ })

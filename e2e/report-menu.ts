@@ -3,7 +3,7 @@ import { expect, type Page } from '@playwright/test';
 /** Views that are the report itself (not an indented sub-report): the numbered menu entry of the parent. */
 const PARENTS: Record<string, RegExp> = {
   'Einnahmen und Ausgaben': /^\d+\. Einnahmen und Cashflow$/,
-  'Gruppen und Kategorien': /^\d+\. Ausgaben$/,
+  'Gruppen und Kategorien': /^\d+\. Ausgabenanalyse$/,
   'Vermögen und Schulden': /^\d+\. Vermögensreport$/,
   'Gebühren und Steuern': /^\d+\. Kosten und Steuern$/,
   'Verteilung über Zeit': /^\d+\. Portfolio-Auswertung$/,
@@ -58,3 +58,8 @@ export const chooseReportMenuValue = (page: Page, value: string) =>
   chooseReportMenuView(page, labelFor(page, value));
 export const expectReportMenuValue = (page: Page, value: string) =>
   expectReportMenuView(page, labelFor(page, value));
+
+/** 17 reports in the redesign hub (Portfolio-Auswertung joined the Portfolio group), 16 in the legacy hub. */
+export async function hubReportCount(page: Page) {
+  return (await page.locator('[data-budget-redesign="1"]').count()) > 0 ? 17 : 16;
+}

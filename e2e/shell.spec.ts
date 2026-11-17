@@ -1,3 +1,4 @@
+import { hubReportCount } from './report-menu';
 import { captureCloseControl } from './ledger-helpers';
 import { expect, test, type Page, type TestInfo } from '@playwright/test';
 import { expectScreenshot } from './visual';
@@ -211,7 +212,7 @@ test.describe('routes', () => {
     await reports.locator('summary').click();
     const redesign = (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
     await expect(reports.locator('[aria-current="page"]')).toHaveText(
-      redesign ? '12. Geldfluss' : '4. Geldfluss',
+      redesign ? '13. Geldfluss' : '4. Geldfluss',
     );
     await expect(reports.locator('[aria-current="page"]')).toHaveAttribute(
       'href',
@@ -246,7 +247,7 @@ test.describe('routes', () => {
     page,
   }, info) => {
     await page.goto('/reports');
-    await expect(page.locator('.report-hub-list > li')).toHaveCount(16);
+    await expect(page.locator('.report-hub-list > li')).toHaveCount(await hubReportCount(page));
     const redesign = (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
     await expect(
       page.getByRole('group', { name: 'Berichtsgruppen' }).getByRole('button'),
@@ -270,6 +271,7 @@ test.describe('routes', () => {
       '14',
       '15',
       '16',
+      ...(redesign ? ['17'] : []),
     ]);
     // The catalog keeps the question; chart implementation and period controls belong to reports.
     const first = page.locator('.report-hub-list > li > a').first();
@@ -654,7 +656,8 @@ sampleTest.describe('regression baselines of the shell (own screenshots)', () =>
         await page.screenshot({ path: test.info().outputPath('heute-viewport-light.png') });
       }
       await page.evaluate(() => document.fonts.ready);
-      if (name === 'reports') await expect(page.locator('.report-hub-list > li')).toHaveCount(16);
+      if (name === 'reports')
+        await expect(page.locator('.report-hub-list > li')).toHaveCount(await hubReportCount(page));
       const redesign = (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
       await expectScreenshot(page, `shell-${name}${redesign ? '-redesign' : ''}-light.png`);
     });
