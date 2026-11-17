@@ -303,7 +303,9 @@ export function CaptureForm({
   const releaseReturn = useRef<HTMLInputElement>(null);
   useLayoutEffect(() => {
     if (!releaseAsking) return;
-    const returnTo = releaseReturn.current;
+    const returnTo =
+      releaseReturn.current ??
+      (document.activeElement instanceof HTMLElement ? document.activeElement : null);
     const background = Array.from(formRef.current?.children ?? []).filter(
       (element): element is HTMLElement =>
         element instanceof HTMLElement && element !== releaseQuestion.current,
@@ -312,7 +314,10 @@ export function CaptureForm({
     releaseQuestion.current?.querySelector<HTMLButtonElement>('button')?.focus();
     return () => {
       for (const element of background) element.inert = false;
-      returnTo?.focus();
+      // React suppresses focus events during cleanup; restore after commit so comboboxes reopen.
+      queueMicrotask(() => {
+        if (returnTo?.isConnected) returnTo.focus();
+      });
     };
   }, [releaseAsking]);
   // #1108: an Auslage that a repayment allocates asks once more, then retries with the flag.
@@ -845,7 +850,6 @@ export function CaptureForm({
       });
     } catch (error) {
       if (error instanceof ApiError && error.code === 'booking_queued') return onDone();
-      if (askLinked(error, 'save')) return;
       if (
         editing &&
         error instanceof ApiError &&
@@ -854,6 +858,7 @@ export function CaptureForm({
         error.code !== 'idempotency_conflict'
       )
         setRefusedEdit(true);
+      if (askLinked(error, 'save')) return;
       setErrors({
         form:
           error instanceof ApiError && error.code === 'reconciled_locked'

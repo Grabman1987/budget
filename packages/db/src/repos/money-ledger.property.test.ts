@@ -132,8 +132,9 @@ describe('known boundary: a transfer straddling an opening date', () => {
   // Shrunk counterexample of the unrestricted property (seed 20261117): giro opens 2026-01-01,
   // spar opens 2025-12-31, a transfer of 1 cent giro -> spar on 2025-12-31. The giro leg predates
   // giro's opening date and is folded into its opening balance (C5), the spar leg is counted, so
-  // net worth rises by 1 cent from that day. Whether createTransfer should refuse such dates is an
-  // open product question; the invariant "transfers never change net worth" fails here.
+  // net worth rises by 1 cent from that day. SPEC "Financial terms", Kontostand, documents that
+  // such transfers are not neutral and must be refused or warned about (requirement only).
+  // Keep this expected failure until that guard is implemented.
   it.fails('keeps net worth unchanged', () => {
     const opened = createTestDatabase();
     try {

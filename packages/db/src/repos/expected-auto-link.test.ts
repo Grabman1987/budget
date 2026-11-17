@@ -235,7 +235,7 @@ describe('automatic link of recurring debits (#1102)', () => {
     expect(proposals().filter((p) => p.resolvedAt === null).length).toBeGreaterThan(0);
   });
 
-  it('keeps income in the forecast like before and a debit booked after the start day too', () => {
+  it('never forecasts received income twice and counts a future-linked debit on its booking day', () => {
     const salary = payment('Gehalt', 200_000, { kind: 'inflow', categoryId: null, dueDay: 21 });
     createBooking(
       db,
@@ -248,8 +248,8 @@ describe('automatic link of recurring debits (#1102)', () => {
       },
       ctx,
     );
-    payment('Miete', 40_000);
-    debit('2026-03-25', -40_000);
+    const rent = payment('Miete', 40_000);
+    const bookingId = debit('2026-03-25', -40_000);
     matchOccurrences(db, TODAY);
     // The salary booked on 20.03. is settled by the existing income matching and already in the
     // starting balance (#1109): it must not arrive a second time, the next one still does.
@@ -263,8 +263,11 @@ describe('automatic link of recurring debits (#1102)', () => {
     ).toMatchObject({ status: 'received' });
     expect(forecastDays('Gehalt')).not.toContain('2026-03-21');
     expect(forecastDays('Gehalt')).toContain('2026-04-21');
-    // A debit booked after the start day does not settle its occurrence yet.
-    expect(forecastDays('Miete')).toContain('2026-03-22');
+    // SPEC "Financial terms": the link is settled, but the balance does not contain the future
+    // booking yet. Both the forecast and the lead deduct it exactly once, on its booking date.
+    expect(march(rent.id)).toMatchObject({ status: 'received', bookingId });
+    expect(forecastDays('Miete').filter((d) => d <= '2026-03-31')).toEqual(['2026-03-25']);
+    expect(openOutflowCents()).toBe(40_000);
   });
 
   it('a deviating income already in the balance is not forecast again (300000 expected, 310000 booked)', () => {
@@ -311,7 +314,11 @@ describe('automatic link of recurring debits (#1102)', () => {
     payment('Miete', 40_000, { dueDay: 18 });
     matchOccurrences(db, TODAY);
     expect(openOutflowCents()).toBe(40_000);
-    expect(forecastDays('Miete').filter((d) => d <= '2026-03-31')).toEqual(['2026-03-21']);
+    // SPEC "Financial terms": overdue open payments reduce projected day zero, not a later item.
+    const forecast = forecastInputs(loadFacts(db, TODAY), TODAY, { byAccount: { giro: 100_000 } });
+    expect(forecast.startCents).toBe(60_000);
+    expect(forecastDays('Miete').filter((d) => d <= '2026-03-31')).toEqual([]);
+    expect(forecastDays('Miete').filter((d) => d <= '2026-04-30')).toEqual(['2026-04-18']);
   });
 
   it('leaves recurring income to the existing matching (no proposal, no own group)', () => {

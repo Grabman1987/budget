@@ -1,10 +1,12 @@
 import { nextMonth } from '@budget/domain';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { incomeType } from '../schema';
+import { eq } from 'drizzle-orm';
+import { expectedOccurrence, incomeType } from '../schema';
 import { createTestDatabase, type OpenedDatabase } from '../client';
 import { createBooking, createTransfer, updateBooking } from './bookings';
 import { createExpectedPayment, matchOccurrences } from './expected';
 import { setAssigned } from './envelopes';
+import { readInbox } from './inbox';
 import { accountBalances, budget } from './queries';
 import { forecastInputs, loadFacts } from './rule-inputs';
 import { seedBasics, testCtx as ctx } from './test-helpers';
@@ -175,6 +177,7 @@ describe('F20 planned payment becomes a booking', () => {
         name: 'Miete',
         accountId: 'giro',
         categoryId: 'miete',
+        payeeId: 'p1',
         dueDay: 25,
         startDate: '2026-01-01',
       },
@@ -220,13 +223,41 @@ describe('F20 planned payment becomes a booking', () => {
     expect(itemsOn('2026-04-25')).toHaveLength(1);
   });
 
-  // Real finding: unlike income (`receivedIncome` in forecastInputs), an expected outflow that was
-  // paid early and matched stays in the forecast, so the 400,00 leaves the balance twice.
-  it.fails('an expected payment already booked and matched is dropped from the forecast', () => {
-    rent();
-    book('giro', AS_OF, -40_000, 'miete'); // paid early, already in the balance
-    expect(matchOccurrences(db, AS_OF).received).toBe(1);
+  it('an early-paid debit with a matching payee is linked and dropped from this month’s forecast', () => {
+    const { payment } = rent();
+    const bookingId = book('giro', AS_OF, -40_000, 'miete', { payeeId: 'p1' });
+    expect(giroOn(AS_OF)).toBe(60_000);
+    expect(matchOccurrences(db, AS_OF)).toMatchObject({ received: 1, proposed: 0 });
+    expect(
+      db
+        .select()
+        .from(expectedOccurrence)
+        .where(eq(expectedOccurrence.expectedPaymentId, payment.id))
+        .all(),
+    ).toContainEqual(
+      expect.objectContaining({ dueDate: '2026-03-25', status: 'received', bookingId }),
+    );
     expect(itemsOn('2026-03-25')).toHaveLength(0);
-    expect(itemsOn('2026-04-25')).toHaveLength(1);
+    expect(itemsOn('2026-04-25')).toEqual([expect.objectContaining({ cents: -40_000 })]);
+  });
+
+  it('an early-paid debit without counterparty evidence stays a proposal and is forecast once', () => {
+    const { payment } = rent();
+    const bookingId = book('giro', AS_OF, -40_000, 'miete');
+    expect(giroOn(AS_OF)).toBe(60_000);
+    expect(matchOccurrences(db, AS_OF)).toMatchObject({ received: 0, proposed: 1, links: [] });
+    const occurrence = db
+      .select()
+      .from(expectedOccurrence)
+      .where(eq(expectedOccurrence.expectedPaymentId, payment.id))
+      .all()
+      .find((o) => o.dueDate === '2026-03-25')!;
+    expect(occurrence).toMatchObject({ status: 'expected', bookingId: null });
+    expect(readInbox(db, AS_OF).entries).toContainEqual(
+      expect.objectContaining({ linkProposal: { occurrenceId: occurrence.id, bookingId } }),
+    );
+    // Without confirmation the forecast conservatively keeps the open occurrence (#1102).
+    expect(itemsOn('2026-03-25')).toEqual([expect.objectContaining({ cents: -40_000 })]);
+    expect(itemsOn('2026-04-25')).toEqual([expect.objectContaining({ cents: -40_000 })]);
   });
 });
