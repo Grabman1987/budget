@@ -34,6 +34,7 @@ import { MissingFxRateError } from './errors';
 import { earliestAccountDate, netWorthAsOf, netWorthDaily } from './portfolio';
 import { budget } from './queries';
 import { ruleResults } from './rules';
+import { debtsAsOf } from './debts';
 import { yearInvestments, type YearInvestments } from './year-investments';
 import type { Executor } from './types';
 
@@ -126,6 +127,8 @@ export interface YearReportRead extends OverviewFrame {
   wealthColumns: ReturnType<typeof yearWealthColumns>;
   /** Sparquote split into invested and cash; the parts add up to `report.totals.savingsRateBp`. */
   savingsSplit: ReturnType<typeof yearSavingsSplit>;
+  /** Remaining debt at the start and end of the included months (`null` when not valued). */
+  debt: { startCents: number | null; endCents: number | null } | null;
 }
 
 /** Net worth chain and month ends of the included months, from the same series as Vermögen. */
@@ -243,6 +246,14 @@ export function yearReportRead(db: Executor, year: number, today: string): YearR
     specialIncomeTypeIds,
     investments,
     investmentsUnavailable,
+    debt:
+      months.length === 0
+        ? null
+        : {
+            startCents: debtsAsOf(db, addDays(`${months[0]}-01`, -1)).totalEurCents,
+            endCents: debtsAsOf(db, lastDayOfMonth(months[months.length - 1] as string))
+              .totalEurCents,
+          },
     wealthColumns: yearWealthColumns(report.netWorth),
     savingsSplit: yearSavingsSplit({
       incomeCents: report.totals.incomeCents,

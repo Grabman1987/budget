@@ -1,4 +1,4 @@
-import { and, gt, isNull, lte } from 'drizzle-orm';
+import { and, eq, gt, isNull, lte } from 'drizzle-orm';
 import {
   addDays,
   feeBreakdownLast12Months,
@@ -8,7 +8,9 @@ import {
   type CalendarRange,
   type WindowPerformance,
 } from '@budget/domain';
-import { trade } from '../schema';
+import { account, security, trade } from '../schema';
+import { ExchangeRateUnavailableError, PriceUnavailableError } from '@budget/domain';
+import { MissingFxRateError } from './errors';
 import {
   portfolioSummary,
   ratesAsOf,
@@ -39,6 +41,8 @@ export interface YearInvestments {
     | 'ttwror'
     | 'moneyWeighted'
   > | null;
+  /** The configured benchmark's return of the same window; `null` when none is configured. */
+  benchmark: { name: string; ttwror: number } | null;
   /** Dividends and interest of the included months (trades), gross, taxes and fees withheld. */
   income: { grossCents: number; taxCents: number; feeCents: number; netCents: number };
   trading: {
@@ -63,7 +67,12 @@ export function yearInvestments(db: Executor, months: string[]): YearInvestments
   const to = lastDayOfMonth(last);
   const dayBefore = addDays(`${first}-01`, -1);
   const range: CalendarRange = `${first}..${last}`;
-  const summary = portfolioSummary(db, { today: to, period: range, view: 'securities' });
+  const summary = portfolioSummary(db, {
+    today: to,
+    period: range,
+    view: 'securities',
+    includePerformanceHistory: true,
+  });
   const p = summary.performance;
 
   // Only the trades of the months: the "12 months up to" helpers then cover exactly the year.
@@ -78,7 +87,17 @@ export function yearInvestments(db: Executor, months: string[]): YearInvestments
   const kinds = db
     .select({ kind: trade.kind, savingsPlanId: trade.savingsPlanId })
     .from(trade)
-    .where(and(isNull(trade.deletedAt), gt(trade.date, dayBefore), lte(trade.date, to)))
+    .innerJoin(security, eq(security.id, trade.securityId))
+    .innerJoin(account, eq(account.id, trade.accountId))
+    .where(
+      and(
+        isNull(trade.deletedAt),
+        isNull(security.deletedAt),
+        isNull(account.deletedAt),
+        gt(trade.date, dayBefore),
+        lte(trade.date, to),
+      ),
+    )
     .all();
   const buys = kinds.filter((t) => t.kind === 'buy');
 
@@ -89,8 +108,14 @@ export function yearInvestments(db: Executor, months: string[]): YearInvestments
     const start = realizedGainAsOf(db, dayBefore);
     realizedGainCents = end.realizedGainCents - start.realizedGainCents;
     realizedGainComplete = end.realizedGainComplete && start.realizedGainComplete;
-  } catch {
-    // A missing exchange rate: leave the figure out rather than estimate it.
+  } catch (error) {
+    // A missing exchange rate or price: leave the figure out rather than estimate it.
+    if (!(
+      error instanceof MissingFxRateError ||
+      error instanceof ExchangeRateUnavailableError ||
+      error instanceof PriceUnavailableError
+    ))
+      throw error;
   }
 
   return {
@@ -104,6 +129,10 @@ export function yearInvestments(db: Executor, months: string[]): YearInvestments
       ttwror: p.ttwror,
       moneyWeighted: p.moneyWeighted,
     },
+    benchmark:
+      summary.benchmark && p?.benchmarkTtwror != null
+        ? { name: summary.benchmark.name, ttwror: p.benchmarkTtwror }
+        : null,
     income: { grossCents, taxCents, feeCents, netCents: grossCents - taxCents - feeCents },
     trading: {
       buys: buys.length,

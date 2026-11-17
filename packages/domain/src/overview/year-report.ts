@@ -98,6 +98,14 @@ export interface YearReport {
   /** Whole percent of income, adding up to 100; the rest is negative when savings were used. */
   shares: { need: number; want: number; future: number; rest: number } | null;
   findings: YearFinding[];
+  /** Income by type of the included months (the same sums as the totals), largest first. */
+  incomeBySource: Array<{
+    typeId: string;
+    name: string;
+    group: OverviewData['incomeTypes'][number]['group'];
+    special: boolean;
+    cents: number;
+  }>;
 }
 
 export interface ClassAmounts {
@@ -109,7 +117,10 @@ export interface ClassAmounts {
 export function yearReport(input: {
   year: number;
   ref: string;
-  data: Pick<OverviewData, 'firstMonth'> & { categories: ReadonlyArray<OverviewCategory> };
+  data: Pick<OverviewData, 'firstMonth'> & {
+    categories: ReadonlyArray<OverviewCategory>;
+    incomeTypes?: OverviewData['incomeTypes'];
+  };
   figures: ReadonlyMap<string, OverviewMonthFigures>;
   netWorth: YearNetWorth | null;
   /** 50/30/20 amounts in twelfths (as the rules count them); `null` falls back to actual spending. */
@@ -265,6 +276,16 @@ export function yearReport(input: {
         ? percentShares({ ...amounts, incomeCents: total.incomeCents })
         : null,
     findings,
+    incomeBySource: (data.incomeTypes ?? [])
+      .map((t) => ({
+        typeId: t.id,
+        name: t.name,
+        group: t.group,
+        special: t.special,
+        cents: total.incomeByType[t.id] ?? 0,
+      }))
+      .filter((t) => t.cents !== 0)
+      .sort((a, b) => b.cents - a.cents || a.name.localeCompare(b.name, 'de')),
   };
 }
 
@@ -308,13 +329,22 @@ export function yearSavingsSplit(input: {
 }) {
   const savedCents = input.incomeCents - input.consumptionCents;
   const totalBp = overviewSavingsRate(input);
-  if (totalBp === null || input.investedCents === null) return null;
+  if (totalBp === null) return null;
+  if (input.investedCents === null)
+    return {
+      savedCents,
+      totalBp,
+      investedCents: null,
+      cashCents: null,
+      investedBp: null,
+      cashBp: null,
+    };
   const investedBp = ratioBp(input.investedCents, input.incomeCents) as number;
   return {
     savedCents,
+    totalBp,
     investedCents: input.investedCents,
     cashCents: savedCents - input.investedCents,
-    totalBp,
     investedBp,
     cashBp: totalBp - investedBp,
   };

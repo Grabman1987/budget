@@ -4,6 +4,7 @@ import { portfolioSummary, realizedGainAsOf } from './portfolio-summary';
 import { costsTaxesReport } from './portfolio-costs';
 import { REPORT_TODAY, reportPortfolioFixture } from './portfolio-report-fixture';
 import { seedBasics, testCtx } from './test-helpers';
+import { MissingFxRateError } from './errors';
 import { createBooking } from './bookings';
 import { yearReportRead } from './overview-reports';
 import { yearInvestments } from './year-investments';
@@ -102,6 +103,66 @@ describe('yearInvestments (Jahresreport)', () => {
   });
 });
 
+describe('yearInvestments edge cases', () => {
+  const addBuy = (id: string, date: string, account = 'depot-a') =>
+    opened.sqlite.exec(
+      `INSERT INTO trade (id, security_id, account_id, date, kind, units_e8, amount_cents, fee_cents, tax_cents, import_key)
+       VALUES ('${id}', 'etf', '${account}', '${date}', 'buy', 100000000, 10000, 0, 0, 'k-${id}')`,
+    );
+
+  it('net-booked dividend: 1800 gross, 495 tax, 25 fee, 1280 net', () => {
+    expect(yearInvestments(opened.db, ['2026-06'])!.income).toEqual({
+      grossCents: 1_800,
+      taxCents: 495,
+      feeCents: 25,
+      netCents: 1_280,
+    });
+  });
+
+  it('literal realised gain of the August sale', () => {
+    // 5 of 20 units at 900,00 EUR basis (45,00 each): 26000 - 100 fee - 400 tax - 22500 = 3000.
+    expect(yearInvestments(opened.db, ['2026-08'])!.trading.realizedGainCents).toBe(3_000);
+  });
+
+  it('counts a trade on the last day before the window to the year before, 1 January to the year', () => {
+    addBuy('dec31', '2025-12-31');
+    addBuy('jan01', '2026-01-01');
+    const january = yearInvestments(opened.db, ['2026-01'])!.trading;
+    // Fixture buys: January month end (2 buys) + the new 1 January buy; 31 December is outside.
+    expect(january.buys).toBe(3);
+    expect(yearInvestments(opened.db, ['2025-12'])!.trading.buys).toBe(1);
+  });
+
+  it('a year before the first trade has no investments instead of invented figures', () => {
+    const early = yearInvestments(opened.db, ['2024-06']);
+    expect(early?.trading.buys ?? 0).toBe(0);
+    expect(early?.performance ?? null).toBeNull();
+  });
+
+  it('a missing exchange rate is raised, not estimated', () => {
+    addBuy('usd-buy', '2026-03-05', 'usd');
+    expect(() => yearInvestments(opened.db, MONTHS)).toThrow(MissingFxRateError);
+    createBooking(
+      opened.db,
+      {
+        accountId: 'giro',
+        date: '2026-03-10',
+        amountCents: -500,
+        splits: [{ categoryId: 'miete', amountCents: -500 }],
+      },
+      testCtx,
+    );
+    const read = yearReportRead(opened.db, 2026, '2026-08-31');
+    expect(read.investments).toBeNull();
+    expect(read.investmentsUnavailable).not.toBeNull();
+  });
+
+  it('rethrows errors that are not about missing rates or prices', () => {
+    opened.sqlite.exec('DROP TABLE holding');
+    expect(() => yearInvestments(opened.db, MONTHS)).toThrow();
+  });
+});
+
 describe('yearReportRead (Jahresreport slice 1)', () => {
   it('split Sparquote adds up to the report Sparquote and shares the portfolio figures', () => {
     opened.sqlite.exec("INSERT INTO income_type (id, name) VALUES ('gehalt', 'Gehalt')");
@@ -119,14 +180,35 @@ describe('yearReportRead (Jahresreport slice 1)', () => {
     expect(read.report.months).toEqual(MONTHS);
     const split = read.savingsSplit!;
     expect(split.totalBp).toBe(read.report.totals.savingsRateBp);
-    expect(split.investedBp + split.cashBp).toBe(read.report.totals.savingsRateBp);
+    expect(split.investedBp! + split.cashBp!).toBe(read.report.totals.savingsRateBp);
     expect(split.savedCents).toBe(
       read.report.totals.incomeCents - read.report.totals.consumptionCents,
     );
     expect(split.investedCents).toBe(read.investments!.performance!.contributionsCents);
-    expect(split.investedCents + split.cashCents).toBe(split.savedCents);
+    expect(split.investedCents! + split.cashCents!).toBe(split.savedCents);
     expect(read.wealthColumns!.withMarket.deltaCents).toBe(
       read.report.netWorth!.endCents - read.report.netWorth!.startCents,
     );
+  });
+});
+
+describe('yearReportRead slice 2', () => {
+  it('lists income by source and debt, and leaves the benchmark null when none is set', () => {
+    opened.sqlite.exec("INSERT INTO income_type (id, name) VALUES ('gehalt', 'Gehalt')");
+    createBooking(
+      opened.db,
+      {
+        accountId: 'giro',
+        date: '2026-03-15',
+        amountCents: 300_000,
+        splits: [{ amountCents: 300_000, incomeTypeId: 'gehalt' }],
+      },
+      testCtx,
+    );
+    const read = yearReportRead(opened.db, 2026, '2026-08-31');
+    expect(read.report.incomeBySource).toEqual([
+      expect.objectContaining({ name: 'Gehalt', cents: 300_000 }),
+    ]);
+    expect(read.debt).toEqual({ startCents: 0, endCents: 0 });
   });
 });
