@@ -4,6 +4,7 @@ import {
   type SourceAmount,
   type SourceBalance,
   type SourceOperation,
+  type SourcePage,
 } from '@budget/domain';
 import { createHash } from 'node:crypto';
 import { z } from 'zod';
@@ -230,12 +231,16 @@ export function cryptoReadSource(
       if (result.has_next_page && (!result.next_cursor || result.next_cursor === window.cursor))
         throw new SourceReadError('schema');
       const operations: SourceOperation[] = [];
-      const invalidOperations: Array<{ id: string; reason: 'schema' }> = [];
+      const invalidOperations: NonNullable<SourcePage['invalidOperations']> = [];
       for (const [index, raw] of result.data.entries()) {
         const parsed = operation.safeParse(raw);
         if (!parsed.success) {
           const identity = z.object({ operation_id: id }).safeParse(raw);
           // With no usable source ID, retain only a stable window/cursor/row identifier.
+          // The failing schema path (our own field names, never a value) tells the owner why.
+          const field = parsed.error.issues[0]?.path
+            .map((part) => (typeof part === 'number' ? '#' : String(part)))
+            .join('.');
           invalidOperations.push({
             id: identity.success
               ? identity.data.operation_id
@@ -244,6 +249,7 @@ export function cryptoReadSource(
                   .update(JSON.stringify([window.from, window.to, window.cursor, index]))
                   .digest('hex'),
             reason: 'schema',
+            ...(field ? { field } : {}),
           });
           continue;
         }

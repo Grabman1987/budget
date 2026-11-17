@@ -434,3 +434,83 @@ describe('resolution texts', () => {
     expect(isAutomaticResolution(null)).toBe(false);
   });
 });
+
+describe('provider ids (#1205)', () => {
+  const rewardOp = (id: string, units: string, fee: string) =>
+    op(id, 'reward', { type: 'reward', flow: 'INCOMING', amount: coin(units), fee: coin(fee) });
+  it('matches by the operation id in the import key whatever the date and amount', () => {
+    const t = trade({
+      kind: 'delivery_in',
+      date: '2026-04-25',
+      unitsE8: e8('9'),
+      importKey: 'rebuild:operation-id-b1-0000001:0',
+    });
+    const verdict = verdictOf(buyOp('operation-id-b1-0000001', '50', '0.5'), ledger([t]));
+    expect(verdict).toMatchObject({ status: 'matched', by: 'id' });
+    expect((verdict as { refs: Array<{ id: string }> }).refs.map((r) => r.id)).toEqual([t.id]);
+  });
+  it('one aggregate row (monthly reward) belongs to every contributing operation', () => {
+    const r1 = rewardOp('reward-operation-id-0001', '0.0001', '0.00002');
+    const r2 = rewardOp('reward-operation-id-0002', '0.0002', '0.00004');
+    const agg = trade({
+      kind: 'dividend',
+      date: '2026-03-31',
+      unitsE8: 0,
+      importKey: `rebuild:reward:2026-03:sec-coin:source:["${r1.id}","${r2.id}"]`,
+    });
+    const verdicts = matchSourceOperations([r1, r2], mappings, ledger([agg]));
+    expect(verdicts.get(r1.id)).toMatchObject({ status: 'matched', by: 'id' });
+    expect(verdicts.get(r2.id)).toMatchObject({ status: 'matched', by: 'id' });
+  });
+  it('a row linked by id is not available to another operation (no double use)', () => {
+    const t = trade({ importKey: 'rebuild:linked-operation-id-0001:0' });
+    const linked = buyOp('linked-operation-id-0001', '50', '0.5');
+    const other = buyOp('other', '50', '0.5');
+    const v = matchSourceOperations([linked, other], mappings, ledger([t]));
+    expect(v.get(linked.id)).toMatchObject({ status: 'matched', by: 'id' });
+    expect(v.get(other.id)).toMatchObject({ status: 'missing' });
+  });
+  it('keys that are not rebuild keys never link', () => {
+    const t = trade({ importKey: 'pp:linked-operation-id-0001', date: '2026-01-01' });
+    expect(status(buyOp('linked-operation-id-0001', '50', '0.5'), ledger([t]))).toBe('missing');
+  });
+  it('is stable: the same input gives the same verdicts twice', () => {
+    const ops = [buyOp('a', '50', '0.5'), buyOp('b', '50', '0.5')];
+    const l = ledger([trade({ importKey: 'rebuild:a:0' }), trade({})]);
+    const first = [...matchSourceOperations(ops, mappings, l).entries()];
+    const second = [...matchSourceOperations(ops, mappings, l).entries()];
+    expect(second).toEqual(first);
+  });
+});
+
+describe('savings plan across dates (#1205)', () => {
+  const planDeposit = (id: string, at: string) =>
+    op(id, 'savings_plan', { type: 'deposit', flow: 'INCOMING', amount: cash('25'), at });
+  it('matches the bank booking up to ten days away, nearer matches first', () => {
+    const near = booking({ date: '2026-03-11', amountCents: 2500 });
+    const far = booking({ date: '2026-03-19', amountCents: 2500 });
+    const a = planDeposit('p1', '2026-03-10T10:00:00.000Z');
+    const b = planDeposit('p2', '2026-03-12T10:00:00.000Z');
+    const v = matchSourceOperations([a, b], mappings, ledger([], [near, far]));
+    expect(v.get('p1')).toMatchObject({ status: 'matched' });
+    expect(v.get('p2')).toMatchObject({ status: 'matched' });
+    expect((v.get('p1') as { refs: Array<{ id: string }> }).refs[0]!.id).toBe(near.id);
+  });
+  it('does not widen the window for an ordinary deposit and stops at ten days', () => {
+    const b = booking({ date: '2026-03-19', amountCents: 2500 });
+    const deposit = op('d', 'deposit', {
+      type: 'deposit',
+      flow: 'INCOMING',
+      amount: cash('25'),
+      at: '2026-03-10T10:00:00.000Z',
+    });
+    expect(status(deposit, ledger([], [b]))).toBe('missing');
+    expect(status(planDeposit('p3', '2026-03-10T10:00:00.000Z'), ledger([], [b]))).toBe('matched');
+    expect(
+      status(
+        planDeposit('p4', '2026-03-10T10:00:00.000Z'),
+        ledger([], [booking({ date: '2026-03-21', amountCents: 2500 })]),
+      ),
+    ).toBe('missing');
+  });
+});

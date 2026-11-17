@@ -6,6 +6,7 @@ import {
   informationalResolution,
   isAutomaticResolution,
   matchedResolution,
+  explainHoldingDifference,
   type OperationVerdict,
   type SourceBalance,
   type SourceMapping,
@@ -323,7 +324,7 @@ export function stageSourcePage(
   operations: SourceOperation[],
   state: ReadSourceState,
   ctx: AuditContext,
-  invalidOperations: Array<{ id: string; reason: 'schema' }> = [],
+  invalidOperations: Array<{ id: string; reason: 'schema'; field?: string }> = [],
 ) {
   const grouped = withGroup(ctx);
   return runInTransaction(db, (tx) => {
@@ -357,6 +358,13 @@ export function stageSourcePage(
         JSON.stringify(invalid),
         'other',
         grouped,
+        false,
+        // The failing field is a diagnostic: it must not reopen an item the owner closed.
+        (detail) =>
+          JSON.stringify({
+            id: invalid.id,
+            reason: (JSON.parse(detail) as { reason?: string }).reason,
+          }),
       );
     saveReadSourceState(tx, state, grouped);
     return grouped.groupId;
@@ -426,75 +434,80 @@ export function reconcileReadSource(db: Executor, ctx: AuditContext): ReadSource
       tally(result, verdict);
       if (applyVerdict(tx, row, op, verdict, grouped)) result.changed++;
     }
+    // The holdings comparison depends on which movements are still open: recompute it from the
+    // balances of the last fetch (same audit group, so the undo covers it).
+    const balances = readSourceState(tx).balances;
+    if (balances.length) compareSourceBalances(tx, balances, new Date().toISOString(), grouped);
     return result;
   });
 }
-export function finishReadSource(
-  db: Executor,
+/**
+ * Compares the source balances with the app's holdings and cash balances and opens, updates or
+ * resolves one warning per key. Differences of asset holdings name their likely cause (mapping
+ * problem, missing movement, real difference) from the still-open source movements.
+ */
+function compareSourceBalances(
+  tx: Executor,
   balances: SourceBalance[],
   now: string,
-  ctx: AuditContext,
+  grouped: GroupedContext,
 ) {
-  const grouped = withGroup(ctx);
-  return runInTransaction(db, (tx) => {
-    const day = todayInVienna(new Date(now));
-    const accounts = accountSummaries(tx, day);
-    const holdings = holdingValuationExportAsOf(tx, day);
-    const positions = [
-      ...holdings.values,
-      ...holdings.missingFxPositions,
-      ...holdings.missingPricePositions,
-    ];
-    const mappings = readSourceMappings(tx);
-    const resolveBalance = (key: string, detail: string) => {
-      const warning = getEntity(tx, inboxItem, itemId('balance:' + key));
-      if (warning && (!warning.resolvedAt || warning.detail !== detail))
-        updateEntity(
-          tx,
-          inboxItem,
-          warning.id,
-          {
-            detail,
-            ...(!warning.resolvedAt
-              ? { resolvedAt: now, resolution: 'Quellsaldo stimmt beim Abruf überein.' }
-              : {}),
-          },
-          grouped,
-        );
-    };
-    for (const mapping of mappings.filter((m) => !balances.some((b) => b.key === m.key))) {
-      const acc = accounts.find((a) => a.id === mapping.accountId);
-      const local =
-        !acc ||
-        acc.onBudget ||
-        acc.closedAt ||
-        (mapping.securityId &&
-          (!getEntity(tx, security, mapping.securityId) ||
-            !['crypto', 'brokerage'].includes(acc.type)))
-          ? null
-          : mapping.securityId
-            ? (positions.find(
-                (p) => p.accountId === mapping.accountId && p.securityId === mapping.securityId,
-              )?.unitsE8 ?? 0)
-            : acc.balanceCents;
-      if (local === 0) {
-        resolveBalance(
-          mapping.key,
-          JSON.stringify({
-            key: mapping.key,
-            source: null,
-            local,
-            scale: mapping.securityId ? 8 : 2,
-            accountId: mapping.accountId,
-            reason: 'source_missing',
-          }),
-        );
-        continue;
-      }
-      item(
+  const day = todayInVienna(new Date(now));
+  const accounts = accountSummaries(tx, day);
+  const holdings = holdingValuationExportAsOf(tx, day);
+  const positions = [
+    ...holdings.values,
+    ...holdings.missingFxPositions,
+    ...holdings.missingPricePositions,
+  ];
+  const mappings = readSourceMappings(tx);
+  const openOperations = stagedOperations(tx)
+    .filter(({ row }) => !row.resolvedAt)
+    .map(({ op }) => op);
+  const causeOf = (key: string, mapped: boolean, appE8: number, sourceE8: number | null) =>
+    key.startsWith('asset:')
+      ? explainHoldingDifference({
+          mapped,
+          appE8,
+          sourceE8,
+          openOperations,
+          assetId: key.slice('asset:'.length),
+        })
+      : null;
+  const resolveBalance = (key: string, detail: string) => {
+    const warning = getEntity(tx, inboxItem, itemId('balance:' + key));
+    if (warning && (!warning.resolvedAt || warning.detail !== detail))
+      updateEntity(
         tx,
-        'balance:' + mapping.key,
-        'Quellsaldo: Abgleich offen',
+        inboxItem,
+        warning.id,
+        {
+          detail,
+          ...(!warning.resolvedAt
+            ? { resolvedAt: now, resolution: 'Quellsaldo stimmt beim Abruf überein.' }
+            : {}),
+        },
+        grouped,
+      );
+  };
+  for (const mapping of mappings.filter((m) => !balances.some((b) => b.key === m.key))) {
+    const acc = accounts.find((a) => a.id === mapping.accountId);
+    const local =
+      !acc ||
+      acc.onBudget ||
+      acc.closedAt ||
+      (mapping.securityId &&
+        (!getEntity(tx, security, mapping.securityId) ||
+          !['crypto', 'brokerage'].includes(acc.type)))
+        ? null
+        : mapping.securityId
+          ? (positions.find(
+              (p) => p.accountId === mapping.accountId && p.securityId === mapping.securityId,
+            )?.unitsE8 ?? 0)
+          : acc.balanceCents;
+    if (local === 0) {
+      resolveBalance(
+        mapping.key,
         JSON.stringify({
           key: mapping.key,
           source: null,
@@ -503,75 +516,109 @@ export function finishReadSource(
           accountId: mapping.accountId,
           reason: 'source_missing',
         }),
+      );
+      continue;
+    }
+    item(
+      tx,
+      'balance:' + mapping.key,
+      'Quellsaldo: Abgleich offen',
+      JSON.stringify({
+        key: mapping.key,
+        source: null,
+        local,
+        scale: mapping.securityId ? 8 : 2,
+        accountId: mapping.accountId,
+        reason: 'source_missing',
+      }),
+      'reconciliation',
+      grouped,
+      false,
+      balanceFields,
+    );
+  }
+  for (const balance of balances) {
+    const mapping = mappings.find((m) => m.key === balance.key);
+    const acc = accounts.find((a) => a.id === mapping?.accountId);
+    const source = balance.issue
+      ? null
+      : sourceInteger(balance.amount.value, balance.amount.assetId ? 8 : 2);
+    const valid =
+      mapping &&
+      acc &&
+      !acc.onBudget &&
+      !acc.closedAt &&
+      (balance.amount.assetId
+        ? mapping.securityId &&
+          ['crypto', 'brokerage'].includes(acc.type) &&
+          getEntity(tx, security, mapping.securityId)
+        : !mapping.securityId && acc.currency === balance.currency);
+    const local = !valid
+      ? null
+      : balance.amount.assetId
+        ? (positions.find(
+            (p) => p.accountId === mapping.accountId && p.securityId === mapping.securityId,
+          )?.unitsE8 ?? 0)
+        : acc.balanceCents;
+    if (local === null || source === null || local !== source) {
+      const cause = causeOf(balance.key, Boolean(valid), local ?? 0, source);
+      item(
+        tx,
+        'balance:' + balance.key,
+        local === null || source === null ? 'Quellsaldo: Abgleich offen' : 'Quellsaldo weicht ab',
+        JSON.stringify({
+          key: balance.key,
+          source: balance.amount.value,
+          local,
+          scale: balance.amount.assetId ? 8 : 2,
+          accountId: mapping?.accountId ?? null,
+          reason: balance.issue
+            ? balance.issue === 'duplicate'
+              ? 'duplicate_rows'
+              : 'invalid_balance'
+            : !valid
+              ? 'mapping_required'
+              : source === null
+                ? 'precision_unsupported'
+                : 'difference',
+          ...(cause
+            ? {
+                cause: cause.cause,
+                openMovementsE8: cause.openMovementsE8,
+                openMovementCount: cause.openMovementCount,
+              }
+            : {}),
+        }),
         'reconciliation',
         grouped,
         false,
         balanceFields,
       );
+    } else {
+      resolveBalance(
+        balance.key,
+        JSON.stringify({
+          key: balance.key,
+          source: balance.amount.value,
+          local,
+          scale: balance.amount.assetId ? 8 : 2,
+          accountId: mapping!.accountId,
+          reason: 'matched',
+        }),
+      );
     }
-    for (const balance of balances) {
-      const mapping = mappings.find((m) => m.key === balance.key);
-      const acc = accounts.find((a) => a.id === mapping?.accountId);
-      const source = balance.issue
-        ? null
-        : sourceInteger(balance.amount.value, balance.amount.assetId ? 8 : 2);
-      const valid =
-        mapping &&
-        acc &&
-        !acc.onBudget &&
-        !acc.closedAt &&
-        (balance.amount.assetId
-          ? mapping.securityId &&
-            ['crypto', 'brokerage'].includes(acc.type) &&
-            getEntity(tx, security, mapping.securityId)
-          : !mapping.securityId && acc.currency === balance.currency);
-      const local = !valid
-        ? null
-        : balance.amount.assetId
-          ? (positions.find(
-              (p) => p.accountId === mapping.accountId && p.securityId === mapping.securityId,
-            )?.unitsE8 ?? 0)
-          : acc.balanceCents;
-      if (local === null || source === null || local !== source) {
-        item(
-          tx,
-          'balance:' + balance.key,
-          local === null || source === null ? 'Quellsaldo: Abgleich offen' : 'Quellsaldo weicht ab',
-          JSON.stringify({
-            key: balance.key,
-            source: balance.amount.value,
-            local,
-            scale: balance.amount.assetId ? 8 : 2,
-            accountId: mapping?.accountId ?? null,
-            reason: balance.issue
-              ? balance.issue === 'duplicate'
-                ? 'duplicate_rows'
-                : 'invalid_balance'
-              : !valid
-                ? 'mapping_required'
-                : source === null
-                  ? 'precision_unsupported'
-                  : 'difference',
-          }),
-          'reconciliation',
-          grouped,
-          false,
-          balanceFields,
-        );
-      } else {
-        resolveBalance(
-          balance.key,
-          JSON.stringify({
-            key: balance.key,
-            source: balance.amount.value,
-            local,
-            scale: balance.amount.assetId ? 8 : 2,
-            accountId: mapping!.accountId,
-            reason: 'matched',
-          }),
-        );
-      }
-    }
+  }
+}
+
+export function finishReadSource(
+  db: Executor,
+  balances: SourceBalance[],
+  now: string,
+  ctx: AuditContext,
+) {
+  const grouped = withGroup(ctx);
+  return runInTransaction(db, (tx) => {
+    compareSourceBalances(tx, balances, now, grouped);
     const state = readSourceState(tx);
     saveReadSourceState(
       tx,

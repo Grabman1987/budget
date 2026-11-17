@@ -16,6 +16,8 @@ export const MATCH_CASH_DAYS = 3;
 export const MATCH_UNITS_E8 = 1;
 export const MATCH_AMOUNT_CENTS = 1;
 export const MATCH_RELATIVE = 0.005;
+/** Savings plans: bank debit, platform reservation and execution lie on different days. */
+export const MATCH_SAVINGS_PLAN_DAYS = 10;
 
 export interface SourceMatchTrade {
   id: string;
@@ -27,6 +29,8 @@ export interface SourceMatchTrade {
   amountCents: number;
   feeCents: number;
   taxCents: number;
+  /** Import key of the ledger row; keys written by the source rebuild carry provider operation ids. */
+  importKey?: string | null;
 }
 export interface SourceMatchBooking {
   id: string;
@@ -45,7 +49,7 @@ export interface SourceMatchRef {
   date: string;
 }
 export type OperationVerdict =
-  | { status: 'matched'; refs: SourceMatchRef[] }
+  | { status: 'matched'; refs: SourceMatchRef[]; by?: 'id' }
   | { status: 'informational'; reason: 'internal' | 'no_movement' }
   | { status: 'missing' }
   | { status: 'unmapped'; keys: string[] };
@@ -91,6 +95,18 @@ type Tx = SourceOperation['transactions'][number];
 /** Fee, tax and platform-internal legs accompany a movement but are none themselves. */
 const SECONDARY = new Set(['fee', 'tax', 'transfer', 'stake', 'unstake']);
 const INTERNAL_TYPE = /(^|_)(un)?stak(e|ing)(_|$)/;
+const SAVINGS_PLAN_TYPE = /(^|_)savings_plan(_|$)/;
+
+/** Provider ids a ledger row's import key refers to (`rebuild:<operation-id>:<leg>`, `…:source:[ids]`). */
+export function linkedSourceIds(importKey: string | null | undefined): string[] {
+  if (!importKey?.startsWith('rebuild:')) return [];
+  return importKey.match(/[0-9A-Za-z][0-9A-Za-z-]{15,}/g) ?? [];
+}
+/** Ids under which a source operation may be referenced: operation, transaction and trade ids. */
+const sourceIdsOf = (op: SourceOperation): string[] => [
+  op.id,
+  ...op.transactions.flatMap((t) => [t.id, ...(t.tradeId ? [t.tradeId] : [])]),
+];
 
 const dayOf = (iso: string): string | null => {
   const ms = Date.parse(iso);
@@ -118,6 +134,8 @@ interface Leg {
   taxes: number[];
   /** Reward-like legs without cash counterpart prefer deliveries over buys. */
   reward: boolean;
+  /** Savings-plan leg: cash may be booked up to MATCH_SAVINGS_PLAN_DAYS away (second pass only). */
+  plan: boolean;
 }
 
 const abs = (n: number | null) => (n === null ? null : Math.abs(n));
@@ -169,6 +187,7 @@ function legsOf(op: SourceOperation): Leg[] {
         ),
         taxes: centsOf(secondary, 'tax').filter((n) => n > 0),
         reward: asset && !tx.tradeId,
+        plan: SAVINGS_PLAN_TYPE.test(op.type),
       });
     }
   }
@@ -272,10 +291,12 @@ function cashEdges(
   const edges: Edge[] = [];
   for (const b of bookings) {
     const distance = Math.abs(daysBetween(leg.day, b.date));
-    if (distance > MATCH_CASH_DAYS || !wanted.includes(b.amountCents)) continue;
-    // A direct (unadjusted) value ranks before one that needed a fee or tax adjustment.
+    const limit = leg.plan ? MATCH_SAVINGS_PLAN_DAYS : MATCH_CASH_DAYS;
+    if (distance > limit || !wanted.includes(b.amountCents)) continue;
+    // A direct (unadjusted) value ranks before one that needed a fee or tax adjustment; a date
+    // beyond the usual window ranks after every nearer match (second pass).
     edges.push({
-      tier: b.amountCents === wanted[0] ? 1 : 2,
+      tier: distance > MATCH_CASH_DAYS ? 4 : b.amountCents === wanted[0] ? 1 : 2,
       distance,
       penalty: 0,
       leg: index,
@@ -313,6 +334,13 @@ export function matchSourceOperations(
   const mappedAccounts = new Set(mappings.map((m) => m.accountId));
   const verdicts = new Map<string, OperationVerdict>();
   const todo: Array<{ op: SourceOperation; legs: Leg[] }> = [];
+  // Provider ids first: a ledger row written from an operation id belongs to that operation,
+  // whatever its date or amount, and is not available to the heuristic matching below.
+  const byLinkedId = new Map<string, SourceMatchTrade[]>();
+  for (const t of ledger.trades)
+    for (const linked of new Set(linkedSourceIds(t.importKey)))
+      byLinkedId.set(linked, [...(byLinkedId.get(linked) ?? []), t]);
+  const idClaimed = new Set<string>();
   const sorted = [...operations].sort(
     (a, b) =>
       (dayOf(a.transactions[0]?.creditedAt ?? '') ?? '').localeCompare(
@@ -321,6 +349,24 @@ export function matchSourceOperations(
   );
   for (const op of sorted) {
     const legs = INTERNAL_TYPE.test(op.type) ? [] : legsOf(op);
+    const linked = legs.length
+      ? [
+          ...new Map(
+            sourceIdsOf(op)
+              .flatMap((i) => byLinkedId.get(i) ?? [])
+              .map((t) => [t.id, t]),
+          ).values(),
+        ]
+      : [];
+    if (linked.length) {
+      for (const t of linked) idClaimed.add(t.id);
+      verdicts.set(op.id, {
+        status: 'matched',
+        by: 'id',
+        refs: linked.map((t) => ({ type: 'trade', id: t.id, kind: t.kind, date: t.date })),
+      });
+      continue;
+    }
     if (!legs.length) {
       verdicts.set(op.id, {
         status: 'informational',
@@ -335,14 +381,15 @@ export function matchSourceOperations(
   const flat = todo.flatMap(({ legs }) => legs);
   const edges: Edge[] = [];
   const tradesByKey = new Map<string, SourceMatchTrade[]>();
-  for (const t of ledger.trades) {
+  const free = ledger.trades.filter((t) => !idClaimed.has(t.id));
+  for (const t of free) {
     const key = t.accountId + '|' + t.securityId;
     tradesByKey.set(key, [...(tradesByKey.get(key) ?? []), t]);
   }
   const bookingsByAccount = new Map<string, SourceMatchBooking[]>();
   for (const b of ledger.bookings)
     bookingsByAccount.set(b.accountId, [...(bookingsByAccount.get(b.accountId) ?? []), b]);
-  const income = ledger.trades.filter(
+  const income = free.filter(
     (t) => INCOME_KINDS.includes(t.kind) && mappedAccounts.has(t.accountId),
   );
   flat.forEach((leg, index) => {

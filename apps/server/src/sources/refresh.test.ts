@@ -910,7 +910,8 @@ describe('ledger matching (Abgleich)', () => {
         .filter((a) => a.entityType === 'inbox_item' && a.groupId === first.groupId)
         .map((a) => a.entityId),
     );
-    expect(touched.size).toBe(2);
+    // Two movements plus the holdings warning that the run recomputes.
+    expect(touched.size).toBe(3);
     const undone = undo(opened.db, { groupId: first.groupId }, ctx);
     expect(JSON.stringify(inbox())).toBe(snapshot);
     undo(opened.db, { groupId: undone.groupId }, ctx);
@@ -969,6 +970,83 @@ describe('ledger matching (Abgleich)', () => {
       unmapped: 0,
       informational: 1,
     });
+  });
+  it('matches by the operation id in the ledger row key, twice with the same result, and undoes', () => {
+    mapAll();
+    // Dated and sized differently from the source: only the id links them.
+    const linked = createTrade(
+      opened.db,
+      {
+        securityId: 'coin',
+        accountId: 'depot',
+        date: '2026-05-20',
+        kind: 'delivery_in',
+        unitsE8: 12_345,
+        amountCents: 0,
+        importKey: 'rebuild:id-linked-operation-0001:0',
+      },
+      ctx,
+    ).trade;
+    stage([buy('id-linked-operation-0001', '2026-03-10')]);
+    const first = reconcileReadSource(opened.db, ctx);
+    expect(row('id-linked-operation-0001').resolution).toBe(MATCHED + ' (Einlieferung 20.05.2026)');
+    expect(first.matched).toBe(1);
+    const snapshot = JSON.stringify(inbox());
+    stage([buy('id-linked-operation-0001', '2026-03-10')]);
+    const second = reconcileReadSource(opened.db, ctx);
+    expect(second).toMatchObject({ matched: 1, changed: 0 });
+    expect(JSON.stringify(inbox())).toBe(snapshot);
+    expect(
+      opened.db
+        .select()
+        .from(schema.trade)
+        .all()
+        .map((t) => t.id),
+    ).toEqual([linked.id]);
+    deleteTrade(opened.db, linked.id, ctx);
+    const reopened = reconcileReadSource(opened.db, ctx);
+    expect(row('id-linked-operation-0001').resolvedAt).toBeNull();
+    undo(opened.db, { groupId: reopened.groupId }, ctx);
+    expect(row('id-linked-operation-0001').resolvedAt).toBeTruthy();
+  });
+  it('names the cause of a holdings difference and recomputes it after matching', () => {
+    mapAll();
+    const reward = (id: string, day: string): SourceOperation => ({
+      id,
+      type: 'reward',
+      transactions: [
+        {
+          ...operation.transactions[0]!,
+          id: id + '-tx',
+          type: 'reward',
+          flow: 'INCOMING',
+          creditedAt: day + 'T10:00:00.000Z',
+          amount: { value: '0.00000005', assetId: 'coin', currencyId: null, cents: null },
+        },
+      ],
+    });
+    // Source holds 3 + 5 units (e8), the app only 3: one open reward explains the difference.
+    const bigger: SourceBalance = {
+      ...asset,
+      amount: { ...asset.amount, value: '0.00000008' },
+    };
+    saveReadSourceState(
+      opened.db,
+      { ...readSourceState(opened.db), balances: [balance, bigger] },
+      ctx,
+    );
+    stage([reward('r1', '2026-03-10')]);
+    reconcileReadSource(opened.db, ctx);
+    const warning = () => inbox().find((i) => i.title === 'Quellsaldo weicht ab' && !i.resolvedAt);
+    expect(JSON.parse(warning()!.detail!)).toMatchObject({
+      reason: 'difference',
+      cause: 'missing_movement',
+      openMovementCount: 1,
+    });
+    // Recording the reward (matched by id) removes the open movement and the difference.
+    appTrade('2026-03-10', 5, 0);
+    reconcileReadSource(opened.db, ctx);
+    expect(warning()).toBeUndefined();
   });
   it('applies the same rules during a refresh', async () => {
     mapAll();

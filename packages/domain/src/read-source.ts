@@ -54,7 +54,7 @@ export interface SourceMapping {
 }
 export interface SourcePage {
   operations: SourceOperation[];
-  invalidOperations?: Array<{ id: string; reason: 'schema' }>;
+  invalidOperations?: Array<{ id: string; reason: 'schema'; field?: string }>;
   nextCursor: string | null;
 }
 export type SourceFailureCategory = 'schema' | 'http' | 'timeout' | 'parse';
