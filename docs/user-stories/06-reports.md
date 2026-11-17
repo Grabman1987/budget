@@ -588,7 +588,7 @@ Historical references follow `docs/FEATURES.md` (positions 1.1–5.6). The hub r
   - Investiert + Bargeld ergeben exakt die Sparquote (Cent und Basispunkte, Test); Bargeld ist der Rest.
   - Ohne Kurse oder Depotdaten steht „nicht ermittelbar“ mit Grund; nichts wird geschätzt. Die Trefferquote geschlossener Positionen fehlt, weil kein Gewinn je Position vorliegt.
 - **Status:** implemented locally; PR review and live acceptance pending · **Verweis:** 5.1, #1118
-- **Slice 2 im Block:** Vergleich mit dem konfigurierten Vergleichswert, Restschuld Anfang/Ende, Einkommen nach Quelle (bestehende Leser). Netto-Einzahlungen sind das Geld, das netto ins Depot floss, keine echte Zerlegung der Sparquote; der Zeitraum „bis letzter voller Monat“ steht im Block.
+- **Slice 2 im Block:** Vergleich mit dem konfigurierten Vergleichswert, Restschuld Anfang/Ende, Einkommen nach Quelle (bestehende Leser). Netto-Einzahlungen sind das Geld, das netto ins Depot floss, keine echte Zerlegung der Sparquote; der Zeitraum „bis letzter voller Monat“ steht im Block. Der Block ist ein Bildschirmabschnitt und wird nicht gedruckt (Blatt 2 hat keinen Platz; ein drittes A4-Blatt wäre Owner-Entscheid).
 - **Remaining scope:** Vorjahresvergleich der neuen Investment-/Trading-Zahlen; Realwerte (Inflation), Zinszahlungen, Sparziele, Rücklage (noch keine gemeinsame Berechnung).
 
 ### RP-21a – Finanz-Check-Verlauf

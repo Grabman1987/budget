@@ -640,7 +640,10 @@ function SheetTwo({ data, titleBlock }: { data: YearReportRead; titleBlock: Reac
           </table>
         )}
       </section>
-      <section className="ov-sheet-sec" aria-label="Investments, Trading und Sparquote">
+      <section
+        className="ov-sheet-sec ov-sheet-extra"
+        aria-label="Investments, Trading und Sparquote"
+      >
         <SectionTitle letter="I">Investments, Trading und Sparquote</SectionTitle>
         <YearInvestments data={data} />
       </section>

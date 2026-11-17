@@ -419,3 +419,10 @@
     min-width: 0;
   }
 }
+
+/* Block I (investments, trading, Sparquote) is a screen section: sheet 2 has no room for it on A4. */
+@media print {
+  .ov-sheet-extra {
+    display: none;
+  }
+}
