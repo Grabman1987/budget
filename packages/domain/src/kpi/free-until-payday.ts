@@ -70,6 +70,21 @@ export interface FreeUntilPayday {
 
 const sum = (xs: ReadonlyArray<number>): number => xs.reduce((a, v) => a + v, 0);
 
+/**
+ * "Letzte Reserve (Dispo)": the unused part of the activated overdraft limits, per account
+ * (limit minus the amount already overdrawn, never below 0). Credit from the bank that has to be
+ * repaid: never free money, shown on its own line, identical on Heute and in the forecast.
+ */
+export function overdraftLastResort(
+  accounts: ReadonlyArray<Pick<FreeAccount, 'balanceCents' | 'overdraftLimitCents'>>,
+): number {
+  return sum(
+    accounts.map((a) =>
+      Math.max(0, Math.max(0, a.overdraftLimitCents ?? 0) - Math.max(0, -a.balanceCents)),
+    ),
+  );
+}
+
 export function freeUntilPayday(input: FreeUntilPaydayInput): FreeUntilPayday {
   const inflow = input.expectedInflows.filter((i) => i.day < input.payday);
   const open = input.openOutflows.filter((o) => o.day < input.payday);

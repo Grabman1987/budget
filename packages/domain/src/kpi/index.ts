@@ -1,4 +1,9 @@
 export {
+  committedReserves,
+  type CommittedReserves,
+  type CommittedReservesInput,
+} from './committed-reserves';
+export {
   ageOfMoney,
   ageOfMoneyAt,
   AGE_OF_MONEY_WINDOW,
@@ -53,6 +58,7 @@ export {
 } from './pace';
 export {
   freeUntilPayday,
+  overdraftLastResort,
   type ExpectedInflow,
   type FreeAccount,
   type FreeUntilPayday,
