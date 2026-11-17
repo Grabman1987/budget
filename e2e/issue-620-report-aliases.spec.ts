@@ -63,7 +63,10 @@ async function selectedView(page: Page, target: string, view: string) {
     await expect(
       page.getByRole('combobox', { name: 'Darstellung der Auswertung' }).locator('option:checked'),
     ).toHaveText(view);
-  } else if ((await redesignReportsOn(page)) && target === '/reports/vermoegen-schulden') {
+  } else if (
+    (await redesignReportsOn(page)) &&
+    ['/reports/vermoegen-schulden', '/reports/pallocation'].includes(target)
+  ) {
     await expectReportMenuView(page, view);
   } else {
     await expect(

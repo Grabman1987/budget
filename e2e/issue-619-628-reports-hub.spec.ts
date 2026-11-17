@@ -1,4 +1,4 @@
-import { hubReportCount } from './report-menu';
+import { HUB_REPORT_COUNT } from './report-menu';
 import { openCustomExplorer, retainExplorerReaders } from './explorer-controls';
 import { withShellControls } from './shell-actions';
 import AxeBuilder from '@axe-core/playwright';
@@ -35,12 +35,12 @@ test('619 sixteen-report hub has searchable groups, three session recents and a 
     await page.evaluate((value) => {
       document.documentElement.dataset['theme'] = value;
     }, theme);
-    await expect(page.locator('.report-hub-list > li')).toHaveCount(await hubReportCount(page));
+    await expect(page.locator('.report-hub-list > li')).toHaveCount(HUB_REPORT_COUNT);
     expect(
       await page
         .locator('.report-hub-list > li')
         .evaluateAll((rows) => rows.map((row) => row.getAttribute('value'))),
-    ).toEqual(Array.from({ length: await hubReportCount(page) }, (_, index) => String(index + 1)));
+    ).toEqual(Array.from({ length: HUB_REPORT_COUNT }, (_, index) => String(index + 1)));
     const first = await page.locator('.report-hub-list > li').nth(0).boundingBox();
     const next = await page.locator('.report-hub-list > li').nth(1).boundingBox();
     const link = await page
@@ -109,7 +109,7 @@ test('619 sixteen-report hub has searchable groups, three session recents and a 
     await expect(page.locator('.report-hub-list > li')).toHaveCount(1);
     await expect(page.locator('.report-hub-list strong')).toHaveText('Gehalt');
     await search.clear();
-    await expect(page.locator('.report-hub-list > li')).toHaveCount(await hubReportCount(page));
+    await expect(page.locator('.report-hub-list > li')).toHaveCount(HUB_REPORT_COUNT);
     await search.fill('Ausgabenanalyse');
     await page.locator('.report-hub-list > li > a').click();
     await expect(page).toHaveURL(/\/reports\/ausgaben$/);
@@ -201,7 +201,7 @@ test('619 supported maximum saved views remain keyboard reachable beside three r
       .getByRole('navigation', { name: 'Zuletzt geöffnete Berichte', exact: true })
       .getByRole('link'),
   ).toHaveCount(3);
-  await expect(page.locator('.report-hub-list > li')).toHaveCount(await hubReportCount(page));
+  await expect(page.locator('.report-hub-list > li')).toHaveCount(HUB_REPORT_COUNT);
   for (const theme of ['light', 'dark']) {
     await page.evaluate((value) => {
       document.documentElement.dataset['theme'] = value;
