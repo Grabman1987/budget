@@ -151,7 +151,6 @@ export function readPayroll(db: Executor, month: string, today: string) {
   const slips = listPayslips(db);
   const rules = wageComponentRules(db);
   const sources = listSalaryPayslips(db).map((p) => payrollSource(p, rules));
-  const unknownNetIds = new Set(sources.filter((p) => p.netSplitUnknown).map((p) => p.id));
   const bankParts = db.select().from(bookingSplit).all();
   const salarySplits = db
     .select()
@@ -246,7 +245,7 @@ export function readPayroll(db: Executor, month: string, today: string) {
       .map((s) => [s.id, s.issues.length > 0 ? null : s.paid.special] as const),
   );
   return {
-    ...payrollReport(slips, month, unknownNetIds, sourceSpecialGross),
+    ...payrollReport(slips, month, sourceSpecialGross),
     sources,
     captured: slips,
     links,

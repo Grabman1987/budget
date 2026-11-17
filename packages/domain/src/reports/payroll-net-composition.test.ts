@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { classifyWageLabel } from './payslip-text';
 import {
   payrollNetComposition,
+  payrollReport,
+  payrollTotals,
   payslipPayNetCents,
   type CapturedPayslip,
 } from './payroll-projects';
@@ -59,41 +61,59 @@ describe('payroll net composition', () => {
       runningCents: 210000,
       specialCents: 150000,
       totalCents: 360000,
-      splitUnclear: false,
       specialSlipIds: ['s'],
     });
   });
 
-  it('marks a regular slip with net above gross as unclear but counts it in the total', () => {
-    const mixed = slip('m', '2026-06', 'regular', {
-      svCents: 0,
-      taxCents: -20000,
-      netCents: 320000,
+  it('never splits a combined slip: its full pay stays in its month', () => {
+    // regular 3.000 gross + bonus line 2.000 earning: SV 700, tax 900 -> net 3.400 (all synthetic)
+    const combined = slip('c', '2026-06', 'regular', {
+      grossCents: 300000,
+      svCents: 70000,
+      taxCents: 90000,
+      netCents: 340000,
+      lines: [{ section: 'earning', label: 'Bonus', amountCents: 200000 }],
     });
-    const row = payrollNetComposition([mixed], '2026-06');
-    expect(row).toMatchObject({
-      runningCents: null,
-      specialCents: 0,
-      totalCents: 320000,
-      splitUnclear: true,
-    });
+    const row = payrollNetComposition([combined], '2026-06');
+    expect(row).toMatchObject({ runningCents: 340000, specialCents: 0, totalCents: 340000 });
+    expect(row).not.toHaveProperty('splitUnclear');
+    const t = payrollTotals([combined]);
+    expect(t.grossCents).toBe(500000);
+    expect(t.grossCents - t.svCents - t.taxCents).toBe(340000);
+    expect(t.salaryNetCents).toBe(combined.netCents);
   });
 
-  it('marks an earning line or a source-flagged slip as unclear and tolerates missing months', () => {
-    const earning = slip('e', '2026-07', 'regular', {
-      grossCents: 300000,
-      netCents: 210000 + 5000,
-      lines: [{ section: 'earning', label: 'Bonus', amountCents: 5000 }],
-    });
-    expect(payrollNetComposition([earning], '2026-07').splitUnclear).toBe(true);
-    const flagged = slip('f', '2026-08', 'regular');
-    expect(payrollNetComposition([flagged], '2026-08', new Set(['f']))).toMatchObject({
-      splitUnclear: true,
-      totalCents: 210000,
-    });
-    expect(payrollNetComposition([flagged], '2026-09')).toMatchObject({
+  it('tolerates missing months', () => {
+    expect(payrollNetComposition([slip('f', '2026-08', 'regular')], '2026-09')).toMatchObject({
       recorded: false,
       totalCents: null,
     });
+  });
+
+  it('timeline carries special payments and salary allowances in the same month', () => {
+    const regular = slip('r', '2026-03', 'regular', {
+      netCents: 210000 + 1000 + 3000,
+      lines: [
+        { section: 'reimbursement', label: 'Telearbeit', amountCents: 1000 },
+        { section: 'reimbursement', label: 'Reisespesen', amountCents: 3000 },
+      ],
+    });
+    const special = slip('s', '2026-03', 'special', {
+      grossCents: 200000,
+      svCents: 30000,
+      taxCents: 20000,
+      netCents: 150000,
+    });
+    const row = payrollReport([regular, special], '2026-03').timeline[0]!;
+    expect(row).toMatchObject({
+      recorded: true,
+      grossCents: 500000,
+      svCents: 80000,
+      taxCents: 60000,
+      payGrossCents: 501000,
+      payNetCents: 361000,
+    });
+    expect(row.payGrossCents - row.svCents - row.taxCents).toBe(row.payNetCents);
+    expect(row.composition.totalCents).toBe(row.payNetCents);
   });
 });

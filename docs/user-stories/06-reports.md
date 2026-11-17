@@ -101,7 +101,7 @@ Historical references follow `docs/FEATURES.md` (positions 1.1–5.6). The hub r
   2. Leitwert „Grundgehalt brutto pro Monat“ als Stufenlinie mit jeder Erhöhung (Datum, Betrag, Prozent).
   3. Jahresvergleich und Monatsvergleich je Komponente; Monate mit Sonderzahlung oder Bonus sind markiert; Bonus je Jahr mit Anteil am Grundgehalt.
   4. „Real gegen nominal“: Index gegen VPI und persönliche Inflation, kumuliert in Prozent und Euro.
-  5. Technischer Zwischenstand für die spätere Ansicht: Die angemeldete Sitzung kann die nominale Entwicklung bis zu einem gewählten Monat über `GET /api/payslips/development?throughMonth=YYYY-MM` lesen; ohne Auswahl gilt der aktuelle Monat. Der Ablauf in der Oberfläche bleibt bis zum geprüften Entwurf geplant.
+  5. Technischer Zwischenstand für die spätere Ansicht: Die angemeldete Sitzung kann die nominale Entwicklung bis zu einem gewählten Monat über `GET /api/payslips/development?throughMonth=YYYY-MM` lesen; ohne Auswahl gilt der aktuelle Monat. In Reports › Gehaltsreport zeigen die Karten „Grundgehalt · Erhöhungen“ und „Gehaltsentwicklung je Jahr“ (Summe inklusive Sonderzahlungen und Bonus) diese Daten.
 - **Ergebnis:** Ich sehe den echten Zuwachs und Kaufkraftverlust.
 - **Abnahmekriterien:**
   - Sachbezüge und Spesen verzerren die Entwicklung nicht; sie stehen getrennt.
@@ -109,21 +109,22 @@ Historical references follow `docs/FEATURES.md` (positions 1.1–5.6). The hub r
   - Der Inflationsvergleich nutzt VPI und den vorhandenen Warenkorb (Persönliche Inflation).
   - Randfall: Eine Lohnart ohne Zuordnung blockiert nur ihren Monat und wird genannt.
   - Der nominale Datenpfad verwendet gespeicherte Lohnzeilen und Komponenten-Zuordnungen sowie die gemeinsame Rechenlogik. Spätere und gelöschte Gehaltszettel sind ausgeschlossen; Lesen verändert weder Daten noch Buchungen.
-- **Status:** teilweise implementiert für Review (Lohnzeilen/Komponentenmodell aus #1082; nominaler Lese-Endpunkt in dieser Fortsetzung), Oberfläche und Live-Abnahme offen · **Verweis:** #1066
-  Fehlt noch: geprüfter UI-Entwurf, Zuordnungsoberfläche und Schreib-Endpunkte, Ansichten, Vorschau/Bestätigung des expliziten PDF-Neulesens, Anbindung des vorhandenen VPI und der persönlichen Inflation, Ereignismarker und gedruckte Arbeitgeberbeiträge.
+- **Status:** teilweise implementiert für Review (Lohnzeilen/Komponentenmodell aus #1082; nominaler Lese-Endpunkt in dieser Fortsetzung), Erhöhungen und Jahresvergleich in der Oberfläche, Monatsvergleich, Bonus und Real-gegen-nominal offen · **Verweis:** #1066
+  Fehlt noch: Zuordnungsoberfläche und Schreib-Endpunkte, Ansichten, Vorschau/Bestätigung des expliziten PDF-Neulesens, Anbindung des vorhandenen VPI und der persönlichen Inflation, Ereignismarker und gedruckte Arbeitgeberbeiträge.
 
 ### RP-02a – Netto der letzten 24 Monate mit Sonderzahlungen
 - **Story:** Als Nutzer möchte ich je Monat das laufende Netto und die Sonderzahlungen getrennt, aber mit korrekter Monatssumme sehen, damit ein Bonusmonat das laufende Gehalt nicht scheinbar einbrechen lässt.
 - **Ausgangslage:** Mehrere Gehaltszettel, darunter laufende und Sonderzahlungs-Zettel.
 - **Ablauf:**
-  1. Reports › Gehaltsreport, Karte „Netto der letzten Monate“ lesen: volle Säule = laufend, schraffiert = Sonderzahlung, gestrichelt = „Aufteilung unklar“.
+  1. Reports › Gehaltsreport, Karte „Netto der letzten Monate“ lesen: volle Säule = laufender Zettel, schraffiert = eigener Sonderzahlungs-Zettel desselben Monats; jeder Monat zeigt sein volles Netto.
   2. Tabelle „Laufend · Sonderzahlung · Bonus · Summe“ je Monat lesen.
 - **Ergebnis:** Die Monatssumme enthält laufendes Netto und Sonderzahlungen; Steuer wird nicht zwischen den Teilen umverteilt.
 - **Abnahmekriterien:**
-  - Ein laufender Zettel mit erkennbarer Sonderzahlung (Netto über Brutto, zusätzliche Bezugszeile oder Sonderkomponente aus der Quelle) zeigt im Laufend-Teil „Aufteilung unklar“ und zählt trotzdem voll in der Summe.
+  - Ein kombinierter Zettel (laufendes Gehalt plus Sonderzahlung) wird nie geteilt: Sonderzahlungen gehören in den Monat der Auszahlung und zählen voll in dessen Brutto, Netto und Summe (Entscheidung 17.11.2026, #1207). Es gibt weder „Aufteilung unklar“ noch eine Prüfen-Aufgabe zum Teilen.
+  - Der Verlauf „Brutto und Netto je Monat“ enthält Sonderzahlungen und zählt Telearbeit und Fahrgeld als Gehalt; Jahressummen und Vorjahresvergleich enthalten Sonderzahlungen (Hinweis in der Oberfläche).
   - Telearbeit und Fahrgeld zählen als Gehalt; nur Reisespesen bleiben ausgenommen („ohne Reisespesen“). Die Regel steht an einer Stelle (`wage-label-rules.ts`); gespeicherte Zettel, Jahressummen und Sparquote bleiben unverändert.
   - Beträge folgen dem Datenschutzschalter; kein „+“ vor Beträgen.
-- **Status:** in Prüfung · **Offen:** Zettel-Aufnahme (zwei Zettel aus einem PDF vorschlagen) und die Prüfen-Aufgabe zu #1207.
+- **Status:** in Prüfung · **Verweis:** #1207
 
 ### RP-04 – Monat mit Sonderzahlung korrekt darstellen (geplant)
 - **Story:** Als Nutzer möchte ich einen Monat mit Sonderzahlung ohne erfundene Netto- oder Steueraufteilung sehen, damit der Report die Auszahlung korrekt abbildet und keine falsche Warnung zu einem fehlenden Sondergehalt erscheint.

@@ -16,6 +16,7 @@ import { AppLink } from '../shell/app-link';
 import { MonthReportFrame, shortMonth, useReportMonth } from './month-frame';
 import { payrollQuery, type PayrollData } from './payroll-projects-api';
 import { PayrollNetComposition } from './payroll-net-composition';
+import { PayrollDevelopment } from './payroll-development';
 import { PayrollProjectChart } from './payroll-project-chart';
 import { PayslipPanel } from './payslip-panel';
 import { PayrollSource } from './payroll-source';
@@ -414,27 +415,22 @@ export function PayrollReport({
               >
                 <section className="mr-card mr-wide">
                   <div className="tbd-head">
-                    <h2>Verlauf · laufendes Gehalt</h2>
+                    <h2>Verlauf · Brutto und Netto je Monat</h2>
                   </div>
-                  {data.timeline.some((row) => row.recorded && !row.netSplitUnknown) ? (
+                  {data.timeline.some((row) => row.recorded) ? (
                     <PayrollProjectChart
                       table={REDESIGN_ENABLED}
                       months={data.timeline.map((r) => r.month)}
-                      values={data.timeline.map((r) =>
-                        r.recorded && !r.netSplitUnknown ? r.salaryNetCents : null,
-                      )}
-                      gross={data.timeline.map((r) =>
-                        r.recorded && !r.netSplitUnknown ? r.grossCents : null,
-                      )}
+                      values={data.timeline.map((r) => (r.recorded ? r.payNetCents : null))}
+                      gross={data.timeline.map((r) => (r.recorded ? r.payGrossCents : null))}
                     />
                   ) : (
-                    <EmptyNote>
-                      Laufendes Nettogehalt aus der Quelle nicht getrennt bestimmbar.
-                    </EmptyNote>
+                    <EmptyNote>Noch keine Gehaltszettel erfasst.</EmptyNote>
                   )}
                   <p className="vnote">
-                    Tusche: Nettogehalt ohne steuerfreie Erstattungen · blasse Tusche: Brutto inkl.
-                    Zusätze. Fehlende Zettel bleiben Lücken.
+                    Tusche: Netto · blasse Tusche: Brutto, jeweils je Monat inklusive
+                    Sonderzahlungen und Zusätzen; Telearbeit und Fahrgeld zählen als Gehalt,
+                    Reisespesen sind ausgenommen. Fehlende Zettel bleiben Lücken.
                   </p>
                 </section>
               </ReportBodyDisclosure>
@@ -534,10 +530,15 @@ export function PayrollReport({
                     </tbody>
                   </ReportTable>
                   <p className="vnote">
-                    Keine Hochrechnung. Bruttovergleich ohne steuerfreie Erstattungen und nur bei
-                    erfassten gleichen Monaten und Zahlungsarten im Vorjahr.
+                    Jahressummen und Vorjahresvergleich enthalten die Sonderzahlungen (13./14.
+                    Gehalt, Bonus) im Monat der Auszahlung; die Spalte Sonderzahlungen zeigt ihren
+                    Brutto-Anteil. Keine Hochrechnung. Bruttovergleich ohne steuerfreie Erstattungen
+                    und nur bei erfassten gleichen Monaten und Zahlungsarten im Vorjahr.
                   </p>
                 </section>
+              </ReportBodyDisclosure>
+              <ReportBodyDisclosure id="payroll-development" label="Gehaltsentwicklung">
+                <PayrollDevelopment month={month} />
               </ReportBodyDisclosure>
               <ReportBodyDisclosure id="payroll-special" label="Sonderzahlungen und 14 Gehälter">
                 <section className="mr-card mr-wide">
@@ -565,11 +566,7 @@ export function PayrollReport({
                             {[s.salaryNetCents, s.reimbursementsCents, s.netCents].map(
                               (value, i) => (
                                 <td className="n" key={i}>
-                                  {value === null
-                                    ? s.netSplitUnknown
-                                      ? 'nicht bestimmbar'
-                                      : 'nicht erfasst'
-                                    : eur(value)}
+                                  {value === null ? 'nicht erfasst' : eur(value)}
                                 </td>
                               ),
                             )}
