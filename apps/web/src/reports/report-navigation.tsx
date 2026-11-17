@@ -13,7 +13,10 @@ const periodViews: Record<string, readonly { value: string; label: string }[]> =
     { value: 'druckblatt', label: 'A4 Druckblatt · Monat' },
   ],
   jahresreport: [{ value: 'druckblatt', label: 'A4 Druckblatt · Jahr' }],
+  'einnahmen-ausgaben': [{ value: 'projekte', label: 'Projekte und Nebeneinkünfte' }],
+  ausgaben: [{ value: 'empfaenger', label: 'Empfänger' }],
 };
+const SUB_REPORT_PARENTS = Object.keys(periodViews);
 
 export function adjacentReports(id: string) {
   const current = hubReport(id);
@@ -121,9 +124,11 @@ export function ReportNavigation({ id }: { id: string }) {
                     current?.id === report.id &&
                     !(
                       REDESIGN_ENABLED &&
-                      ['onepager', 'jahresreport'].includes(report.id) &&
-                      (presentation.darstellung === 'finanzcheck' ||
-                        isPaperPresentation(presentation.darstellung, location.hash))
+                      periodViews[report.id]?.some((view) =>
+                        view.value === 'druckblatt'
+                          ? isPaperPresentation(presentation.darstellung, location.hash)
+                          : presentation.darstellung === view.value,
+                      )
                     )
                       ? 'page'
                       : undefined
@@ -145,7 +150,7 @@ export function ReportNavigation({ id }: { id: string }) {
                 >
                   {report.no}. {report.name}
                 </AppLink>
-                {REDESIGN_ENABLED && ['onepager', 'jahresreport'].includes(report.id) && (
+                {REDESIGN_ENABLED && SUB_REPORT_PARENTS.includes(report.id) && (
                   <ul
                     className="report-switcher-children"
                     aria-label={`Unterberichte von ${report.name}`}

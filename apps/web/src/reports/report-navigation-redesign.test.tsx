@@ -63,3 +63,14 @@ it('offers nested monthly and yearly views in one menu, preserving explicit peri
   expect(summary.closest('details')?.open).toBe(false);
   expect(document.activeElement).toBe(summary);
 });
+it('lists Projekte and Empfänger as indented sub-reports of their parents (#1150)', () => {
+  render(<ReportNavigation id="ausgaben" />);
+  fireEvent.click(screen.getByLabelText('Bericht wechseln'));
+  const payees = screen.getByRole('link', { name: 'Empfänger' });
+  expect(payees.closest('ul')?.className).toBe('report-switcher-children');
+  expect(payees.getAttribute('href')).toContain('/reports/ausgaben?');
+  expect(payees.getAttribute('href')).toContain('darstellung=empfaenger');
+  const projects = screen.getByRole('link', { name: 'Projekte und Nebeneinkünfte' });
+  expect(projects.closest('ul')?.className).toBe('report-switcher-children');
+  expect(projects.getAttribute('href')).toContain('/reports/einnahmen-ausgaben?');
+});
