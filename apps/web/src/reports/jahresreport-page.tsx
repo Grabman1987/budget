@@ -33,6 +33,7 @@ import {
 } from './overview-format';
 import { YearCashflowChart, YearNetWorthChart } from './year-charts';
 import { YearWealthChangeValue } from './year-wealth-change';
+import { YearInvestments } from './year-investments';
 import './overview-reports.css';
 import './jahresreport-page.css';
 
@@ -638,6 +639,13 @@ function SheetTwo({ data, titleBlock }: { data: YearReportRead; titleBlock: Reac
             </tbody>
           </table>
         )}
+      </section>
+      <section
+        className="ov-sheet-sec ov-sheet-extra"
+        aria-label="Investments, Trading und Sparquote"
+      >
+        <SectionTitle letter="I">Investments, Trading und Sparquote</SectionTitle>
+        <YearInvestments data={data} />
       </section>
       {titleBlock}
     </SheetFrame>

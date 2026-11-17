@@ -1,6 +1,7 @@
 import { addMonths } from '../date';
 import { changeBp } from '../heute/net-worth';
 import { percentShares } from '../ledger/alloc';
+import { ratioBp } from '../kpi/ratios';
 import {
   overviewSavingsRate,
   overviewYearMonths,
@@ -97,6 +98,14 @@ export interface YearReport {
   /** Whole percent of income, adding up to 100; the rest is negative when savings were used. */
   shares: { need: number; want: number; future: number; rest: number } | null;
   findings: YearFinding[];
+  /** Income by type of the included months (the same sums as the totals), largest first. */
+  incomeBySource: Array<{
+    typeId: string;
+    name: string;
+    group: OverviewData['incomeTypes'][number]['group'];
+    special: boolean;
+    cents: number;
+  }>;
 }
 
 export interface ClassAmounts {
@@ -108,7 +117,10 @@ export interface ClassAmounts {
 export function yearReport(input: {
   year: number;
   ref: string;
-  data: Pick<OverviewData, 'firstMonth'> & { categories: ReadonlyArray<OverviewCategory> };
+  data: Pick<OverviewData, 'firstMonth'> & {
+    categories: ReadonlyArray<OverviewCategory>;
+    incomeTypes?: OverviewData['incomeTypes'];
+  };
   figures: ReadonlyMap<string, OverviewMonthFigures>;
   netWorth: YearNetWorth | null;
   /** 50/30/20 amounts in twelfths (as the rules count them); `null` falls back to actual spending. */
@@ -264,6 +276,16 @@ export function yearReport(input: {
         ? percentShares({ ...amounts, incomeCents: total.incomeCents })
         : null,
     findings,
+    incomeBySource: (data.incomeTypes ?? [])
+      .map((t) => ({
+        typeId: t.id,
+        name: t.name,
+        group: t.group,
+        special: t.special,
+        cents: total.incomeByType[t.id] ?? 0,
+      }))
+      .filter((t) => t.cents !== 0)
+      .sort((a, b) => b.cents - a.cents || a.name.localeCompare(b.name, 'de')),
   };
 }
 
@@ -275,6 +297,57 @@ export function yearWealthChange(netWorth: YearNetWorth | null) {
         deltaCents: netWorth.endCents - netWorth.startCents,
         changeBp: changeBp(netWorth.endCents, netWorth.startCents),
       };
+}
+
+/**
+ * Wealth growth without and with the market move, from the one net worth chain (own contribution +
+ * market move = end - start). Percentages are against the start value, like `yearWealthChange`.
+ */
+export function yearWealthColumns(netWorth: YearNetWorth | null) {
+  if (netWorth === null) return null;
+  return {
+    withoutMarket: {
+      deltaCents: netWorth.ownCents,
+      changeBp: changeBp(netWorth.startCents + netWorth.ownCents, netWorth.startCents),
+    },
+    withMarket: {
+      deltaCents: netWorth.endCents - netWorth.startCents,
+      changeBp: changeBp(netWorth.endCents, netWorth.startCents),
+    },
+  };
+}
+
+/**
+ * Sparquote split into the part that flowed into investments (net contributions of the portfolio
+ * report) and the rest that stayed on cash. The cash part is the remainder, so the parts add up
+ * to the Sparquote of the report exactly, in cents and in basis points.
+ */
+export function yearSavingsSplit(input: {
+  incomeCents: number;
+  consumptionCents: number;
+  investedCents: number | null;
+}) {
+  const savedCents = input.incomeCents - input.consumptionCents;
+  const totalBp = overviewSavingsRate(input);
+  if (totalBp === null) return null;
+  if (input.investedCents === null)
+    return {
+      savedCents,
+      totalBp,
+      investedCents: null,
+      cashCents: null,
+      investedBp: null,
+      cashBp: null,
+    };
+  const investedBp = ratioBp(input.investedCents, input.incomeCents) as number;
+  return {
+    savedCents,
+    totalBp,
+    investedCents: input.investedCents,
+    cashCents: savedCents - input.investedCents,
+    investedBp,
+    cashBp: totalBp - investedBp,
+  };
 }
 
 /** Years that can be chosen: from the first data year up to the year of the last full month. */
