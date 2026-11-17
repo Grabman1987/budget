@@ -14,12 +14,19 @@ import {
   type Snapshot,
 } from './index';
 
+const cashAccount = {
+  onBudget: true,
+  role: 'budget',
+  closedAt: null,
+  openingDate: '2020-01-01',
+  currency: 'EUR' as const,
+};
 const baseline = (): Snapshot => ({
   asOf: '2028-01-30',
   through: '2028-03-31',
   accounts: [
-    { id: 'pay', balanceCents: 10_000, paymentAccount: true },
-    { id: 'reserve', balanceCents: 90_000, paymentAccount: false },
+    { ...cashAccount, id: 'pay', balanceCents: 10_000 },
+    { ...cashAccount, id: 'reserve', balanceCents: 90_000, role: 'reserve' },
   ],
   items: [
     {
@@ -69,6 +76,113 @@ const cash = (assumptions: Assumption[], day: string, input = baseline(), accoun
     .series.find((d) => d.day === day)!.cents;
 
 describe('verifiable scenario', () => {
+  it('derives payment eligibility from the same dated account facts as Heute', () => {
+    const input = baseline();
+    Object.assign(input.accounts[0]!, {
+      onBudget: true,
+      role: 'reserve',
+      closedAt: null,
+      openingDate: '2020-01-01',
+      currency: 'EUR',
+    });
+    input.accounts[0]!.balanceCents = -701;
+    const outcome = evaluate(input, { through: input.asOf }).outcomes[0]!.withExpectedInflows;
+    expect(outcome.accounts[0]!.series[0]!.cents).toBe(-701);
+    expect(outcome.firstBelowZero).toEqual([]);
+  });
+  it('rejects a supplied cash leg that duplicates a generated savings leg', () => {
+    const input = baseline();
+    input.savingsPlans = [
+      {
+        id: 'saving',
+        fromAccountId: 'pay',
+        toAccountId: 'reserve',
+        dayOfMonth: 29,
+        monthlyCents: 1001,
+      },
+    ];
+    input.items.push({
+      id: 'savings:saving:2028-02-29:out',
+      accountId: 'pay',
+      day: '2028-02-29',
+      cents: -1001,
+      kind: 'event',
+      expected: false,
+    });
+    expect(() => evaluate(input, horizon)).toThrow('Duplicate identity');
+    expect(() => serializeScenario({ ...scenario(), baseline: input })).toThrow(
+      'Duplicate identity',
+    );
+  });
+  it('rejects supplied loan legs and duplicate repayment identities before counting cash twice', () => {
+    const input = baseline();
+    input.loans = [
+      {
+        id: 'loan',
+        accountId: 'pay',
+        paymentDay: 29,
+        terms: {
+          balanceCents: 1001,
+          startMonth: '2028-02',
+          rateBp: 0,
+          installmentCents: 1001,
+          monthlyFeeCents: 0,
+          rateChanges: [],
+        },
+        repayments: [],
+      },
+    ];
+    input.items.push({
+      id: 'loan:loan:2028-02',
+      accountId: 'pay',
+      day: '2028-02-29',
+      cents: -1001,
+      kind: 'fixed',
+      expected: false,
+    });
+    expect(() => evaluate(input, horizon)).toThrow('Duplicate identity');
+    input.items.pop();
+    input.loans[0]!.repayments = [
+      { assumptionId: 'same', date: '2028-02-05', amountCents: 1 },
+      { assumptionId: 'same', date: '2028-02-06', amountCents: 1 },
+    ];
+    expect(() => evaluate(input, horizon)).toThrow('Duplicate identity');
+  });
+  it.each([
+    { onBudget: false },
+    { role: 'reserve' },
+    { role: null },
+    { closedAt: '2028-01-29' },
+    { openingDate: '2028-01-31' },
+  ])('excludes ineligible account facts from payment breaches: %j', (patch) => {
+    const input = baseline();
+    Object.assign(input.accounts[0]!, patch, { balanceCents: -701 });
+    const outcome = evaluate(input, { through: input.asOf }).outcomes[0]!.withExpectedInflows;
+    expect(outcome.firstBelowZero).toEqual([]);
+    expect(outcome.accounts[0]!.series[0]!.cents).toBe(-701);
+  });
+  it('rejects unsupported currencies instead of summing foreign cents as EUR', () => {
+    const input = baseline();
+    Object.assign(input.accounts[0]!, { currency: 'USD' });
+    expect(() => evaluate(input, horizon)).toThrow();
+  });
+  it('rejects repeated savings-change provenance before applying the delta twice', () => {
+    const input = baseline();
+    input.savingsPlans = [
+      {
+        id: 'saving',
+        fromAccountId: 'pay',
+        toAccountId: 'reserve',
+        dayOfMonth: 29,
+        monthlyCents: 1001,
+        changes: [
+          { assumptionId: 'same', from: '2028-02-01', deltaMonthlyCents: 1 },
+          { assumptionId: 'same', from: '2028-02-01', deltaMonthlyCents: 1 },
+        ],
+      },
+    ];
+    expect(() => evaluate(input, horizon)).toThrow('Duplicate identity');
+  });
   it('no assumptions returns the baseline unchanged, including object identity', () => {
     const input = baseline();
     expect(applyAssumptions(input, [])).toBe(input);
@@ -418,9 +532,9 @@ describe('verifiable scenario', () => {
     expect(() => evaluate(input, horizon)).toThrow('Unsafe intermediate cent arithmetic');
     input.items = [];
     input.accounts = Array.from({ length: 18_016 }, (_, i) => ({
+      ...cashAccount,
       id: `account-${i}`,
       balanceCents: i < 9008 ? 1_000_000_000_000 : -1_000_000_000_000,
-      paymentAccount: true,
     }));
     expect(() => evaluate(input, { through: input.asOf })).toThrow(
       'Unsafe intermediate cent arithmetic',

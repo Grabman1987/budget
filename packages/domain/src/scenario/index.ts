@@ -5,6 +5,7 @@ import { evenDaily, liquidityForecast, lowPoint, type ForecastItem } from '../fo
 import { incomePauseAmount } from '../forecast/income-pause';
 import { shareOf } from '../schedule/occurrences';
 import { plannedEventOccurrences } from '../planned-events';
+import { isLiquidityAccount } from '../forecast/liquidity-account';
 
 const date = z.iso.date().refine((d) => d >= '1900-01-01' && d <= '9899-12-31');
 const cents = z.int().min(-1_000_000_000_000).max(1_000_000_000_000);
@@ -104,7 +105,11 @@ export const snapshotSchema = z
           .object({
             id,
             balanceCents: cents,
-            paymentAccount: z.boolean(),
+            onBudget: z.boolean(),
+            role: z.string().nullable(),
+            closedAt: date.nullable(),
+            openingDate: date,
+            currency: z.literal('EUR'),
             variableMonthlyCents: cents.refine((n) => n >= 0).optional(),
           })
           .strict(),
@@ -173,6 +178,7 @@ function validate(input: Snapshot): void {
   });
   input.loans.forEach((l) => {
     account(l.accountId);
+    unique(l.repayments.map((r) => r.assumptionId));
     if (paymentDate(l.terms.startMonth, l.paymentDay) <= input.asOf)
       throw new RangeError('First loan payment must follow the baseline date');
     l.repayments.forEach((r) => {
@@ -181,6 +187,7 @@ function validate(input: Snapshot): void {
     });
   });
   input.savingsPlans.forEach((s) => {
+    unique((s.changes ?? []).map((c) => c.assumptionId));
     account(s.fromAccountId);
     account(s.toAccountId);
     if (s.fromAccountId === s.toAccountId)
@@ -190,6 +197,8 @@ function validate(input: Snapshot): void {
         throw new RangeError('Savings rate would be negative or unsafe');
     }
   });
+  // Saved scenarios must reject duplicate source/generated legs before evaluation too.
+  resolvedItems(input);
 }
 
 function applyOne(input: Snapshot, a: Assumption): Snapshot {
@@ -385,6 +394,7 @@ function resolvedItems(input: Snapshot): z.infer<typeof itemSchema>[] {
       }
     }
   }
+  unique(items.map((item) => item.id));
   return items;
 }
 
@@ -419,7 +429,7 @@ function project(input: Snapshot, horizon: Horizon, withoutExpected: boolean) {
       throw new RangeError('Unsafe account balance');
     return {
       accountId: a.id,
-      paymentAccount: a.paymentAccount,
+      paymentAccount: isLiquidityAccount(a, input.asOf),
       series,
       lowest: lowPoint(forecast.days, days)!,
     };

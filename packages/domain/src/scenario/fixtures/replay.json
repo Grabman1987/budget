@@ -11,12 +11,20 @@
         {
           "id": "pay",
           "balanceCents": 10000,
-          "paymentAccount": true
+          "onBudget": true,
+          "role": "budget",
+          "closedAt": null,
+          "openingDate": "2020-01-01",
+          "currency": "EUR"
         },
         {
           "id": "reserve",
           "balanceCents": 90000,
-          "paymentAccount": false
+          "onBudget": true,
+          "role": "reserve",
+          "closedAt": null,
+          "openingDate": "2020-01-01",
+          "currency": "EUR"
         }
       ],
       "items": [

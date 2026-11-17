@@ -9,8 +9,11 @@ A version-1 `Scenario` identifies a named comparison, `baselineAsOf`, the entire
 `baseline` snapshot, and an ordered list of uniquely identified `assumptions`.
 `baselineAsOf` must equal `baseline.asOf`. The snapshot contains EUR integer cents:
 
-- Actual signed balances per explicitly selected account, with `paymentAccount`
-  controlling shortfall alerts. Credit lines are not accepted as assets or added
+- Actual signed EUR balances per explicitly selected account, with dated
+  `onBudget`, `role`, `closedAt`, `openingDate` and `currency` facts. The shared
+  `isLiquidityAccount` predicate used by Heute derives payment-account alerts;
+  callers cannot provide their own eligibility boolean. Non-EUR accounts are
+  rejected rather than summing foreign cents as EUR. Credit lines are not added
   to balances. Optional `variableMonthlyCents` per account uses `evenDaily`.
 - Resolved, uniquely identified dated inflows/outflows with account, signed cents,
   forecast kind, optional recurring `paymentId`, and explicit `expected` status.
@@ -35,6 +38,14 @@ Unassigned accounts, missing FX and missing terms must be resolved or explicitly
 blocked by that producer; they cannot be silently assigned to a convenient account.
 There is deliberately no database adapter in this slice.
 
+**Train blocker under the money-review brief:** this module reuses the forecast
+engine but does not yet reuse the actual `forecastInputs` producer. A faithful
+adapter must retain account provenance, include overdue open obligations in
+projected day zero, and deduplicate future-linked bookings and card/provider
+settlements. The current central forecast exposes aggregate items without account
+IDs, so their routing cannot be guessed from amounts. This prerequisite remains
+unimplemented; the domain slice alone does not satisfy shared-input parity.
+
 `applyAssumptions(baseline, assumptions)` preserves the exact baseline reference for
 an empty list and never mutates it. Assumptions apply in their listed order:
 
@@ -49,6 +60,9 @@ an empty list and never mutates it. Assumptions apply in their listed order:
 Savings transfers reuse monthly event expansion and clamp day 31 at month end,
 returning to day 31 after short months. They keep weekends as explicit calendar
 cash dates. Changing an envelope assignment alone is not a liquidity change.
+Supplied and generated cash legs must have distinct IDs; loan repayment and
+savings-change provenance must be unique within its target. Evaluation and
+serialization reject collisions rather than count the same identified leg twice.
 Assumptions may affect downstream figures on other dates (e.g. loan payoff); they
 never change unrelated source records. A delayed occurrence beyond `through` is
 rejected: extend the snapshot instead of quietly losing income.
