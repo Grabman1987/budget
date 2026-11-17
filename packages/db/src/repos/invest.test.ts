@@ -187,18 +187,18 @@ describe('trades settle on the investment account', () => {
       testCtx,
     );
     const id = r.bookingId as string;
-    expect(() => updateBooking(db, id, { amountCents: -1 }, testCtx)).toThrow(/trade settlement/i);
+    expect(() => updateBooking(db, id, { amountCents: -1 }, testCtx)).toThrow(/Handelsabrechnung/);
     expect(() => updateBooking(db, id, { date: '2026-03-03' }, testCtx)).toThrow(
-      /trade settlement/i,
+      /Handelsabrechnung/,
     );
     expect(() => updateBooking(db, id, { accountId: 'giro' }, testCtx)).toThrow(
-      /trade settlement/i,
+      /Handelsabrechnung/,
     );
-    expect(() => updateBooking(db, id, { currency: 'USD' }, testCtx)).toThrow(/trade settlement/i);
+    expect(() => updateBooking(db, id, { currency: 'USD' }, testCtx)).toThrow(/Handelsabrechnung/);
     expect(() =>
       updateBooking(db, id, { splits: [{ categoryId: null, amountCents: -10_000 }] }, testCtx),
-    ).toThrow(/trade settlement/i);
-    expect(() => deleteBooking(db, id, testCtx)).toThrow(/trade settlement/i);
+    ).toThrow(/Handelsabrechnung/);
+    expect(() => deleteBooking(db, id, testCtx)).toThrow(/Handelsabrechnung/);
     updateBooking(
       db,
       id,
@@ -239,7 +239,7 @@ describe('trades settle on the investment account', () => {
       testCtx,
     );
     deleteTrade(db, r.trade.id, testCtx);
-    expect(() => restoreBooking(db, r.bookingId as string, testCtx)).toThrow(/trade settlement/i);
+    expect(() => restoreBooking(db, r.bookingId as string, testCtx)).toThrow(/Handelsabrechnung/);
     expect(() => getTrade(db, r.trade.id)).toThrow();
     expect(getBooking(db, r.bookingId as string)).toBeUndefined();
     expect(balance('depot')).toBe(0);
@@ -264,8 +264,8 @@ describe('trades settle on the investment account', () => {
     const bookingCreate = history(db, 'booking', r.bookingId as string).find(
       (entry) => entry.action === 'create',
     )!;
-    expect(() => undo(db, { auditId: tradeCreate.id }, testCtx)).toThrow(/trade settlement/i);
-    expect(() => undo(db, { auditId: bookingCreate.id }, testCtx)).toThrow(/trade settlement/i);
+    expect(() => undo(db, { auditId: tradeCreate.id }, testCtx)).toThrow(/Handelsabrechnung/);
+    expect(() => undo(db, { auditId: bookingCreate.id }, testCtx)).toThrow(/Handelsabrechnung/);
     expect(getTrade(db, r.trade.id)).toMatchObject({ bookingId: r.bookingId });
     expect(getBooking(db, r.bookingId as string)?.amountCents).toBe(-10_000);
     expect(balance('depot')).toBe(-10_000);
@@ -288,11 +288,11 @@ describe('trades settle on the investment account', () => {
     updateTrade(db, r.trade.id, { kind: 'delivery_in', feeCents: 0 }, { actor: 'tester', groupId });
     expect(getTrade(db, r.trade.id).bookingId).toBeNull();
     expect(getBooking(db, r.bookingId as string)).toBeUndefined();
-    expect(() => restoreBooking(db, r.bookingId as string, testCtx)).toThrow(/trade settlement/i);
+    expect(() => restoreBooking(db, r.bookingId as string, testCtx)).toThrow(/Handelsabrechnung/);
     const deletedCash = history(db, 'booking', r.bookingId as string).find(
       (entry) => entry.groupId === groupId && entry.action === 'delete',
     )!;
-    expect(() => undo(db, { auditId: deletedCash.id }, testCtx)).toThrow(/trade settlement/i);
+    expect(() => undo(db, { auditId: deletedCash.id }, testCtx)).toThrow(/Handelsabrechnung/);
     expect(balance('depot')).toBe(0);
     expect(getTrade(db, r.trade.id).bookingId).toBeNull();
 
@@ -342,7 +342,7 @@ describe('trades settle on the investment account', () => {
         },
         testCtx,
       ),
-    ).toThrow(/trade settlement/i);
+    ).toThrow(/Handelsabrechnung/);
     expect(getTrade(db, r.trade.id).bookingId).toBe(r.bookingId);
     expect(getBooking(db, r.bookingId as string)).toMatchObject({
       status: 'reconciled',

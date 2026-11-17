@@ -27,7 +27,7 @@ interface QueueState {
   items: QueuedBooking[];
   sending: boolean;
   error: string;
-  send: () => void;
+  send: (manual?: boolean) => void;
   edit: (item: QueuedBooking) => void;
 }
 const QueueContext = createContext<QueueState>({
@@ -53,23 +53,27 @@ export function QueueProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     offer.current = offerUndo;
   }, [offerUndo]);
-  const send = useCallback(() => {
-    if (sendingRef.current) return;
-    sendingRef.current = true;
-    setSending(true);
-    void sendQueue(
-      (result) => {
-        offer.current('Buchung gesendet.', result.groupId);
-        void qc.invalidateQueries();
-      },
-      () => held.current,
-    )
-      .catch((e: unknown) => setError(queueReason(e)))
-      .finally(() => {
-        sendingRef.current = false;
-        setSending(false);
-      });
-  }, [qc]);
+  const send = useCallback(
+    (manual?: boolean) => {
+      if (sendingRef.current) return;
+      sendingRef.current = true;
+      setSending(true);
+      void sendQueue(
+        (result) => {
+          offer.current('Buchung gesendet.', result.groupId);
+          void qc.invalidateQueries();
+        },
+        () => held.current,
+        manual === true,
+      )
+        .catch((e: unknown) => setError(queueReason(e)))
+        .finally(() => {
+          sendingRef.current = false;
+          setSending(false);
+        });
+    },
+    [qc],
+  );
   useEffect(() => {
     let active = true;
     let generation = 0;
@@ -95,8 +99,9 @@ export function QueueProvider({ children }: { children: ReactNode }) {
     };
   }, []);
   useEffect(() => {
-    window.addEventListener('online', send);
-    window.addEventListener('focus', send);
+    const auto = () => send();
+    window.addEventListener('online', auto);
+    window.addEventListener('focus', auto);
     const message = (event: MessageEvent) => {
       if (event.data?.type === 'SEND_BOOKINGS') send();
     };
@@ -104,8 +109,8 @@ export function QueueProvider({ children }: { children: ReactNode }) {
     const initial = auth.data?.authenticated ? window.setTimeout(send, 0) : undefined;
     return () => {
       window.clearTimeout(initial);
-      window.removeEventListener('online', send);
-      window.removeEventListener('focus', send);
+      window.removeEventListener('online', auto);
+      window.removeEventListener('focus', auto);
       navigator.serviceWorker?.removeEventListener('message', message);
     };
   }, [send, auth.data?.authenticated]);
@@ -178,7 +183,7 @@ export function QueueList() {
             <h2>
               Wartet auf Verbindung <span>({items.length})</span>
             </h2>
-            <Button onClick={send} disabled={sending}>
+            <Button onClick={() => send(true)} disabled={sending}>
               {sending ? 'Wird gesendet…' : 'Jetzt senden'}
             </Button>
           </div>
@@ -212,6 +217,7 @@ export function QueueList() {
                   <span role="status">{queuedStatus(item)}</span>
                   {item.draft.memo && <span>{item.draft.memo}</span>}
                   {item.reason && <span className="field-error">{item.reason}</span>}
+                  {item.errorId && <span className="tech">Fehler-ID: {item.errorId}</span>}
                   {item.reason?.includes('erneut anmelden') && <a href="/login">Erneut anmelden</a>}
                   {item.uncertain && (
                     <span>
@@ -228,6 +234,22 @@ export function QueueList() {
                   >
                     Bearbeiten
                   </Button>
+                  {item.rejected && (
+                    <Button
+                      variant="ghost"
+                      onClick={() =>
+                        void navigator.clipboard
+                          ?.writeText(
+                            [item.reason, item.errorId && `Fehler-ID: ${item.errorId}`]
+                              .filter(Boolean)
+                              .join(' · '),
+                          )
+                          .catch(() => setLocalError('Kopieren nicht möglich.'))
+                      }
+                    >
+                      Details kopieren
+                    </Button>
+                  )}
                   <Button
                     variant="ghost"
                     disabled={sending || item.uncertain}

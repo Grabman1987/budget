@@ -980,12 +980,54 @@ describe('assignment API and owner confirmation', () => {
     expect(
       (await call('GET', '/assignment-rules/candidates/' + late)).body.existingTransfer,
     ).not.toBeNull();
+    // #1048: "Alle Felder" extras must not be silently dropped when the line only completes a transfer.
+    for (const extras of [
+      { memo: 'Notiz' },
+      { projectId: 'p-any' },
+      {
+        splits: [
+          { categoryId: 'essen', amountCents: 1000 },
+          { categoryId: 'spar', amountCents: 1203 },
+        ],
+      },
+      { receiptIds: ['r1'] },
+    ]) {
+      const refused = await call('POST', '/bank-sync/candidates/' + late + '/confirm', {
+        categoryId: null,
+        ...extras,
+      });
+      expect(refused.status).toBe(409);
+    }
+    expect(opened.db.select().from(schema.booking).all()).toHaveLength(3);
     const attached = await call('POST', '/bank-sync/candidates/' + late + '/confirm', {
       categoryId: null,
     });
     expect(attached.status).toBe(200);
     expect(opened.db.select().from(schema.booking).all()).toHaveLength(4);
     expect(getBooking(opened.db, attached.body.bookingId)?.bankRawText).toBe('Gegenumsatz B');
+  });
+  it('split policy of "Alle Felder": zero lines are refused, a repeated category is kept (#1048)', async () => {
+    const confirmWith = (id: string, splits: { categoryId: string; amountCents: number }[]) =>
+      call('POST', '/bank-sync/candidates/' + id + '/confirm', { categoryId: null, splits });
+    const zero = candidate('Shop Z', 'giro', -1000);
+    const refused = await confirmWith(zero, [
+      { categoryId: 'essen', amountCents: -1000 },
+      { categoryId: 'reise', amountCents: 0 },
+    ]);
+    expect(refused.status).toBeGreaterThanOrEqual(400);
+    expect(refused.status).toBeLessThan(500);
+    expect(opened.db.select().from(schema.booking).all()).toHaveLength(0);
+    const twice = await confirmWith(zero, [
+      { categoryId: 'essen', amountCents: -400 },
+      { categoryId: 'essen', amountCents: -600 },
+    ]);
+    expect(twice.status).toBe(200);
+    expect(
+      getBooking(opened.db, twice.body.bookingId)?.splits.map((x) => [x.categoryId, x.amountCents]),
+    ).toEqual([
+      ['essen', -400],
+      ['essen', -600],
+    ]);
   });
   it('refuses ambiguous transfer counterparts atomically', async () => {
     const transfer = await call('POST', '/assignment-rules', {

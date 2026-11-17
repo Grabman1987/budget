@@ -240,25 +240,36 @@ it.each([
   ['toBookingId', day],
   ['fromBookingId', '2026-11-16'],
   ['toBookingId', '2026-11-16'],
-] as const)('protects reconciled %s with receipt on %s', async (lockedKey, receiptDate) => {
-  const result = (await (
-    await post({
-      ...body,
-      bankLegs: { ...body.bankLegs, to: { date: receiptDate, status: 'pending' } },
-    })
-  ).json()) as Record<string, string>;
-  opened.sqlite
-    .prepare("UPDATE booking SET status = 'reconciled' WHERE id = ?")
-    .run(result[lockedKey]);
-  const before = snapshot();
-  const response = await app.request(`/bookings/${result.fromBookingId}`, {
-    method: 'PATCH',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ date: '2026-11-15' }),
-  });
-  expect(response.status).toBe(409);
-  expect(snapshot()).toEqual(before);
-});
+] as const)(
+  'protects reconciled %s with receipt on %s (own-date edit of an unlocked leg stays allowed)',
+  async (lockedKey, receiptDate) => {
+    const result = (await (
+      await post({
+        ...body,
+        bankLegs: { ...body.bankLegs, to: { date: receiptDate, status: 'pending' } },
+      })
+    ).json()) as Record<string, string>;
+    opened.sqlite
+      .prepare("UPDATE booking SET status = 'reconciled' WHERE id = ?")
+      .run(result[lockedKey]);
+    const before = snapshot();
+    const response = await app.request(`/bookings/${result.fromBookingId}`, {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ date: '2026-11-15' }),
+    });
+    // #1195: independently dated legs keep their own date, so a reconciled other leg is untouched.
+    const ownDateOnly = lockedKey === 'toBookingId' && receiptDate !== day;
+    expect(response.status).toBe(ownDateOnly ? 200 : 409);
+    if (ownDateOnly) {
+      expect(getBooking(opened.db, result.fromBookingId)?.date).toBe('2026-11-15');
+      expect(getBooking(opened.db, result.toBookingId)).toMatchObject({
+        date: receiptDate,
+        status: 'reconciled',
+      });
+    } else expect(snapshot()).toEqual(before);
+  },
+);
 
 it('projects a pending receipt exactly once in the account preview, before and after its date', async () => {
   await post(body);
@@ -397,6 +408,8 @@ it('keeps every household net-worth view at 60000 cents on days 0-4 of a 10000-c
     const db = opened.db;
     expect(netWorthAsOf(db, asOf).totalCents).toBe(60000);
     expect(heute(db, { today: asOf }).netWorth).toMatchObject({ totalCents: 60000 });
+    // #1195: the chart history ends where the forecast starts, in-transit money included.
+    expect(heute(db, { today: asOf }).balance.actual.at(-1)?.balanceCents).toBe(60000);
     expect(netWorthHistory(db, asOf, '1M').chain.nowCents).toBe(60000);
     expect(assetsDebtsHistory(db, asOf, '1M').months.at(-1)?.netCents).toBe(60000);
     expect(monthOnePager(db, asOf, asOf.slice(0, 7)).netWorth).toMatchObject({ cents: 60000 });

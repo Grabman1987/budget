@@ -606,7 +606,8 @@ export function heute(db: Executor, query: HeuteQuery): Heute {
   // ---- balance: actual up to today, forecast after ----
   const actualDays: string[] = [];
   for (let d = window.from; d <= window.to && d <= today; d = addDays(d, 1)) actualDays.push(d);
-  const series = cashSeries(db, actualDays, budgetIds);
+  // Same transit-aware cash as `budgetValues` (the forecast start), so the lines meet at today.
+  const series = cashSeries(db, actualDays, budgetIds, true);
   const history = actualDays.map((day, i) => ({
     day,
     balanceCents: sumBudget((id) => series.get(id)?.[i] ?? 0),

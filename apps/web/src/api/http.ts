@@ -20,6 +20,8 @@ export class ApiError extends Error {
   readonly bookingIds: string[];
   /** What keeps a contact from being archived (`contact_blocked`). */
   readonly blockers: { kind: string; count: number }[];
+  /** Short id of an unhandled server error (`server_error`), to find its log line. */
+  readonly errorId: string | undefined;
 
   constructor(
     status: number,
@@ -27,6 +29,7 @@ export class ApiError extends Error {
     detail?: string,
     bookingIds: string[] = [],
     blockers: { kind: string; count: number }[] = [],
+    errorId?: string,
   ) {
     super(`API ${status}: ${code}`);
     this.name = 'ApiError';
@@ -35,6 +38,7 @@ export class ApiError extends Error {
     this.detail = detail;
     this.bookingIds = bookingIds;
     this.blockers = blockers;
+    this.errorId = errorId;
   }
 }
 
@@ -181,6 +185,7 @@ export async function request<T>(
               : [];
           })
         : [],
+      typeof fields['errorId'] === 'string' ? fields['errorId'] : undefined,
     );
   }
   // File delivery notifies only after a validated acknowledgement and epoch-checked device cleanup.

@@ -996,7 +996,9 @@ function updateBookingImpl(
           Object.keys(patch).filter((key) => key === 'date' || key === 'amountCents'),
         );
       // Preserve the existing pair lock for date and amount edits.
-      if (patch.date !== undefined || amountChanged) assertUnlocked([partner], options);
+      // Independently dated bank legs keep their own date, so the partner stays untouched (#1195).
+      if ((patch.date !== undefined && !independentDates) || amountChanged)
+        assertUnlocked([partner], options);
       const partnerPatch: Record<string, unknown> = {};
       if (patch.date !== undefined && !independentDates) partnerPatch['date'] = patch.date;
       if (amountChanged) {
