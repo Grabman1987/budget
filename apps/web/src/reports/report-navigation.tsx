@@ -13,8 +13,31 @@ const periodViews: Record<string, readonly { value: string; label: string }[]> =
     { value: 'druckblatt', label: 'A4 Druckblatt · Monat' },
   ],
   jahresreport: [{ value: 'druckblatt', label: 'A4 Druckblatt · Jahr' }],
-  'einnahmen-ausgaben': [{ value: 'projekte', label: 'Projekte und Nebeneinkünfte' }],
-  ausgaben: [{ value: 'empfaenger', label: 'Empfänger' }],
+  'einnahmen-ausgaben': [
+    { value: 'income', label: 'Einnahmen' },
+    { value: 'cashflow', label: 'Cashflow' },
+    { value: 'projekte', label: 'Projekte und Nebeneinkünfte' },
+  ],
+  ausgaben: [
+    { value: 'kategorien', label: 'Kategorien und Verlauf' },
+    { value: 'empfaenger', label: 'Empfänger' },
+  ],
+  'vermoegen-schulden': [
+    { value: 'verlauf', label: 'Vermögensverlauf' },
+    { value: 'gesamt', label: 'Gesamtübersicht' },
+  ],
+  psteuern: [
+    { value: 'gesamt', label: 'Kosten gesamt' },
+    { value: 'bankkosten', label: 'Bank- und Zinskosten' },
+    { value: 'ertraege', label: 'Erträge' },
+    { value: 'kostenverlauf', label: 'Kosten im Verlauf' },
+  ],
+  pallocation: [
+    { value: 'einzahlungen', label: 'Einzahlungen und Wert' },
+    { value: 'rendite', label: 'Rendite & Risiko' },
+    { value: 'kennzahlen', label: 'Kennzahlen' },
+    { value: 'klassen', label: 'Anlageklassen im Verlauf' },
+  ],
 };
 const SUB_REPORT_PARENTS = Object.keys(periodViews);
 

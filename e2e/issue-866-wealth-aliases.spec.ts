@@ -1,3 +1,4 @@
+import { expectReportMenuValue } from './report-menu';
 import { expect } from '@playwright/test';
 import { mkdirSync } from 'node:fs';
 import { redesignReportsOn } from './report-frame';
@@ -25,18 +26,14 @@ for (const [alias, incoming, view, body] of aliases)
     const portfolio = ['pallocation', 'peinzahlungen', 'prendite'].includes(alias);
     await expect(page).toHaveURL(
       (url) =>
-        url.pathname ===
-        (on || !portfolio ? '/reports/vermoegen-schulden' : '/reports/pallocation'),
+        url.pathname === (portfolio ? '/reports/pallocation' : '/reports/vermoegen-schulden'),
     );
     await expect(page.locator(body)).toBeVisible();
     const url = new URL(page.url());
     expect(url.searchParams.get('zeitraum')).toBe('2026-01..2026-08');
     expect(url.searchParams.get('monat')).toBe('2026-08');
     expect(url.hash).toBe('#details');
-    if (on)
-      await expect(
-        page.getByRole('combobox', { name: 'Darstellung des Vermögensreports' }),
-      ).toHaveValue(view);
+    if (on) await expectReportMenuValue(page, view);
     await page.reload();
     await expect(page).toHaveURL(url.href);
     await expect(page.locator(body)).toBeVisible();

@@ -18,6 +18,19 @@ export function bankCostsByYear(monthly: BankCostsReport['monthly']) {
   return [...years].sort(([a], [b]) => b.localeCompare(a));
 }
 
+/** The one place that feeds the existing readers' figures into `combinedCosts`. */
+export function combinedCostsOf(bank: BankCostsReport, portfolio: CostsTaxesReport) {
+  return combinedCosts({
+    bankCents: bank.totalCents,
+    portfolioFeeCents:
+      (bank.rows.find((row) => row.key === 'orders')?.cents ?? 0) +
+      (bank.portfolioAccountFeeCents ?? 0),
+    terCents: portfolio.costs.terCents,
+    taxCents: portfolio.taxes.totalCents,
+    valueCents: portfolio.valueCents,
+  });
+}
+
 /**
  * "Kosten gesamt": one annual figure over the two existing readers. Trading fees are counted once
  * (inside the bank costs); TER and the broker's withheld taxes come from the portfolio reader.
@@ -30,15 +43,7 @@ export function CombinedCostsView({
   portfolio: CostsTaxesReport;
 }) {
   useAmountPrivacy();
-  const total = combinedCosts({
-    bankCents: bank.totalCents,
-    portfolioFeeCents:
-      (bank.rows.find((row) => row.key === 'orders')?.cents ?? 0) +
-      (bank.portfolioAccountFeeCents ?? 0),
-    terCents: portfolio.costs.terCents,
-    taxCents: portfolio.taxes.totalCents,
-    valueCents: portfolio.valueCents,
-  });
+  const total = combinedCostsOf(bank, portfolio);
   const bankWindow = bank.months.length
     ? `${monthShort(bank.months[0]!)} bis ${monthShort(bank.months.at(-1)!)}`
     : 'keine geschlossenen Monate';

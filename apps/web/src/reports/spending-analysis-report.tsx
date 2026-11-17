@@ -431,7 +431,7 @@ function Body({
                     <span className="sa-delta">
                       {group.previous === null
                         ? '–'
-                        : eur(checkedSum([group.cents, -group.previous]), { sign: true })}
+                        : eur(checkedSum([group.cents, -group.previous]))}
                     </span>
                   </div>
                   <ul id={detailId} className="sa-category-rows" hidden={!open}>
@@ -458,7 +458,7 @@ function Body({
                           {eur(row.cents)}
                         </AppLink>
                         <span className="sa-delta">
-                          {row.change === null ? '–' : eur(row.change, { sign: true })}
+                          {row.change === null ? '–' : eur(row.change)}
                         </span>
                       </li>
                     ))}

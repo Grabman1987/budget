@@ -1,3 +1,10 @@
+/**
+ * Sign and colour rule of all report tables (#1161):
+ * - no "+" prefix on any table figure (`eur(v)` / `bpText(v)` without `sign`); a minus appears only where the
+ *   figure itself is negative, the direction otherwise stays in the column heading in words;
+ * - colour follows meaning, never size: green only where money is there, red only where action is needed; for
+ *   expenses "more" is never green.
+ */
 import { formatPrivateEuro as formatEuro } from '@budget/ui';
 import { cents, formatPercent, MINUS, type Period } from '@budget/domain';
 

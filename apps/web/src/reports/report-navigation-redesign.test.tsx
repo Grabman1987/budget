@@ -74,3 +74,20 @@ it('lists Projekte and Empfänger as indented sub-reports of their parents (#115
   expect(projects.closest('ul')?.className).toBe('report-switcher-children');
   expect(projects.getAttribute('href')).toContain('/reports/einnahmen-ausgaben?');
 });
+
+it('offers the category view of Ausgaben and the wealth and portfolio views as indented entries', () => {
+  render(<ReportNavigation id="ausgaben" />);
+  fireEvent.click(screen.getByLabelText('Bericht wechseln'));
+  expect(
+    screen.getByRole('link', { name: 'Kategorien und Verlauf' }).getAttribute('href'),
+  ).toContain('darstellung=kategorien');
+  expect(screen.getByRole('link', { name: 'Vermögensverlauf' }).getAttribute('href')).toContain(
+    '/reports/vermoegen-schulden?',
+  );
+  expect(screen.getByRole('link', { name: 'Rendite & Risiko' }).getAttribute('href')).toContain(
+    '/reports/pallocation?',
+  );
+  expect(screen.getByRole('link', { name: 'Kosten gesamt' }).getAttribute('href')).toContain(
+    '/reports/psteuern?',
+  );
+});

@@ -19,7 +19,7 @@ vi.mock('../shell/app-link', () => ({
 }));
 vi.mock('./saved-explorer-links', () => ({ SavedExplorerLinks: () => <p>Meine Auswertungen</p> }));
 
-it('ON uses the approved identities and 3+2+3+8 groups; every legacy name retains a working source entry', () => {
+it('ON uses the approved identities and 3+2+4+8 groups; every legacy name retains a working source entry', () => {
   expect(HUB_REPORTS.map((report) => report.id)).toEqual([
     'onepager',
     'jahresreport',
@@ -28,6 +28,7 @@ it('ON uses the approved identities and 3+2+3+8 groups; every legacy name retain
     'explorer',
     'vermoegen-schulden',
     'pdepots',
+    'pallocation',
     'psteuern',
     'einnahmen-ausgaben',
     'ausgaben',
@@ -39,7 +40,7 @@ it('ON uses the approved identities and 3+2+3+8 groups; every legacy name retain
     'inflation',
   ]);
   expect(HUB_REPORTS.map((report) => report.no)).toEqual(
-    Array.from({ length: 16 }, (_, index) => index + 1),
+    Array.from({ length: 17 }, (_, index) => index + 1),
   );
   expect(
     HUB_GROUPS.map((group) => [
@@ -49,7 +50,7 @@ it('ON uses the approved identities and 3+2+3+8 groups; every legacy name retain
   ).toEqual([
     ['Berichte', 3],
     ['Auswertungen', 2],
-    ['Portfolio', 3],
+    ['Portfolio', 4],
     ['Einnahmen und Ausgaben', 8],
   ]);
   HUB_REPORTS.forEach((report, index) => {
@@ -77,7 +78,7 @@ it('ON uses the approved identities and 3+2+3+8 groups; every legacy name retain
   for (const name of ['Alle', 'Berichte', 'Auswertungen', 'Portfolio', 'Einnahmen und Ausgaben'])
     expect(screen.queryByRole('button', { name })).toBeNull();
   const rows = rendered.container.querySelectorAll('.report-hub-list > li');
-  expect(rows).toHaveLength(16);
+  expect(rows).toHaveLength(17);
   expect([...rows].map((row) => row.querySelector('a')?.getAttribute('href'))).toEqual(
     HUB_REPORTS.map((report) => `/reports/${report.id}`),
   );
@@ -95,13 +96,13 @@ it('ON uses the approved identities and 3+2+3+8 groups; every legacy name retain
     expect(screen.queryByRole('link', { name })).toBeNull();
   fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'Rendite und Kennzahlen' } });
   expect(rendered.container.querySelectorAll('.report-hub-list > li')).toHaveLength(1);
-  expect(screen.getByRole('link', { name: /Vermögensreport/ }).getAttribute('href')).toBe(
-    '/reports/vermoegen-schulden',
+  expect(screen.getByRole('link', { name: /Portfolio-Auswertung/ }).getAttribute('href')).toBe(
+    '/reports/pallocation',
   );
   fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'unbekannt' } });
   expect(screen.getByText('Kein Bericht passt zu dieser Suche.')).toBeTruthy();
   fireEvent.change(screen.getByRole('searchbox'), { target: { value: '' } });
-  expect(rendered.container.querySelectorAll('.report-hub-list > li')).toHaveLength(16);
+  expect(rendered.container.querySelectorAll('.report-hub-list > li')).toHaveLength(17);
 });
 
 it('ON groups bank costs with portfolio costs and leaves contracts on their own', () => {

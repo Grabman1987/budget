@@ -243,7 +243,7 @@ function DepotCard({
               </tr>
               <tr>
                 <td>+ Einzahlungen</td>
-                <td className="n">{eur(perf.contributionsCents, { sign: true })}</td>
+                <td className="n">{eur(perf.contributionsCents)}</td>
               </tr>
               <tr>
                 <td>{perf.gainCents >= 0 ? '+' : '−'} Gewinn</td>

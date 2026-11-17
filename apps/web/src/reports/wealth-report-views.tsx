@@ -1,4 +1,4 @@
-import { Segmented, Select } from '@budget/ui';
+import { Segmented } from '@budget/ui';
 import { isReportPeriod } from '@budget/domain';
 import { useNavigate, useSearch } from '@tanstack/react-router';
 import type { PageMeta } from '../nav/pages';
@@ -6,10 +6,6 @@ import type { ReportEntry } from '../nav/reports-catalog';
 import { DEFAULT_ZEITRAUM } from '../wealth/zeitraum';
 import { AssetsDebtsReport } from './assets-debts-report';
 import { WealthHistoryReport } from './wealth-history-report';
-import { findReport } from '../nav/reports-catalog';
-import { PortfolioAllocationReport } from '../pages/portfolio-allocation-report';
-import { PortfolioContributionsReport } from '../pages/portfolio-contributions-report';
-import { PortfolioPerformanceReport } from '../pages/portfolio-performance-report';
 import { WholePictureReport } from './whole-picture-report';
 import { REDESIGN_ENABLED } from '../shell/redesign-flag';
 import './report-views.css';
@@ -19,15 +15,6 @@ const WEALTH_VIEWS = [
   { value: 'bilanz', label: 'Vermögen und Schulden' },
   { value: 'verlauf', label: 'Vermögensverlauf' },
   { value: 'gesamt', label: 'Gesamtübersicht' },
-  ...(REDESIGN_ENABLED
-    ? [
-        { value: 'verteilung' as const, label: 'Verteilung über Zeit' },
-        { value: 'einzahlungen' as const, label: 'Einzahlungen und Wert' },
-        { value: 'rendite' as const, label: 'Rendite & Risiko' },
-        { value: 'kennzahlen' as const, label: 'Kennzahlen' },
-        { value: 'klassen' as const, label: 'Anlageklassen im Verlauf' },
-      ]
-    : []),
 ] as const;
 type WealthView = (typeof WEALTH_VIEWS)[number]['value'];
 
@@ -57,22 +44,8 @@ export function WealthReportViews({ report, meta }: { report: ReportEntry; meta:
       })) as never,
     });
   };
-  const control = REDESIGN_ENABLED ? (
-    <label className="wealth-report-view-select">
-      <span>Darstellung</span>
-      <Select
-        aria-label="Darstellung des Vermögensreports"
-        value={view}
-        onChange={(event) => changeView(event.target.value as WealthView)}
-      >
-        {WEALTH_VIEWS.map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.label}
-          </option>
-        ))}
-      </Select>
-    </label>
-  ) : (
+  // In the redesign the views are indented sub-reports of the report menu (#1150); portfolio views live in the Portfolio group (#1157).
+  const control = REDESIGN_ENABLED ? undefined : (
     <Segmented
       className="report-view-switch report-wealth-switch"
       label="Ansicht von Vermögen und Schulden"
@@ -81,32 +54,6 @@ export function WealthReportViews({ report, meta }: { report: ReportEntry; meta:
       onChange={changeView}
     />
   );
-  const portfolioReport = (id: string) => ({ ...findReport(id)!, name: report.name });
-  if (view === 'verteilung')
-    return (
-      <PortfolioAllocationReport
-        report={portfolioReport('pallocation')}
-        meta={meta}
-        viewControl={control}
-      />
-    );
-  if (view === 'einzahlungen')
-    return (
-      <PortfolioContributionsReport
-        report={portfolioReport('peinzahlungen')}
-        meta={meta}
-        viewControl={control}
-      />
-    );
-  if (view === 'rendite' || view === 'kennzahlen' || view === 'klassen')
-    return (
-      <PortfolioPerformanceReport
-        report={portfolioReport('prendite')}
-        meta={meta}
-        viewControl={control}
-        presentation={view === 'rendite' ? 'all' : view}
-      />
-    );
   if (view === 'verlauf')
     return <WealthHistoryReport report={report} meta={meta} viewControl={control} />;
   if (view === 'gesamt')

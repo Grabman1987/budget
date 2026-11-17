@@ -61,18 +61,8 @@ it('retains the category view in validated URLs and opens it directly in ON', ()
   expect(state.search.darstellung).toBe('kategorien');
   render(<SpendingReportViews {...props} />);
   expect(screen.getByText('Category body')).toBeTruthy();
-  expect(screen.getByRole('combobox')).toHaveProperty('value', 'kategorien');
-});
-
-it('changes only the view, preserving period and selected categories', () => {
-  render(<SpendingReportViews {...props} />);
-  fireEvent.change(screen.getByRole('combobox'), { target: { value: 'kategorien' } });
-  const options = state.navigate.mock.calls[0]![0];
-  expect(options.search({ zeitraum: '3M', kategorien: ['synthetic'] })).toEqual({
-    zeitraum: '3M',
-    kategorien: ['synthetic'],
-    darstellung: 'kategorien',
-  });
+  // The views are indented entries of the report menu (#1150), not a select.
+  expect(screen.queryByRole('combobox')).toBeNull();
 });
 
 it('keeps the OFF view set and fallback unchanged', () => {
