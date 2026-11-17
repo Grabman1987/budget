@@ -4,6 +4,7 @@ import { AppLink } from '../shell/app-link';
 import { REDESIGN_ENABLED } from '../shell/redesign-flag';
 import {
   HUB_GROUPS,
+  HUB_REPORTS,
   matchingHubReports,
   recentReports,
   reportAliases,
@@ -99,7 +100,7 @@ export function ReportHub({ initialGroup }: { initialGroup?: HubGroup | undefine
           </div>
         )}
         <p className="sr-only" role="status">
-          {reports.length} von 16 Berichten
+          {reports.length} von {HUB_REPORTS.length} Berichten
         </p>
         {reports.length === 0 ? (
           <p>

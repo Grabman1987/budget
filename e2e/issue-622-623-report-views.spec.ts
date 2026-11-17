@@ -1,3 +1,4 @@
+import { chooseReportMenuView } from './report-menu';
 import { chooseReportView } from './income-spending-controls';
 import { redesignReportsOn } from './report-frame';
 import { withShellControls } from './shell-actions';
@@ -32,11 +33,17 @@ async function inspect(page: Page, info: TestInfo, label: string) {
     expect(normalizedHeight).toBeLessThanOrEqual(1800);
   }
   if (info.project.name !== 'desktop') {
-    const controls = page.locator(
-      '.report-view-switch button:visible, .report-view-switch select:visible, .wealth-report-view-select select:visible',
-    );
+    // Redesign: the views are indented entries of the report menu (#1150); its trigger is the control.
+    const controls = (await redesignReportsOn(page))
+      ? page.getByLabel('Bericht wechseln', { exact: true })
+      : page.locator(
+          '.report-view-switch button:visible, .report-view-switch select:visible, .wealth-report-view-select select:visible',
+        );
     expect(await controls.count()).toBeGreaterThanOrEqual(
-      (await controls.filter({ has: page.locator('option') }).count()) ? 1 : 2,
+      (await redesignReportsOn(page)) ||
+        (await controls.filter({ has: page.locator('option') }).count())
+        ? 1
+        : 2,
     );
     for (const control of await controls.all()) {
       const box = (await control.boundingBox())!;
@@ -273,9 +280,7 @@ for (const theme of ['light', 'dark']) {
       ['Gesamtübersicht', '.whole-picture', ''],
     ] as const) {
       if (await redesignReportsOn(page)) {
-        await page
-          .getByRole('combobox', { name: 'Darstellung des Vermögensreports' })
-          .selectOption({ label: name });
+        await chooseReportMenuView(page, name);
       } else {
         await page
           .getByRole('group', { name: 'Ansicht von Vermögen und Schulden', exact: true })

@@ -72,7 +72,25 @@ test('five portfolio registers preserve period across navigation and reload', as
     let nav = await portfolioNavigation(page);
     await expect(nav.getByRole('link')).toHaveCount(5);
     await selectPortfolioView(page, label);
-    const destination = redesign && label === 'Kennzahlen' ? '/reports/vermoegen-schulden' : path;
+    // The metrics moved into the Portfolio-Auswertung report (#1157); its bookmark keeps the period.
+    if (redesign && label === 'Kennzahlen') {
+      await expect(page).toHaveURL(
+        (url) =>
+          url.pathname === '/reports/pallocation' &&
+          url.searchParams.get('zeitraum') === '3J' &&
+          url.searchParams.get('ansicht') === 'kennzahlen',
+      );
+      await page.reload();
+      await expect(page).toHaveURL(
+        (url) =>
+          url.pathname === '/reports/pallocation' && url.searchParams.get('zeitraum') === '3J',
+      );
+      await expect(
+        page.getByRole('heading', { name: 'Portfolio-Auswertung', exact: true }).first(),
+      ).toBeVisible();
+      continue;
+    }
+    const destination = path;
     await expect(page).toHaveURL(
       (url) =>
         url.pathname === destination &&
@@ -81,9 +99,7 @@ test('five portfolio registers preserve period across navigation and reload', as
     );
     await expectLoadedRegister(page, label);
     nav = await portfolioNavigation(page);
-    expect(new URL(page.url()).pathname).toBe(
-      (await wealthRedesign(page)) && label === 'Kennzahlen' ? '/reports/vermoegen-schulden' : path,
-    );
+    expect(new URL(page.url()).pathname).toBe(path);
     expect(new URL(page.url()).searchParams.get('zeitraum')).toBe('3J');
     await expect(nav.getByRole('link', { name: label, exact: true })).toHaveAttribute(
       'aria-current',

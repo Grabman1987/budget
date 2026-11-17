@@ -203,6 +203,8 @@ export interface BookingPatch {
   projectId?: string | null;
   splits?: SplitInput[];
   unlockReconciled?: boolean;
+  /** Owner confirmed editing an outlay that a contact repayment allocates (#1108). */
+  unlockContactLinked?: boolean;
 }
 
 export type BookingSaveResult = { bookings: ListedBooking[]; savedAt?: string } & WriteResult;
@@ -236,9 +238,15 @@ export const patchBooking = (id: string, patch: BookingPatch, key?: string) =>
     key ? { 'Idempotency-Key': key } : undefined,
   );
 
-export const deleteBooking = (id: string, unlock = false, previewRevision?: string) => {
+export const deleteBooking = (
+  id: string,
+  unlock = false,
+  previewRevision?: string,
+  unlockLinked = false,
+) => {
   const query = new URLSearchParams();
   if (unlock) query.set('unlock', '1');
+  if (unlockLinked) query.set('unlockLinked', '1');
   if (previewRevision) query.set('previewRevision', previewRevision);
   return request<WriteResult>(
     'DELETE',

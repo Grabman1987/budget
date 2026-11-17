@@ -1,4 +1,5 @@
 import { addDays, addMonths, lastDayOfMonth, monthOf } from '../date';
+import { roundDivCents } from '../wealth/int';
 
 /**
  * Liquidity forecast of the budget accounts, day by day. Generic port of `forecast()` in
@@ -99,9 +100,6 @@ export interface LowPoint {
   cents: number;
 }
 
-/** Integer division rounding half up, for non-negative values. */
-const roundDiv = (a: number, b: number): number => Math.floor((2 * a + b) / (2 * b));
-
 /**
  * Spreads a monthly amount evenly over the days of its month in whole cents; the days of a
  * complete month add up to exactly the monthly amount.
@@ -112,7 +110,7 @@ export function evenDaily(monthlyCents: (month: string) => number): (day: string
     const total = Math.max(0, monthlyCents(month));
     const dim = Number(lastDayOfMonth(month).slice(8));
     const n = Number(day.slice(8));
-    return roundDiv(total * n, dim) - roundDiv(total * (n - 1), dim);
+    return roundDivCents(total * n, dim) - roundDivCents(total * (n - 1), dim);
   };
 }
 

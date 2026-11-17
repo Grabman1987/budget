@@ -7,10 +7,8 @@ import { shortMonth } from './month-frame';
 
 type Row = ReturnType<typeof payrollNetComposition>;
 
-const UNCLEAR = 'Aufteilung unklar';
-
 /**
- * Monthly pay: running part solid, special payments hatched on top, unclear split dashed.
+ * Monthly pay: running slips solid, separately captured special payments hatched on top of the same month.
  * Amounts come from `payrollNetComposition`; tax is never re-allocated between the parts.
  */
 export function PayrollNetComposition({ rows, height = 220 }: { rows: Row[]; height?: number }) {
@@ -30,7 +28,7 @@ export function PayrollNetComposition({ rows, height = 220 }: { rows: Row[]; hei
         className="pp-chart"
         width={width}
         height={height}
-        label="Netto je Monat: laufender Teil, Sonderzahlungen schraffiert, unklare Aufteilung gestrichelt"
+        label="Netto je Monat inklusive Sonderzahlungen; Sonderzahlungen schraffiert"
         points={chartPoints(
           rows.map((r) => r.month),
           x,
@@ -60,37 +58,25 @@ export function PayrollNetComposition({ rows, height = 220 }: { rows: Row[]; hei
         {rows.map((r, i) => {
           if (r.totalCents === null) return null;
           const running = r.runningCents ?? 0;
-          const special = r.splitUnclear ? 0 : r.specialCents;
+          const special = r.specialCents;
           return (
             <g key={r.month} data-chart-point={i}>
-              {r.splitUnclear ? (
+              <rect
+                x={x(i) - bar / 2}
+                y={y(running)}
+                width={bar}
+                height={Math.max(0, y(0) - y(running))}
+                className="pp-running"
+              />
+              {special > 0 && (
                 <rect
                   x={x(i) - bar / 2}
-                  y={y(r.totalCents)}
+                  y={y(running + special)}
                   width={bar}
-                  height={Math.max(1, y(0) - y(r.totalCents))}
-                  className="pp-unclear"
+                  height={Math.max(1, y(running) - y(running + special))}
+                  fill="url(#pp-special-hatch)"
+                  className="pp-special"
                 />
-              ) : (
-                <>
-                  <rect
-                    x={x(i) - bar / 2}
-                    y={y(running)}
-                    width={bar}
-                    height={Math.max(0, y(0) - y(running))}
-                    className="pp-running"
-                  />
-                  {special > 0 && (
-                    <rect
-                      x={x(i) - bar / 2}
-                      y={y(running + special)}
-                      width={bar}
-                      height={Math.max(1, y(running) - y(running + special))}
-                      fill="url(#pp-special-hatch)"
-                      className="pp-special"
-                    />
-                  )}
-                </>
               )}
             </g>
           );
@@ -104,8 +90,9 @@ export function PayrollNetComposition({ rows, height = 220 }: { rows: Row[]; hei
         )}
       </ChartSvg>
       <p className="r9-meta" data-testid="payroll-net-legend">
-        Säule voll: laufend · schraffiert: Sonderzahlung · gestrichelt: {UNCLEAR} (Summe zählt).
-        Telearbeit und Fahrgeld zählen als Gehalt, Reisespesen sind ausgenommen.
+        Jeder Monat zeigt sein volles Netto inklusive Sonderzahlungen (Summe). Säule voll: laufender
+        Zettel · schraffiert: eigener Sonderzahlungs-Zettel desselben Monats. Telearbeit und
+        Fahrgeld zählen als Gehalt, Reisespesen sind ausgenommen.
       </p>
       <div
         className="rscroll pp-scroll"
@@ -131,12 +118,8 @@ export function PayrollNetComposition({ rows, height = 220 }: { rows: Row[]; hei
               .map((r) => (
                 <tr key={r.month}>
                   <th scope="row">{shortMonth(r.month)}</th>
-                  <td className="n">
-                    {r.runningCents !== null ? eur(r.runningCents) : r.splitUnclear ? UNCLEAR : '—'}
-                  </td>
-                  <td className="n">
-                    {r.specialCents ? eur(r.specialCents) : r.splitUnclear ? UNCLEAR : '—'}
-                  </td>
+                  <td className="n">{r.runningCents !== null ? eur(r.runningCents) : '—'}</td>
+                  <td className="n">{r.specialCents ? eur(r.specialCents) : '—'}</td>
                   <td className="n">{eur(r.totalCents ?? 0)}</td>
                 </tr>
               ))}

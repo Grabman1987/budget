@@ -167,6 +167,7 @@ const redesignOrder = [
   'explorer',
   'vermoegen-schulden',
   'pdepots',
+  'pallocation',
   'psteuern',
   'einnahmen-ausgaben',
   'ausgaben',
@@ -198,7 +199,7 @@ const REDESIGN_HUB_REPORTS: readonly HubReport[] = redesignOrder.map((id, index)
         : id === 'psteuern'
           ? 'Was kostet uns das Geld, und was bleibt nach Steuern?'
           : (original?.question ?? source.question),
-    group: index < 3 ? 'reports' : index < 5 ? 'analysis' : index < 8 ? 'portfolio' : 'income',
+    group: index < 3 ? 'reports' : index < 5 ? 'analysis' : index < 9 ? 'portfolio' : 'income',
     no: index + 1,
     sources:
       id === 'onepager'
@@ -208,14 +209,7 @@ const REDESIGN_HUB_REPORTS: readonly HubReport[] = redesignOrder.map((id, index)
           : id === 'abos'
             ? ['abos']
             : id === 'vermoegen-schulden'
-              ? [
-                  'vermoegen-schulden',
-                  'vermoegen',
-                  'gesamtuebersicht',
-                  'pallocation',
-                  'peinzahlungen',
-                  'prendite',
-                ]
+              ? ['vermoegen-schulden', 'vermoegen', 'gesamtuebersicht']
               : (original?.sources ?? [id]),
   };
 });

@@ -1,3 +1,4 @@
+import { mulDivRound } from '../wealth/int';
 /**
  * Investment arithmetic. Units are integers in 1e-8, prices integers in micro-units (1e-6) of the
  * price currency, values integer cents. Products of units and prices exceed 2^53 for real
@@ -78,7 +79,7 @@ export function toEurCents(cents: number, fxRateMicro: number): number {
   const amount = integer(cents);
   const scaled = (amount < 0n ? -amount : amount) * integer(fxRateMicro);
   const denominator = 1_000_000n;
-  // Exact equivalent of the existing Math.round on the unsigned amount times the rate.
+  // Exact equivalent of rounding the unsigned amount times the rate half up.
   // Positive FX retains signed half-away cents; signed/zero rates keep their old behaviour.
   const rounded =
     scaled >= 0n
@@ -188,7 +189,7 @@ export function averageCost(
       cost += t.amountCents + t.feeCents;
     } else if (removes(t) && units > 0) {
       const sold = Math.min(units, Math.abs(t.unitsE8));
-      const soldCost = Math.round((cost * sold) / units);
+      const soldCost = mulDivRound(cost, sold, units);
       cost -= soldCost;
       units -= sold;
       if (t.kind === 'sell') realized += proceeds(t) - soldCost;
@@ -222,7 +223,7 @@ export function fifoCost(
       while (left > 0 && lots.length > 0) {
         const lot = lots[0] as { units: number; cost: number };
         const take = Math.min(left, lot.units);
-        const part = take === lot.units ? lot.cost : Math.round((lot.cost * take) / lot.units);
+        const part = take === lot.units ? lot.cost : mulDivRound(lot.cost, take, lot.units);
         soldCost += part;
         lot.units -= take;
         lot.cost -= part;
@@ -236,7 +237,7 @@ export function fifoCost(
         let given = 0;
         lots.forEach((l, i) => {
           const extra =
-            i === lots.length - 1 ? t.unitsE8 - given : Math.round((t.unitsE8 * l.units) / total);
+            i === lots.length - 1 ? t.unitsE8 - given : mulDivRound(t.unitsE8, l.units, total);
           given += extra;
           l.units += extra;
         });
@@ -253,5 +254,5 @@ export function fifoCost(
 /** Fund cost over a period: month-end values times TER (basis points per year) divided by 12. */
 export function terCostCents(monthEndValuesCents: ReadonlyArray<number>, terBp: number): number {
   const sum = monthEndValuesCents.reduce((a, v) => a + v, 0);
-  return Math.round((sum * terBp) / 120000);
+  return mulDivRound(sum, terBp, 120000);
 }

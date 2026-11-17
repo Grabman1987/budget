@@ -49,6 +49,7 @@ export * from './planning-accuracy';
 
 export * from './contacts';
 export * from './contact-identity';
+export * from './contact-linked-edit';
 export * from './contact-merge';
 export * from './contact-label';
 export * from './portfolio-positions';

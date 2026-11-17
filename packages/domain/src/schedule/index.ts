@@ -16,6 +16,7 @@ export {
   monthlyEquivalent,
   occurrenceStatus,
   occurrences,
+  settleMatches,
   shareOf,
   versionOn,
   versionSuggestion,
@@ -25,11 +26,13 @@ export {
   type ExpectedKind,
   type Match,
   type MatchCandidate,
+  type MatchDoubt,
   type MatchTarget,
   type Occurrence,
   type OccurrenceStatus,
   type SchedulePayment,
   type ScheduleVersion,
+  type SettledMatch,
   type VersionSuggestion,
 } from './occurrences';
 

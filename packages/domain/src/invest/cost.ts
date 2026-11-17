@@ -1,6 +1,7 @@
 import { averageCost, fifoCost, terCostCents, type CostResult, type CostTrade } from './invest';
 import { sameDayMonthsBack } from './performance';
 import type { SeriesTrade } from './series';
+import { mulDivRound } from '../wealth/int';
 
 /**
  * One cost basis (Einstand), gain and fund cost per product, used by every page (SPEC §6: the
@@ -80,18 +81,17 @@ function documentedCostReplay(
       knownUnits -= taken;
       if (t.kind === 'sell' && (unknownTaken > 0 || taken < requested)) complete = false;
       if (taken > 0) {
-        const share = taken / requested;
         backed.push({
           ...t,
           unitsE8: t.unitsE8 < 0 ? -taken : taken,
-          amountCents: Math.round(t.amountCents * share),
-          feeCents: Math.round(t.feeCents * share),
-          taxCents: Math.round((t.taxCents ?? 0) * share),
+          amountCents: mulDivRound(t.amountCents, taken, requested),
+          feeCents: mulDivRound(t.feeCents, taken, requested),
+          taxCents: mulDivRound(t.taxCents ?? 0, taken, requested),
         });
       }
     } else {
       const allUnits = unknownUnits + knownUnits;
-      const knownExtra = allUnits > 0 ? Math.round((t.unitsE8 * knownUnits) / allUnits) : 0;
+      const knownExtra = allUnits > 0 ? mulDivRound(t.unitsE8, knownUnits, allUnits) : 0;
       unknownUnits += t.unitsE8 - knownExtra;
       knownUnits += knownExtra;
       if (knownExtra !== 0) backed.push({ ...t, unitsE8: knownExtra });
@@ -223,6 +223,6 @@ export function fundCosts(input: {
     terCents,
     feesCents,
     totalCents,
-    costRateBp: input.valueCents > 0 ? Math.round((totalCents * 10_000) / input.valueCents) : 0,
+    costRateBp: input.valueCents > 0 ? mulDivRound(totalCents, 10_000, input.valueCents) : 0,
   };
 }

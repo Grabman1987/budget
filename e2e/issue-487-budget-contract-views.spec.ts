@@ -1,3 +1,4 @@
+import { chooseReportMenuView } from './report-menu';
 import {
   retainBudgetCostInflationReaders,
   chooseBudgetCostInflationView,
@@ -224,15 +225,11 @@ test('Verträge und Kosten retains separate source periods, subtotal coverage an
   );
   await expect(page.getByTestId('bc-coverage')).toContainText('02.10.2026: 1');
   if (redesign) {
-    const selector = page.getByRole('combobox', {
-      name: 'Darstellung von Kosten, Steuern und Erträgen',
-      exact: true,
-    });
-    await selector.selectOption('gebuehren');
+    await chooseReportMenuView(page, 'Gebühren und Steuern');
     await expect(page).toHaveURL(/\/reports\/psteuern\?/);
     await expect(page.getByTestId('bank-costs-report')).toHaveCount(0);
     await expect(page.locator('.portfolio-costs-report')).toBeVisible();
-    await selector.selectOption('bankkosten');
+    await chooseReportMenuView(page, 'Bank- und Zinskosten');
     await expect(page.getByTestId('bank-costs-report')).toHaveText(bankBody, {
       useInnerText: true,
     });

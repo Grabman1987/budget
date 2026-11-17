@@ -1,5 +1,4 @@
 import { portfolioReportPath, expectWealthReportView } from './wealth-report-controls';
-import { redesignReportsOn } from './report-frame';
 import AxeBuilder from '@axe-core/playwright';
 import type { Page } from '@playwright/test';
 import { eur } from '../apps/web/src/ledger/format';
@@ -98,7 +97,7 @@ test('shared ranges, custom URL reload and optional trend', async ({ page }, inf
   await expect(
     page.getByRole('heading', {
       level: 1,
-      name: (await redesignReportsOn(page)) ? 'Vermögensreport' : 'Portfolio-Auswertung',
+      name: 'Portfolio-Auswertung',
     }),
   ).toBeVisible();
   await expect(page).toHaveURL(

@@ -21,6 +21,19 @@ export class BookingInvariantError extends Error {
   override readonly name = 'BookingInvariantError';
 }
 
+/**
+ * An outlay is allocated by a contact settlement (#1108). The owner may still edit it after an
+ * explicit confirmation (`unlockContactLinked`); the message stays the one the older guard used.
+ */
+export class ContactLinkedError extends BookingInvariantError {
+  constructor(
+    readonly bookingId: string,
+    readonly settlementDates: string[],
+  ) {
+    super('Undo the related contact settlement before changing its receipt or allocated outlay');
+  }
+}
+
 /** A budget account must use EUR because budget and allocation amounts are stored as EUR cents. */
 export class AccountInvariantError extends Error {
   override readonly name = 'AccountInvariantError';

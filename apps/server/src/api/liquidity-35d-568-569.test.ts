@@ -218,7 +218,7 @@ describe('GET /liquidity 35d (#568/#569)', () => {
       report: null,
       events: [],
       incomePauses: [],
-      overdraftLimitCents: 0,
+      lastResortCents: 0,
       budgetAccounts: [],
     });
   });

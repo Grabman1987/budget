@@ -110,7 +110,7 @@ function HeuteBody({
   useAmountPrivacy();
   const heuteFacts = useMemo(() => (data ? heuteVerdictFacts(data) : undefined), [data]);
   const [chainOpen, setChainOpen] = useState(false);
-  const [leadDetail, setLeadDetail] = useState<'balance' | 'inflow' | 'open' | null>(null);
+  const [leadDetail, setLeadDetail] = useState<'balance' | 'open' | null>(null);
   const [paceDetail, setPaceDetail] = useState<'spent' | 'plan' | 'forecast' | null>(null);
   const navigate = useNavigate();
   const source = useLocation({ select: (location) => location.href });
@@ -147,9 +147,6 @@ function HeuteBody({
     ...term,
     value: cents(term.value),
     ...(index === 0 ? { onSelect: () => setLeadDetail('balance') } : {}),
-    ...(term.label.toLowerCase().includes('eingänge')
-      ? { onSelect: () => setLeadDetail('inflow') }
-      : {}),
     ...(term.label.toLowerCase().includes('offen')
       ? { onSelect: () => setLeadDetail('open') }
       : {}),
@@ -219,15 +216,18 @@ function HeuteBody({
               <div id="heute-lead-chain" className="heute-chain-area">
                 <h2 id="heute-lead-title">Spielraum bis Gehalt</h2>
                 <p>
-                  Kontostand der Budget-Konten plus erwartete Eingänge, abzüglich der Rechnungen,
-                  die vor dem Gehalt noch fällig sind
-                  {data.lead.overdraftCents > 0
-                    ? `; darin ${eur(data.lead.overdraftCents)} Dispo-Rahmen, also Geld, das die Bank nur überzieht.`
-                    : '.'}
+                  Kontostand der Budget-Konten, abzüglich der Rechnungen, die vor dem Gehalt noch
+                  fällig sind. Weder Dispo noch erwartete Eingänge zählen mit.
                 </p>
+                {data.lead.lastResortCents > 0 && (
+                  <p data-testid="heute-last-resort">
+                    Letzte Reserve (Dispo): {eur(data.lead.lastResortCents)}. Bankkredit, den du
+                    zurückzahlen musst; nie freies Geld.
+                  </p>
+                )}
                 <DimensionChain
                   terms={leadTerms}
-                  label="Maßkette: Kontostand plus erwartete Eingänge minus offene Rechnungen bis Gehalt plus Dispo-Rahmen"
+                  label="Maßkette: Kontostand minus offene Rechnungen bis Gehalt"
                   precision="cent"
                 />
                 {REDESIGN_ENABLED && (
@@ -252,8 +252,7 @@ function HeuteBody({
                 )}
                 {leadDetail && <LeadDetail data={data} kind={leadDetail} />}
                 <p className="heute-note">
-                  Wähle Kontostand, erwartete Eingänge oder offen bis Gehalt für die zugehörigen
-                  Konten und Zahlungen.
+                  Wähle Kontostand oder offen bis Gehalt für die zugehörigen Konten und Zahlungen.
                 </p>
               </div>
             )}
@@ -683,7 +682,7 @@ function HeuteBody({
                           ? {
                               minus: {
                                 key: 'debt',
-                                label: REDESIGN_ENABLED ? 'Schulden (netto)' : 'Schulden',
+                                label: 'Schulden netto',
                                 cents: cents(-net.debtCents),
                                 kind: 'debt' as const,
                               },
@@ -698,7 +697,7 @@ function HeuteBody({
                       Wähle ein Maß für die Konten.
                       {net.debtCents < 0
                         ? REDESIGN_ENABLED
-                          ? ' Gestrichelt: Schulden (netto), werden abgezogen.'
+                          ? ' Gestrichelt: Schulden netto, werden abgezogen.'
                           : ' Gestrichelt: Schulden, werden abgezogen.'
                         : ''}
                     </p>
@@ -896,8 +895,10 @@ function PrimaryLead({
         </Button>
       </div>
       <p className="heute-note">
-        Kontostand plus erwartete Eingänge, minus offene Rechnungen bis Gehalt, plus aktivierter
-        Dispo-Rahmen.
+        Kontostand minus offene Rechnungen bis Gehalt; ohne Dispo und ohne erwartete Eingänge.
+        {data && data.lead.lastResortCents > 0
+          ? ` Letzte Reserve (Dispo): ${eur(data.lead.lastResortCents)}.`
+          : ''}
       </p>
       <p className="heute-note heute-primary-source">
         {data ? (
@@ -1109,7 +1110,7 @@ export function HeuteWealthLine({
   );
 }
 
-function LeadDetail({ data, kind }: { data: Heute; kind: 'balance' | 'inflow' | 'open' }) {
+function LeadDetail({ data, kind }: { data: Heute; kind: 'balance' | 'open' }) {
   useAmountPrivacy();
   if (kind === 'open')
     return (
@@ -1128,26 +1129,6 @@ function LeadDetail({ data, kind }: { data: Heute; kind: 'balance' | 'inflow' | 
           </ul>
         ) : (
           <p>Keine offenen Rechnungen vor dem Gehalt.</p>
-        )}
-      </div>
-    );
-  if (kind === 'inflow')
-    return (
-      <div className="heute-breakdown" aria-live="polite">
-        <h3>Erwartete Eingänge bis Gehalt</h3>
-        {data.lead.items.inflow.length ? (
-          <ul>
-            {data.lead.items.inflow.map((item) => (
-              <li key={item.id}>
-                <span>
-                  {longDay(item.day)} · {item.label}
-                </span>
-                <strong>{eur(item.cents)}</strong>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p>Keine erwarteten Eingänge vor dem Gehalt.</p>
         )}
       </div>
     );

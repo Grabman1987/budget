@@ -65,7 +65,8 @@ export interface RuleInputs {
     items: ReadonlyArray<ForecastItem>;
     /** Planned variable spending per month (positive cents). */
     variableMonthlyCents: number;
-    overdraftLimitCents: number;
+    /** Unused overdraft limit (`overdraftLastResort`): shown, never part of the verdict. */
+    lastResortCents: number;
   } | null;
   /** R08, R10: monthly net income. */
   netIncomeMonthlyCents: number | null;

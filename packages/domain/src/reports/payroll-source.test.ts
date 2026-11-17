@@ -54,15 +54,10 @@ it('keeps equal regular and special gross, expenses and shared charges without i
   expect(source.sharedDeductions).toEqual({ svCents: 120000, taxCents: 100000, otherCents: 0 });
   expect(source.netSplitUnknown).toBe(true);
   expect(source.statutorySplit).toBeNull();
-  const report = payrollReport([combined], '2026-11', new Set([combined.id]));
+  const report = payrollReport([combined], '2026-11');
   expect(report.month.netCents).toBe(590000);
-  expect(report.salaries[10]).toMatchObject({
-    netCents: null,
-    salaryNetCents: null,
-    reimbursementsCents: 10000,
-    netSplitUnknown: true,
-  });
-  expect(report.timeline[0]?.netSplitUnknown).toBe(true);
+  expect(report.salaries[10]).toMatchObject({ netCents: 590000, reimbursementsCents: 10000 });
+  expect(report.timeline[0]?.composition.totalCents).toBe(report.timeline[0]?.payNetCents);
 });
 it('names the exact unmapped original position and preserves back pay separately', () => {
   const source = payrollSource(combined, rules.slice(0, 1));
@@ -128,8 +123,8 @@ it('keeps a separately captured special payment net known and out of the regular
   };
   expect(payrollSource(special, rules).netSplitUnknown).toBe(false);
   expect(payrollReport([special], '2026-11').salaries[12]?.netCents).toBe(330000);
-  const report = payrollReport([combined, special], '2026-11', new Set([special.id]));
-  expect(report.timeline[0]?.netSplitUnknown).toBe(false);
+  const report = payrollReport([combined, special], '2026-11');
+  expect(report.timeline[0]?.composition.specialSlipIds).toEqual([special.id]);
 });
 it('does not call a sole mapped special or variable component regular net', () => {
   for (const component of ['special', 'variable'] as const) {

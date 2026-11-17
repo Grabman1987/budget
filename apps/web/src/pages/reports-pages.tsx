@@ -32,7 +32,7 @@ import { CompareReport } from '../reports/compare-report';
 import { JahresreportPage } from '../reports/jahresreport-page';
 import { ExplorerReportPage } from '../reports/explorer-report';
 import { ReportHub } from '../reports/report-hub';
-import { rememberReport, type HubGroup } from '../reports/report-hub-model';
+import { HUB_REPORTS, rememberReport, type HubGroup } from '../reports/report-hub-model';
 import { SpendingReportViews } from '../reports/spending-report-views';
 import { BudgetReportViews, ContractsReportViews } from '../reports/budget-contract-report-views';
 import { BankCostsReportPage } from '../reports/bank-costs-report';
@@ -71,10 +71,13 @@ export function ReportsCatalogPage() {
       {REDESIGN_ENABLED ? (
         <header className="report-catalog-head">
           <h1>Reports</h1>
-          <p>16 Berichte aus einem Hauptbuch</p>
+          <p>{HUB_REPORTS.length} Berichte aus einem Hauptbuch</p>
         </header>
       ) : (
-        <AreaHead meta={REPORTS_CATALOG} subtitle="16 Berichte aus einem Hauptbuch" />
+        <AreaHead
+          meta={REPORTS_CATALOG}
+          subtitle={`${HUB_REPORTS.length} Berichte aus einem Hauptbuch`}
+        />
       )}
       <ReportHub />
     </>
@@ -98,10 +101,13 @@ export function ReportGroupPage({ slug }: { slug: string }) {
       {REDESIGN_ENABLED ? (
         <header className="report-catalog-head">
           <h1>Reports</h1>
-          <p>16 Berichte aus einem Hauptbuch</p>
+          <p>{HUB_REPORTS.length} Berichte aus einem Hauptbuch</p>
         </header>
       ) : (
-        <AreaHead meta={REPORTS_CATALOG} subtitle="16 Berichte aus einem Hauptbuch" />
+        <AreaHead
+          meta={REPORTS_CATALOG}
+          subtitle={`${HUB_REPORTS.length} Berichte aus einem Hauptbuch`}
+        />
       )}
       <ReportHub key={slug} initialGroup={initial[slug]} />
     </>

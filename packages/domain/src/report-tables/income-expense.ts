@@ -1,6 +1,7 @@
 import { cents } from '../money';
 import { householdIncomeCents, type OverviewSplit } from '../overview';
 import { monthHouseholdIncome, type TableMeta, type TableMonth, type TableRow } from './tables';
+import { roundDivCents } from '../wealth/int';
 
 export type IncomeExpenseMonth = Pick<TableMonth, 'month' | 'income' | 'spending'>;
 
@@ -165,7 +166,7 @@ export function cashflowStatement(
   };
   return {
     total: cents(total),
-    averagePerMonth: cents(Math.round(total / window.length)),
+    averagePerMonth: cents(roundDivCents(total, window.length)),
     comparison:
       comparisonFor('previous-year', -12) ?? comparisonFor('previous-period', -window.length),
   };

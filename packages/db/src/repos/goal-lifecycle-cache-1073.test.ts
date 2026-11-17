@@ -138,8 +138,12 @@ describe('goal lifecycle audit cache (#1073)', () => {
     opened.sqlite.prepare = prepare;
     expect(audits()).toBe(before);
     // One cheap prefix check, then one read of the (empty) tail: never the table's JSON again.
-    const reads = statements.filter((s) => /FROM audit_log WHERE rowid >/.test(s));
+    const reads = statements.filter((s) =>
+      /SELECT rowid AS sequence[\s\S]*FROM audit_log WHERE rowid >/.test(s),
+    );
     expect(reads).toHaveLength(1);
+    // The prefix check counts all rows minus the tail: no scan of the table up to the last rowid.
+    expect(statements.some((s) => /count\(\*\) FROM audit_log WHERE rowid <=/.test(s))).toBe(false);
   });
 
   it('does not keep rows of a rolled-back transaction, even when their rowids are reused', () => {

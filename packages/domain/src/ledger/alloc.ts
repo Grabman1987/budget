@@ -1,3 +1,4 @@
+import { mulDivRound, roundDivCents } from '../wealth/int';
 export type BudgetClass = 'need' | 'want' | 'future';
 
 export interface AllocItem {
@@ -69,7 +70,7 @@ export function allocation(months: ReadonlyArray<AllocMonth>): Allocation {
     t.income += m.incomeCents * 12 + m.annualIncomeCents;
     for (const item of m.items) t[item.class] += item.annual ? item.cents : item.cents * 12;
   }
-  const c = (twelfths: number) => Math.round(twelfths / 12);
+  const c = (twelfths: number) => roundDivCents(twelfths, 12);
   const needCents = c(t.need);
   const wantCents = c(t.want);
   const futureCents = c(t.future);
@@ -143,7 +144,7 @@ export function allocationBar(
     overflowCents: Math.max(0, need + want - a.incomeCents),
     overflowBp:
       a.incomeCents > 0
-        ? Math.round((Math.max(0, need + want - a.incomeCents) * 10000) / a.incomeCents)
+        ? mulDivRound(Math.max(0, need + want - a.incomeCents), 10000, a.incomeCents)
         : null,
   };
 }

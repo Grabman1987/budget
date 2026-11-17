@@ -2,6 +2,7 @@ import {
   AuditError,
   AccountInvariantError,
   BookingInvariantError,
+  ContactLinkedError,
   CategoryRuleError,
   ConflictError,
   ContactArchivedError,
@@ -142,6 +143,16 @@ export function errorAnswer(
     return answer({ error: 'conflict', message: error.message }, 409);
   if (error instanceof AuditError)
     return answer({ error: 'undo_refused', message: error.message }, 409);
+  if (error instanceof ContactLinkedError)
+    return answer(
+      {
+        error: 'contact_linked',
+        message: error.message,
+        bookingId: error.bookingId,
+        settlementDates: error.settlementDates,
+      },
+      422,
+    );
   if (error instanceof BookingInvariantError) {
     return answer({ error: 'invariant', message: error.message }, 422);
   }

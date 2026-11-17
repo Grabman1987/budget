@@ -308,7 +308,7 @@ Bereich: Konten (`/konten`, `/konten/$id`), Alle Buchungen (`/konten/buchungen`)
   1. Ich verbinde die Bank unter „Einstellungen › Datenquellen“ (Zustimmung bei der Bank).
   2. Nachts liest die App neue Umsätze.
   3. Neue Zeilen erscheinen unter „Prüfen“ (`/konten/pruefen`) ungeprüft und ohne Kategorie.
-  4. Ich bestätige, ordne zu (Vorschlag übernehmen) oder verwerfe.
+  4. Ich bestätige, ordne zu (Vorschlag übernehmen) oder verwerfe. Gehört eine Zeile eindeutig zu einer wiederkehrenden Ausgabe, wird deren Fälligkeit automatisch verknüpft (siehe P-09); bei Mehrdeutigkeit oder abweichendem Betrag erscheint der Vorschlag „Abbuchung zuordnen“.
   5. Läuft die Zustimmung ab, erneuere ich sie in „Datenquellen“.
 - **Ergebnis:** Bestätigte Zeilen werden Buchungen; nichts wird ohne meine Bestätigung gebucht.
 - **Abnahmekriterien:**
@@ -316,6 +316,7 @@ Bereich: Konten (`/konten`, `/konten/$id`), Alle Buchungen (`/konten/buchungen`)
   2. Ein Doppel einer vorhandenen Buchung wird erkannt und nicht zweimal gebucht.
   3. Fällt die Bank aus, zeigt „Prüfen“ „Bank: nicht verbunden“ bzw. eine Datenwarnung, keine stille Lücke.
   4. Abgelaufene Zustimmung wird gemeldet.
+  5. Eine eindeutig passende Abbuchung mit passendem Empfänger, Kontakt oder gelerntem Banknamen verknüpft die Fälligkeit der wiederkehrenden Zahlung automatisch und rückgängig-fähig; ohne Gegenpart-Treffer bleibt es ein Vorschlag in „Prüfen“, ebenso bei Unklarheit (#1102). Der automatische Lauf verändert weder Einnahmen noch bestehende Verknüpfungen und markiert überfällige offene Fälligkeiten nicht als „ausgefallen“.
 - **Status:** teilweise — **Verweis:** Y19, Y20
 - Fehlt noch: vollständiger nächtlicher Abruf mit Nachholen (Y20) und die Abnahme mit echten Bankdaten.
 

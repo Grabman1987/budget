@@ -1,7 +1,5 @@
 import { type PaceFixed, type PaceModel } from '../kpi/pace';
-
-/** Integer division rounding half up, for non-negative values. */
-const roundDiv = (a: number, b: number): number => Math.floor((2 * a + b) / (2 * b));
+import { roundDivCents } from '../wealth/int';
 
 /**
  * The forecast curve of the pace chart: cumulative spending from today to the end of the month,
@@ -28,7 +26,9 @@ export function paceForecastCurve(model: PaceModel, fixed: ReadonlyArray<PaceFix
       0,
     );
     out.push(
-      figures.spentCents + fixedTo + (left > 0 ? roundDiv(remaining * (d - todayDay), left) : 0),
+      figures.spentCents +
+        fixedTo +
+        (left > 0 ? roundDivCents(remaining * (d - todayDay), left) : 0),
     );
   }
   return out;

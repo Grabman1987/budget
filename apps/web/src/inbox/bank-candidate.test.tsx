@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act, render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { act, cleanup, render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ToastProvider } from '@budget/ui';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
@@ -24,7 +24,10 @@ beforeEach(() => {
     this.open = false;
   };
 });
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  cleanup();
+  vi.unstubAllGlobals();
+});
 it('keeps 65 candidates unopened without row requests and loads checks only on opening', async () => {
   const paths: string[] = [];
   vi.stubGlobal('fetch', async (url: string) => {
@@ -248,5 +251,47 @@ it('withdraws a cached safe suggestion during refresh and after a failed assignm
   });
   await waitFor(() => expect(prepared.mock.calls.at(-1)?.[0]).toBeUndefined());
   expect(client.getQueryData(queryKey)).toBeTruthy();
+  client.clear();
+});
+
+// #1215: a list refresh that remounts the row must not drop the dialog the owner just opened.
+it('keeps the review dialog open when the candidate is remounted by a list refresh', async () => {
+  vi.stubGlobal(
+    'fetch',
+    async () =>
+      new Response(
+        JSON.stringify({
+          suggestions: [],
+          cleanup: { cleaned: 'Shop A', payeeId: null },
+          candidateRevision: 'a'.repeat(64),
+          merge: [],
+          link: [],
+          transfers: [],
+          categories: [],
+          incomeTypes: [],
+          payees: [],
+          accounts: [],
+        }),
+        { status: 200, headers: { 'content-type': 'application/json' } },
+      ),
+  );
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const tree = (key: string) => (
+    <QueryClientProvider client={client}>
+      <ToastProvider>
+        <BankCandidate key={key} id="synthetic-remount" />
+      </ToastProvider>
+    </QueryClientProvider>
+  );
+  const view = render(tree('before'));
+  fireEvent.click(screen.getByRole('button', { name: 'Übernehmen' }));
+  await waitFor(() =>
+    expect(screen.getByRole('dialog', { name: 'Buchung übernehmen' })).toBeTruthy(),
+  );
+  view.rerender(tree('after')); // new key: the component remounts, as a refreshed list row does
+  const dialog = await screen.findByRole('dialog', { name: 'Buchung übernehmen' });
+  expect((dialog as HTMLDialogElement).open).toBe(true);
+  fireEvent.click(screen.getByRole('button', { name: 'Abbrechen' }));
+  await waitFor(() => expect((dialog as HTMLDialogElement).open).toBe(false));
   client.clear();
 });

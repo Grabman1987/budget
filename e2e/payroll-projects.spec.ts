@@ -371,8 +371,9 @@ test('combined source shows unknown net and editable bank income parts', async (
   await expect(
     page.getByText(/^Bankanteil \u00b7/).filter({ hasText: 'Erstattung' }),
   ).toBeVisible();
-  await expect(page.getByRole('row', { name: /Nov.*nicht bestimmbar/ })).toContainText('100,00');
-  await expect(page.locator('.pp-dot')).toHaveCount(0);
+  await expect(page.getByRole('row', { name: /Nov.*nicht erfasst/ })).toContainText('100,00');
+  // Months carry the full pay of the combined slip (#1207): the chart shows it, no split is invented.
+  await expect(page.locator('.pp-dot')).toHaveCount(1);
   await page.getByText('Einnahmenarten der Bankanteile bearbeiten', { exact: true }).click();
   await page
     .getByRole('combobox', { name: 'Einnahmenart Bankanteil 1', exact: true })

@@ -1,3 +1,4 @@
+import { chooseReportMenuView, expectReportMenuView } from './report-menu';
 import AxeBuilder from '@axe-core/playwright';
 import { expect, sampleTest as test } from './sample';
 import { redesignReportsOn } from './report-frame';
@@ -11,8 +12,7 @@ test('1158 category view retains period and selection through reload and report 
     await expect(page.getByTestId('spending-analysis')).toBeVisible();
     return;
   }
-  const view = page.getByRole('combobox', { name: 'Ansicht der Ausgabenanalyse', exact: true });
-  await expect(view).toHaveValue('kategorien');
+  await expectReportMenuView(page, 'Kategorien und Verlauf');
   await expect(page.getByRole('heading', { name: 'Kategorietrend', exact: true })).toBeVisible();
   await expect(page.locator('.rc-row').first()).toBeVisible();
   const total = await page.locator('.category-report .tbd-state').textContent();
@@ -24,7 +24,7 @@ test('1158 category view retains period and selection through reload and report 
   const selected = new URL(page.url()).searchParams.get('kategorien');
   expect(selected).not.toBeNull();
   await page.reload();
-  await expect(view).toHaveValue('kategorien');
+  await expectReportMenuView(page, 'Kategorien und Verlauf');
   expect(new URL(page.url()).searchParams.get('zeitraum')).toBe('3M');
   expect(new URL(page.url()).searchParams.get('kategorien')).toBe(selected);
   for (const theme of ['light', 'dark']) {
@@ -45,11 +45,11 @@ test('1158 category view retains period and selection through reload and report 
   await withShellControls(page, async ({ privacy }) => {
     await privacy.click();
   });
-  await view.selectOption('empfaenger');
+  await chooseReportMenuView(page, 'Empfänger');
   await expect(page.getByTestId('payee-total')).toBeVisible();
-  await view.selectOption('gruppen');
+  await chooseReportMenuView(page, 'Gruppen und Kategorien');
   await expect(page.getByTestId('spending-period-chart')).toBeVisible();
-  await view.selectOption('kategorien');
+  await chooseReportMenuView(page, 'Kategorien und Verlauf');
   await expect(page.getByRole('heading', { name: 'Kategorietrend', exact: true })).toBeVisible();
   expect(new URL(page.url()).searchParams.get('zeitraum')).toBe('3M');
   expect(new URL(page.url()).searchParams.get('kategorien')).toBe(selected);

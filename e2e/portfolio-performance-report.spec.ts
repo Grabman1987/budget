@@ -1,4 +1,3 @@
-import { redesignReportsOn } from './report-frame';
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page, type TestInfo } from '@playwright/test';
 import { cents, formatEuro } from '@budget/domain';
@@ -102,7 +101,7 @@ test('Renditebericht reads period metrics and lifetime gains with an empty open-
 
   await expect(
     page.getByRole('heading', {
-      name: (await redesignReportsOn(page)) ? 'Vermögensreport' : 'Portfolio-Auswertung',
+      name: 'Portfolio-Auswertung',
       exact: true,
     }),
   ).toBeVisible();

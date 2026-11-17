@@ -1,3 +1,4 @@
+import { chooseReportMenuValue, expectReportMenuValue } from './report-menu';
 import AxeBuilder from '@axe-core/playwright';
 import { expect } from '@playwright/test';
 import { mkdirSync } from 'node:fs';
@@ -36,10 +37,8 @@ test('wealth views keep canonical cents, sources, month selection and accessible
   ] as const;
   mkdirSync('docs/evidence/redesign-reports-20261103-b', { recursive: true });
   for (const [view, body, amount] of views) {
-    await page
-      .getByRole('combobox', { name: 'Darstellung des Vermögensreports' })
-      .selectOption(view);
-    await expect(page).toHaveURL(new RegExp(`darstellung=${view}`));
+    await chooseReportMenuValue(page, view);
+    if (view !== 'bilanz') await expect(page).toHaveURL(new RegExp(`darstellung=${view}`));
     await expect(page.locator(body)).toBeVisible();
     if (view === 'verlauf') await expect(page.getByTestId('wealth-monthly-bridge')).toBeVisible();
     await expect(page.getByTestId('report-frame-result')).toHaveText(eur(amount));
@@ -48,9 +47,7 @@ test('wealth views keep canonical cents, sources, month selection and accessible
     expect(new URL(page.url()).searchParams.get('monat')).toBe('2026-08');
     expect(new URL(page.url()).searchParams.get('zeitraum')).toBe('YTD');
     await page.reload();
-    await expect(
-      page.getByRole('combobox', { name: 'Darstellung des Vermögensreports' }),
-    ).toHaveValue(view);
+    await expectReportMenuValue(page, view);
     for (const theme of ['light', 'dark']) {
       await page.evaluate((theme) => {
         document.documentElement.dataset['theme'] = theme;

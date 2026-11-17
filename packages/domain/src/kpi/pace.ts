@@ -1,4 +1,5 @@
 import { addMonths, lastDayOfMonth, monthOf } from '../date';
+import { mulDivRound, roundDivCents } from '../wealth/int';
 
 /**
  * Pace of the month (Heute and Plan): cumulative spending of Bedarf and Wunsch against the plan.
@@ -80,9 +81,6 @@ export interface PaceModel {
   figures: PaceFigures;
 }
 
-/** Integer division rounding half up, for non-negative values. */
-const roundDiv = (a: number, b: number): number => Math.floor((2 * a + b) / (2 * b));
-
 const dayNumber = (day: string): number => Number(day.slice(8));
 
 function cumulative(entries: ReadonlyArray<PaceSpending>, month: string, length: number): number[] {
@@ -110,8 +108,10 @@ export function paceModel(input: PaceInput): PaceModel {
     fixed.reduce((a, f) => (dayNumber(f.day) <= d ? a + f.cents : a), 0);
 
   const plan: number[] = [];
-  for (let d = 0; d <= dim; d++) plan.push(fixedTo(d) + roundDiv(variablePlan * d, dim));
-  const expected = Array.from({ length: dim + 1 }, (_, d) => roundDiv(input.limitCents * d, dim));
+  for (let d = 0; d <= dim; d++) plan.push(fixedTo(d) + roundDivCents(variablePlan * d, dim));
+  const expected = Array.from({ length: dim + 1 }, (_, d) =>
+    roundDivCents(input.limitCents * d, dim),
+  );
 
   const actualFull = cumulative(input.spending, month, dim);
   const actual = actualFull.slice(0, todayDay + 1);
@@ -136,7 +136,7 @@ export function paceModel(input: PaceInput): PaceModel {
   const remainingVariable =
     todayDay < 7
       ? Math.max(0, variablePlan - Math.max(0, variableSoFarCents))
-      : Math.round((Math.max(0, variableSoFarCents) * (dim - todayDay)) / todayDay);
+      : mulDivRound(Math.max(0, variableSoFarCents), dim - todayDay, todayDay);
   const planToDateCents = plan[todayDay] ?? 0;
   const deltaCents = spentCents - planToDateCents;
 

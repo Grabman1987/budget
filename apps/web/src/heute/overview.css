@@ -774,6 +774,10 @@
 
 .hv-head .month-switch .month-now {
   display: inline-flex;
+  gap: 6px;
+  width: auto;
+  padding-inline: 8px;
+  white-space: nowrap;
 }
 @media (max-width: 767px) {
   .hv-head-phone:has(.month-now) {

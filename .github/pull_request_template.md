@@ -23,3 +23,12 @@ Refs #
 - [ ] `npm run check` green
 - [ ] No real financial data, names or secrets
 - [ ] No unrelated changes
+
+## Delivery report
+
+<!-- See docs/acceptance-tolerances.md (section 3). -->
+
+- **What works now:**
+- **What proves it:**
+- **What stays uncertain:**
+- **What still blocks the replacement:**

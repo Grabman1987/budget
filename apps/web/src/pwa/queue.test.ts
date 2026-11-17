@@ -152,20 +152,91 @@ describe('durable booking delivery', () => {
     expect(memory.rows).toEqual([]);
   });
   it.each(['account_closed', 'category_deleted', 'month_locked'])(
-    'stops at %s and leaves later items untouched',
+    'parks %s as rejected and continues with later items',
     async (code) => {
       online(false);
       await submitCapture(input, draft);
       await submitCapture(input, draft);
       online(true);
-      post.mockRejectedValue(new ApiError(409, code, 'Auswahl nicht verfügbar.'));
+      post
+        .mockRejectedValueOnce(new ApiError(409, code, 'Auswahl nicht verfügbar.'))
+        .mockResolvedValueOnce(result);
       await sendQueue(vi.fn());
-      expect(post).toHaveBeenCalledTimes(1);
-      expect(memory.rows).toHaveLength(2);
-      expect(memory.rows[0]?.uncertain).toBe(false);
+      expect(post).toHaveBeenCalledTimes(2);
+      expect(memory.rows).toHaveLength(1);
+      expect(memory.rows[0]).toMatchObject({ uncertain: false, rejected: true });
       expect(memory.rows[0]?.reason).toBeTruthy();
     },
   );
+  it('parks an HTTP 500 as rejected with its error id; the other two of three still arrive', async () => {
+    online(false);
+    for (const cents of [-100, -200, -300])
+      await submitCapture(
+        { ...input, amountCents: cents, splits: [{ categoryId: 'c', amountCents: cents }] },
+        { ...draft, amount: String(-cents / 100) },
+      );
+    const ids = memory.rows.map((x) => x.id);
+    online(true);
+    post
+      .mockResolvedValueOnce(result)
+      .mockRejectedValueOnce(new ApiError(500, 'server_error', 'intern', [], [], 'abc123def456'))
+      .mockResolvedValueOnce(result);
+    const sent = vi.fn();
+    await sendQueue(sent);
+    expect(sent).toHaveBeenCalledTimes(2);
+    expect(memory.rows).toHaveLength(1);
+    expect(memory.rows[0]).toMatchObject({
+      id: ids[1],
+      rejected: true,
+      uncertain: true,
+      errorId: 'abc123def456',
+    });
+    expect(memory.rows[0]?.reason).not.toContain('intern');
+    // The rejected draft is not retried automatically.
+    await sendQueue(vi.fn());
+    expect(post).toHaveBeenCalledTimes(3);
+  });
+  it('a parked 500 is checked before it can be edited: not delivered unlocks it, delivered completes it', async () => {
+    const parked = (id: string): QueuedBooking => ({
+      id,
+      createdAt: 1,
+      input,
+      draft,
+      uncertain: true,
+      reason: 'x',
+      rejected: true,
+      errorId: 'abc123def456',
+    });
+    memory.rows = [parked('a')];
+    await sendQueue(vi.fn(), () => undefined, true);
+    expect(check).toHaveBeenCalledTimes(1);
+    expect(post).not.toHaveBeenCalled();
+    expect(memory.rows[0]).toMatchObject({ id: 'a', rejected: true, uncertain: false });
+    memory.rows = [parked('b')];
+    check.mockResolvedValueOnce({ result });
+    const sent = vi.fn();
+    await sendQueue(sent, () => undefined, true);
+    expect(sent).toHaveBeenCalledWith(result);
+    expect(memory.rows).toEqual([]);
+  });
+  it('keeps 502-504 and network loss in the queue and blocks later items', async () => {
+    online(false);
+    await submitCapture(input, draft);
+    await submitCapture(input, draft);
+    online(true);
+    post.mockRejectedValue(new ApiError(503, 'unavailable'));
+    await sendQueue(vi.fn());
+    expect(post).toHaveBeenCalledTimes(1);
+    expect(memory.rows.map((x) => x.rejected)).toEqual([undefined, undefined]);
+    expect(memory.rows[0]?.reason).toContain('nicht verfügbar');
+  });
+  it('a new capture is sent although a rejected draft sits at the head', async () => {
+    memory.rows = [
+      { id: 'draft', createdAt: 1, input, draft, uncertain: false, reason: 'x', rejected: true },
+    ];
+    post.mockResolvedValueOnce(result);
+    expect(await submitCapture(input, draft)).toEqual(result);
+  });
   it('does not overtake an earlier waiting item on a new online capture', async () => {
     online(false);
     await submitCapture(input, draft);

@@ -76,8 +76,8 @@ export function PayrollSource({
       </table>
       {source.netSplitUnknown && (
         <p className="vnote">
-          Nettoaufteilung aus der Quelle nicht bestimmbar. Die Auszahlung bleibt als Gesamtbetrag
-          erfasst.
+          Nettoaufteilung aus der Quelle nicht bestimmbar. Der Zettel wird nicht geteilt: die
+          Auszahlung zählt voll im Monat der Zahlung.
         </p>
       )}
       {source.unmapped

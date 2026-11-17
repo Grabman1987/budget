@@ -15,10 +15,13 @@ Historical references follow `docs/FEATURES.md` (positions 1.1–5.6). The hub r
 **Aufteilungen:** RP-05, RP-07, RP-11, RP-12, RP-13, RP-15, RP-16, RP-17, RP-18, RP-21 und RP-23 sind in a/b(/c) geteilt, weil sie unabhängige Berichte bündeln. Namen folgen dem Katalog der App: RP-05b „Einnahmen und Cashflow“ (früher „Einnahmen und Ausgaben“), RP-11a (retired forecast-accuracy report; redirects to Budgettreue), RP-11b „Budgettreue“, RP-13a „Verträge und Abos“, RP-18a „Portfolio-Auswertung“.
 
 ### RP-Header – Compact report header and subreports
+- **Portfolio views (#1157):** the portfolio views left the Vermögensreport. “Portfolio-Auswertung” is its own entry in the Portfolio group; old addresses (`/reports/vermoegen-schulden?darstellung=einzahlungen|rendite|kennzahlen|klassen|verteilung`, `/reports/peinzahlungen`, `/reports/prendite`) redirect there with the period intent unchanged. Merging “Einzahlungen und Wert” with “Rendite” into one “Wertentwicklung” report is not done.
+- **Statement line (#1155):** every report body renders its statement directly under the header (`ReportFrame`); “Kosten gesamt” now has one (total, portfolio cost ratio) instead of the generic “Keine Bewertung möglich”.
+- **Sign rule (#1161):** no “+” prefix in report tables (see `table-format.ts`); applied to the spending comparison, portfolio contributions, depot comparison and allocation tables.
 - **Story:** As a user, I want to switch reports through one shared menu and find the figure controls immediately below it.
-- **Flow:** Open a report and choose “Bericht wechseln”. Under “Monatsbericht”, choose the indented “Finanz-Check-Verlauf” or monthly A4 sheet; under “Jahresbericht”, choose the annual A4 sheet. Month and period intent remain in the URL, and Back restores the previous presentation.
+- **Flow:** Open a report and choose “Bericht wechseln”. Under “Monatsbericht”, choose the indented “Finanz-Check-Verlauf” or monthly A4 sheet; under “Jahresbericht”, choose the annual A4 sheet; under “Einnahmen und Cashflow” the indented “Projekte und Nebeneinkünfte”; under “Ausgaben” the indented “Empfänger”. Month and period intent remain in the URL, and Back restores the previous presentation.
 - **Acceptance:** Back link, visible title and menu share one compact row, including at 390 px. Controls and the quiet data basis sit together below it. No “Report N” line or visible report arrows. Monthly/annual paper presentations and finance-check history have no second presentation select. Menu labels, focus, deep links and RP-00's period preference remain usable.
-- **Status:** first slice for review (#1150); shared heading and monthly submenu checked with synthetic data on desktop/390 px and WebKit in light/dark. Remaining: move the other wealth, income/spending, budget-adherence, contract, Explorer and portfolio-cost subreports into the same menu and remove their separate view controls. CI and live acceptance remain open.
+- **Status:** first slice for review (#1150); shared heading and monthly submenu checked with synthetic data on desktop/390 px and WebKit in light/dark. All views of Einnahmen und Cashflow (Einnahmen, Cashflow, Projekte), Ausgaben (Kategorien und Verlauf, Empfänger), Vermögensreport (Vermögensverlauf, Gesamtübersicht), Kosten und Steuern (Kosten gesamt, Bank- und Zinskosten, Erträge, Kosten im Verlauf) and Portfolio-Auswertung (Einzahlungen und Wert, Rendite und Risiko, Kennzahlen, Anlageklassen im Verlauf) are indented menu entries; their in-report view selects are gone (the legacy report keeps its own switches). Explorer templates stay a template choice inside the Explorer. CI and live acceptance remain open.
 
 ### RP-00 – Zeitraum zwischen Reports behalten
 - **Story:** Als Nutzer möchte ich meinen Zeitraum beim Reportwechsel behalten, damit ich mehrere Berichte ohne erneute Auswahl lesen kann.
@@ -101,7 +104,7 @@ Historical references follow `docs/FEATURES.md` (positions 1.1–5.6). The hub r
   2. Leitwert „Grundgehalt brutto pro Monat“ als Stufenlinie mit jeder Erhöhung (Datum, Betrag, Prozent).
   3. Jahresvergleich und Monatsvergleich je Komponente; Monate mit Sonderzahlung oder Bonus sind markiert; Bonus je Jahr mit Anteil am Grundgehalt.
   4. „Real gegen nominal“: Index gegen VPI und persönliche Inflation, kumuliert in Prozent und Euro.
-  5. Technischer Zwischenstand für die spätere Ansicht: Die angemeldete Sitzung kann die nominale Entwicklung bis zu einem gewählten Monat über `GET /api/payslips/development?throughMonth=YYYY-MM` lesen; ohne Auswahl gilt der aktuelle Monat. Der Ablauf in der Oberfläche bleibt bis zum geprüften Entwurf geplant.
+  5. Technischer Zwischenstand für die spätere Ansicht: Die angemeldete Sitzung kann die nominale Entwicklung bis zu einem gewählten Monat über `GET /api/payslips/development?throughMonth=YYYY-MM` lesen; ohne Auswahl gilt der aktuelle Monat. In Reports › Gehaltsreport zeigen die Karten „Grundgehalt · Erhöhungen“ und „Gehaltsentwicklung je Jahr“ (Summe inklusive Sonderzahlungen und Bonus) diese Daten.
 - **Ergebnis:** Ich sehe den echten Zuwachs und Kaufkraftverlust.
 - **Abnahmekriterien:**
   - Sachbezüge und Spesen verzerren die Entwicklung nicht; sie stehen getrennt.
@@ -109,21 +112,22 @@ Historical references follow `docs/FEATURES.md` (positions 1.1–5.6). The hub r
   - Der Inflationsvergleich nutzt VPI und den vorhandenen Warenkorb (Persönliche Inflation).
   - Randfall: Eine Lohnart ohne Zuordnung blockiert nur ihren Monat und wird genannt.
   - Der nominale Datenpfad verwendet gespeicherte Lohnzeilen und Komponenten-Zuordnungen sowie die gemeinsame Rechenlogik. Spätere und gelöschte Gehaltszettel sind ausgeschlossen; Lesen verändert weder Daten noch Buchungen.
-- **Status:** teilweise implementiert für Review (Lohnzeilen/Komponentenmodell aus #1082; nominaler Lese-Endpunkt in dieser Fortsetzung), Oberfläche und Live-Abnahme offen · **Verweis:** #1066
-  Fehlt noch: geprüfter UI-Entwurf, Zuordnungsoberfläche und Schreib-Endpunkte, Ansichten, Vorschau/Bestätigung des expliziten PDF-Neulesens, Anbindung des vorhandenen VPI und der persönlichen Inflation, Ereignismarker und gedruckte Arbeitgeberbeiträge.
+- **Status:** teilweise implementiert für Review (Lohnzeilen/Komponentenmodell aus #1082; nominaler Lese-Endpunkt in dieser Fortsetzung), Erhöhungen und Jahresvergleich in der Oberfläche, Monatsvergleich, Bonus und Real-gegen-nominal offen · **Verweis:** #1066
+  Fehlt noch: Zuordnungsoberfläche und Schreib-Endpunkte, Ansichten, Vorschau/Bestätigung des expliziten PDF-Neulesens, Anbindung des vorhandenen VPI und der persönlichen Inflation, Ereignismarker und gedruckte Arbeitgeberbeiträge.
 
 ### RP-02a – Netto der letzten 24 Monate mit Sonderzahlungen
 - **Story:** Als Nutzer möchte ich je Monat das laufende Netto und die Sonderzahlungen getrennt, aber mit korrekter Monatssumme sehen, damit ein Bonusmonat das laufende Gehalt nicht scheinbar einbrechen lässt.
 - **Ausgangslage:** Mehrere Gehaltszettel, darunter laufende und Sonderzahlungs-Zettel.
 - **Ablauf:**
-  1. Reports › Gehaltsreport, Karte „Netto der letzten Monate“ lesen: volle Säule = laufend, schraffiert = Sonderzahlung, gestrichelt = „Aufteilung unklar“.
+  1. Reports › Gehaltsreport, Karte „Netto der letzten Monate“ lesen: volle Säule = laufender Zettel, schraffiert = eigener Sonderzahlungs-Zettel desselben Monats; jeder Monat zeigt sein volles Netto.
   2. Tabelle „Laufend · Sonderzahlung · Bonus · Summe“ je Monat lesen.
 - **Ergebnis:** Die Monatssumme enthält laufendes Netto und Sonderzahlungen; Steuer wird nicht zwischen den Teilen umverteilt.
 - **Abnahmekriterien:**
-  - Ein laufender Zettel mit erkennbarer Sonderzahlung (Netto über Brutto, zusätzliche Bezugszeile oder Sonderkomponente aus der Quelle) zeigt im Laufend-Teil „Aufteilung unklar“ und zählt trotzdem voll in der Summe.
+  - Ein kombinierter Zettel (laufendes Gehalt plus Sonderzahlung) wird nie geteilt: Sonderzahlungen gehören in den Monat der Auszahlung und zählen voll in dessen Brutto, Netto und Summe (Entscheidung 17.11.2026, #1207). Es gibt weder „Aufteilung unklar“ noch eine Prüfen-Aufgabe zum Teilen.
+  - Der Verlauf „Brutto und Netto je Monat“ enthält Sonderzahlungen und zählt Telearbeit und Fahrgeld als Gehalt; Jahressummen und Vorjahresvergleich enthalten Sonderzahlungen (Hinweis in der Oberfläche).
   - Telearbeit und Fahrgeld zählen als Gehalt; nur Reisespesen bleiben ausgenommen („ohne Reisespesen“). Die Regel steht an einer Stelle (`wage-label-rules.ts`); gespeicherte Zettel, Jahressummen und Sparquote bleiben unverändert.
   - Beträge folgen dem Datenschutzschalter; kein „+“ vor Beträgen.
-- **Status:** in Prüfung · **Offen:** Zettel-Aufnahme (zwei Zettel aus einem PDF vorschlagen) und die Prüfen-Aufgabe zu #1207.
+- **Status:** in Prüfung · **Verweis:** #1207
 
 ### RP-04 – Monat mit Sonderzahlung korrekt darstellen (geplant)
 - **Story:** Als Nutzer möchte ich einen Monat mit Sonderzahlung ohne erfundene Netto- oder Steueraufteilung sehen, damit der Report die Auszahlung korrekt abbildet und keine falsche Warnung zu einem fehlenden Sondergehalt erscheint.
@@ -300,7 +304,7 @@ Historical references follow `docs/FEATURES.md` (positions 1.1–5.6). The hub r
   - Erstattungen sind gegen ihre Kategorie gerechnet; Zukunft steht getrennt und ist kein Konsum.
   - Randfall: Für „Alles“ gibt es keinen gleich langen Vorzeitraum („Kein gleich langer Vorzeitraum verfügbar.“); ohne Monatsdaten „Noch keine Monatsdaten“.
 - **Continuation criteria (#1158):** In ON, `vergleich=vorjahr` compares with the same days one year earlier and survives reload and period changes; the default is the equally long previous period. In ON, `darstellung=kategorien` reopens the category reader after reload; selected categories and period survive switching among all three views. Existing group/payee figures and the OFF view set remain unchanged.
-- **Status:** existing body live; first consolidation slice implemented for review (#1158). Comparison mode Vorperiode/Vorjahr is delivered (address `vergleich=vorjahr`, same figures, only the comparison window differs; Empfänger is a view of the same report). Remaining: custom comparison window and final legacy-address consolidation. **Verweis:** 2.1
+- **Status:** existing body live; first consolidation slice implemented for review (#1158). Comparison mode Vorperiode/Vorjahr is delivered (address `vergleich=vorjahr`, same figures, only the comparison window differs; Empfänger is a view of the same report). The comparison section also shows the chain “Vorzeitraum + Mehr − Weniger = Jetzt” (per-category changes of the existing figures; hidden unless it adds up to the cent). Remaining: custom comparison window (needs a reader parameter) and final legacy-address consolidation. **Verweis:** 2.1
 
 ### RP-12b – Empfänger-Analyse
 - **Story:** Als Nutzer möchte ich sehen, bei wem ich das meiste Geld lasse und wie oft ich dort zahle, damit ich Gewohnheiten und Verträge mit Händlern prüfe.
@@ -368,7 +372,7 @@ Historical references follow `docs/FEATURES.md` (positions 1.1–5.6). The hub r
 - **Status:** implementation in review (#1160 navigation slice); owner acceptance pending · **Verweis:** 2.6
 
 - **Navigation acceptance (#1160):** Bank costs share the Portfolio report and selector. `/reports/kosten` and former contract bank-cost bookmarks retain the bank reader; source amounts, estimates, privacy, reload and Back remain intact.
-- **Total view (#1160):** `darstellung=gesamt` ("Kosten gesamt") shows one annual figure in three blocks: household bank and interest costs (own sum, no portfolio ratio), portfolio costs (trade fees and fees of depot-like accounts, counted once from the bank reader, plus TER share) and taxes withheld by the broker (labelled "einbehalten/erstattet", sign kept, a refund is negative), with a grand total. The cost ratio relates only the portfolio costs (no taxes, no household costs) to the portfolio value; gaps of the bank report (interest periods without EUR rate, trades without exchange rate) are shown as "unvollständig: …". The portfolio reader's own trading fees are not added (they are the bank reader's "Depot- / Transaktionsgebühren"). Both source windows are named in the table; TER and modelled interest stay marked as estimates. Remaining: calendar-year split of the total, the hub rename check and custody/income-fee bookings that exist only in the portfolio reader.
+- **Total view (#1160):** `darstellung=gesamt` ("Kosten gesamt") shows one annual figure in three blocks: household bank and interest costs (own sum, no portfolio ratio), portfolio costs (trade fees and fees of depot-like accounts, counted once from the bank reader, plus TER share) and taxes withheld by the broker (labelled "einbehalten/erstattet", sign kept, a refund is negative), with a grand total. The cost ratio relates only the portfolio costs (no taxes, no household costs) to the portfolio value; gaps of the bank report (interest periods without EUR rate, trades without exchange rate) are shown as "unvollständig: …". The portfolio reader's own trading fees are not added (they are the bank reader's "Depot- / Transaktionsgebühren"). Both source windows are named in the table; TER and modelled interest stay marked as estimates. The calendar-year split (newest year first, partial years marked) lists the existing monthly bank and interest costs per year; portfolio costs and taxes exist only for the last twelve months and stay unsplit. The hub name is “Verträge und Abos” (checked). Remaining: custody/income-fee bookings that exist only in the portfolio reader.
 
 ### RP-15a – Liquiditätsprognose
 - **Story:** Als Nutzer möchte ich sehen, ob das Geld auf den Budget-Konten bis zu 12 Monate reicht, auch mit geplanten Ereignissen, damit ich rechtzeitig umschichte oder Zahlungen verschiebe.
@@ -539,7 +543,7 @@ Historical references follow `docs/FEATURES.md` (positions 1.1–5.6). The hub r
 - **Status:** implementation in review (#1160 navigation slice); owner acceptance pending · **Verweis:** 4.5
 
 - **Navigation acceptance (#1160):** Bank costs share the Portfolio report and selector. `/reports/kosten` and former contract bank-cost bookmarks retain the bank reader; source amounts, estimates, privacy, reload and Back remain intact.
-- **Total view (#1160):** `darstellung=gesamt` ("Kosten gesamt") shows one annual figure in three blocks: household bank and interest costs (own sum, no portfolio ratio), portfolio costs (trade fees and fees of depot-like accounts, counted once from the bank reader, plus TER share) and taxes withheld by the broker (labelled "einbehalten/erstattet", sign kept, a refund is negative), with a grand total. The cost ratio relates only the portfolio costs (no taxes, no household costs) to the portfolio value; gaps of the bank report (interest periods without EUR rate, trades without exchange rate) are shown as "unvollständig: …". The portfolio reader's own trading fees are not added (they are the bank reader's "Depot- / Transaktionsgebühren"). Both source windows are named in the table; TER and modelled interest stay marked as estimates. Remaining: calendar-year split of the total, the hub rename check and custody/income-fee bookings that exist only in the portfolio reader.
+- **Total view (#1160):** `darstellung=gesamt` ("Kosten gesamt") shows one annual figure in three blocks: household bank and interest costs (own sum, no portfolio ratio), portfolio costs (trade fees and fees of depot-like accounts, counted once from the bank reader, plus TER share) and taxes withheld by the broker (labelled "einbehalten/erstattet", sign kept, a refund is negative), with a grand total. The cost ratio relates only the portfolio costs (no taxes, no household costs) to the portfolio value; gaps of the bank report (interest periods without EUR rate, trades without exchange rate) are shown as "unvollständig: …". The portfolio reader's own trading fees are not added (they are the bank reader's "Depot- / Transaktionsgebühren"). Both source windows are named in the table; TER and modelled interest stay marked as estimates. The calendar-year split (newest year first, partial years marked) lists the existing monthly bank and interest costs per year; portfolio costs and taxes exist only for the last twelve months and stay unsplit. The hub name is “Verträge und Abos” (checked). Remaining: custody/income-fee bookings that exist only in the portfolio reader.
 
 ### RP-20 – Jahresreport
 - **Extension:** Owner decision #1118 extends this report; delivery scope and remaining acceptance are tracked in RP-20a below.
@@ -573,7 +577,23 @@ Historical references follow `docs/FEATURES.md` (positions 1.1–5.6). The hub r
   - Vorjahreswerte nutzen die gemeinsamen Monatsfiguren und die gemeinsame Sparquote. Fehlende Vorjahresmonate werden nicht auf ein Jahr hochgerechnet; der Vergleich ist dann „nicht ermittelbar“ mit Grund. Ein Vorjahreswert null verhindert nur dessen Prozentänderung.
   - Die Summe der Geldwerte bleibt centgenau; keine Buchung und keine zentrale Finanzkennzahl wird geändert.
 - **Status:** implemented locally; PR review and live acceptance pending · **Verweis:** 5.1, #1118
-- **Remaining scope:** Investment values/contributions/TTWROR/money-weighted return; trading activity/results/costs/hit rate; household with/without market; investment/cash savings split; prior-year comparisons for wealth and the new investment/trading figures (including relative savings-rate change). Slice 2 context (inflation, benchmark, debt, income sources, spending changes, reserves, goals) remains open. RP-20's existing live status does not imply these additions are live.
+- **Remaining scope:** (investments, trading, wealth with/without market and split savings rate: see RP-20b) household income/consumption with/without market; prior-year comparisons for the new investment/trading figures (including relative savings-rate change). Slice 2 context (inflation, benchmark, debt, income sources, spending changes, reserves, goals) remains open. RP-20's existing live status does not imply these additions are live.
+
+### RP-20b – Investments, Trading und geteilte Sparquote (#1118, slice 1b)
+- **Story:** Als Nutzer möchte ich im Jahresreport sehen, wie sich meine Investments und mein Trading entwickelt haben und wie viel meiner Sparquote in Investments statt auf Bargeldkonten floss, damit ich das Jahr beurteilen kann.
+- **Ausgangslage:** Mindestens ein voller Monat im Hauptbuch; Redesign aktiv.
+- **Ablauf:**
+  1. Reports › Jahresreport öffnen, Jahr wählen, auf Blatt 2 Abschnitt I lesen.
+  2. Vermögenszuwachs ohne Markt (eigener Beitrag) und mit Markt nebeneinander vergleichen.
+  3. Sparquote gesamt, davon in Investments, davon auf Kontos lesen.
+  4. Investments: Wert Anfang/Ende, Netto-Einzahlungen, Marktergebnis, TTWROR, Dietz-Rendite, Erträge; Trading: Käufe/Verkäufe, Sparplan-Käufe, realisierter Gewinn, Gebühren, Steuern.
+- **Abnahmekriterien:**
+  - Wert, Einzahlungen, Marktergebnis, TTWROR und Dietz-Rendite sind centgenau/identisch mit dem Portfolio-Report für denselben Zeitraum (Test); Erträge, Gebühren und Steuern nutzen die Vermögen-Helfer auf den Trades der enthaltenen Monate; realisierter Gewinn ist die Differenz zweier Stände derselben Funktion wie im Portfolio.
+  - Investiert + Bargeld ergeben exakt die Sparquote (Cent und Basispunkte, Test); Bargeld ist der Rest.
+  - Ohne Kurse oder Depotdaten steht „nicht ermittelbar“ mit Grund; nichts wird geschätzt. Die Trefferquote geschlossener Positionen fehlt, weil kein Gewinn je Position vorliegt.
+- **Status:** implemented locally; PR review and live acceptance pending · **Verweis:** 5.1, #1118
+- **Slice 2 im Block:** Vergleich mit dem konfigurierten Vergleichswert, Restschuld Anfang/Ende, Einkommen nach Quelle (bestehende Leser). Netto-Einzahlungen sind das Geld, das netto ins Depot floss, keine echte Zerlegung der Sparquote; der Zeitraum „bis letzter voller Monat“ steht im Block. Der Block ist ein Bildschirmabschnitt und wird nicht gedruckt (Blatt 2 hat keinen Platz; ein drittes A4-Blatt wäre Owner-Entscheid).
+- **Remaining scope:** Vorjahresvergleich der neuen Investment-/Trading-Zahlen; Realwerte (Inflation), Zinszahlungen, Sparziele, Rücklage (noch keine gemeinsame Berechnung).
 
 ### RP-21a – Finanz-Check-Verlauf
 - **Story:** Als Nutzer möchte ich sehen, welche Regeln verletzt sind und seit wann, damit ich zuerst die offene Regel der aktuellen Stufe behebe.
