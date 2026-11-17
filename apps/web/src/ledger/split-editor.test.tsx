@@ -188,6 +188,82 @@ it('shares a category by percent, keeps cents exact, and guards an unfinished se
   expect(screen.getByText(/Speichern geht erst/)).toBeTruthy();
 });
 
+it.each([
+  [
+    5000,
+    [
+      /Bereits beglichen: Guthaben 50,00 € von Kontakt Muster deckt den Anteil/,
+      /Danach 16,67 € Guthaben/,
+    ],
+    'Kategorie trägt 66,68 €. Der Kontaktanteil ist mit Guthaben beglichen.',
+  ],
+  [
+    2000,
+    [
+      /Guthaben 20,00 € von Kontakt Muster deckt 20,00 €\. 13,33 € bleiben offen/,
+      /Danach 0,00 € Guthaben/,
+    ],
+    'Kategorie trägt 80,01 € bis zur Rückzahlung',
+  ],
+  [0, [], 'Kategorie trägt 100,01 € bis zur Rückzahlung'],
+])(
+  'shows the contact credit before and after in the share line (#1147, credit %s)',
+  (credit, hints, label) => {
+    function Form() {
+      const [draft, setDraft] = useState<BookingDraft>({
+        ...emptyDraft('account-example', '2026-10-01'),
+        amount: '100,01',
+        categoryId: 'food-example',
+      });
+      return (
+        <SplitEditor
+          draft={draft}
+          setDraft={setDraft}
+          categories={[
+            {
+              id: 'food-example',
+              name: 'Essen Muster',
+              group: 'Bedarf',
+              kind: 'expense',
+              cls: 'need',
+              availableCents: 20000,
+              hidden: false,
+            },
+          ]}
+          accounts={[]}
+          accountId="account-example"
+          contacts={[{ id: 'contact-example', name: 'Kontakt Muster' }]}
+          contactCredit={() => credit}
+          hasAdvanceCategory
+          locked={false}
+          error={undefined}
+        />
+      );
+    }
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <ToastProvider>
+          <Form />
+        </ToastProvider>
+      </QueryClientProvider>,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Teilen' }));
+    fireEvent.change(screen.getByLabelText('Kontakt 1.1'), {
+      target: { value: 'contact-example' },
+    });
+    fireEvent.click(
+      within(screen.getByRole('group', { name: 'Anteilart 1.1' })).getByRole('button', {
+        name: '%',
+      }),
+    );
+    fireEvent.change(screen.getByLabelText('Anteil 1.1 (%)'), { target: { value: '33,33' } });
+    const group = screen.getByRole('group', { name: 'Kontaktanteil 1.1' });
+    for (const hint of hints) expect(group.textContent).toMatch(hint);
+    if (!hints.length) expect(group.querySelector('.bk-share-credit')).toBeNull();
+    expect(screen.getByText(label)).toBeTruthy();
+  },
+);
+
 it('undoing an inline contact creation clears that contact from the unsaved line', async () => {
   const created = vi.spyOn(ledgerApi, 'createContact').mockResolvedValue({
     contact: { id: 'new-contact-example', name: 'Neuer Kontakt Muster' },

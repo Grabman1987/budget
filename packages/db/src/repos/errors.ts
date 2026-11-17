@@ -26,7 +26,6 @@ export class BookingInvariantError extends Error {
  * explicit confirmation (`unlockContactLinked`); the message stays the one the older guard used.
  */
 export class ContactLinkedError extends BookingInvariantError {
-  override readonly name = 'ContactLinkedError';
   constructor(
     readonly bookingId: string,
     readonly settlementDates: string[],

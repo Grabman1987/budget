@@ -16,7 +16,8 @@ import {
   useToast,
 } from '@budget/ui';
 import { manualTransferStatus, todayInVienna, type ManualBankStatus } from '@budget/domain';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
+import { contactReportQuery } from '../reports/contact-api';
 import {
   CalendarDays,
   Check,
@@ -445,6 +446,33 @@ export function CaptureForm({
   // The budget of the booking's month gives the categories by stage and their Available.
   const parsedDate = captureDate(draft.date, today.slice(0, 4));
   const month = parsedDate ? parsedDate.slice(0, 7) : today.slice(0, 7);
+  // #1147: the credit a contact already holds, read for a new booking's date only.
+  const shareContactIds =
+    isTransfer || editing
+      ? []
+      : [
+          ...new Set(
+            captureLines(draft, singleMetadata)
+              .flatMap((line) => line.shares)
+              .map((share) => share.contactId)
+              .filter((id): id is string => !!id),
+          ),
+        ];
+  const creditReports = useQueries({
+    queries: shareContactIds.map((id) => contactReportQuery(id, parsedDate ?? today, true)),
+  });
+  const contactCredit = (contactId: string, categoryId: string) => {
+    const credits = creditReports[shareContactIds.indexOf(contactId)]?.data?.credits;
+    if (!credits) return undefined;
+    return credits
+      .filter(
+        (c) =>
+          !c.targetOutlaySplitId &&
+          (!c.categoryId || c.categoryId === categoryId) &&
+          c.onBudget === from?.onBudget,
+      )
+      .reduce((sum, c) => sum + c.remainingCents, 0);
+  };
   const budget = useQuery(budgetQuery(month));
   const all = useMemo(
     () =>
@@ -879,7 +907,9 @@ export function CaptureForm({
       setBusy(false);
     }
   };
-  retryRemove.current = () => void remove();
+  useEffect(() => {
+    retryRemove.current = () => void remove();
+  });
   const deleteReason = deletion?.selection.items.find((item) => item.reason !== null)?.reason;
   const canConfirmDelete =
     !!deletion &&
@@ -1072,6 +1102,7 @@ export function CaptureForm({
       accounts={open}
       accountId={accountId}
       contacts={contacts}
+      contactCredit={contactCredit}
       hasAdvanceCategory={Boolean(advanceCategoryId)}
       locked={splitLocked}
       error={splitError ?? errors.category}

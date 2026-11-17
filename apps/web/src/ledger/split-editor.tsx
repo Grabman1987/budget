@@ -49,6 +49,11 @@ export interface SplitEditorProps {
   compact?: boolean;
   /** Only an existing, explicitly identified balance correction can use this expense target. */
   allowReadyToAssign?: boolean;
+  /**
+   * Credit (cents) a contact already holds that a new share in this category would be settled
+   * against (#1147); `undefined` while unknown or not applicable.
+   */
+  contactCredit?: (contactId: string, categoryId: string) => number | undefined;
 }
 
 /** Retain stored rows independently: the ledger does not store a gross-line grouping. */
@@ -98,6 +103,7 @@ export function SplitEditor({
   contactHost,
   compact = false,
   allowReadyToAssign = false,
+  contactCredit,
 }: SplitEditorProps) {
   useAmountPrivacy();
   const editorRef = useRef<HTMLFieldSetElement>(null);
@@ -112,6 +118,8 @@ export function SplitEditor({
   const rest = splitRemainder(draft.amount, lines);
   const expanded = expandBookingLines({ ...draft, lines });
   const sharingInvalid = lines.some((line) => line.shares.length) && !expanded.splits.length;
+  // Credit left per contact while the shares are listed in order: it is used up once, never twice.
+  const creditLeft = new Map<string, number>();
   const update = (
     next: BookingLineDraft[] | ((current: BookingLineDraft[]) => BookingLineDraft[]),
   ) =>
@@ -247,10 +255,28 @@ export function SplitEditor({
                 ((draft.kind === 'income' || allowReadyToAssign) && !line.categoryId
                   ? 'Zu verteilen'
                   : ''));
+        let allCovered = line.shares.length > 0;
+        let covered = 0;
+        const carriedOf = () =>
+          Math.max(0, (categoryAmount.ok ? categoryAmount.cents : 0) - covered);
         const shareFields = (
           <>
             {line.shares.map((share, shareIndex) => {
               const label = `${n}.${shareIndex + 1}`;
+              const shareName = contacts.find((c) => c.id === share.contactId)?.name ?? 'Kontakt';
+              const shareAmount = parseAmount(
+                expanded.splits.find((s) => s.key === share.key)?.amount ?? '',
+              );
+              const before = share.contactId
+                ? (creditLeft.get(share.contactId) ??
+                  contactCredit?.(share.contactId, line.categoryId))
+                : undefined;
+              const shareCents = shareAmount.ok ? shareAmount.cents : 0;
+              const used = before && shareCents > 0 ? Math.min(before, shareCents) : 0;
+              if (share.contactId && before !== undefined)
+                creditLeft.set(share.contactId, before - used);
+              covered += used;
+              if (shareCents === 0 || used < shareCents) allCovered = false;
               return (
                 <div
                   className="bk-share"
@@ -314,6 +340,15 @@ export function SplitEditor({
                       'Entfernen'
                     )}
                   </Button>
+                  {before !== undefined && before > 0 && (
+                    <p className="khint bk-share-credit" aria-live="polite">
+                      {used === 0
+                        ? `${shareName} hat ${eur(before)} Guthaben. Es wird mit dem Anteil verrechnet.`
+                        : used === shareCents
+                          ? `Bereits beglichen: Guthaben ${eur(before)} von ${shareName} deckt den Anteil. Danach ${eur(before - used)} Guthaben.`
+                          : `Guthaben ${eur(before)} von ${shareName} deckt ${eur(used)}. ${eur(shareCents - used)} bleiben offen bis zur Rückzahlung. Danach ${eur(before - used)} Guthaben.`}
+                    </p>
+                  )}
                 </div>
               );
             })}
@@ -322,7 +357,9 @@ export function SplitEditor({
                 <p className="khint" aria-live="polite">
                   {sharingInvalid
                     ? 'Kontakt und gültigen Anteil wählen. Anteile dürfen den Zeilenbetrag nicht überschreiten.'
-                    : `Kategorie trägt ${eur(categoryAmount.ok ? categoryAmount.cents : 0)} bis zur Rückzahlung`}
+                    : allCovered
+                      ? `Kategorie trägt ${eur(carriedOf())}. Der Kontaktanteil ist mit Guthaben beglichen.`
+                      : `Kategorie trägt ${eur(carriedOf())} bis zur Rückzahlung`}
                 </p>
                 <Button
                   variant="ghost"
