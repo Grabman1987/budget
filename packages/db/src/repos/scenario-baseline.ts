@@ -1,5 +1,5 @@
 import { snapshotSchema, type Snapshot } from '@budget/domain';
-import { isLiquidityAccount } from './liquidity-account';
+import { isLiquidityAccount, isPaymentAccount } from './liquidity-account';
 import { forecastBudgetValues, forecastInputs, loadFacts } from './rule-inputs';
 import type { Executor } from './types';
 
@@ -34,6 +34,7 @@ export function scenarioBaseline(db: Executor, asOf: string): Snapshot {
       openingDate: account.openingDate,
       currency: account.currency,
       variableMonthlyCents: forecast.variableMonthlyCents,
+      paymentAccount: isPaymentAccount(account, asOf),
     })),
     items: [...forecast.dayZeroItems, ...forecast.items]
       .filter((item) => item.day <= forecast.through)

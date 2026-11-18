@@ -25,6 +25,7 @@ export function AccountLiquidityAlerts({
   const accounts = result?.withoutExpectedInflows.accounts ?? [];
   const short = accounts.filter(
     (account) =>
+      account.paymentAccount &&
       account.firstBelowZero &&
       (!account.nextSafeInflowDay || account.firstBelowZero.day < account.nextSafeInflowDay),
   );
@@ -33,7 +34,7 @@ export function AccountLiquidityAlerts({
     <section className="account-liquidity-alerts" aria-label="Konten mit Engpass">
       {short.map((account) => {
         const source = accounts
-          .filter((other) => other.accountId !== account.accountId)
+          .filter((other) => other.paymentAccount && other.accountId !== account.accountId)
           .map((other) => ({
             ...other,
             free: Math.max(0, other.low.cents - (other.bufferCents ?? 0)),
@@ -135,6 +136,7 @@ export function AccountLiquidityTable({
                       onClick={() => setExpanded(open ? null : account.accountId)}
                     >
                       {maskMoneyText(account.name)}
+                      {!account.paymentAccount && ' (kein Zahlungskonto)'}
                     </button>
                   </td>
                   <td data-label="Stand heute">{eur(account.balanceTodayCents)}</td>

@@ -229,6 +229,7 @@ const r07: Rule<'R07'> = (p, i) => {
   if (!low) return null;
   const shortAccounts = accountLiquidity?.withoutExpectedInflows.accounts.filter(
     (account) =>
+      account.paymentAccount &&
       account.firstBelowZero !== null &&
       (account.nextSafeInflowDay === null ||
         account.firstBelowZero.day < account.nextSafeInflowDay),

@@ -148,6 +148,20 @@ it('masks account and forecast amounts in privacy mode', () => {
   expect(container.textContent).not.toContain('100,00');
 });
 
+it('never prepares a transfer from a non-payment account or warns about its debt', () => {
+  const result = fixture();
+  // Only the card has 50,000 cents. Bills are short 5,001; card cash cannot fund that gap.
+  Object.assign(result.withoutExpectedInflows.accounts[1]!, { paymentAccount: false });
+  render(<AccountLiquidityAlerts result={result} today="2026-01-30" />);
+  expect(
+    screen.getByRole('button', { name: 'Umbuchung vorbereiten' }).hasAttribute('disabled'),
+  ).toBe(true);
+  cleanup();
+  Object.assign(result.withoutExpectedInflows.accounts[0]!, { paymentAccount: false });
+  render(<AccountLiquidityAlerts result={result} today="2026-01-30" />);
+  expect(screen.queryByRole('alert')).toBeNull();
+});
+
 it('shows unavailable account liquidity and offers no transfer when a required exchange rate is missing', () => {
   const result = {
     ...fixture(),
