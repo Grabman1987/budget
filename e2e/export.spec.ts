@@ -51,11 +51,11 @@ test('legacy import entry points cannot open the removed wizard or report', asyn
   if ((await page.locator('.app').getAttribute('data-budget-redesign')) === '1') {
     await page
       .getByRole('region', { name: 'Bank', exact: true })
-      .getByRole('button', { name: 'Prüfen' })
+      .getByRole('button', { name: 'Bank: Einrichtung und Details' })
       .click();
     await page
       .getByRole('region', { name: 'Krypto', exact: true })
-      .getByRole('button', { name: 'Prüfen' })
+      .getByRole('button', { name: 'Krypto: Einrichtung und Details' })
       .click();
   }
   await expect(page.getByRole('heading', { name: 'Bank-Sync (PSD2)', exact: true })).toBeVisible();

@@ -32,6 +32,12 @@ Die Status stammen aus `docs/FEATURES.md`, `docs/STATUS.md`, dem Code und dem Is
 
 Eine Analyse aller Abläufe nach Aufwand für den Nutzer steht in [EFFIZIENZ.md](user-stories/EFFIZIENZ.md).
 
+## Connections register (E-03 and E-04, #859)
+
+In the redesign, open **Einstellungen › Verbindungen** to see all six data sources, with sources needing attention first in severity order. Use a source link in the summary to open its details and focus its disclosure. Each row names the affected scope, shows the last known success and displays a next run only when the adapter supplies one. The row action starts the existing read or leads to the existing recovery control. A failed document scan keeps its attempt timestamp in the details, with success marked as unavailable.
+
+Acceptance covers existing consent and mapping controls, a neutral loading state, light and dark layouts, and reflow down to 320 px. Production rollout and owner acceptance are pending.
+
 ## Offene Fragen an den Nutzer
 
 Stand nach den Entscheidungen vom 15.11.2026. Bei diesen Stories ist noch etwas offen:

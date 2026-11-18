@@ -203,8 +203,13 @@ describe('Spritmonitor connection and review UI', () => {
       data.destination = null;
       data.rows = [];
       mount(<SpritmonitorSourceSection compact={compact} />);
-      if (compact) fireEvent.click(await screen.findByRole('button', { name: 'Prüfen' }));
+      if (compact)
+        fireEvent.click(await screen.findByRole('button', { name: 'Einrichtung ansehen' }));
       await screen.findByText(/Die Verbindung wird am Server eingerichtet/);
+      if (compact)
+        expect(document.activeElement).toBe(
+          screen.getByRole('group', { name: 'Spritmonitor: Einrichtung und Details' }),
+        );
       expect(screen.queryByRole('textbox')).toBeNull();
       expect(
         (screen.getByRole('button', { name: 'Jetzt abrufen' }) as HTMLButtonElement).disabled,

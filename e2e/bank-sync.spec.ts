@@ -69,7 +69,7 @@ test('bank source callback, mapping, queue action and responsive review', async 
   });
   await page.getByLabel('Konto in Budget').selectOption('synthetic-account');
   await page.getByLabel('Umsätze ab').fill('2026-09-01');
-  await page.getByRole('button', { name: 'Konto zuordnen' }).click();
+  await bank.getByRole('button', { name: 'Konto zuordnen' }).click();
   await expect(page.getByText('Kontozuordnung gespeichert.')).toBeVisible();
   expect(calls[1]?.body).toEqual({ accountId: 'synthetic-account', fromDate: '2026-09-01' });
   await bank.getByRole('button', { name: 'Jetzt abrufen' }).click();
@@ -220,7 +220,7 @@ test('connection cards explain limits and results, scope messages and deep-link 
   if (await redesignLoaded(page)) {
     await page
       .getByRole('region', { name: 'Bank', exact: true })
-      .getByRole('button', { name: 'Prüfen', exact: true })
+      .getByRole('button', { name: 'Bank: Einrichtung und Details', exact: true })
       .click();
   }
   await expect(second.getByRole('button', { name: 'Jetzt abrufen' })).toBeDisabled();

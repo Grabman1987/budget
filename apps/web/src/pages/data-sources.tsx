@@ -161,6 +161,7 @@ function BankSourceSection() {
         )}
         {callback.code && callback.state && (
           <Button
+            data-source-bank-callback=""
             disabled={busy}
             onClick={() =>
               void act(async () => {
@@ -192,6 +193,7 @@ function BankSourceSection() {
             {callback.code ? null : institutions.length === 0 ? (
               <div className="sources-actions">
                 <Button
+                  data-source-bank-connect=""
                   disabled={busy}
                   onClick={() =>
                     void act(async () => {
@@ -216,6 +218,7 @@ function BankSourceSection() {
                   {({ id }) => (
                     <TextInput
                       id={id}
+                      data-source-bank-connect=""
                       type="search"
                       autoComplete="off"
                       placeholder="Bankname eintippen"
@@ -395,6 +398,7 @@ function ConnectionCard({
       </dl>
       <div className="sources-actions">
         <Button
+          data-source-bank-sync={encodeURIComponent(connection.id)}
           disabled={busy || Boolean(blocked)}
           onClick={() =>
             void act(
@@ -421,7 +425,11 @@ function ConnectionCard({
         </Button>
       </div>
       {blocked && (
-        <p className="kmeta">
+        <p
+          className="kmeta"
+          data-source-bank-blocked={encodeURIComponent(connection.id)}
+          tabIndex={REDESIGN_ENABLED ? -1 : undefined}
+        >
           {blocked}
           {connection.manualAvailableAt && <> Möglich ab {stamp(connection.manualAvailableAt)}.</>}
         </p>
@@ -510,7 +518,12 @@ function ConnectionCard({
               {w.detail}
             </p>
           ))}
-          <AppLink to="/konten/pruefen" search={{ bankSource: a.id }} className="btn btn-ghost">
+          <AppLink
+            to="/konten/pruefen"
+            search={{ bankSource: a.id }}
+            className="btn btn-ghost"
+            data-source-bank-review={encodeURIComponent(a.id)}
+          >
             Aufgaben prüfen
           </AppLink>
         </div>
@@ -560,6 +573,7 @@ function AccountLink({
             {({ id }) => (
               <Select
                 id={id}
+                data-source-bank-mapping={encodeURIComponent(row.id)}
                 value={accountId}
                 required
                 disabled={disabled}

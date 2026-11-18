@@ -5,7 +5,7 @@ async function openSourceDetails(page: Page) {
   if ((await page.locator('.app').getAttribute('data-budget-redesign')) !== '1') return;
   for (const title of ['Bank', 'Krypto']) {
     const card = page.getByRole('region', { name: title, exact: true });
-    await card.getByRole('button', { name: /^(Prüfen|Verwalten)$/ }).click();
+    await card.getByRole('button', { name: `${title}: Einrichtung und Details` }).click();
   }
 }
 test.beforeEach(async ({ page }) => {

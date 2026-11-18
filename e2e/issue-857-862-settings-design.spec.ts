@@ -51,14 +51,18 @@ test('source dates distinguish a pending payslip scan from an empty scan history
       return;
     }
     const payslip = page.getByRole('region', { name: 'Gehaltszettel', exact: true });
-    await expect(payslip.getByText('Letzter Scanversuch: Wird geladen …')).toBeVisible();
-    await expect(payslip).not.toContainText('Nicht verfügbar');
-    await expect(payslip).not.toContainText('Letzter Erfolg:');
+    const time = payslip.locator('.settings-source-time');
+    await expect(time).toContainText('Letzter Erfolg');
+    await expect(time).toContainText('Wird geladen …');
+    await expect(time).not.toContainText('Nicht verfügbar');
+    await expect(time.locator('time')).toHaveCount(0);
     release();
+    await expect(time).toContainText('Noch kein erfolgreicher Abruf');
+    await expect(time).not.toContainText('Wird geladen');
+    await payslip.getByRole('button', { name: 'Gehaltszettel: Einrichtung und Details' }).click();
     await expect(payslip.getByText('Letzter Scanversuch: Noch kein Scanversuch')).toBeVisible();
-    await expect(payslip).not.toContainText('Wird geladen');
     await expect(page.getByRole('region', { name: 'Bank', exact: true })).toContainText(
-      'Letzter Erfolg:',
+      'Letzter Erfolg',
     );
   } finally {
     release();
@@ -191,7 +195,7 @@ test('connections: opened source forms fit 390px and keep 44px targets', async (
   await page.waitForLoadState('networkidle');
   for (const name of ['Bank', 'Krypto', 'Gehaltszettel']) {
     const card = page.getByRole('region', { name, exact: true });
-    await card.getByRole('button', { name: /^(Prüfen|Verwalten)$/ }).click();
+    await card.getByRole('button', { name: `${name}: Einrichtung und Details` }).click();
     await expect(card.locator('.settings-source-details')).toBeVisible();
   }
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
