@@ -653,6 +653,7 @@ sampleTest.describe('regression baselines of the shell (own screenshots)', () =>
       await expect(page.locator('main')).toBeVisible();
       if (name === 'heute') {
         await expectHeuteVisualReady(page);
+        await expect(page.getByRole('region', { name: 'Konten mit Engpass' })).toHaveCount(0);
         await page.screenshot({ path: test.info().outputPath('heute-viewport-light.png') });
       }
       await page.evaluate(() => document.fonts.ready);
@@ -669,6 +670,7 @@ sampleTest.describe('regression baselines of the shell (own screenshots)', () =>
     await page.goto('/?monat=2026-09&period=payday');
     await expect(page.locator('main')).toBeVisible();
     await expectHeuteVisualReady(page);
+    await expect(page.getByRole('region', { name: 'Konten mit Engpass' })).toHaveCount(0);
     await page.screenshot({ path: test.info().outputPath('heute-viewport-dark.png') });
     const redesign = (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
     await expectScreenshot(page, `shell-heute${redesign ? '-redesign' : ''}-dark.png`);

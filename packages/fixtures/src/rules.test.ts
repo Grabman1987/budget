@@ -106,26 +106,10 @@ describe('sample ledger at 17.09.2026', () => {
   it('R07 includes the overdue reserve payment and warns below zero without overdraft', () => {
     // 116,700 cash - 30,000 overdue - (10,500 + 2,500 + 1,799) bills
     // - 207,000 monthly variable spending * 12/30 days = -10,899 cents on 29 September.
-    // The legacy household detail stays unchanged. F3's conservative Giro horizon ends
-    // 14 November: 161,700 - 2*30,000 reserve - 6,000 internet - 2*226,980 = -358,260.
-    // Each 226,980 cycle is rent 89,000 + electricity 10,500 + fees 690 + loan 41,200
-    // + car insurance 4,800 + accident 2,800 + phone 2,500 + gym 4,200 + newspaper 1,290
-    // + ETF 40,000 + extra repayment 30,000. No expected income or guessed variable
-    // account spending counts. The earliest account low is 10 November.
     expect(latest('R07')).toMatchObject({
       status: 'bad',
-      valueText: 'Konto Girokonto: Tiefpunkt \u22123.583 \u20ac',
-      detail: {
-        lowDay: '2026-09-29',
-        lowCents: -10_899,
-        shortAccounts: [
-          {
-            accountId: 'acc-giro',
-            firstBelowZero: { day: '2026-10-03', cents: -46_390 },
-            low: { day: '2026-11-10', cents: -358_260 },
-          },
-        ],
-      },
+      valueText: 'Tiefpunkt \u2212109 \u20ac',
+      detail: { lowDay: '2026-09-29', lowCents: -10_899 },
     });
   });
 

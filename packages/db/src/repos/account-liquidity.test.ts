@@ -8,7 +8,7 @@ import {
 import { eq } from 'drizzle-orm';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { createTestDatabase, type OpenedDatabase } from '../client';
-import { expectedOccurrence } from '../schema';
+import { expectedOccurrence, expectedPayment } from '../schema';
 import { createBooking, createTransfer } from './bookings';
 import { accounts, categories } from './entities';
 import { createExpectedPayment, linkOccurrence } from './expected';
@@ -293,11 +293,8 @@ it('shares literal daily cents between Heute, report, R07 and scenario baseline'
     }
   }
   expect(evaluateRule('R07', {}, ruleInputs(opened.db, today))).toMatchObject({
-    status: 'bad',
-    detail: {
-      conservativeLowCents: 9800,
-      shortAccounts: [{ accountId: 'giro', low: { cents: -200 } }],
-    },
+    status: 'ok',
+    detail: { lowCents: 9800 },
   });
 });
 
@@ -432,4 +429,103 @@ it.each([
   expect(result.withExpectedInflows.household.days.at(-1)?.day).toBe(through);
   // Inclusive last-day debit 100 counts; the next-day debit 200 does not: 11,000 - 100 = 10,900.
   expect(result.withoutExpectedInflows.household.days.at(-1)?.balanceCents).toBe(10900);
+});
+
+// Alert bounds are separate from the full-horizon table and household R07 forecast.
+it.each([
+  ['after salary', '2026-10-15', '2026-10-16', false],
+  ['before salary', '2026-10-15', '2026-10-14', true],
+  ['salary today', today, '2026-10-11', false],
+  ['salary tomorrow', '2026-10-11', today, true],
+])('bounds the account alert: %s', (_label, payday, debitDay, alerts) => {
+  payment('Salary', payday!, 2000, 'giro', 'inflow');
+  // An open-ended monthly payment is recurring; helper defaults to a one-date schedule.
+  opened.db
+    .update(expectedPayment)
+    .set({ endDate: null })
+    .where(eq(expectedPayment.id, 'Salary'))
+    .run();
+  payment('Debit', debitDay!, 1500, 'giro');
+  const result = heute(opened.db, { today }).accountLiquidity!;
+  const account = result.withoutExpectedInflows.accounts.find((a) => a.accountId === 'giro')!;
+  // Known cash 1,000 - 1,500 = -500. Salary 2,000 is never available in this path.
+  // Debit after/on payday is outside the alert window, yet remains in the full table.
+  expect(account).toMatchObject({
+    name: 'Giro',
+    nextSafeInflowDay: payday,
+    low: { cents: -500 },
+  });
+  expect((account.lowBeforeSafeInflow?.cents ?? 0) < 0).toBe(alerts);
+  if (payday === today) {
+    expect(account.lowBeforeSafeInflow).toBeNull();
+    // Forecast only: 1,000 + 2,000 today - 1,500 tomorrow = 1,500 at its low.
+    expect(result.withExpectedInflows.accounts.find((a) => a.accountId === 'giro')!.low.cents).toBe(
+      1500,
+    );
+    // Scenario snapshots keep their pre-existing day-zero obligation convention.
+    expect(() => scenarioBaseline(opened.db, today)).not.toThrow();
+  }
+  if (alerts) expect(account.firstBelowZero).toMatchObject({ day: debitDay, cents: -500 });
+});
+
+it('does not bound the alert by one-off income and alerts on another account without income', () => {
+  payment('One-off', '2026-10-11', 2000, 'giro', 'inflow');
+  payment('Debit', '2026-10-12', 1500, 'giro');
+  payment('Second debit', '2026-10-13', 10_100, 'second');
+  const result = heute(opened.db, { today }).accountLiquidity!;
+  // Giro 1,000 - 1,500 = -500 despite the one-off expected 2,000.
+  // Second 10,000 - 10,100 = -100; no receipt bounds its horizon.
+  for (const [id, day, cents] of [
+    ['giro', '2026-10-12', -500],
+    ['second', '2026-10-13', -100],
+  ] as const) {
+    expect(result.withoutExpectedInflows.accounts.find((a) => a.accountId === id)).toMatchObject({
+      nextSafeInflowDay: null,
+      firstBelowZero: { day, cents },
+      lowBeforeSafeInflow: { day, cents },
+    });
+  }
+});
+
+it('treats a finite schedule with only one due date as one-off even with unequal bounds', () => {
+  payment('Finite receipt', '2026-10-11', 2000, 'giro', 'inflow');
+  opened.db
+    .update(expectedPayment)
+    .set({ startDate: '2026-10-01', endDate: '2026-10-20' })
+    .where(eq(expectedPayment.id, 'Finite receipt'))
+    .run();
+  payment('Debit', '2026-10-12', 1500, 'giro');
+  // Only October 11 is scheduled; 1,000 - 1,500 = -500 still raises the alert.
+  expect(
+    heute(opened.db, { today }).accountLiquidity!.withoutExpectedInflows.accounts.find(
+      (a) => a.accountId === 'giro',
+    ),
+  ).toMatchObject({ nextSafeInflowDay: null, lowBeforeSafeInflow: { cents: -500 } });
+});
+
+it('retains standalone future bookings in account and scenario forecasts without changing R07', () => {
+  createBooking(
+    opened.db,
+    {
+      accountId: 'giro',
+      date: '2026-10-11',
+      amountCents: -1500,
+      splits: [{ categoryId: 'miete', amountCents: -1500 }],
+    },
+    testCtx,
+  );
+  const account = heute(opened.db, {
+    today,
+  }).accountLiquidity!.withoutExpectedInflows.accounts.find((a) => a.accountId === 'giro')!;
+  // Account: 1,000 - 1,500 = -500. Household scenario: 11,000 - 1,500 = 9,500.
+  expect(account.low).toMatchObject({ day: '2026-10-11', cents: -500 });
+  const scenario = evaluate(scenarioBaseline(opened.db, today), { through: '2026-10-12' })
+    .outcomes[0]!;
+  expect(scenario.withoutExpectedInflows.household.series.map((row) => row.cents)).toEqual([
+    11000, 9500, 9500,
+  ]);
+  expect(evaluateRule('R07', {}, ruleInputs(opened.db, today))).toMatchObject({
+    status: 'ok',
+    detail: { lowCents: 11000 },
+  });
 });

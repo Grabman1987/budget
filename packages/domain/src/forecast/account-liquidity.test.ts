@@ -197,19 +197,22 @@ describe('accountLiquidityForecast', () => {
     expect(additive.accountLiquidity?.withoutExpectedInflows.accounts[0]?.low.cents).toBe(-200);
   });
 
-  it('uses the next proven inflow only as an alert boundary, keeping the full table path', () => {
+  it('uses the resolved recurring receipt only as an alert boundary, keeping the full table path', () => {
     const result = accountLiquidityForecast(
       input({
         accounts: [
           { id: 'payment', name: 'Zahlkonto', balanceCents: 100, nextSafeInflowDay: '2026-01-31' },
         ],
-        items: [payment(), payment({ day: '2026-01-31', cents: 100, kind: 'income' })],
+        items: [
+          payment(),
+          payment({ day: '2026-01-31', cents: 100, kind: 'income', expected: true }),
+        ],
       }),
       4,
     ).withoutExpectedInflows.accounts[0]!;
-    // Before safe inflow: 100. Later full horizon: 100 + 100 - 300 = -100.
-    expect(result.lowBeforeSafeInflow.cents).toBe(100);
-    expect(result.low.cents).toBe(-100);
+    // Before safe inflow: 100. Later full horizon without expected inflows: 100 - 300 = -200.
+    expect(result.lowBeforeSafeInflow!.cents).toBe(100);
+    expect(result.low.cents).toBe(-200);
     expect(result.firstBelowZero?.day).toBe('2026-02-01');
   });
 });

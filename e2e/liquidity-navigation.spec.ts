@@ -100,6 +100,38 @@ test('account shortfall stays visible with positive household cash and prepares 
   await expect(table.getByRole('link', { name: 'Zahlung bearbeiten' })).toHaveCount(1);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await table.screenshot({ path: info.outputPath('account-liquidity.png') });
+  // A recurring salary after the debit leaves the -5,001-cent shortfall actionable.
+  await post('/expected', {
+    name: 'Testgehalt danach',
+    accountId: bills.id,
+    kind: 'inflow',
+    rhythm: 'monthly',
+    dueDay: 21,
+    startDate: '2026-03-21',
+    validFrom: '2026-03-18',
+    amountCents: 20_000,
+  });
+  await page.goto('/');
+  await expect(page.getByRole('region', { name: 'Konten mit Engpass' })).toContainText(
+    'bis zum n\u00e4chsten sicheren Eingang am 21.03.',
+  );
+  // Salary before the debit ends the alert window; the full forecast still shows the low.
+  await post('/expected', {
+    name: 'Testgehalt davor',
+    accountId: bills.id,
+    kind: 'inflow',
+    rhythm: 'monthly',
+    dueDay: 19,
+    startDate: '2026-03-19',
+    validFrom: '2026-03-18',
+    amountCents: 20_000,
+  });
+  await page.reload();
+  await expect(page.getByRole('region', { name: 'Konten mit Engpass' })).toHaveCount(0);
+  await page.goto('/plan/prognose');
+  await expect(page.getByRole('region', { name: 'Liquidit\u00e4t je Konto' })).toContainText(
+    '\u221250,01',
+  );
 });
 
 test('Plan reaches liquidity and a payment keeps its account, due date and chosen forecast', async ({

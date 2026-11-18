@@ -56,7 +56,10 @@ Jede neue Funktion und jede Entscheidung des Nutzers bekommt im selben Pull Requ
 
 As the owner, I can see whether each payment account can cover its dated payments,
 even when household cash is positive. Heute names the account, first shortfall date
-and signed balance. Expected income and unused overdraft never suppress the alert.
+and signed balance. The path excludes expected income and unused overdraft. The
+alert window ends the day before the next open recurring expected receipt into
+that account; without one, it ends at next household payday plus 30 days. One-off
+expected receipts do not end the window. Later shortfalls remain forecast only.
 Preparing a transfer opens the existing capture with source, destination and missing
 cents for review; nothing is booked until I explicitly save.
 

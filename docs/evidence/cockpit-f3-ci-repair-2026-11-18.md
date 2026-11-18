@@ -1,36 +1,82 @@
-# F3 CI repair evidence
+# F3 lead-decision repair evidence
 
-Synthetic data only. Refs #1228 and #1225; repair of PR #1253 after run 44397377673.
+Synthetic data only. Refs #1228 and #1225; PR #1253.
+The lead decision supersedes the earlier conservative-R07 proposal.
 
-## Contract findings
+## Financial contract
 
-- `heute.test.ts`: the top-level key list omitted the additive `accountLiquidity` field. The existing assertions are retained.
-- `liquidity-35d-568-569.test.ts`: the absent-account response already returned `available: false`, `report: null` and the new `accountLiquidity: null`. Its strict expectation now includes that field. A separate card-only regression proves that the new per-account forecast is unavailable without payment accounts while the legacy aggregate report retains its scope.
-- R07: the conservative payment-account horizon is different from the legacy household chart. The sample test retains the existing household detail of -10,899 cents on 29 September, and independently pins the account low of -358,260 cents on 10 November. The test comment derives every term. Expected receipts and overdraft do not cover either shortfall.
-- The last `ci: run full suite` commit had reverted the prior reviewed fixes and removed their regressions. The shared payment-account predicate, exact BigInt daily products, scenario eligibility, full-horizon source cash limit and capped transfer drafts are restored together with those tests.
+R07 is restored exactly to `origin/main` (4962d9c8): the household forecast includes
+expected inflows. Its evaluator and `packages/fixtures/src/rules.test.ts` are
+unchanged from main. The literal household low remains -10,899 cents on
+29 September. No account findings enter its status, text, details or check counters.
+Raw future ledger bookings enter the additive account/scenario paths only.
 
-## Unresolved #956 contract conflict
+Kontoengpass is separate. Each payment account uses its path without expected
+inflows from today through the day before its next open recurring expected receipt.
+Without such a receipt, use next household payday + 30 days inclusively. Finite
+schedules with only one scheduled occurrence are one-off income, even with unequal
+start/end dates. They never bound the window. Salary today gives an empty window;
+salary tomorrow includes today. Overdraft never covers an alert. Later lows belong
+to the full-horizon table, which labels both expected-income variants. Expected
+receipts today enter only the new forecast variant; the household and scenario
+legacy day-zero conventions remain unchanged.
 
-The old direct response pins were reproduced against `origin/main` at `4962d9c8` in a separate temporary checkout using the same synthetic fixture and crypto epoch. All 15 direct-response cases passed there. A structural comparison of the three old/new Heute JSON responses found one added top-level field, `accountLiquidity`, and changes confined to the existing `financeCheck` subtree.
+## Response compatibility proof
 
-The latter changes are substantive: the performance fixture contains negative checking-account paths despite positive household cash. F3 correctly reports these shortfalls through R07, changing its result, the check counts and ordering. Filtering out credit cards removes false card alerts but does not remove these real synthetic checking-account shortfalls.
+The three #956 direct-response digest literals and their JSON manifest remain
+unchanged from main. The test removes precisely the additive top-level
+`accountLiquidity` field before checking the old byte length and SHA-256. Every
+pre-existing serialized field, value and ordering is therefore protected. A direct
+recursive JSON comparison against the three saved synthetic main answers also
+found zero changed or removed old fields, with `accountLiquidity` the sole added
+field. Each old answer was first verified against its unchanged main digest. The
+worker/cache test still compares the complete additive response to a direct read,
+including concurrent reads and invalidation after writes from both connections.
 
-Therefore the task's additions-only condition cannot currently be proven. The old pins remain unchanged. An explicit owner decision is needed between permitting the demonstrated R07 differences and retaining the old household-only R07 contract. No existing figure is silently normalized or accepted as unchanged.
+## Focused regression cases and test-change rationale
 
-The worker/cache test independently compares bytes with a direct API response, including concurrent cold reads and invalidation after writes from two connections. Separate tests continue to enforce every original direct-response pin.
+- `packages/db/src/repos/account-liquidity.test.ts`: salary before/after debit,
+  today/tomorrow, one-off income, finite one-occurrence schedule, second account
+  without income, standalone future booking/scenario parity, and legacy R07
+  independence. Literal cents: 1,000 - 1,500 = -500; second account
+  10,000 - 10,100 = -100. The comment derives each new expectation.
+- `packages/domain/src/forecast/account-liquidity.test.ts`: a recurring expected
+  receipt bounds the alert but never increases the conservative table path.
+- `packages/domain/src/rules/rules.test.ts`: remove the prior branch-only cases
+  that redefined R07; all pre-existing main cases are retained unchanged.
+- `packages/fixtures/src/rules.test.ts`: restore the exact main literal oracle.
+- `apps/server/src/api/heute-positions-956.test.ts`: additive-field projection
+  before the unchanged old pins; full worker/direct response comparison retained.
+- `apps/web/src/reports/account-liquidity.test.tsx`: German variant labels,
+  account/date/amount/help text, no warning after the safe receipt, full table low.
+- `e2e/liquidity-navigation.spec.ts`: real API one-off receipt does not hide the
+  warning; recurring receipt after the debit retains it with dated help; an earlier
+  recurring receipt removes it while the report retains the conservative low.
+- `e2e/shell.spec.ts`: explicitly assert no account warning in both existing Heute
+  screenshot cases. All geometry and visual assertions are retained.
 
-## Browser findings and changes
+## Visual baseline scope
 
-- The new standalone account-warning block pushed the compact Heute overview down. The earliest shortfall now occupies the existing lead footer, with a warning mark and the existing transfer-draft action. An absent warning renders nothing. No geometric assertion was changed.
-- The shared-chart inspection failure was caused by persistent forecast warnings using `role="alert"` on Heute, rather than a chart without inspection. These static warnings now use a named region. The report's new account table also uses the existing `ReportTable` wrapper. No chart assertion was changed.
-- The report-header failure in CI was a timeout waiting for the post-evaluation check response, not a missing header. The existing shared header is retained; both themes passed repeated local runs without changing the spec.
-- Windows screenshot comparisons are skipped by the existing visual helper. The synthetic default fixture has a real payment-account shortfall, so its compact warning legitimately changes Heute. The four `shell-heute-redesign-{light,dark}-{desktop,mobile}-linux.png` baselines need Linux regeneration and inspection. No Windows screenshots are committed. The account-table captures also need Linux visual inspection; they are not golden baselines.
+All Heute and rule screenshot PNGs are restored byte-for-byte from main. The
+standard fixture's recurring salary arrives on 30 September, before the account's
+first negative day on 3 October, so it must not add an alert to Heute.
+Only the liquidity report needs new Linux baseline review for the intended account
+table. Windows screenshot comparisons use the repository's existing platform skip;
+no Windows image is committed and no Linux pixel comparison is claimed locally.
 
 ## Verification
 
-Typecheck, changed-file ESLint, changed-file Prettier and OFF/ON builds passed. In the ten focused Vitest files, 196 tests passed; only the three unchanged direct Heute byte pins failed. Worker/direct equality and post-write invalidation passed.
-
-Redesign-ON browser results, with targeted reruns after the warning sizing fixes:
+- All 337 affected package/API/component test files passed: 3,673 tests passed and
+  one existing expected failure. A final rerun of the three changed regression
+  files passed all 48 tests. Additional Heute investment-basis and financial-term
+  contract tests passed all seven cases.
+- The unchanged direct #956 pins passed, as did the complete worker/cache
+  comparison. Direct old/new JSON diff: zero changed/removed pre-existing fields
+  in all three answers; sole addition `accountLiquidity`.
+- Typecheck, ESLint and Prettier over the complete PR text/code diff, and
+  `git diff --check` passed. OFF production and ON e2e builds passed.
+- Every browser spec below passed on desktop and mobile with redesign ON. Each
+  ran separately with `--workers=1`; no full e2e suite was run.
 
 | Spec | Desktop | Mobile |
 | --- | --- | --- |
@@ -41,9 +87,19 @@ Redesign-ON browser results, with targeted reruns after the warning sizing fixes
 | `issue-1005-mobile-heute` | passed | passed |
 | `chart-inspection` | passed | passed |
 | `issue-1150-report-header` | passed | passed |
-| `shell` screenshot cases at lines 649 and 666 | passed, visual comparison skipped | passed, visual comparison skipped |
+| `shell` light/dark Heute screenshot cases | passed; pixel comparison skipped on Windows | passed; pixel comparison skipped on Windows |
 | `liquidity-navigation` | passed | passed |
+| `liquidity-report` | passed | passed |
 
-The resource-safe commands use `A2_EXPECT_REDESIGN=1`, `E2E_PORT=4757`, `E2E_START_TIMEOUT=400000` and `--workers=1`, one spec at a time. No assertion or timeout was relaxed. The warning initially exposed a desktop 36px target, then 320px/enlarged-text overflow and a forecast bottom beyond 900px; all were fixed in the component stylesheet and the unchanged specs passed. One earlier parallel validation attempt exhausted local RAM; its unrelated Axe/route timeouts are not accepted as product evidence. The final run uses one heavy job at a time. No full local e2e suite was run.
+The four existing Heute screenshot cases explicitly prove the standard fixture
+has no account alert. Their main baselines are unchanged. The new account-table
+captures were inspected at desktop and mobile sizes against the project design
+and Impeccable profile: both variant labels, signed amounts and dates are readable;
+the mobile table retains the shared scroll region. Generated Windows evidence
+PNGs were discarded. Only the liquidity report needs new Linux visual baseline
+review; no new Heute or rule baseline is requested.
 
-An independent Codex agent reviewed the complete financial diff and test impact. No migration, ledger writer, persisted financial data, deployment configuration, queue script, dependency, merge or release is part of this repair.
+Local independent review covered the complete financial diff and test impact;
+its finite-schedule, today-income scope and scenario-source findings were corrected
+and re-reviewed. No migration, writer, dependency, deployment configuration,
+queue script, merge or release is part of this repair.

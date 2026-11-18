@@ -51,7 +51,7 @@ it.each(baseline.responses)(
   async ({ path, digest }) => {
     const response = await api().request(path);
     expect(response.status).toBe(200);
-    const body = Buffer.from(await response.arrayBuffer());
+    let body = Buffer.from(await response.arrayBuffer());
     if (path.startsWith('/heute?')) {
       const payload = JSON.parse(body.toString('utf8'));
       // Synthetic cash 4,707,357 minus 241,621 open cents, including 70,000 Zukunft cents.
@@ -64,6 +64,11 @@ it.each(baseline.responses)(
       expect(payload.lead).not.toHaveProperty('inflowCents');
       expect(payload.lead).not.toHaveProperty('overdraftCents');
       expect(payload.dailyBudget.perDayCents).toBe(159_491);
+      // Additions-only proof: remove precisely the new top-level field. Every
+      // pre-existing field, value and ordering must match the unchanged main digest.
+      expect(payload).toHaveProperty('accountLiquidity');
+      delete payload.accountLiquidity;
+      body = Buffer.from(JSON.stringify(payload));
     }
     expect(`${body.length}:${createHash('sha256').update(body).digest('hex')}`).toBe(digest);
   },

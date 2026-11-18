@@ -118,7 +118,7 @@ export interface AccountLiquidityInput {
     /** Actual balance, before open day-zero obligations. No credit limit. */
     balanceCents: number;
     bufferCents?: number | null;
-    /** Proven external cash only; expected income is never a safe inflow. */
+    /** Next open expected inflow from a recurring payment, including today. */
     nextSafeInflowDay?: string | null;
   }>;
   items: ReadonlyArray<ForecastAccountItem>;
@@ -132,7 +132,7 @@ export interface AccountLiquidityInput {
 export type AccountLiquidityResult = ReturnType<typeof accountLiquidityForecast>;
 
 /**
- * One attributed cash path for Heute, the liquidity report and R07. Both views use
+ * One attributed cash path for Heute and the liquidity report. Both views use
  * the existing forecast engine. Account paths plus the explicit unassigned path
  * equal the household on every day, including overdue open payments on day zero.
  */
@@ -191,7 +191,7 @@ export function accountLiquidityForecast(input: AccountLiquidityInput, days: num
       };
       const nextSafeInflowDay = account.nextSafeInflowDay ?? null;
       const beforeSafe = forecast.days.filter(
-        (day) => nextSafeInflowDay === null || day.day < nextSafeInflowDay || day.index === 0,
+        (day) => nextSafeInflowDay === null || day.day < nextSafeInflowDay,
       );
       return {
         accountId: account.id,
@@ -206,7 +206,7 @@ export function accountLiquidityForecast(input: AccountLiquidityInput, days: num
           account.bufferCents === undefined || account.bufferCents === null
             ? null
             : firstBelow(account.bufferCents),
-        lowBeforeSafeInflow: lowPoint(beforeSafe, days)!,
+        lowBeforeSafeInflow: lowPoint(beforeSafe, days),
         payments: legs.filter((item) => item.cents < 0 && item.day <= forecast.low.day),
       };
     });

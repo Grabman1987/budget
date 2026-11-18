@@ -36,7 +36,8 @@ export function scenarioBaseline(db: Executor, asOf: string): Snapshot {
       variableMonthlyCents: forecast.variableMonthlyCents,
       paymentAccount: isPaymentAccount(account, asOf),
     })),
-    items: [...forecast.dayZeroItems, ...forecast.items]
+    // Preserve the scenario schema's existing day-zero obligation convention.
+    items: [...forecast.dayZeroItems, ...forecast.accountItems.filter((item) => item.day > asOf)]
       .filter((item) => item.day <= forecast.through)
       .flatMap((item) => {
         if (item.accountId === null)

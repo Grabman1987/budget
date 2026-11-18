@@ -47,13 +47,16 @@ export function AccountLiquidityAlerts({
             free: Math.max(0, other.low.cents - (other.bufferCents ?? 0)),
           }))
           .sort((a, b) => b.free - a.free || a.accountId.localeCompare(b.accountId))[0];
-        const low = account.lowBeforeSafeInflow;
+        const low = account.lowBeforeSafeInflow!;
         return (
           <div className="account-liquidity-alert" key={account.accountId}>
             <p>
               <TriangleAlert size={16} aria-hidden="true" />
               Konto {maskMoneyText(account.name)} rutscht am {shortDay(account.firstBelowZero!.day)}{' '}
               auf {eur(account.firstBelowZero!.cents)}
+              {account.nextSafeInflowDay
+                ? ` · bis zum nächsten sicheren Eingang am ${shortDay(account.nextSafeInflowDay)}`
+                : ` · ohne sicheren Eingang bis ${shortDay(account.days.at(-1)!.day)}`}
             </p>
             <Button
               variant="ghost"
@@ -102,11 +105,11 @@ export function AccountLiquidityTable({
     <section className="account-liquidity card rf-wide" aria-labelledby="account-liquidity-title">
       <h2 id="account-liquidity-title">Liquidität je Konto</h2>
       <p>
-        Bis Gehalt + 30 Tage · ohne erwartete Einnahmen · ohne Stellschrauben. Dispo ist kein
+        Bis Gehalt + 30 Tage · ohne erwartete Eingänge · ohne Stellschrauben. Dispo ist kein
         Guthaben.
       </p>
       <ReportTable
-        caption="Tagesendstände je Zahlungskonto ohne erwartete Einnahmen"
+        caption="Tagesendstände je Zahlungskonto ohne erwartete Eingänge"
         regionLabel="Kontoliquidität im Detail"
       >
         <thead>
@@ -152,7 +155,7 @@ export function AccountLiquidityTable({
                 >
                   <td colSpan={5}>
                     <p>
-                      Prognose mit erwarteten Einnahmen: Tiefpunkt{' '}
+                      Prognose mit erwarteten Eingängen: Tiefpunkt{' '}
                       {forecast
                         ? `${eur(forecast.low.cents)} am ${shortDay(forecast.low.day)}`
                         : 'nicht verfügbar'}

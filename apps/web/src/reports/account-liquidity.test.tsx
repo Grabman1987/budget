@@ -101,7 +101,7 @@ it('expands the cash causes and shows expected income separately and unassigned 
   expect(
     screen.getByRole('button', { name: 'Testkonto Rechnungen' }).getAttribute('aria-expanded'),
   ).toBe('true');
-  expect(screen.getByText(/Prognose mit erwarteten Einnahmen: Tiefpunkt 100,00/)).toBeTruthy();
+  expect(screen.getByText(/Prognose mit erwarteten Eingängen: Tiefpunkt 100,00/)).toBeTruthy();
   expect(screen.getByText(/01.02. · Testrechnung · −150,01/)).toBeTruthy();
   expect(screen.getByRole('heading', { name: 'Zahlungen ohne Konto' })).toBeTruthy();
   expect(screen.getByRole('link', { name: 'Zahlung bearbeiten' }).getAttribute('href')).toBe(
@@ -200,4 +200,28 @@ it('shows unavailable account liquidity and offers no transfer when a required e
     'Kontoliquidität unvollständig: Wechselkurs fehlt.',
   );
   expect(screen.queryByRole('table')).toBeNull();
+});
+
+it.each(['2026-01-30', '2026-01-31'])(
+  'does not alert on a debit after the safe receipt %s',
+  (day) => {
+    const result = fixture();
+    // Known 10,000 - 15,001 = -5,001 on February 1, after salary today/tomorrow.
+    // It stays visible in the table but cannot raise the bounded Heute alert.
+    result.withoutExpectedInflows.accounts[0]!.nextSafeInflowDay = day;
+    render(<AccountLiquidityAlerts result={result} today="2026-01-30" />);
+    expect(screen.queryByRole('region', { name: 'Konten mit Engpass' })).toBeNull();
+    render(<AccountLiquidityTable result={result} />);
+    expect(screen.getByText('−50,01 €')).toBeTruthy();
+  },
+);
+
+it('names account, date, literal deficit and the safe receipt after the shortfall', () => {
+  const result = fixture();
+  // February 1: 10,000 - 15,001 = -5,001, one day before salary on February 2.
+  result.withoutExpectedInflows.accounts[0]!.nextSafeInflowDay = '2026-02-02';
+  render(<AccountLiquidityAlerts result={result} today="2026-01-30" />);
+  expect(screen.getByRole('region', { name: 'Konten mit Engpass' }).textContent).toContain(
+    'Konto Testkonto Rechnungen rutscht am 01.02. auf −50,01 € · bis zum nächsten sicheren Eingang am 02.02.',
+  );
 });
