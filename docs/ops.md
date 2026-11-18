@@ -706,7 +706,7 @@ Run it as `fly ssh console -a budget-fg -C "node /app/migrate-cli.js instrument-
 
 The additive `assetClassTree` section manages groups, class assignments, dated targets and explicit account classes, including operator-only P2P defaults. See [configuration, dry-run and owner steps](portfolio-composition.md#operator-configuration).
 
-`owner-config --file <json> [--dry-run] [--details]` loads the owner's private settings from one file
+`owner-config --file <json> [--dry-run] [--details] [--max-bookings <n>]` loads the owner's private settings from one file
 (keep it on `/data/migration/`, never in the repo). Every section is optional; entries share one
 audit group per run (actor `operator`, `undo-group --group <id>` reverts the run) and call the function
 behind the matching app route, so validation and audit are those of the UI. A file is checked as a
@@ -789,6 +789,18 @@ has a savepoint: a refusal rolls back only that entry. The following examples ar
   active-project validation still apply. Other app refusals remain skips. Amount, account, date,
   splits, reconciliation status, account reconciliation records and reconciled balance stay intact;
   grouped Undo restores the previous project without changing them.
+  Project-only attribution retains the local booking/transfer checks and write guards, without
+  revalidating the global contact ledger or recomputing balances, envelopes or projections.
+  Each invocation attributes at most `--max-bookings <n>` bookings across all project selectors
+  (default 25; positive safe integer). Output includes `projects remaining <count>` for candidates
+  deferred by that limit; these are not errors. Rerun the same file to continue: attributed bookings
+  become `bookings_unchanged` and do not consume the limit. Deferred candidates still go through
+  the app guards when attempted, so later runs may report refusals. Dry runs use the same limit.
+  Each invocation remains one transaction and one audit group; undo groups in reverse run order.
+  **Never run while a backup is being written.** Check `/health` between runs and stop if the app
+  is unhealthy. The count bounds mutations, not a guaranteed duration: selection and guard reads
+  still depend on database size and machine load. Other owner-config sections retain their limits;
+  use a projects-only input when bounding this operator task on a small live machine.
   Each project and each booking has its own savepoint in the run's shared operator audit group;
   `undo-group` restores attribution and removes newly created projects together. `--dry-run`
   rolls everything back. Default project output contains aggregates only: projects created/unchanged,

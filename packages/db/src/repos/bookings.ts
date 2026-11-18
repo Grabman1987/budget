@@ -963,7 +963,9 @@ function updateBookingImpl(
       patch.projectId !== undefined &&
       Object.entries(patch).every(([key, value]) => value === undefined || key === 'projectId')
     ) {
-      assertLedgerInvariants(tx, relatedTransferBookings(tx, id));
+      // Attribution cannot change contact settlements; avoid validating the entire contact ledger
+      // for every metadata edit. Keep the booking/transfer checks and all write guards above.
+      assertLedgerInvariants(tx, relatedTransferBookings(tx, id), false);
       updateTracked(tx, booking, [id], { projectId: patch.projectId }, grouped);
       return;
     }

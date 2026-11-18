@@ -233,7 +233,7 @@ export interface OwnerConfigOutcome {
   section: OwnerConfigSection;
   /** What the entry is about: the rule code, category, payment or account name ... */
   key: string;
-  status: 'created' | 'updated' | 'unchanged' | 'skipped';
+  status: 'created' | 'updated' | 'unchanged' | 'skipped' | 'remaining';
   /** The changes as `field old -> new` (or field names only for private values); the refusal for a skip. */
   detail: string;
   /** Stable reason code of a skip, empty otherwise. */
@@ -814,13 +814,14 @@ export function parseOwnerConfigFile(
 // Applying
 // ---------------------------------------------------------------------------------------------
 
-type Step = { status: 'created' | 'updated' | 'unchanged'; detail: string };
+type Step = { status: 'created' | 'updated' | 'unchanged' | 'remaining'; detail: string };
 
 interface Runner {
   tx: Executor;
   actor: string;
   today: string;
   groupId: string;
+  bookingsLeft: number;
 }
 
 /** Run one entry in its own savepoint, within the run's audit group; refusals become a skip. */
@@ -839,7 +840,7 @@ function entry(
       status: step.status,
       detail: step.detail,
       reason: '',
-      groupId: step.status === 'unchanged' ? '' : ctx.groupId,
+      groupId: step.status === 'unchanged' || step.status === 'remaining' ? '' : ctx.groupId,
     };
   } catch (error) {
     const { reason, message } = refusal(error);
@@ -967,8 +968,10 @@ function applyProjects(r: Runner, e: OwnerProject): OwnerConfigOutcome[] {
       if (parts.some((s) => s.categoryId !== null && s.categoryId !== categoryId))
         throw new EntrySkip('mixed_splits', 'booking has splits in another category');
       if (b.projectId === projectId) return done([]);
+      if (r.bookingsLeft === 0) return { status: 'remaining', detail: 'booking limit reached' };
       try {
         updateBooking(tx, b.id, { projectId }, ctx, { unlockReconciled: e.unlock === true });
+        r.bookingsLeft--;
       } catch (error) {
         if (error instanceof ReconciledLockedError)
           throw new EntrySkip(
@@ -1565,13 +1568,20 @@ export function applyOwnerConfig(
   db: Executor,
   config: OwnerConfig,
   ctx: Pick<AuditContext, 'actor'>,
-  options: { dryRun?: boolean; today?: string } = {},
+  options: { dryRun?: boolean; today?: string; maxBookings?: number } = {},
 ): OwnerConfigOutcome[] {
+  const maxBookings = int(options.maxBookings ?? 25, 'maxBookings', 1, Number.MAX_SAFE_INTEGER);
   const today = options.today ?? new Date().toISOString().slice(0, 10);
   const outcomes: OwnerConfigOutcome[] = [];
   try {
     runInTransaction(db, (tx) => {
-      const r: Runner = { tx, actor: ctx.actor, today, groupId: randomUUID() };
+      const r: Runner = {
+        tx,
+        actor: ctx.actor,
+        today,
+        groupId: randomUUID(),
+        bookingsLeft: maxBookings,
+      };
       const add = (o: OwnerConfigOutcome) => outcomes.push(o);
       if (config.assetClassTree) {
         outcomes.push(...applyTree(r, config.assetClassTree));

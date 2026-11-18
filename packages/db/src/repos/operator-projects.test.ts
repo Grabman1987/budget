@@ -1,5 +1,6 @@
 import { eq } from 'drizzle-orm';
-import { afterEach, beforeEach, expect, it } from 'vitest';
+import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+import * as contactInvariants from './contact-invariants';
 import { createTestDatabase, type OpenedDatabase } from '../client';
 import {
   account,
@@ -354,4 +355,71 @@ it('rejects duplicate project/category selectors and invalid unlock before writi
       ],
     }).projects,
   ).toHaveLength(2);
+});
+
+it('attributes 200 bookings without repeating global contact validation', () => {
+  for (let i = 0; i < 200; i++) expense(-101, { status: 'reconciled' });
+  const check = vi.spyOn(contactInvariants, 'assertContactSettlementInvariants');
+  try {
+    const out = applyOwnerConfig(
+      db,
+      parseOwnerConfigFile({
+        projects: [{ name: 'Synthetic Project', attributeCategory: 'Essen', unlock: true }],
+      }),
+      operator,
+      { maxBookings: 200 },
+    );
+    expect(out.filter((o) => o.status === 'updated')).toHaveLength(200);
+    expect(check).not.toHaveBeenCalled();
+    expect(
+      db
+        .select()
+        .from(booking)
+        .all()
+        .every((b) => b.status === 'reconciled'),
+    ).toBe(true);
+  } finally {
+    check.mockRestore();
+  }
+});
+
+it('continues in default batches across selectors and undoes each invocation separately', () => {
+  for (let i = 0; i < 28; i++) expense(-101);
+  for (let i = 0; i < 3; i++)
+    expense(-203, { splits: [{ categoryId: 'reise', amountCents: -203 }] });
+  const input = {
+    projects: [
+      { name: 'Synthetic Shared', attributeCategory: 'Essen' },
+      { name: 'synthetic shared', attributeCategory: 'Reise' },
+    ],
+  };
+  const first = run(input);
+  expect(first.filter((o) => o.status === 'updated')).toHaveLength(25);
+  expect(first.filter((o) => o.status === 'remaining')).toHaveLength(6);
+  const second = run(input);
+  expect(second.filter((o) => o.status === 'updated')).toHaveLength(6);
+  expect(
+    second.filter((o) => o.projectAction === 'booking' && o.status === 'unchanged'),
+  ).toHaveLength(25);
+  expect(second.filter((o) => o.status === 'remaining')).toHaveLength(0);
+  const group1 = first.find((o) => o.groupId)!.groupId;
+  const group2 = second.find((o) => o.groupId)!.groupId;
+  expect(group2).not.toBe(group1);
+  undoAuditGroups(db, [group2], operator);
+  expect(
+    db
+      .select()
+      .from(booking)
+      .all()
+      .filter((b) => b.projectId),
+  ).toHaveLength(25);
+  undoAuditGroups(db, [group1], operator);
+  expect(
+    db
+      .select()
+      .from(booking)
+      .all()
+      .every((b) => b.projectId === null),
+  ).toBe(true);
+  expect(projectsList(db)).toEqual([]);
 });

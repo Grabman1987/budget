@@ -99,6 +99,36 @@ it('owner-config projects prints aggregates, limits booking details and returns 
     expect(clean.stdout).toContain(
       'projects created 0 unchanged 1 attributed 0 bookings_unchanged 0',
     );
+    for (let i = 0; i < 27; i++) booking(-101, 'confirmed');
+    writeFileSync(
+      file,
+      JSON.stringify({
+        projects: [
+          {
+            name: 'Synthetic Project',
+            attributeCategory: 'Synthetic Category',
+            unlock: true,
+          },
+        ],
+      }),
+    );
+    const boundedDry = cli('--dry-run');
+    expect(boundedDry.status, boundedDry.stderr).toBe(0);
+    expect(boundedDry.stdout).toContain('attributed 25 bookings_unchanged 1');
+    expect(boundedDry.stdout).toContain('projects remaining 3');
+    const batch = cli('--max-bookings', '2');
+    expect(batch.status, batch.stderr).toBe(0);
+    expect(batch.stdout).toContain('attributed 2 bookings_unchanged 1');
+    expect(batch.stdout).toContain('projects remaining 26');
+    const finish = cli('--max-bookings', '100');
+    expect(finish.status, finish.stderr).toBe(0);
+    expect(finish.stdout).toContain('attributed 26 bookings_unchanged 3');
+    expect(finish.stdout).toContain('projects remaining 0');
+    for (const value of ['0', '-1', '1.5', 'no', '9007199254740992']) {
+      const invalid = cli('--max-bookings', value);
+      expect(invalid.status).not.toBe(0);
+      expect(invalid.stderr).toContain('--max-bookings must be a positive safe integer');
+    }
   } finally {
     opened.close();
     rmSync(dir, { recursive: true, force: true });
