@@ -66,3 +66,14 @@
     grid-template-columns: minmax(0, 1fr);
   }
 }
+.funding-investable dl {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-xs) var(--space-md);
+  max-width: 34rem;
+}
+.funding-investable dd {
+  margin: 0;
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+}

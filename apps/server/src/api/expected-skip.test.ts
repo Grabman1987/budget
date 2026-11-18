@@ -73,6 +73,8 @@ beforeEach(async () => {
   await call('POST', '/expected', {
     ...base,
     name: 'Miete',
+    // March is the first rent in this fixture. The test skips it before projecting April.
+    startDate: '2026-03-01',
     kind: 'outflow',
     categoryId: 'miete',
     dueDay: 5,

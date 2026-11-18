@@ -592,3 +592,14 @@ it.each(['gross_then_credit', 'already_net'] as const)(
     });
   },
 );
+
+it('counts an overdue open settlement only when its debit leaves the cash scope', () => {
+  fixture().accept();
+  const day = '2026-10-11';
+  expect(household(day)).toMatchObject({ startCents: 37000, openOutflows: [] });
+  accounts.update(opened.db, CARD, { role: 'debt' }, ctx);
+  expect(household(day)).toMatchObject({
+    startCents: 40000,
+    openOutflows: [{ day: '2026-10-10', cents: 10000 }],
+  });
+});

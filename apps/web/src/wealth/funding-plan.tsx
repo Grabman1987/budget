@@ -20,13 +20,18 @@ import { useBudgetWrite } from '../budget/use-category-writes';
 import { instrumentsQuery, portfolioPositionsQuery } from './portfolio-api';
 import { savingsPlansQuery } from './savings-api';
 import { SavingsPanel } from './savings-panel';
+import { InvestableAmountChain, type InvestableAmountRead } from './investable-amount';
 import './funding-plan.css';
 
 const fundingQuery = () =>
   queryOptions({
     queryKey: [...LEDGER_KEY, 'funding-plan'],
     retry: false,
-    queryFn: () => request<FundingPlanState>('GET', '/api/portfolio/funding-plan'),
+    queryFn: () =>
+      request<FundingPlanState & { investable: InvestableAmountRead }>(
+        'GET',
+        '/api/portfolio/funding-plan',
+      ),
   });
 const decimal = (v: number) => formatDecimal(cents(v));
 function draftOf(p: FundingPlan) {
@@ -94,6 +99,7 @@ export function FundingPlanner() {
           Der gespeicherte Anlageplan ist nicht lesbar. Er wird nicht überschrieben.
         </p>
       )}
+      {state.data && <InvestableAmountChain amount={state.data.investable} />}
       {state.data && !state.data.unavailable && <FundingForm state={state.data} />}
     </details>
   );

@@ -35,7 +35,8 @@ afterEach(() => {
   rmSync(directory, { recursive: true, force: true });
 });
 const path = '/api/portfolio/funding-plan';
-const get = async () => (await (await app.request(path)).json()) as FundingPlanState;
+const get = async () =>
+  (await (await app.request(path)).json()) as FundingPlanState & { investable: unknown };
 const send = (method: string, url: string, body: unknown) =>
   app.request(url, {
     method,
@@ -44,7 +45,21 @@ const send = (method: string, url: string, body: unknown) =>
   });
 it('persists the scenario with actual undo/redo, conflict protection and no financial writes', async () => {
   const initial = await get();
-  expect(initial).toEqual({ plan: null, revision: 'none', unavailable: false });
+  expect(initial).toEqual({
+    plan: null,
+    revision: 'none',
+    unavailable: false,
+    investable: {
+      payday: '2026-11-13',
+      through: '2026-12-13',
+      cashCents: 0,
+      obligationsCents: 0,
+      committedReservesCents: 0,
+      needWantAvailableCents: 0,
+      rawCents: 0,
+      investableCents: 0,
+    },
+  });
   const plan = fundingTemplate();
   plan.monthlyCents = 40000;
   const response = await send('PUT', path, { revision: initial.revision, plan });
@@ -85,4 +100,17 @@ it('keeps corrupt stored settings visible and refuses replacement', async () => 
     .run('portfolio.funding-plan', '{broken');
   expect((await get()).unavailable).toBe(true);
   expect((await send('PUT', path, { revision: 'none', plan: fundingTemplate() })).status).toBe(409);
+});
+
+it('keeps funding-plan reads available when the reserve-target settings are invalid', async () => {
+  opened.sqlite
+    .prepare('INSERT INTO rule(id,code,name,params_json) VALUES(?,?,?,?)')
+    .run('synthetic-r02', 'R02', 'Synthetic reserve rule', '{broken');
+  const response = await app.request(path);
+  expect(response.status).toBe(200);
+  expect(await response.json()).toMatchObject({
+    plan: null,
+    unavailable: false,
+    investable: { unavailable: { reason: 'invalid_source' } },
+  });
 });
