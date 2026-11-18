@@ -1,5 +1,6 @@
 import { eq } from 'drizzle-orm';
-import { afterEach, beforeEach, expect, it } from 'vitest';
+import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+import * as contactInvariants from './contact-invariants';
 import { createTestDatabase, type OpenedDatabase } from '../client';
 import {
   account,
@@ -9,6 +10,8 @@ import {
   category,
   categoryGroup,
   project,
+  payee,
+  incomeType,
 } from '../schema';
 import { createBooking, createTransfer, getBooking, deleteBooking } from './bookings';
 import { accounts, categories, createEntity, softDeleteEntity, updateEntity } from './entities';
@@ -354,4 +357,272 @@ it('rejects duplicate project/category selectors and invalid unlock before writi
       ],
     }).projects,
   ).toHaveLength(2);
+});
+
+it('attributes 200 bookings without repeating global contact validation', () => {
+  for (let i = 0; i < 200; i++) expense(-101, { status: 'reconciled' });
+  const check = vi.spyOn(contactInvariants, 'assertContactSettlementInvariants');
+  try {
+    const out = applyOwnerConfig(
+      db,
+      parseOwnerConfigFile({
+        projects: [{ name: 'Synthetic Project', attributeCategory: 'Essen', unlock: true }],
+      }),
+      operator,
+      { maxBookings: 200 },
+    );
+    expect(out.filter((o) => o.status === 'updated')).toHaveLength(200);
+    expect(check).not.toHaveBeenCalled();
+    expect(
+      db
+        .select()
+        .from(booking)
+        .all()
+        .every((b) => b.status === 'reconciled'),
+    ).toBe(true);
+  } finally {
+    check.mockRestore();
+  }
+});
+
+it('continues in default batches across selectors and undoes each invocation separately', () => {
+  for (let i = 0; i < 28; i++) expense(-101);
+  for (let i = 0; i < 3; i++)
+    expense(-203, { splits: [{ categoryId: 'reise', amountCents: -203 }] });
+  const input = {
+    projects: [
+      { name: 'Synthetic Shared', attributeCategory: 'Essen' },
+      { name: 'synthetic shared', attributeCategory: 'Reise' },
+    ],
+  };
+  const first = run(input);
+  expect(first.filter((o) => o.status === 'updated')).toHaveLength(25);
+  expect(first.filter((o) => o.status === 'remaining')).toHaveLength(6);
+  const second = run(input);
+  expect(second.filter((o) => o.status === 'updated')).toHaveLength(6);
+  expect(
+    second.filter((o) => o.projectAction === 'booking' && o.status === 'unchanged'),
+  ).toHaveLength(25);
+  expect(second.filter((o) => o.status === 'remaining')).toHaveLength(0);
+  const group1 = first.find((o) => o.groupId)!.groupId;
+  const group2 = second.find((o) => o.groupId)!.groupId;
+  expect(group2).not.toBe(group1);
+  undoAuditGroups(db, [group2], operator);
+  expect(
+    db
+      .select()
+      .from(booking)
+      .all()
+      .filter((b) => b.projectId),
+  ).toHaveLength(25);
+  undoAuditGroups(db, [group1], operator);
+  expect(
+    db
+      .select()
+      .from(booking)
+      .all()
+      .every((b) => b.projectId === null),
+  ).toBe(true);
+  expect(projectsList(db)).toEqual([]);
+});
+
+it('attributes exact folded payees narrowed by an exact income split and direction, preserving money and undo', () => {
+  createEntity(db, incomeType, { id: 'side', name: 'Synthetic Income' }, testCtx);
+  const a = expense(1201, {
+    payeeId: 'p1',
+    status: 'reconciled',
+    splits: [
+      { incomeTypeId: 'side', amountCents: 701 },
+      { incomeTypeId: 'side', amountCents: 500 },
+    ],
+  });
+  const outflow = expense(-203, {
+    payeeId: 'p1',
+    splits: [{ incomeTypeId: 'side', amountCents: -203 }],
+  });
+  const wrongType = expense(307, {
+    payeeId: 'p1',
+    splits: [{ categoryId: null, amountCents: 307 }],
+  });
+  const otherPayee = expense(409, { splits: [{ incomeTypeId: 'side', amountCents: 409 }] });
+  const input = {
+    projects: [
+      {
+        name: 'Synthetic Income Project',
+        attributePayee: 'VERMIETER',
+        incomeType: 'Synthetic Income',
+        direction: 'inflow',
+        unlock: true,
+      },
+    ],
+  };
+  const before = getBooking(db, a)!;
+  expect(run(input, true).map((o) => o.status)).toEqual(['created', 'updated']);
+  expect(getBooking(db, a)).toEqual(before);
+  const out = run(input);
+  expect(out.map((o) => o.status)).toEqual(['created', 'updated']);
+  const after = getBooking(db, a)!;
+  expect(after).toEqual({
+    ...before,
+    projectId: projectsList(db)[0]!.id,
+    updatedAt: after.updatedAt,
+  });
+  for (const id of [outflow, wrongType, otherPayee])
+    expect(getBooking(db, id)!.projectId).toBeNull();
+  expect(run(input).map((o) => o.status)).toEqual(['unchanged', 'unchanged']);
+  undoAuditGroups(db, [out[0]!.groupId], operator);
+  const restored = getBooking(db, a)!;
+  expect(restored).toEqual({ ...before, updatedAt: restored.updatedAt });
+  expect(projectsList(db)).toEqual([]);
+});
+
+it('uses whole-booking signs and defaults to both directions for payees', () => {
+  const a = expense(101, { payeeId: 'p1', splits: [{ categoryId: null, amountCents: 101 }] });
+  const b = expense(-203, { payeeId: 'p1' });
+  const c = expense(0, { payeeId: 'p1', splits: [{ categoryId: null, amountCents: 0 }] });
+  const out = run({
+    projects: [{ name: 'Synthetic Direction', attributePayee: 'vermieter', direction: 'outflow' }],
+  });
+  expect(out.filter((o) => o.status === 'updated').map((o) => o.bookingAmountCents)).toEqual([
+    -203,
+  ]);
+  expect(getBooking(db, a)!.projectId).toBeNull();
+  expect(getBooking(db, b)!.projectId).not.toBeNull();
+  expect(getBooking(db, c)!.projectId).toBeNull();
+  const both = run({ projects: [{ name: 'Synthetic Direction', attributePayee: 'vermieter' }] });
+  expect(
+    both
+      .filter((o) => o.status === 'updated')
+      .map((o) => o.bookingAmountCents!)
+      .sort((x, y) => x - y),
+  ).toEqual([0, 101]);
+  expect(both.filter((o) => o.status === 'unchanged')).toHaveLength(2);
+});
+
+it('skips unknown and ambiguous live payees and income types before creating projects', () => {
+  const input = (attributePayee: string, incomeType?: string) => ({
+    projects: [{ name: 'Synthetic Missing', attributePayee, ...(incomeType && { incomeType }) }],
+  });
+  expect(run(input('missing'))[0]!.reason).toBe('unknown_payee');
+  expect(run(input('vermieter', 'missing'))[0]!.reason).toBe('unknown_income_type');
+  createEntity(db, incomeType, { id: 'i1', name: 'Synthetic Income' }, testCtx);
+  createEntity(db, incomeType, { id: 'i2', name: 'Synthetic Income' }, testCtx);
+  expect(run(input('vermieter', 'Synthetic Income'))[0]!.reason).toBe('ambiguous_income_type');
+  softDeleteEntity(db, incomeType, 'i2', testCtx);
+  expect(run(input('vermieter', 'synthetic income'))[0]!.reason).toBe('unknown_income_type');
+  createEntity(db, payee, { id: 'p2', name: 'VERMIETER' }, testCtx);
+  expect(run(input('vermieter'))[0]!.reason).toBe('ambiguous_payee');
+  softDeleteEntity(db, payee, 'p2', testCtx);
+  expect(run(input('vermieter', 'Synthetic Income'))[0]!.status).toBe('created');
+});
+
+it('resolves explicit bookings uniquely and skips missing, ambiguous, deleted, transfers and other projects', () => {
+  const a = expense(-101);
+  expense(-203);
+  expense(-203);
+  const deleted = expense(-307);
+  deleteBooking(db, deleted, testCtx);
+  const other = createEntity(db, project, { name: 'Synthetic Other' }, testCtx);
+  const b = expense(-409, { projectId: other.id });
+  const transfer = createTransfer(
+    db,
+    { fromAccountId: 'giro', toAccountId: 'spar', date: '2026-02-10', amountCents: 503 },
+    testCtx,
+  );
+  const input = {
+    projects: [
+      {
+        name: 'Synthetic Explicit',
+        attributeBookings: [-101, -203, -307, -409, -503].map((amountCents) => ({
+          account: 'Giro',
+          date: '2026-02-10',
+          amountCents,
+        })),
+      },
+    ],
+  };
+  const out = run(input);
+  expect(
+    out
+      .filter((o) => o.status === 'skipped')
+      .map((o) => o.reason)
+      .sort(),
+  ).toEqual(['ambiguous', 'not_found', 'other_project', 'transfer']);
+  expect(out.filter((o) => o.status === 'updated').map((o) => o.bookingAmountCents)).toEqual([
+    -101,
+  ]);
+  expect(out.find((o) => o.reason === 'ambiguous')).toMatchObject({
+    bookingDate: '2026-02-10',
+    bookingAmountCents: -203,
+  });
+  expect(out.find((o) => o.reason === 'not_found')).toMatchObject({
+    bookingDate: '2026-02-10',
+    bookingAmountCents: -307,
+  });
+  expect(getBooking(db, a)!.projectId).not.toBeNull();
+  expect(getBooking(db, b)!.projectId).toBe(other.id);
+  expect(getBooking(db, transfer.fromBookingId)!.projectId).toBeNull();
+  expect(
+    run(input).filter((o) => o.projectAction === 'booking' && o.status === 'unchanged'),
+  ).toHaveLength(1);
+  undoAuditGroups(db, [out[0]!.groupId], operator);
+  expect(getBooking(db, a)!.projectId).toBeNull();
+});
+
+it('continues across category, payee and explicit selectors with one audit group per invocation', () => {
+  const a = expense(-101);
+  const b = expense(203, { payeeId: 'p1', splits: [{ categoryId: null, amountCents: 203 }] });
+  const c = expense(307, { splits: [{ categoryId: null, amountCents: 307 }] });
+  const input = parseOwnerConfigFile({
+    projects: [
+      { name: 'Synthetic Shared', attributeCategory: 'Essen' },
+      { name: 'Synthetic Shared', attributePayee: 'vermieter' },
+      {
+        name: 'Synthetic Shared',
+        attributeBookings: [{ account: 'Giro', date: '2026-02-10', amountCents: 307 }],
+      },
+    ],
+  });
+  const first = applyOwnerConfig(db, input, operator, { maxBookings: 2 });
+  expect(first.filter((o) => o.status === 'updated').map((o) => o.bookingAmountCents)).toEqual([
+    -101, 203,
+  ]);
+  expect(first.filter((o) => o.status === 'remaining')).toHaveLength(1);
+  expect(new Set(first.filter((o) => o.groupId).map((o) => o.groupId)).size).toBe(1);
+  const second = applyOwnerConfig(db, input, operator, { maxBookings: 2 });
+  expect(second.filter((o) => o.status === 'updated').map((o) => o.bookingAmountCents)).toEqual([
+    307,
+  ]);
+  expect(second.filter((o) => o.status === 'remaining')).toHaveLength(0);
+  undoAuditGroups(db, [second.find((o) => o.groupId)!.groupId], operator);
+  expect(getBooking(db, c)!.projectId).toBeNull();
+  expect([getBooking(db, a)!.projectId, getBooking(db, b)!.projectId]).toEqual([
+    projectsList(db)[0]!.id,
+    projectsList(db)[0]!.id,
+  ]);
+  undoAuditGroups(db, [first.find((o) => o.groupId)!.groupId], operator);
+  expect([getBooking(db, a)!.projectId, getBooking(db, b)!.projectId]).toEqual([null, null]);
+});
+
+it('rejects conflicting selectors, invalid filters and non-integer explicit amounts before writing', () => {
+  for (const entry of [
+    { attributeCategory: 'Essen', attributePayee: 'vermieter' },
+    { attributePayee: 'vermieter', attributeBookings: [] },
+    { attributeCategory: 'Essen', attributeBookings: [] },
+    { incomeType: 'Synthetic Income' },
+    { direction: 'inflow' },
+    { attributePayee: 'vermieter', direction: 'both' },
+    { attributeBookings: [{ account: 'Giro', date: '2026-02-10', amountCents: 1.5 }] },
+    { attributeBookings: [{ account: 'Giro', date: '2026-02-30', amountCents: 101 }] },
+  ])
+    expect(() => run({ projects: [{ name: 'Synthetic Invalid', ...entry }] })).toThrow();
+  expect(() =>
+    run({
+      projects: [
+        { name: 'A', attributePayee: 'vermieter' },
+        { name: 'a', attributePayee: 'VERMIETER' },
+      ],
+    }),
+  ).toThrow();
+  expect(projectsList(db)).toEqual([]);
 });
