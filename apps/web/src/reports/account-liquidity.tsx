@@ -36,7 +36,7 @@ export function AccountLiquidityAlerts({
           .filter((other) => other.accountId !== account.accountId)
           .map((other) => ({
             ...other,
-            free: Math.max(0, other.lowBeforeSafeInflow.cents - (other.bufferCents ?? 0)),
+            free: Math.max(0, other.low.cents - (other.bufferCents ?? 0)),
           }))
           .sort((a, b) => b.free - a.free || a.accountId.localeCompare(b.accountId))[0];
         const low = account.lowBeforeSafeInflow;
@@ -57,7 +57,7 @@ export function AccountLiquidityAlerts({
                     kind: 'transfer',
                     accountId: source.accountId,
                     toAccountId: account.accountId,
-                    amount: formatDecimal(cents(-low.cents)),
+                    amount: formatDecimal(cents(Math.min(source.free, -low.cents))),
                     date: today,
                   },
                 })

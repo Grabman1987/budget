@@ -88,6 +88,57 @@ it('expands the cash causes and shows expected income separately and unassigned 
   );
 });
 
+it.each([false, true])(
+  'caps the transfer at the source account safe cash (later inflow: %s)',
+  (laterInflow) => {
+    const result = accountLiquidityForecast(
+      {
+        startDay: '2026-01-30',
+        accounts: [
+          { id: 'bills', name: 'Testkonto Rechnungen', balanceCents: 100 },
+          {
+            id: 'spare',
+            name: 'Testkonto Frei',
+            balanceCents: 400,
+            ...(laterInflow ? { nextSafeInflowDay: '2026-01-31' } : {}),
+          },
+        ],
+        variableMonthlyCents: 0,
+        items: [
+          { accountId: 'bills', day: '2026-02-01', cents: -600, kind: 'fixed', expected: false },
+          ...(laterInflow
+            ? [
+                {
+                  accountId: 'spare',
+                  day: '2026-01-31',
+                  cents: 100,
+                  kind: 'income' as const,
+                  expected: false,
+                },
+                {
+                  accountId: 'spare',
+                  day: '2026-02-02',
+                  cents: -300,
+                  kind: 'fixed' as const,
+                  expected: false,
+                },
+              ]
+            : []),
+        ],
+      },
+      5,
+    );
+    render(<AccountLiquidityAlerts result={result} today="2026-01-30" />);
+    fireEvent.click(screen.getByRole('button', { name: 'Umbuchung vorbereiten' }));
+    // Bills: 100 - 600 = -500. Source: 400, or 400 + 100 - 300 = 200.
+    // A transfer today must leave every source closing balance nonnegative.
+    expect(JSON.parse(screen.getByTestId('transfer-draft').textContent!).prefill).toMatchObject({
+      accountId: 'spare',
+      amount: laterInflow ? '2,00' : '4,00',
+    });
+  },
+);
+
 it('masks account and forecast amounts in privacy mode', () => {
   setAmountsHidden(true);
   const { container } = render(<AccountLiquidityTable result={fixture()} />);
