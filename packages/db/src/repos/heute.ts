@@ -44,9 +44,15 @@ import {
 } from '../schema';
 import { budget as readBudget } from './queries';
 import { queryBookings } from './ledger-queries';
-import { cashSeries, netWorthAsOf, netWorthValuationAsOf } from './portfolio';
+import { cashSeries, netWorthAsOf } from './portfolio';
 import { isLiquidityAccount } from './liquidity-account';
-import { forecastInputs, loadFacts, scheduled, type RuleFacts } from './rule-inputs';
+import {
+  forecastBudgetValues,
+  forecastInputs,
+  loadFacts,
+  scheduled,
+  type RuleFacts,
+} from './rule-inputs';
 import { readInboxCount } from './inbox';
 import { financeCheck, type FinanceCheck } from './rules';
 import { MissingFxRateError } from './errors';
@@ -495,19 +501,7 @@ export function heute(db: Executor, query: HeuteQuery): Heute {
   const categories = new Map(facts.categories.map((c) => [c.id, c]));
   const budgetAccounts = facts.accounts.filter((a) => isLiquidityAccount(a, today));
   const budgetIds = budgetAccounts.map((a) => a.id);
-  const valuation = netWorthValuationAsOf(db, today);
-  // Forecast only consumes budget accounts; an unknown depot cannot block daily cash planning.
-  const budgetValues = Object.fromEntries(
-    budgetIds.map((id) => {
-      const value = valuation.byAccount[id] ?? (Object.hasOwn(valuation.byAccount, id) ? null : 0);
-      if (value === null) {
-        const currency = valuation.missingFxByAccount[id]?.[0];
-        if (currency) throw new MissingFxRateError(currency, today);
-        throw new PriceUnavailableError(id, valuation.missingPriceByAccount[id]![0]!, today);
-      }
-      return [id, value];
-    }),
-  );
+  const budgetValues = forecastBudgetValues(db, today, budgetIds);
   const sumBudget = (balanceOf: (id: string) => number) =>
     budgetIds.reduce((s, id) => s + balanceOf(id), 0);
 

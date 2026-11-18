@@ -65,6 +65,21 @@ const itemSchema = z
     kind: z.enum(['income', 'fixed', 'event']),
     expected: z.boolean(),
     paymentId: id.optional(),
+    source: z
+      .object({
+        kind: z.enum([
+          'expectedOccurrence',
+          'plannedEvent',
+          'loanInstalment',
+          'cardPayment',
+          'cardCredit',
+        ]),
+        id,
+        dueDay: date,
+        bookingId: id.optional(),
+      })
+      .strict()
+      .optional(),
   })
   .strict();
 const loanSchema = z
@@ -173,7 +188,15 @@ function validate(input: Snapshot): void {
   };
   input.items.forEach((i) => {
     account(i.accountId);
-    if (i.day <= input.asOf || i.day > input.through)
+    const dayZeroObligation =
+      i.day === input.asOf &&
+      i.kind === 'fixed' &&
+      i.cents < 0 &&
+      !i.expected &&
+      i.source?.kind === 'expectedOccurrence' &&
+      i.source.bookingId === undefined &&
+      i.source.dueDay <= input.asOf;
+    if ((i.day <= input.asOf && !dayZeroObligation) || i.day > input.through)
       throw new RangeError('Item outside snapshot coverage');
   });
   input.loans.forEach((l) => {
@@ -411,17 +434,20 @@ function project(input: Snapshot, horizon: Horizon, withoutExpected: boolean) {
       BigInt(account.variableMonthlyCents ?? 0) * BigInt(Math.ceil(days / 28) + 1);
   }
   for (const item of items) {
-    if (item.day > input.asOf && item.day <= horizon.through)
-      arithmeticBudget += absolute(item.cents);
+    if (item.day <= horizon.through) arithmeticBudget += absolute(item.cents);
   }
   if (arithmeticBudget > BigInt(Number.MAX_SAFE_INTEGER))
     throw new RangeError('Unsafe intermediate cent arithmetic');
   const accounts = input.accounts.map((a) => {
+    const accountItems = items.filter((i) => i.accountId === a.id);
+    const dayZeroCents = accountItems
+      .filter((i) => i.day === input.asOf)
+      .reduce((sum, i) => sum + i.cents, 0);
     const forecast = liquidityForecast({
       startDay: input.asOf,
-      startCents: a.balanceCents,
+      startCents: a.balanceCents + dayZeroCents,
       days,
-      items: items.filter((i) => i.accountId === a.id) satisfies ForecastItem[],
+      items: accountItems satisfies ForecastItem[],
       variablePerDay: evenDaily(() => a.variableMonthlyCents ?? 0),
     });
     const series = forecast.days.map((d) => ({ day: d.day, cents: d.balanceCents }));

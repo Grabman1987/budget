@@ -1,4 +1,4 @@
-# Scenario snapshots (F12, slice 1)
+# Scenario snapshots (F12)
 
 This is a pure domain model, exported from `@budget/domain`. It does not save settings,
 create bookings, change the live plan, expose an API or provide a UI.
@@ -21,30 +21,41 @@ A version-1 `Scenario` identifies a named comparison, `baselineAsOf`, the entire
 - Identified monthly savings transfers with source, destination and due day.
 - `through`, the inclusive date to which the supplied schedule is complete.
 
-Day zero is the known balance; occurrences on that day are already included and
-must not be supplied again. Inputs have strict runtime validation. Unknown targets,
+Day zero starts from the known balance. A sourced, open expected debit can reduce
+the projected day-zero balance while retaining its original due day. Bookings
+already included in the actual balance must never be supplied again. Inputs have strict runtime validation. Unknown targets,
 invalid dates, fractional cents, duplicate identities, reversed intervals, negative
 savings rates and insufficient coverage fail explicitly. Coverage is capped at ten
 years. Each loan's first modelled payment must follow the snapshot date; its balance
 is the supplied opening principal for that first modelled payment month.
 
-The snapshot producer must resolve expected payments with the existing `occurrences`
-/ `dueDates` schedule, effective versions, business-day policy and existing income
-pauses, as `forecastInputs` does today. Planned events use `plannedEventOccurrences`.
-This module consumes the resulting dated cash legs; it does not invent or reschedule
-the baseline. Existing card/provider settlement projections must arrive exactly once.
-Loan payments and savings plans expanded here must not also appear as resolved items.
-Unassigned accounts, missing FX and missing terms must be resolved or explicitly
-blocked by that producer; they cannot be silently assigned to a convenient account.
-There is deliberately no database adapter in this slice.
+## Heute baseline
 
-**Train blocker under the money-review brief:** this module reuses the forecast
-engine but does not yet reuse the actual `forecastInputs` producer. A faithful
-adapter must retain account provenance, include overdue open obligations in
-projected day zero, and deduplicate future-linked bookings and card/provider
-settlements. The current central forecast exposes aggregate items without account
-IDs, so their routing cannot be guessed from amounts. This prerequisite remains
-unimplemented; the domain slice alone does not satisfy shared-input parity.
+`scenarioBaseline(db, asOf)` uses `loadFacts`, the same cash valuation as Heute,
+and the same `forecastInputs` selection, effective payment versions, income pauses,
+planned-event expansion and statement settlement projections. Its schedule covers
+the same 365 days. Every captured leg retains the account, signed cents, cash date
+and source identity with its original due day. Unmaterialized occurrences use the
+payment ID and due day as their identity. Linked future bookings use their booking
+date and retain the booking ID. Overdue open debits within the forecast's existing
+31-day lookback reduce projected day zero once. The actual starting balances do
+not include those unpaid debits or overdraft headroom.
+
+The snapshot rejects an unassigned cash leg, a missing forecast FX rate, a linked
+booking whose amount or account disagrees with the forecast, and an aggregate
+variable spending estimate with multiple eligible accounts. With one eligible
+account the full aggregate variable estimate applies there. Expected positive
+scheduled and planned legs are separate from linked actual cash and the two sides
+of a represented settlement. An internal settlement is household-neutral when
+both accounts are in the forecast scope.
+
+Loan instalments already modelled as expected payments keep their occurrence
+identity. Heute does not independently expand loan terms, savings schedules or
+unrelated future-dated bookings. The adapter therefore leaves the standalone
+loan and savings assumption targets empty. Explicit terms and coverage would
+be needed to enable those assumptions from a DB snapshot.
+
+## Applying assumptions
 
 `applyAssumptions(baseline, assumptions)` preserves the exact baseline reference for
 an empty list and never mutates it. Assumptions apply in their listed order:
@@ -71,7 +82,7 @@ rejected: extend the snapshot instead of quietly losing income.
 
 `evaluate(inputs, { through, bufferCents })` calls `liquidityForecast` separately
 for each account and `lowPoint` for its earliest daily closing low. Household series
-are sums of these same account series. Opening balances are included. Ties keep the
+are sums of these same account series. Projected day-zero balances are included. Ties keep the
 first date. The result gives all payment accounts breaching zero on the first such
 date, and separately all breaching the supplied buffer on its first date. The test
 is strictly **below**, not less than or equal. Reserve accounts still contribute to
@@ -141,19 +152,16 @@ It is new coverage for this model; no existing financial oracle is changed.
 ## Slice 2 prerequisites
 
 Persistence/UI need an audited, undoable versioned save with conflict detection,
-stable IDs and explicit horizon/buffer selection. Build a dated snapshot adapter
-from the same facts as `forecastInputs`, preserving account-specific expected,
-statement/provider, planned-event, loan and savings legs without double counting.
-It must prove schedule coverage, balances, currency/FX support and what was known
-on the snapshot date; historical replay cannot read today's terms as historical facts.
-Persist the baseline and assumptions together, rather than re-reading mutable live
-facts on replay. Keep horizon/buffer and model version with any saved evaluation.
+stable IDs and explicit horizon/buffer selection. Establish what was known on the snapshot
+date before permitting historical capture. Persist the baseline and assumptions
+together to avoid reading today's terms on replay. Keep horizon/buffer and model version with any saved evaluation.
 
 The UI must distinguish baseline date, assumptions, both expected-income views,
 every account's low/date, first breaches, model ranges and unknown contract/tax
 effects. It needs readable source labels for stable IDs, validation handling and an
 explicit rebase action when live facts change. Contract effects outside this model
 remain a reliance blocker until represented and verified. Slice 2 also needs
-independent tests of adapter reconciliation, duplicate-leg prevention, save/reload,
-audit/undo and UI presentation. No persistence, migration, API, UI or production
+save/reload, audit/undo and UI presentation tests. Synthetic DB tests cover Heute
+parity, account lows, day-zero debits, future-linked bookings, internal settlement
+legs and expected-income exclusion. No persistence, migration, API, UI or production
 replacement acceptance is claimed by this domain slice.

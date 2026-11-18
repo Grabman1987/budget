@@ -127,3 +127,4 @@ export * from './strategy-signal-evidence';
 export * from './strategy-signal-basis';
 export * from './signal-index-id';
 export * from './statement-purchase-check';
+export * from './scenario-baseline';
