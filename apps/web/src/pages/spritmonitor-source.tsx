@@ -383,7 +383,7 @@ export function useSpritmonitorSource(compact: boolean) {
   }
   const action = (
     <Button
-      variant="ghost"
+      variant={compact ? 'primary' : 'ghost'}
       aria-busy={compact ? busy || data?.running : undefined}
       disabled={busy || !data?.configured || data.running || query.isError}
       onClick={() => void refresh()}

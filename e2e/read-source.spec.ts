@@ -8,6 +8,14 @@ async function openSourceDetails(page: Page) {
     await card.getByRole('button', { name: `${title}: Einrichtung und Details` }).click();
   }
 }
+async function openSourceMovements(page: Page) {
+  if ((await page.locator('.app').getAttribute('data-budget-redesign')) !== '1') return;
+  await page
+    .getByRole('region', { name: 'Krypto', exact: true })
+    .getByRole('link', { name: /zu prüfen$/ })
+    .click();
+  await expect(page.getByRole('dialog', { name: 'Krypto-Bewegungen prüfen' })).toBeVisible();
+}
 test.beforeEach(async ({ page }) => {
   await page.route('**/api/bank-sync', (route) =>
     route.fulfill({
@@ -265,7 +273,7 @@ test('source operations remain readable in data sources without posting', async 
     },
   );
   await page.goto('/einstellungen/datenquellen');
-  await openSourceDetails(page);
+  await openSourceMovements(page);
   await page
     .getByRole('button', { name: /Quellbewegung: Umbuchung abgleichen.*Einzelpunkte anzeigen/ })
     .click();
@@ -334,7 +342,7 @@ test('invalid movements and categorized failures are readable without raw payloa
     },
   );
   await page.goto('/einstellungen/datenquellen');
-  await openSourceDetails(page);
+  await openSourceMovements(page);
   await page
     .getByRole('button', { name: /Quellbewegung: Datenformat prüfen.*Einzelpunkte anzeigen/ })
     .click();

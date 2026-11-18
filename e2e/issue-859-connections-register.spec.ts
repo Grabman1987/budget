@@ -1,3 +1,5 @@
+import { mkdirSync } from 'node:fs';
+import { join } from 'node:path';
 import type { Page } from '@playwright/test';
 import { sampleTest as test, expect } from './sample';
 import { expectScreenshot } from './visual';
@@ -7,7 +9,7 @@ const success = '2026-09-17T04:15:00Z';
 const displayedSuccess = '17.09.2026 06:15';
 const next = '2026-09-18T04:15:00Z';
 const mapping = {
-  id: 'synthetic-account',
+  id: '00000000-0000-4000-8000-000000000859',
   label: 'Testkonto A',
   accountId: 'synthetic-budget-account',
   fromDate: '2026-09-01',
@@ -34,13 +36,82 @@ const connection = {
   running: false,
   accounts: [mapping],
 };
-const bank = { configured: true, workerEnabled: true, connections: [connection], accounts: [] };
+const bank = {
+  configured: true,
+  workerEnabled: true,
+  connections: [connection],
+  accounts: [
+    {
+      id: 'synthetic-budget-account',
+      name: 'Budgetkonto A',
+      type: 'checking',
+      currency: 'EUR',
+      onBudget: true,
+      sortOrder: 0,
+      closedAt: null,
+      openingDate: '2026-01-01',
+    },
+    {
+      id: 'synthetic-budget-second',
+      name: 'Budgetkonto B',
+      type: 'checking',
+      currency: 'EUR',
+      onBudget: true,
+      sortOrder: 1,
+      closedAt: null,
+      openingDate: '2026-01-01',
+    },
+  ],
+};
 const market = {
-  lastRun: { status: 'ok', finishedAt: success },
+  lastRun: { status: 'ok', finishedAt: success, priceRows: 12, fxRows: 2, failedCount: 0 },
   lastSuccess: { finishedAt: success },
 };
 
 async function mockSources(page: Page, mixed = false) {
+  await page.route('**/api/securities/synthetic-security', (route) =>
+    route.fulfill({
+      json: {
+        security: {
+          id: 'synthetic-security',
+          name: 'Testpapier',
+          kind: 'etf',
+          currency: 'EUR',
+          isin: null,
+          symbol: 'TEST',
+          assetClassId: null,
+          terBp: 0,
+          leverageFactor: 10,
+          regionsJson: null,
+        },
+      },
+    }),
+  );
+  await page.route('**/api/bank-sync/*/sync', (route) => route.fulfill({ json: {} }));
+  await page.route('**/api/bank-sync/callback', (route) => route.fulfill({ json: {} }));
+  await page.route('**/api/bank-sync/institutions', (route) =>
+    route.fulfill({ json: { institutions: [] } }),
+  );
+  await page.route('**/api/inbox', (route) =>
+    route.fulfill({
+      json: {
+        entries: mixed
+          ? [
+              {
+                type: 'stored',
+                id: 'synthetic-quote-warning',
+                kind: 'stale_value',
+                title: 'Testpapier: Kurs fehlt',
+                refType: 'security',
+                refId: 'synthetic-security',
+              },
+            ]
+          : [],
+        count: mixed ? 1 : 0,
+        readSourceSummaries: [],
+      },
+    }),
+  );
   await page.route('**/api/bank-sync', (route) =>
     route.fulfill({
       json: mixed ? { ...bank, connections: [{ ...connection, status: 'expired' }] } : bank,
@@ -95,7 +166,18 @@ async function mockSources(page: Page, mixed = false) {
   );
   await page.route('**/api/market/status', (route) =>
     route.fulfill({
-      json: mixed ? { ...market, lastRun: { ...market.lastRun, status: 'failed' } } : market,
+      json: mixed
+        ? {
+            ...market,
+            lastRun: {
+              ...market.lastRun,
+              status: 'failed',
+              priceRows: 0,
+              fxRows: 0,
+              failedCount: 1,
+            },
+          }
+        : market,
     }),
   );
   await page.route('**/api/inflation-basket/reference', (route) =>
@@ -221,9 +303,33 @@ for (const state of cases) {
     );
     const action = head.getByRole('button', { name: state.action, exact: true });
     await expect(head.locator('.settings-source-action .btn')).toHaveCount(1);
-    await action.click();
-    await expect(row.locator('.settings-source-details')).toBeVisible();
-    await expect(row.locator(state.target)).toBeFocused();
+    if ((state.status === 'active' && !('change' in state)) || state.status === 'error') {
+      const sent = page.waitForRequest('**/api/bank-sync/synthetic-connection/sync');
+      await action.click();
+      expect((await sent).method()).toBe('POST');
+      await expect(row.locator('.settings-source-toggle')).toHaveAttribute(
+        'aria-expanded',
+        'false',
+      );
+    } else if (state.status === 'expired' || state.status === 'paused') {
+      const sent = page.waitForRequest('**/api/bank-sync/institutions');
+      await action.click();
+      expect((await sent).method()).toBe('GET');
+      await expect(row.locator('[data-source-bank-connect]')).toBeVisible();
+    } else if ('change' in state && 'open' in state.change) {
+      await action.click();
+      await expect(page).toHaveURL(/bankSource=00000000-0000-4000-8000-000000000859/);
+    } else if (state.status === 'pending') {
+      const sent = page.waitForRequest('**/api/bank-sync/callback');
+      await action.click();
+      expect((await sent).postDataJSON()).toEqual({
+        code: 'synthetic-code',
+        state: 'synthetic-state',
+      });
+    } else {
+      await action.click();
+      await expect(row.locator(state.target)).toBeFocused();
+    }
   });
 }
 
@@ -274,6 +380,151 @@ test('connections distinguishes a partly completed bank run and focuses the retr
     .click();
   await expect(row.locator('[data-source-bank-blocked]')).toBeFocused();
   await expect(row.locator('[data-source-bank-sync]')).toBeDisabled();
+});
+
+test('routine commands work without expanding setup and preserve request payloads', async ({
+  page,
+}) => {
+  await mockSources(page);
+  const cryptoBodies: unknown[] = [];
+  await page.route('**/api/sources/crypto/refresh', async (route) => {
+    cryptoBodies.push(route.request().postDataJSON());
+    await route.fulfill({ json: { status: 'ok' } });
+  });
+  await page.route('**/api/market/refresh', (route) => route.fulfill({ json: {} }));
+  await page.route('**/api/bank-sync/accounts/00000000-0000-4000-8000-000000000859', (route) =>
+    route.fulfill({ json: {} }),
+  );
+  let releaseUpload!: () => void;
+  const uploadGate = new Promise<void>((resolve) => {
+    releaseUpload = resolve;
+  });
+  await page.route('**/api/payslip-intake/upload', async (route) => {
+    await uploadGate;
+    await route.fulfill({ json: { id: 'synthetic-upload', duplicate: false } });
+  });
+  await page.route('**/api/payslip-intake/synthetic-upload', (route) =>
+    route.fulfill({
+      json: {
+        id: 'synthetic-upload',
+        receiptId: 'synthetic-receipt',
+        status: 'pending',
+        accounts: [],
+        matches: [],
+        expectedPayouts: [],
+        payees: [],
+        payoutAccountId: null,
+        parsed: {
+          documentType: 'unknown',
+          warnings: ['Synthetische Prüfung erforderlich.'],
+          draft: null,
+        },
+      },
+    }),
+  );
+  await page.route('**/api/inbox?readSource=crypto&*', (route) =>
+    route.fulfill({
+      json: { entries: [], count: 0, totalEntries: 0, countsByTitle: {}, readSourceSummaries: [] },
+    }),
+  );
+  const register = await openRegister(page);
+  if (!register) return;
+  const bankRow = register.getByRole('region', { name: 'Bank', exact: true });
+
+  const crypto = register.getByRole('region', { name: 'Krypto', exact: true });
+  const marketRow = register.getByRole('region', { name: 'Kurse', exact: true });
+  const payslip = register.getByRole('region', { name: 'Gehaltszettel', exact: true });
+  for (const control of [
+    bankRow.locator('[data-source-bank-sync]'),
+    bankRow.getByRole('button', { name: 'Neu verbinden', exact: true }),
+    bankRow.locator('[data-source-bank-mapping]'),
+    crypto.getByRole('button', { name: 'Jetzt abrufen', exact: true }),
+    crypto.getByRole('button', { name: 'Gesamten Verlauf prüfen' }),
+    marketRow.getByRole('button', { name: 'Jetzt abrufen', exact: true }),
+    payslip.getByRole('button', { name: 'PDF hochladen' }),
+  ]) {
+    await expect(control).toBeVisible();
+    await expect(control).toBeEnabled();
+  }
+  await expect(register.locator('.settings-source-toggle[aria-expanded="true"]')).toHaveCount(0);
+  await expect(bankRow.locator('.bank-account-name')).toContainText('Budgetkonto A');
+  await expect(bankRow.getByRole('link', { name: '0 zu prüfen' })).toHaveAttribute(
+    'href',
+    /bankSource=00000000-0000-4000-8000-000000000859/,
+  );
+  await expect(crypto.getByRole('link', { name: '0 zu prüfen' })).toBeVisible();
+  const movements = page.waitForRequest(
+    (request) => new URL(request.url()).searchParams.get('readSource') === 'crypto',
+  );
+  await crypto.getByRole('link', { name: '0 zu prüfen' }).click();
+  await movements;
+  const cryptoReview = page.getByRole('dialog', { name: 'Krypto-Bewegungen prüfen' });
+  await expect(cryptoReview.getByLabel('Bewegungen nach Titel')).toBeVisible();
+  await cryptoReview.getByRole('button', { name: 'Schließen', exact: true }).click();
+  await expect(marketRow).toContainText('12 Kurszeilen aktualisiert');
+  await expect(register.getByRole('region', { name: 'VPI', exact: true })).toContainText('2026-08');
+  await expect(payslip.getByRole('link', { name: 'Dokumente prüfen' }).last()).toBeVisible();
+  await expect(
+    register.locator(
+      'details details, .settings-source-details details, .settings-source-details [aria-expanded]',
+    ),
+  ).toHaveCount(0);
+  const bankRequest = page.waitForRequest('**/api/bank-sync/synthetic-connection/sync');
+  await bankRow.locator('[data-source-bank-sync]').click();
+  expect((await bankRequest).postDataJSON()).toEqual({});
+  await bankRow.locator('[data-source-bank-mapping]').selectOption('synthetic-budget-second');
+  const mappingRequest = page.waitForRequest(
+    '**/api/bank-sync/accounts/00000000-0000-4000-8000-000000000859',
+  );
+  await bankRow.getByRole('button', { name: 'Zuordnung speichern' }).click();
+  expect((await mappingRequest).postDataJSON()).toEqual({
+    accountId: 'synthetic-budget-second',
+    fromDate: '2026-09-01',
+  });
+  await crypto.getByRole('button', { name: 'Jetzt abrufen', exact: true }).click();
+  await expect.poll(() => cryptoBodies).toEqual([{ fullHistory: false }]);
+  await crypto.getByRole('button', { name: 'Gesamten Verlauf prüfen' }).click();
+  await expect.poll(() => cryptoBodies).toEqual([{ fullHistory: false }, { fullHistory: true }]);
+  const priceRequest = page.waitForRequest('**/api/market/refresh');
+  await marketRow.getByRole('button', { name: 'Jetzt abrufen', exact: true }).click();
+  expect((await priceRequest).method()).toBe('POST');
+  const picker = page.waitForEvent('filechooser');
+  await payslip.getByRole('button', { name: 'PDF hochladen' }).click();
+  const upload = page.waitForRequest('**/api/payslip-intake/upload');
+  await (
+    await picker
+  ).setFiles({
+    name: 'synthetic.pdf',
+    mimeType: 'application/pdf',
+    buffer: Buffer.from('%PDF-1.4\nsynthetic'),
+  });
+  const uploadBody = (await upload).postDataBuffer()!.toString();
+  expect(uploadBody).toContain('name="automation"');
+  expect(uploadBody).toContain('eligible');
+  expect(uploadBody).toContain('filename="synthetic.pdf"');
+  await expect(payslip.getByRole('button', { name: 'PDF hochladen' })).toBeDisabled();
+  await register
+    .getByRole('region', { name: 'VPI', exact: true })
+    .getByRole('link', { name: 'Zur persönlichen Inflation' })
+    .click();
+  await expect(page).toHaveURL(/\/einstellungen\/datenquellen$/);
+  releaseUpload();
+  const result = page.getByRole('dialog', { name: 'Gehaltszettel hochladen', exact: true });
+  await expect(result.getByText('Synthetische Prüfung erforderlich.')).toBeVisible();
+  await result.getByRole('button', { name: 'Schließen', exact: true }).click();
+  await expect(register.locator('.settings-source-toggle[aria-expanded="true"]')).toHaveCount(0);
+  for (const width of [320, 390]) {
+    await page.setViewportSize({ width, height: 844 });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
+      width,
+    );
+  }
+  for (const toggle of await register.locator('.settings-source-toggle').all())
+    await toggle.click();
+  await expect(register.locator('details, .settings-source-details [aria-expanded]')).toHaveCount(
+    0,
+  );
+  await expect(payslip.getByLabel('PDF-Passwort', { exact: true })).toBeVisible();
 });
 
 test('connections reports an unavailable status and retries the read', async ({ page }) => {
@@ -349,6 +600,14 @@ test('connections aligns columns, orders problem links and reflows down to 320px
     'Gehaltszettel',
     'VPI',
   ]);
+  await expect(register.getByRole('link', { name: 'Testpapier: Kurs fehlt' })).toHaveAttribute(
+    'href',
+    '/vermoegen/portfolio/instrument/synthetic-security',
+  );
+  await register.getByRole('link', { name: 'Testpapier: Kurs fehlt' }).click();
+  const editor = page.getByRole('dialog', { name: 'Stammdaten bearbeiten', exact: true });
+  await expect(editor.getByLabel('Name', { exact: true })).toHaveValue('Testpapier');
+  await editor.getByRole('button', { name: 'Schließen', exact: true }).click();
   const columns = await register
     .locator('.settings-source-state')
     .evaluateAll((cells) => cells.map((cell) => cell.getBoundingClientRect().x));
@@ -392,6 +651,17 @@ for (const mixed of [false, true]) {
           ? '4 von 6 Quellen brauchen dich'
           : `Alle 6 Quellen aktuell – letzter Abruf ${displayedSuccess}`,
       );
+      const auditDir = process.env['CONNECTIONS_AUDIT_DIR'];
+      if (auditDir && scheme === 'light') {
+        mkdirSync(auditDir, { recursive: true });
+        await page.screenshot({
+          path: join(
+            auditDir,
+            `${mixed ? 'mixed' : 'healthy'}-${isMobile ? '390x844' : '1440x900'}-light.png`,
+          ),
+          fullPage: false,
+        });
+      }
       await expectScreenshot(page, `verbindungen-${mixed ? 'gemischt' : 'aktuell'}-${scheme}.png`);
     });
   }

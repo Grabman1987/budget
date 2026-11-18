@@ -34,9 +34,9 @@ Eine Analyse aller Abläufe nach Aufwand für den Nutzer steht in [EFFIZIENZ.md]
 
 ## Connections register (E-03 and E-04, #859)
 
-In the redesign, open **Einstellungen › Verbindungen** to see all six data sources, with sources needing attention first in severity order. Use a source link in the summary to open its details and focus its disclosure. Each row names the affected scope, shows the last known success and displays a next run only when the adapter supplies one. The row action starts the existing read or leads to the existing recovery control. A failed document scan keeps its attempt timestamp in the details, with success marked as unavailable.
+In the redesign, open **Einstellungen › Verbindungen** to see all six data sources, with sources needing attention first in severity order. Indented source parts remain visible without expanding setup: bank connections and account mappings, account-specific review counts and fetch commands, crypto movements and full-history checks, document scan counts and upload, quote run counts and instrument links, and the latest available inflation month. Routine commands reuse the existing handlers. A new PDF upload immediately opens its existing result/review dialog; the crypto review link opens its source-specific movement list.
 
-Acceptance covers existing consent and mapping controls, a neutral loading state, light and dark layouts, and reflow down to 320 px. Production rollout and owner acceptance are pending.
+Each source has at most one **Einrichtung** disclosure for credentials, consent setup, policy and other rare settings. Changing an account mapping exposes its start date so validation cannot block an invisible control. Acceptance covers unchanged request payloads, consent and booking policy, a neutral loading state, light and dark layouts, 44 px controls and reflow down to 320 px. Source dates remain distinct from attempts and missing values. Owner acceptance is pending.
 
 ## Offene Fragen an den Nutzer
 

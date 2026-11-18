@@ -8,7 +8,14 @@ const state = vi.hoisted(() => ({
   code: 'dropbox_path' as string | null,
   date: '2026-11-05T13:10:00Z' as string | null,
 }));
-vi.mock('../reports/payslip-intake', () => ({ PayslipSourceSection: () => null }));
+vi.mock('../reports/payslip-intake', () => ({
+  PayslipSourceSection: () => null,
+  PayslipUpload: () => null,
+}));
+vi.mock('@tanstack/react-router', async (importOriginal) => ({
+  ...(await importOriginal<Record<string, unknown>>()),
+  useBlocker: () => ({ status: 'idle' }),
+}));
 vi.mock('./read-source', async () => ({
   useCryptoSource: () => ({
     row: {

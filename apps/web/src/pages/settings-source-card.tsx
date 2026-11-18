@@ -54,6 +54,7 @@ export type SourceRow = {
   action?: ReactNode;
   detailAction?: { label: string; target?: string | undefined } | undefined;
   initiallyOpen?: boolean;
+  content?: (setupOpen: boolean) => ReactNode;
   children: ReactNode;
 };
 
@@ -110,17 +111,19 @@ export function SettingsSourceCard({
   action,
   detailAction,
   initiallyOpen = false,
+  content,
   children,
 }: SourceRow) {
   const [open, setOpen] = useState(initiallyOpen);
   const [focusRequest, setFocusRequest] = useState<{ target?: string | undefined }>();
   const body = useRef<HTMLDivElement>(null);
+  const section = useRef<HTMLElement>(null);
   const bodyId = useId();
   const detailsName = `${title}: Einrichtung und Details`;
   useLayoutEffect(() => {
     if (!focusRequest || !open || !body.current) return;
     const control = focusRequest.target
-      ? body.current.querySelector<HTMLElement>(focusRequest.target)
+      ? section.current?.querySelector<HTMLElement>(focusRequest.target)
       : null;
     (control ?? body.current).focus();
     setFocusRequest(undefined);
@@ -128,7 +131,7 @@ export function SettingsSourceCard({
 
   return (
     <li>
-      <section className="settings-source-card" id={id} aria-label={title}>
+      <section ref={section} className="settings-source-card" id={id} aria-label={title}>
         <div className="settings-source-head">
           <div className="settings-source-name">
             <span className="sr-only">Quelle</span>
@@ -181,8 +184,21 @@ export function SettingsSourceCard({
             <span className="sr-only">Aktion</span>
             {detailAction ? (
               <Button
-                variant="ghost"
                 onClick={() => {
+                  const control = detailAction.target
+                    ? Array.from(
+                        section.current?.querySelectorAll<HTMLElement>(detailAction.target) ?? [],
+                      ).find((element) => !element.closest('[hidden]'))
+                    : null;
+                  if (control && !control.closest('[hidden]')) {
+                    if (
+                      control instanceof HTMLButtonElement ||
+                      control instanceof HTMLAnchorElement
+                    )
+                      control.click();
+                    else control.focus();
+                    return;
+                  }
                   setOpen(true);
                   setFocusRequest(detailAction);
                 }}
@@ -199,11 +215,15 @@ export function SettingsSourceCard({
             variant="ghost"
             aria-label={detailsName}
             aria-expanded={open}
-            aria-controls={bodyId}
+            aria-controls={`${bodyId} ${bodyId}-parts`}
             onClick={() => setOpen(!open)}
           >
+            <span className="settings-source-setup-label">Einrichtung</span>
             <ChevronDown size={20} strokeWidth={1.5} aria-hidden="true" />
           </Button>
+        </div>
+        <div id={`${bodyId}-parts`} className="settings-source-content">
+          {content?.(open)}
         </div>
         {/* Keep edits mounted; native details leaves hidden selects noninteractive in WebKit. */}
         <div

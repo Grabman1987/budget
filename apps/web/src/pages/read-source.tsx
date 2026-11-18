@@ -1,4 +1,4 @@
-import { Button, Field, SectionHead, Select, TextInput } from '@budget/ui';
+import { Button, Field, SectionHead, Select, TextInput, WideDialog } from '@budget/ui';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import type { SourceBalance, SourceMapping } from '@budget/domain';
@@ -76,6 +76,7 @@ export function useCryptoSource(compact: boolean) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [pages, setPages] = useState(0);
+  const [reviewOpen, setReviewOpen] = useState(false);
   // The server reads one bounded page per call; keep fetching until the history is complete.
   async function refresh(fullHistory = false) {
     setBusy(true);
@@ -129,7 +130,7 @@ export function useCryptoSource(compact: boolean) {
     };
     const action = (
       <Button
-        variant="ghost"
+        variant={state === 'unmapped' || state === 'unconfigured' ? 'ghost' : 'primary'}
         disabled={busy || data?.running || !data?.configured}
         aria-busy={busy || data?.running}
         onClick={() => void refresh()}
@@ -160,28 +161,61 @@ export function useCryptoSource(compact: boolean) {
               ? { label: 'Einrichtung ansehen' }
               : undefined,
         action,
+        content: () =>
+          data && (
+            <>
+              <div className="settings-source-subrow">
+                <span>Bewegungen</span>
+                <a
+                  href="#crypto-movements"
+                  onClick={(event) => {
+                    event.preventDefault();
+                    setReviewOpen(true);
+                  }}
+                >
+                  {data.match.missing + data.match.unmapped} zu prüfen
+                </a>
+                <span>
+                  {data.match.matched} erfasst · {data.match.informational} informativ
+                </span>
+                <div className="sources-actions">
+                  {(state === 'unmapped' || state === 'unconfigured') && action}
+                  <Button
+                    variant="ghost"
+                    disabled={busy || data.running || !data.configured}
+                    onClick={() => void refresh(true)}
+                  >
+                    Gesamten Verlauf prüfen
+                  </Button>
+                </div>
+              </div>
+              {reviewOpen && (
+                <WideDialog
+                  open
+                  title="Krypto-Bewegungen prüfen"
+                  onClose={() => setReviewOpen(false)}
+                >
+                  <InboxWorkflow readSource="crypto" />
+                </WideDialog>
+              )}
+            </>
+          ),
         children: (
           <>
             {query.data && (
               <>
                 <h3 id="crypto-source-title">Krypto-Lesequelle</h3>
-                {(state === 'unmapped' || state === 'unconfigured') && action}
                 <p>Schlüssel gesetzt: {query.data.configured ? 'ja' : 'nein'}</p>
                 <p>
                   Letzter Versuch: {stamp(query.data.lastAttempt)} ·{' '}
                   <span>{labels[query.data.status]}</span>. Ein- und Auszahlungen mit den Bankkonten
                   abgleichen. Buchungen und Trades bestätigst du selbst.
                 </p>
-                <Button
-                  variant="ghost"
-                  disabled={busy || query.data.running || !query.data.configured}
-                  onClick={() => void refresh(true)}
-                >
-                  Gesamten Verlauf prüfen
-                </Button>
                 <SinceForm saved={query.data.since} />
                 <MatchSection match={query.data.match} disabled={busy || query.data.running} />
-                <InboxWorkflow readSource="crypto" />
+                <Button variant="ghost" onClick={() => setReviewOpen(true)}>
+                  Bewegungen prüfen
+                </Button>
                 {query.data.balances.map((balance) => (
                   <Mapping key={balance.key} balance={balance} data={query.data!} />
                 ))}

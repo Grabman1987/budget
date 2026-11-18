@@ -130,7 +130,11 @@ export function PayslipUpload({
   onBusyChange,
   onUploaded,
   handoff,
+  compact = false,
+  setupOpen = false,
 }: {
+  compact?: boolean;
+  setupOpen?: boolean;
   onBusyChange?: (busy: boolean) => void;
   onUploaded?: (result: PayslipUploadResult) => void;
   /** Central document upload: the same File goes through this normal upload. */
@@ -273,32 +277,52 @@ export function PayslipUpload({
           e.target.value = '';
         }}
       />
-      <details className="payslip-password-details">
-        <summary>PDF-Passwort eingeben (optional)</summary>
-        <PasswordFields
-          legend="PDF-Passwort"
-          password={password}
-          remember={remember}
-          disabled={busy}
-          onPassword={setPassword}
-          onRemember={setRemember}
-        />
-      </details>
+      {compact ? (
+        <div hidden={!setupOpen} className="payslip-password-group">
+          <h3>PDF-Passwort eingeben (optional)</h3>
+          <PasswordFields
+            legend="PDF-Passwort"
+            password={password}
+            remember={remember}
+            disabled={busy}
+            onPassword={setPassword}
+            onRemember={setRemember}
+          />
+        </div>
+      ) : (
+        <details className="payslip-password-details">
+          <summary>PDF-Passwort eingeben (optional)</summary>
+          <PasswordFields
+            legend="PDF-Passwort"
+            password={password}
+            remember={remember}
+            disabled={busy}
+            onPassword={setPassword}
+            onRemember={setRemember}
+          />
+        </details>
+      )}
       {/* One tab stop: the button. The label makes a click anywhere in the dashed area open the picker. */}
-      <label className="payslip-drop" htmlFor={pickerId}>
+      <label className={compact ? 'payslip-compact-upload' : 'payslip-drop'} htmlFor={pickerId}>
         <Button
           disabled={busy}
           aria-busy={busy}
-          aria-label="Gehaltszettel: PDF auswählen"
+          aria-label={compact ? 'PDF hochladen' : 'Gehaltszettel: PDF auswählen'}
           onClick={() => picker.current?.click()}
         >
-          {busy ? 'Wird ausgewertet …' : 'PDF auswählen'}
+          {busy ? 'Wird ausgewertet …' : compact ? 'PDF hochladen' : 'PDF auswählen'}
         </Button>
-        <span>PDF · höchstens 15 MB{busy ? ' · Wird ausgewertet …' : ''}</span>
-        <span className="payslip-drop-hint">PDF hier ablegen oder über den Button auswählen.</span>
-        <span className="payslip-drop-hint-order">
-          Passwort zuerst eingeben, dann PDF auswählen – der Upload startet sofort.
-        </span>
+        {!compact && (
+          <>
+            <span>PDF · höchstens 15 MB{busy ? ' · Wird ausgewertet …' : ''}</span>
+            <span className="payslip-drop-hint">
+              PDF hier ablegen oder über den Button auswählen.
+            </span>
+            <span className="payslip-drop-hint-order">
+              Passwort zuerst eingeben, dann PDF auswählen – der Upload startet sofort.
+            </span>
+          </>
+        )}
       </label>
       <p>
         Mit eingerichteter Gehaltsquelle werden eindeutige neue Gehaltszettel automatisch

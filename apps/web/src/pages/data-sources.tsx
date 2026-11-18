@@ -83,7 +83,9 @@ export function DataSourcesPage() {
       revealCurrentRegister
     >
       {REDESIGN_ENABLED ? (
-        <SettingsConnections bankConfiguration={<BankSourceSection />} />
+        <SettingsConnections
+          bankConfiguration={(setupOpen) => <BankSourceSection setupOpen={setupOpen} />}
+        />
       ) : (
         <div className="data-sources">
           <BankSourceSection />
@@ -96,7 +98,7 @@ export function DataSourcesPage() {
   );
 }
 
-function BankSourceSection() {
+function BankSourceSection({ setupOpen = true }: { setupOpen?: boolean } = {}) {
   const query = useQuery({
     queryKey: ['bank-sync'],
     queryFn: () => request<BankSourceStatus>('GET', PATH),
@@ -134,162 +136,164 @@ function BankSourceSection() {
   }
   return (
     <section className="data-source-section" aria-labelledby="bank-source-title">
-      <SectionHead id="bank-source-title" title="Bank-Sync (PSD2)" />
-      <p>
-        Neue Verbindungen merken Umsätze unter Prüfen vor. Sie zählen erst nach deiner Bestätigung
-        zum Kontostand. Vorhandene Buchungen werden abgeglichen.
-      </p>
-      {query.isPending && <p role="status">Datenquellen werden geladen …</p>}
-      {query.isError && (
-        <p role="alert">
-          Datenquellen konnten nicht geladen werden.{' '}
-          <Button variant="ghost" onClick={() => void query.refetch()}>
-            Erneut laden
-          </Button>
+      <div hidden={!setupOpen}>
+        <SectionHead id="bank-source-title" title="Bank-Sync (PSD2)" />
+        <p>
+          Neue Verbindungen merken Umsätze unter Prüfen vor. Sie zählen erst nach deiner Bestätigung
+          zum Kontostand. Vorhandene Buchungen werden abgeglichen.
         </p>
-      )}
-      <div className="bank-connect" aria-label="Neue Bankverbindung">
-        <h3>Bank verbinden</h3>
-        {error && (
-          <p className="field-error" role="alert">
-            {error}
+        {query.isPending && <p role="status">Datenquellen werden geladen …</p>}
+        {query.isError && (
+          <p role="alert">
+            Datenquellen konnten nicht geladen werden.{' '}
+            <Button variant="ghost" onClick={() => void query.refetch()}>
+              Erneut laden
+            </Button>
           </p>
         )}
-        {message && <p role="status">{message}</p>}
-        {callback.error && (
-          <p role="alert">Die Bankfreigabe wurde abgebrochen. Bitte erneut verbinden.</p>
-        )}
-        {callback.code && callback.state && (
-          <Button
-            data-source-bank-callback=""
-            disabled={busy}
-            onClick={() =>
-              void act(async () => {
-                await request('POST', PATH + '/callback', {
-                  code: callback.code,
-                  state: callback.state,
-                });
-                setCallback({ code: null, state: null, error: false });
-              }, 'Bankfreigabe gespeichert. Bitte die Konten zuordnen.')
-            }
-          >
-            Bankfreigabe abschließen
-          </Button>
-        )}
-        {query.data && !query.data.configured && (
-          <p>
-            Bank-Sync ist noch nicht eingerichtet. Die Zugangsdaten müssen zuerst auf dem Server
-            hinterlegt werden.
-          </p>
-        )}
-        {query.data?.workerEnabled === false && (
-          <p role="status">
-            Der Bankabruf ist auf dem Server pausiert. Auch manuelle Abrufe warten bis zur
-            Aktivierung.
-          </p>
-        )}
-        {query.data?.configured && (
-          <>
-            {callback.code ? null : institutions.length === 0 ? (
-              <div className="sources-actions">
-                <Button
-                  data-source-bank-connect=""
-                  disabled={busy}
-                  onClick={() =>
-                    void act(async () => {
-                      const data = await request<{ institutions: Institution[] }>(
-                        'GET',
-                        PATH + '/institutions',
-                      );
-                      setInstitutions(
-                        [...data.institutions].sort((a, b) =>
-                          a.name.localeCompare(b.name, 'de', { sensitivity: 'base' }),
-                        ),
-                      );
-                    }, '')
-                  }
-                >
-                  Bank verbinden
-                </Button>
-              </div>
-            ) : (
-              <div className="bank-picker">
-                <Field label="Bank suchen">
-                  {({ id }) => (
-                    <TextInput
-                      id={id}
-                      data-source-bank-connect=""
-                      type="search"
-                      autoComplete="off"
-                      placeholder="Bankname eintippen"
-                      value={search}
-                      onChange={(e) => {
-                        setSearch(e.target.value);
-                        const next = institutions.filter((a) =>
-                          fold(a.name).includes(fold(e.target.value.trim())),
-                        );
-                        if (next.length === 1) setSelection(institutionKey(next[0]!));
-                        else if (!next.some((a) => institutionKey(a) === selection))
-                          setSelection('');
-                      }}
-                    />
-                  )}
-                </Field>
-                <Field label={`Institut (${matches.length} von ${institutions.length})`}>
-                  {({ id }) => (
-                    <Select
-                      id={id}
-                      size={Math.min(8, Math.max(matches.length, 2))}
-                      value={selection}
-                      onChange={(e) => setSelection(e.target.value)}
-                    >
-                      {matches.map((a) => (
-                        <option key={institutionKey(a)} value={institutionKey(a)}>
-                          {a.name}
-                          {a.country === 'AT' ? '' : ' · ' + a.country}
-                        </option>
-                      ))}
-                    </Select>
-                  )}
-                </Field>
-                {matches.length === 0 && <p role="status">Keine Bank gefunden.</p>}
+        <div className="bank-connect" aria-label="Neue Bankverbindung">
+          <h3>Bank verbinden</h3>
+          {error && (
+            <p className="field-error" role="alert">
+              {error}
+            </p>
+          )}
+          {message && <p role="status">{message}</p>}
+          {callback.error && (
+            <p role="alert">Die Bankfreigabe wurde abgebrochen. Bitte erneut verbinden.</p>
+          )}
+          {callback.code && callback.state && (
+            <Button
+              data-source-bank-callback=""
+              disabled={busy}
+              onClick={() =>
+                void act(async () => {
+                  await request('POST', PATH + '/callback', {
+                    code: callback.code,
+                    state: callback.state,
+                  });
+                  setCallback({ code: null, state: null, error: false });
+                }, 'Bankfreigabe gespeichert. Bitte die Konten zuordnen.')
+              }
+            >
+              Bankfreigabe abschließen
+            </Button>
+          )}
+          {query.data && !query.data.configured && (
+            <p>
+              Bank-Sync ist noch nicht eingerichtet. Die Zugangsdaten müssen zuerst auf dem Server
+              hinterlegt werden.
+            </p>
+          )}
+          {query.data?.workerEnabled === false && (
+            <p role="status">
+              Der Bankabruf ist auf dem Server pausiert. Auch manuelle Abrufe warten bis zur
+              Aktivierung.
+            </p>
+          )}
+          {query.data?.configured && (
+            <>
+              {callback.code ? null : institutions.length === 0 ? (
                 <div className="sources-actions">
                   <Button
-                    disabled={busy || !chosen}
+                    data-source-bank-connect=""
+                    disabled={busy}
                     onClick={() =>
                       void act(async () => {
-                        const result = await request<{ url: string }>('POST', PATH + '/auth', {
-                          name: chosen!.name,
-                          country: chosen!.country,
-                        });
-                        window.location.assign(result.url);
+                        const data = await request<{ institutions: Institution[] }>(
+                          'GET',
+                          PATH + '/institutions',
+                        );
+                        setInstitutions(
+                          [...data.institutions].sort((a, b) =>
+                            a.name.localeCompare(b.name, 'de', { sensitivity: 'base' }),
+                          ),
+                        );
                       }, '')
                     }
                   >
-                    {chosen ? `Weiter zur Freigabe bei ${chosen.name}` : 'Zur Bankfreigabe'}
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    disabled={busy}
-                    onClick={() => {
-                      setInstitutions([]);
-                      setSearch('');
-                      setSelection('');
-                    }}
-                  >
-                    Abbrechen
+                    Bank verbinden
                   </Button>
                 </div>
-              </div>
-            )}
-          </>
-        )}
+              ) : (
+                <div className="bank-picker">
+                  <Field label="Bank suchen">
+                    {({ id }) => (
+                      <TextInput
+                        id={id}
+                        data-source-bank-connect=""
+                        type="search"
+                        autoComplete="off"
+                        placeholder="Bankname eintippen"
+                        value={search}
+                        onChange={(e) => {
+                          setSearch(e.target.value);
+                          const next = institutions.filter((a) =>
+                            fold(a.name).includes(fold(e.target.value.trim())),
+                          );
+                          if (next.length === 1) setSelection(institutionKey(next[0]!));
+                          else if (!next.some((a) => institutionKey(a) === selection))
+                            setSelection('');
+                        }}
+                      />
+                    )}
+                  </Field>
+                  <Field label={`Institut (${matches.length} von ${institutions.length})`}>
+                    {({ id }) => (
+                      <Select
+                        id={id}
+                        size={Math.min(8, Math.max(matches.length, 2))}
+                        value={selection}
+                        onChange={(e) => setSelection(e.target.value)}
+                      >
+                        {matches.map((a) => (
+                          <option key={institutionKey(a)} value={institutionKey(a)}>
+                            {a.name}
+                            {a.country === 'AT' ? '' : ' · ' + a.country}
+                          </option>
+                        ))}
+                      </Select>
+                    )}
+                  </Field>
+                  {matches.length === 0 && <p role="status">Keine Bank gefunden.</p>}
+                  <div className="sources-actions">
+                    <Button
+                      disabled={busy || !chosen}
+                      onClick={() =>
+                        void act(async () => {
+                          const result = await request<{ url: string }>('POST', PATH + '/auth', {
+                            name: chosen!.name,
+                            country: chosen!.country,
+                          });
+                          window.location.assign(result.url);
+                        }, '')
+                      }
+                    >
+                      {chosen ? `Weiter zur Freigabe bei ${chosen.name}` : 'Zur Bankfreigabe'}
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      disabled={busy}
+                      onClick={() => {
+                        setInstitutions([]);
+                        setSearch('');
+                        setSelection('');
+                      }}
+                    >
+                      Abbrechen
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </div>
       </div>
       {query.data?.configured && (
         <>
-          {REDESIGN_ENABLED && <BankSyncRecap />}
+          {setupOpen && REDESIGN_ENABLED && <BankSyncRecap />}
           {query.data.connections.length === 0 && <p>Noch keine Bank verbunden.</p>}
-          <p className="text-muted">
+          <p className="text-muted" hidden={!setupOpen}>
             Nächtlicher Abruf mit Nachholen nach Ausfällen. Das Tageslimit gilt pro Bankkonto und
             zählt auch Transaktionsseiten und Saldoanfragen.
           </p>
@@ -297,6 +301,12 @@ function BankSourceSection() {
             <ConnectionCard
               key={connection.id}
               connection={connection}
+              setupOpen={setupOpen}
+              reconnect={() => {
+                const toggle = document.getElementById('quelle-bank-details');
+                if (toggle?.getAttribute('aria-expanded') === 'false') toggle.click();
+                document.querySelector<HTMLButtonElement>('[data-source-bank-connect]')?.click();
+              }}
               updatedAt={query.dataUpdatedAt}
               accounts={query.data.accounts}
               workerEnabled={query.data.workerEnabled !== false}
@@ -313,12 +323,16 @@ function BankSourceSection() {
 
 function ConnectionCard({
   connection,
+  setupOpen,
+  reconnect,
   updatedAt,
   accounts,
   workerEnabled,
   refresh,
 }: {
   connection: Connection;
+  setupOpen: boolean;
+  reconnect: () => void;
   updatedAt: number;
   accounts: Account[];
   workerEnabled: boolean;
@@ -345,6 +359,11 @@ function ConnectionCard({
   const blocked = !workerEnabled
     ? 'Bankabruf auf dem Server pausiert.'
     : connection.manualBlockedReason;
+  const sync = () =>
+    void act(
+      () => request('POST', PATH + '/' + connection.id + '/sync', {}),
+      'Abruf vorgemerkt. Das Ergebnis erscheint nach Abschluss hier; neue Umsätze unter Prüfen.',
+    );
   const status = connection.running
     ? 'Abruf läuft'
     : connection.manualAvailableAt
@@ -356,8 +375,25 @@ function ConnectionCard({
         : (statuses[connection.status] ?? 'Bitte prüfen');
   return (
     <section className="source-connection" aria-label={connection.label}>
-      <SectionHead title={connection.label} aside={<span className="source-pill">{status}</span>} />
-      <dl className="source-status">
+      <div className={REDESIGN_ENABLED ? 'settings-source-subrow' : undefined}>
+        <strong>{connection.label}</strong>
+        <span>{status}</span>
+        <span>Letzter Erfolg: {stamp(connection.lastSuccessAt)}</span>
+        <div className="sources-actions">
+          <Button
+            data-source-bank-sync={encodeURIComponent(connection.id)}
+            variant="ghost"
+            disabled={busy || Boolean(blocked)}
+            onClick={sync}
+          >
+            Jetzt abrufen
+          </Button>
+          <Button data-source-bank-reconnect="" variant="ghost" disabled={busy} onClick={reconnect}>
+            Neu verbinden
+          </Button>
+        </div>
+      </div>
+      <dl className="source-status" hidden={!setupOpen}>
         <div>
           <dt>Abrufe heute</dt>
           <dd>
@@ -396,21 +432,10 @@ function ConnectionCard({
           </dd>
         </div>
       </dl>
-      <div className="sources-actions">
-        <Button
-          data-source-bank-sync={encodeURIComponent(connection.id)}
-          disabled={busy || Boolean(blocked)}
-          onClick={() =>
-            void act(
-              () => request('POST', PATH + '/' + connection.id + '/sync', {}),
-              'Abruf vorgemerkt. Das Ergebnis erscheint nach Abschluss hier; neue Umsätze unter Prüfen.',
-            )
-          }
-        >
-          Jetzt abrufen
-        </Button>
+      <div className="sources-actions bank-sync-action">
         <Button
           variant="ghost"
+          hidden={!setupOpen}
           disabled={
             busy || connection.running || connection.status === 'paused' || !connection.validUntil
           }
@@ -440,36 +465,42 @@ function ConnectionCard({
         </p>
       )}
       {message && <p role="status">{message}</p>}
-      <Field
-        label="Gebuchte Umsätze"
-        hint="Gilt beim nächsten Abruf. Bereits übernommene Buchungen bleiben erhalten."
-      >
-        {({ id }) => (
-          <Select
-            id={id}
-            value={String(connection.bookedToLedger)}
-            disabled={busy || connection.running}
-            onChange={(e) =>
-              void act(
-                () =>
-                  request('PUT', PATH + '/' + connection.id + '/policy', {
-                    bookedToLedger: e.target.value === 'true',
-                  }),
-                'Übernahme gespeichert.',
-              )
-            }
-          >
-            <option value="false">
-              Erst nach Bestätigung zählen (Standard für neue Verbindungen)
-            </option>
-            <option value="true">Sofort zum Kontostand zählen</option>
-          </Select>
-        )}
-      </Field>
+      <div hidden={!setupOpen}>
+        <Field
+          label="Gebuchte Umsätze"
+          hint="Gilt beim nächsten Abruf. Bereits übernommene Buchungen bleiben erhalten."
+        >
+          {({ id }) => (
+            <Select
+              id={id}
+              value={String(connection.bookedToLedger)}
+              disabled={busy || connection.running}
+              onChange={(e) =>
+                void act(
+                  () =>
+                    request('PUT', PATH + '/' + connection.id + '/policy', {
+                      bookedToLedger: e.target.value === 'true',
+                    }),
+                  'Übernahme gespeichert.',
+                )
+              }
+            >
+              <option value="false">
+                Erst nach Bestätigung zählen (Standard für neue Verbindungen)
+              </option>
+              <option value="true">Sofort zum Kontostand zählen</option>
+            </Select>
+          )}
+        </Field>
+      </div>
       {connection.accounts.map((a) => (
         <div key={a.id} className="source-account-row">
           <AccountLink
             row={a}
+            setupOpen={setupOpen}
+            sync={sync}
+            syncDisabled={busy || Boolean(blocked)}
+            reconnect={reconnect}
             accounts={accounts}
             disabled={busy || connection.running || a.locked || connection.status === 'paused'}
             save={(accountId, fromDate) =>
@@ -479,53 +510,57 @@ function ConnectionCard({
               )
             }
           />
-          {a.lastResult ? (
-            <>
-              <h3>Letztes Ergebnis · {stamp(a.lastSyncAt)}</h3>
-              <dl className="source-result">
-                <div>
-                  <dt>Abgerufen</dt>
-                  <dd>{a.lastResult.fetched}</dd>
-                </div>
-                <div>
-                  <dt>Verknüpft</dt>
-                  <dd>{a.lastResult.linked}</dd>
-                </div>
-                <div>
-                  <dt>Neu vorgemerkt</dt>
-                  <dd>{a.lastResult.new}</dd>
-                </div>
-                <div>
-                  <dt>Offen zur Prüfung</dt>
-                  <dd>{a.open}</dd>
-                </div>
-              </dl>
-              <p className="kmeta">
-                „Offen“ zeigt den aktuellen Prüfstand. Bei sofortiger Übernahme sind neue Umsätze
-                ungeprüfte Buchungen.
+          <div hidden={!setupOpen}>
+            {a.lastResult ? (
+              <>
+                <h3>Letztes Ergebnis · {stamp(a.lastSyncAt)}</h3>
+                <dl className="source-result">
+                  <div>
+                    <dt>Abgerufen</dt>
+                    <dd>{a.lastResult.fetched}</dd>
+                  </div>
+                  <div>
+                    <dt>Verknüpft</dt>
+                    <dd>{a.lastResult.linked}</dd>
+                  </div>
+                  <div>
+                    <dt>Neu vorgemerkt</dt>
+                    <dd>{a.lastResult.new}</dd>
+                  </div>
+                  <div>
+                    <dt>Offen zur Prüfung</dt>
+                    <dd>{a.open}</dd>
+                  </div>
+                </dl>
+                <p className="kmeta">
+                  „Offen“ zeigt den aktuellen Prüfstand. Bei sofortiger Übernahme sind neue Umsätze
+                  ungeprüfte Buchungen.
+                </p>
+              </>
+            ) : (
+              <p>
+                {a.lastSyncAt
+                  ? 'Für den früheren Abruf liegt keine Ergebnisübersicht vor.'
+                  : 'Noch kein vollständiger Abruf.'}
               </p>
-            </>
-          ) : (
-            <p>
-              {a.lastSyncAt
-                ? 'Für den früheren Abruf liegt keine Ergebnisübersicht vor.'
-                : 'Noch kein vollständiger Abruf.'}
-            </p>
+            )}
+            {a.warnings?.map((w) => (
+              <p className="field-error" key={w.id}>
+                <TriangleAlert size={16} strokeWidth={1.75} aria-hidden="true" /> {w.title}:{' '}
+                {w.detail}
+              </p>
+            ))}
+          </div>
+          {!REDESIGN_ENABLED && (
+            <AppLink
+              to="/konten/pruefen"
+              search={{ bankSource: a.id }}
+              className="btn btn-ghost"
+              data-source-bank-review={encodeURIComponent(a.id)}
+            >
+              Aufgaben prüfen
+            </AppLink>
           )}
-          {a.warnings?.map((w) => (
-            <p className="field-error" key={w.id}>
-              <TriangleAlert size={16} strokeWidth={1.75} aria-hidden="true" /> {w.title}:{' '}
-              {w.detail}
-            </p>
-          ))}
-          <AppLink
-            to="/konten/pruefen"
-            search={{ bankSource: a.id }}
-            className="btn btn-ghost"
-            data-source-bank-review={encodeURIComponent(a.id)}
-          >
-            Aufgaben prüfen
-          </AppLink>
         </div>
       ))}
     </section>
@@ -534,11 +569,19 @@ function ConnectionCard({
 
 function AccountLink({
   row,
+  setupOpen,
+  sync,
+  syncDisabled,
+  reconnect,
   accounts,
   disabled,
   save,
 }: {
   row: LinkedAccount;
+  setupOpen: boolean;
+  sync: () => void;
+  syncDisabled: boolean;
+  reconnect: () => void;
   accounts: Account[];
   disabled: boolean;
   save: (account: string, from: string) => Promise<void>;
@@ -549,16 +592,29 @@ function AccountLink({
     accountId !== (row.accountId ?? '') || fromDate !== (row.fromDate ?? todayInVienna());
   return (
     <form
-      className="source-account"
+      className={REDESIGN_ENABLED ? 'source-account settings-source-subrow' : 'source-account'}
       onSubmit={(event) => {
         event.preventDefault();
         void save(accountId, fromDate);
       }}
     >
-      <p>
+      <p className="bank-account-name">
         <strong>{row.label}</strong> · {row.currency} →{' '}
-        {accounts.find((a) => a.id === row.accountId)?.name ?? 'Noch nicht zugeordnet'}
+        {accounts.find((a) => a.id === row.accountId)?.name ?? 'nicht zugeordnet'}
       </p>
+      {REDESIGN_ENABLED && (
+        <>
+          <AppLink
+            className="btn btn-ghost bank-account-review"
+            to="/konten/pruefen"
+            search={{ bankSource: row.id }}
+            data-source-bank-review={encodeURIComponent(row.id)}
+          >
+            {row.open} zu prüfen
+          </AppLink>
+          <span className="bank-account-time">Letzter Erfolg: {stamp(row.lastSyncAt)}</span>
+        </>
+      )}
       {row.currency !== 'EUR' && row.currency !== 'XXX' ? (
         <p>Diese Währung wird noch nicht unterstützt. Es werden keine Umsätze übernommen.</p>
       ) : (
@@ -584,38 +640,57 @@ function AccountLink({
               </Select>
             )}
           </Field>
-          <Field label="Umsätze ab">
-            {({ id }) => (
-              <TextInput
-                id={id}
-                type="date"
-                required
-                value={fromDate}
-                disabled={disabled}
-                min={accounts.find((a) => a.id === accountId)?.openingDate}
-                max={todayInVienna()}
-                onChange={(e) => setFrom(e.target.value)}
-              />
-            )}
-          </Field>
-          <p className="kmeta">
-            Ältere Umsätze werden mit vorhandenen Buchungen abgeglichen. Ein früheres Datum nur
-            wählen, wenn dafür noch Buchungen fehlen.
-          </p>
-          <p className="kmeta">
-            {row.locked
-              ? 'Zuordnung nach dem ersten Abruf gesperrt. Für Änderungen bitte neu verbinden.'
-              : disabled
-                ? 'Zuordnung während eines Abrufs oder bei pausierter Verbindung gesperrt.'
-                : !accountId
-                  ? 'Bitte ein Konto wählen.'
-                  : changed
-                    ? 'Änderungen noch nicht gespeichert.'
-                    : 'Zuordnung gespeichert. Keine Änderungen.'}
-          </p>
-          <Button variant="ghost" type="submit" disabled={disabled || !accountId || !changed}>
-            {row.accountId ? 'Zuordnung speichern' : 'Konto zuordnen'}
-          </Button>
+          <div
+            hidden={!setupOpen && accountId === (row.accountId ?? '') && Boolean(row.accountId)}
+            className="bank-account-setup"
+          >
+            <Field label="Umsätze ab">
+              {({ id }) => (
+                <TextInput
+                  id={id}
+                  type="date"
+                  required
+                  value={fromDate}
+                  disabled={disabled}
+                  min={accounts.find((a) => a.id === accountId)?.openingDate}
+                  max={todayInVienna()}
+                  onChange={(e) => setFrom(e.target.value)}
+                />
+              )}
+            </Field>
+            <p className="kmeta">
+              Ältere Umsätze werden mit vorhandenen Buchungen abgeglichen. Ein früheres Datum nur
+              wählen, wenn dafür noch Buchungen fehlen.
+            </p>
+            <p className="kmeta">
+              {row.locked
+                ? 'Zuordnung nach dem ersten Abruf gesperrt. Für Änderungen bitte neu verbinden.'
+                : disabled
+                  ? 'Zuordnung während eines Abrufs oder bei pausierter Verbindung gesperrt.'
+                  : !accountId
+                    ? 'Bitte ein Konto wählen.'
+                    : changed
+                      ? 'Änderungen noch nicht gespeichert.'
+                      : 'Zuordnung gespeichert. Keine Änderungen.'}
+            </p>
+          </div>
+          <div className="bank-account-commands">
+            <Button variant="ghost" type="submit" disabled={disabled || !accountId || !changed}>
+              {row.accountId ? 'Zuordnung speichern' : 'Konto zuordnen'}
+            </Button>
+            {REDESIGN_ENABLED &&
+              (row.locked ? (
+                <Button variant="ghost" onClick={reconnect}>
+                  Neu verbinden
+                </Button>
+              ) : (
+                row.accountId && (
+                  <Button variant="ghost" disabled={syncDisabled} onClick={sync}>
+                    Jetzt abrufen
+                  </Button>
+                )
+              ))}
+          </div>
         </>
       )}
     </form>

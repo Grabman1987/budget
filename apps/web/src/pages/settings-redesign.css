@@ -456,7 +456,7 @@
   align-items: start;
   gap: 3px 14px;
   position: relative;
-  padding: 12px 62px 12px 16px;
+  padding: 12px 132px 12px 16px;
   overflow-wrap: anywhere;
 }
 .settings-redesign .settings-source-name {
@@ -954,4 +954,132 @@
 /* Contain the table's absolutely positioned screen-reader labels inside the scrolling region. */
 .settings-redesign .settings-stage-scroll {
   position: relative;
+}
+
+/* Source parts use the same columns as their parent, without another surface. */
+.settings-redesign .settings-source-subrow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.14fr) minmax(0, 1fr) minmax(0, 1.03fr);
+  align-items: center;
+  gap: 8px 14px;
+  padding: 8px 132px 8px 16px;
+  margin: 0;
+  min-width: 0;
+  border-top: 1px solid var(--rule);
+  overflow-wrap: anywhere;
+  font-size: var(--fs-meta);
+}
+.settings-redesign .settings-source-subrow > :first-child {
+  padding-inline-start: 16px;
+}
+.settings-redesign .settings-source-subrow > * {
+  min-width: 0;
+  max-width: 100%;
+}
+.settings-redesign .settings-source-subrow :is(p, .field-row) {
+  margin: 0;
+}
+.settings-redesign .settings-source-subrow :is(button, a, select) {
+  min-height: 44px;
+}
+.settings-redesign .settings-source-subrow .btn {
+  font-size: inherit;
+  padding-inline: 8px;
+}
+.settings-redesign .settings-source-content > .data-source-section {
+  max-width: none;
+}
+.settings-redesign .settings-source-card .source-connection {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  background: transparent;
+}
+.settings-redesign .settings-source-card .source-account-row {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.settings-redesign .source-account.settings-source-subrow {
+  grid-template-rows: auto auto;
+}
+.settings-redesign .bank-account-name {
+  grid-column: 1;
+  grid-row: 1 / 3;
+}
+.settings-redesign .bank-account-review {
+  grid-column: 2;
+  grid-row: 1;
+  justify-self: start;
+}
+.settings-redesign .bank-account-time {
+  grid-column: 3;
+  grid-row: 1 / 3;
+}
+.settings-redesign .source-account.settings-source-subrow > .field-row {
+  grid-column: 2;
+  grid-row: 2;
+}
+.settings-redesign .source-account.settings-source-subrow > .bank-account-commands {
+  grid-column: 4;
+  grid-row: 1 / 3;
+}
+.settings-redesign .bank-account-setup {
+  grid-column: 1 / -1;
+}
+.settings-redesign .bank-sync-action {
+  padding: 0 62px 8px 16px;
+  justify-content: end;
+}
+.settings-redesign .settings-source-inline,
+.settings-redesign .settings-source-content > p {
+  padding-inline: 32px 16px;
+}
+.settings-redesign .payslip-compact-upload {
+  display: block;
+}
+.settings-redesign .settings-source-subrow .payslip-upload {
+  display: contents;
+}
+.settings-redesign .settings-source-subrow .payslip-upload > :is(p, .payslip-password-group) {
+  grid-column: 1 / -1;
+}
+.settings-redesign .settings-source-subrow .payslip-upload > p {
+  font-size: var(--fs-meta);
+}
+.settings-redesign .settings-source-toggle {
+  width: auto;
+  min-width: 44px;
+}
+@media (max-width: 767px) {
+  .settings-redesign .settings-source-subrow {
+    grid-template-columns: minmax(0, 1fr);
+    padding: 8px 12px 12px 28px;
+  }
+  .settings-redesign .settings-source-subrow > :first-child {
+    padding-inline-start: 0;
+  }
+  .settings-redesign .settings-source-subrow > * {
+    grid-column: 1 !important;
+    grid-row: auto !important;
+  }
+  .settings-redesign .bank-sync-action {
+    padding: 8px 12px 8px 28px;
+  }
+}
+
+.settings-redesign .bank-account-commands {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.settings-redesign .settings-source-subrow .sources-actions {
+  gap: 4px;
+}
+@media (max-width: 767px) {
+  .settings-redesign .settings-source-setup-label {
+    display: none;
+  }
 }

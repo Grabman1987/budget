@@ -1,14 +1,24 @@
 import { useSpritmonitorSource } from './spritmonitor-source';
 import { FileText, Landmark, LineChart, Percent } from 'lucide-react';
-import { Button, maskMoneyText, useAmountPrivacy } from '@budget/ui';
+import { Button, WideDialog, maskMoneyText, useAmountPrivacy } from '@budget/ui';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useBlocker } from '@tanstack/react-router';
+import { InstrumentForm } from '../wealth/instrument-form';
+import { instrumentQuery } from '../wealth/portfolio-api';
+import { ErrorNote, LoadingNote } from '../ledger/states';
 import type { InflationReport } from '@budget/db';
 import { request } from '../api/http';
 import { errorText } from '../ledger/labels';
+import { inboxQuery } from '../inbox/api';
 import { LEDGER_KEY } from '../ledger/queries';
 import { AppLink } from '../shell/app-link';
-import { PayslipSourceSection } from '../reports/payslip-intake';
+import {
+  PayslipUpload,
+  PayslipSourceSection,
+  type PayslipUploadResult,
+} from '../reports/payslip-intake';
+import { PayslipUploadDialog } from '../reports/payslip-panel';
 import { useCryptoSource } from './read-source';
 import {
   SourceRegister,
@@ -30,12 +40,39 @@ type PayslipStatus = {
   errorCode?: string | null;
 };
 type MarketStatus = {
-  lastRun: { status: string; finishedAt: string | null; error?: string | null } | null;
+  lastRun: {
+    status: string;
+    finishedAt: string | null;
+    error?: string | null;
+    priceRows?: number;
+    fxRows?: number;
+    failedCount?: number;
+  } | null;
   lastSuccess: { finishedAt: string | null } | null;
 };
+const marketRunLabels: Record<string, string> = {
+  ok: 'Abgeschlossen',
+  partial: 'Teilweise abgeschlossen',
+  failed: 'Fehlgeschlagen',
+};
 
-export function SettingsConnections({ bankConfiguration }: { bankConfiguration: ReactNode }) {
+export function SettingsConnections({
+  bankConfiguration,
+}: {
+  bankConfiguration: ReactNode | ((open: boolean) => ReactNode);
+}) {
   useAmountPrivacy();
+  const [uploaded, setUploaded] = useState<PayslipUploadResult>();
+  const [uploadBusy, setUploadBusy] = useState(false);
+  const uploadBlocker = useBlocker({
+    shouldBlockFn: () => uploadBusy,
+    withResolver: true,
+    enableBeforeUnload: () => uploadBusy,
+  });
+  useEffect(() => {
+    if (uploadBlocker.status === 'blocked') uploadBlocker.reset();
+  }, [uploadBlocker]);
+  const [editingInstrument, setEditingInstrument] = useState<string>();
   const bank = useQuery({
     queryKey: ['bank-sync'],
     queryFn: () => request<BankSourceStatus>('GET', '/api/bank-sync'),
@@ -49,6 +86,7 @@ export function SettingsConnections({ bankConfiguration }: { bankConfiguration: 
     queryKey: ['market-status'],
     queryFn: () => request<MarketStatus>('GET', '/api/market/status'),
   });
+  const warnings = useQuery(inboxQuery());
   const cpi = useQuery({
     queryKey: [...LEDGER_KEY, 'inflation-reference'],
     retry: false,
@@ -146,7 +184,7 @@ export function SettingsConnections({ bankConfiguration }: { bankConfiguration: 
     connected: reviewCount,
   };
   const bankParams = new URLSearchParams(window.location.search);
-  const connectControl = '[data-source-bank-connect]:enabled';
+  const connectControl = '[data-source-bank-reconnect]:enabled, [data-source-bank-connect]:enabled';
   const syncControl = (connection: NonNullable<typeof active>) =>
     `[data-source-bank-sync="${encodeURIComponent(connection.id)}"]:enabled`;
   const retryTarget = (connection: NonNullable<typeof failed>) =>
@@ -227,7 +265,7 @@ export function SettingsConnections({ bankConfiguration }: { bankConfiguration: 
           ? 'failed'
           : 'waiting';
   const marketAction = (label: string) => (
-    <Button variant="ghost" disabled={busy} aria-busy={busy} onClick={() => void refresh()}>
+    <Button disabled={busy} aria-busy={busy} onClick={() => void refresh()}>
       {busy ? 'Ruft ab …' : label}
     </Button>
   );
@@ -260,27 +298,9 @@ export function SettingsConnections({ bankConfiguration }: { bankConfiguration: 
             Ruft ab …
           </Button>
         ) : undefined,
-      children: (
-        <>
-          {connections.map((c) => (
-            <p key={c.id}>
-              <strong>{c.label}</strong> ·{' '}
-              {c.status === 'expired'
-                ? 'Einwilligung abgelaufen – Bank neu verbinden.'
-                : c.status === 'paused'
-                  ? 'Verbindung pausiert – Bank neu verbinden.'
-                  : c.status === 'pending'
-                    ? 'Bankfreigabe abschließen.'
-                    : c.status === 'active'
-                      ? 'Verbunden'
-                      : 'Abruf fehlgeschlagen – Verbindung und Freigabe prüfen.'}{' '}
-              · Letzter Erfolg: {sourceDate(c.lastSuccessAt)}
-              {c.accounts.some((a) => !a.accountId) && ' · Konto zuordnen erforderlich.'}
-            </p>
-          ))}
-          {bankConfiguration}
-        </>
-      ),
+      content:
+        typeof bankConfiguration === 'function' ? bankConfiguration : () => bankConfiguration,
+      children: null,
     }),
     crypto,
     spritmonitor,
@@ -310,8 +330,22 @@ export function SettingsConnections({ bankConfiguration }: { bankConfiguration: 
       ) : (
         documents
       ),
-      children: (
+      content: (setupOpen) => (
         <>
+          <div className="settings-source-subrow">
+            <span>Dokumente</span>
+            <span>
+              {payslipStatus?.filesFound ?? '–'} Dateien gefunden · {payslipStatus?.errors ?? '–'}{' '}
+              Fehler / Warnungen
+            </span>
+            <span>{documents}</span>
+            <PayslipUpload
+              compact
+              setupOpen={setupOpen}
+              onUploaded={setUploaded}
+              onBusyChange={setUploadBusy}
+            />
+          </div>
           <p>
             Letzter Scanversuch:{' '}
             {payslip.isPending
@@ -321,10 +355,9 @@ export function SettingsConnections({ bankConfiguration }: { bankConfiguration: 
                 : 'Noch kein Scanversuch'}
             {payslipFailed && ` · ${payslipStatus?.filesFound ?? 0} Dateien bis zum Fehler`}
           </p>
-          {payslipFailed && documents}
-          <PayslipSourceSection />
         </>
       ),
+      children: <PayslipSourceSection />,
     }),
     sourceReadState(market, {
       id: 'quelle-kurse',
@@ -346,22 +379,51 @@ export function SettingsConnections({ bankConfiguration }: { bankConfiguration: 
           ? 'Erneut versuchen'
           : 'Jetzt abrufen',
       ),
-      children: (
-        <>
+      content: () => (
+        <div className="settings-source-subrow">
+          <span>Kurslauf</span>
           <p>
             Letzter Lauf:{' '}
             {market.isPending ? 'Wird geladen …' : sourceDate(market.data?.lastRun?.finishedAt)} ·
             Status:{' '}
             {market.isPending
               ? 'Wird geladen …'
-              : (market.data?.lastRun?.status ?? 'Noch kein Lauf')}
+              : market.data?.lastRun
+                ? (marketRunLabels[market.data.lastRun.status] ?? 'Unbekannt')
+                : 'Noch kein Lauf'}
           </p>
           <p>
-            Kurse mit Lücken bleiben als unvollständig erkennbar. Der Abruf verwendet die
-            vorhandenen Quellen.
+            {market.data?.lastRun?.priceRows ?? '–'} Kurszeilen aktualisiert ·{' '}
+            {market.data?.lastRun?.fxRows ?? '–'} Wechselkurszeilen ·{' '}
+            {market.data?.lastRun?.failedCount ?? '–'} fehlgeschlagen
           </p>
-        </>
+          <div>
+            {warnings.data?.entries?.flatMap((entry) =>
+              entry.type === 'stored' &&
+              entry.kind === 'stale_value' &&
+              entry.refType === 'security' &&
+              entry.refId
+                ? [
+                    <AppLink
+                      key={entry.id}
+                      className="btn btn-ghost"
+                      to={`/vermoegen/portfolio/instrument/${encodeURIComponent(entry.refId)}`}
+                      onClick={(event) => {
+                        if (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey)
+                          return;
+                        event.preventDefault();
+                        setEditingInstrument(entry.refId!);
+                      }}
+                    >
+                      {entry.title}
+                    </AppLink>,
+                  ]
+                : [],
+            )}
+          </div>
+        </div>
       ),
+      children: null,
     }),
     sourceReadState(cpi, {
       id: 'quelle-vpi',
@@ -372,6 +434,16 @@ export function SettingsConnections({ bankConfiguration }: { bankConfiguration: 
       impact: cpi.data?.reference ? undefined : 'Für den Index sind noch keine Werte verfügbar.',
       date: cpi.data ? (cpi.data.reference?.fetchedAt ?? null) : undefined,
       action: marketAction('Jetzt abrufen'),
+      content: () => (
+        <div className="settings-source-subrow">
+          <span>Indexstand</span>
+          <span>
+            Letzter verfügbarer Monat: {cpi.data?.reference?.lastMonth ?? 'Nicht verfügbar'}
+          </span>
+          <span />
+          <AppLink to="/reports/inflation">Zur persönlichen Inflation</AppLink>
+        </div>
+      ),
       children: (
         <>
           <p>Öffentliche Statistik wird mit dem vorhandenen Marktdaten-Abruf aktualisiert.</p>
@@ -389,7 +461,54 @@ export function SettingsConnections({ bankConfiguration }: { bankConfiguration: 
         <h2>Verbindungen</h2>
       </div>
       <SourceRegister sources={sources} />
+      {uploaded && (
+        <PayslipUploadDialog initialResult={uploaded} onClose={() => setUploaded(undefined)} />
+      )}
+      {editingInstrument && (
+        <QuoteInstrumentEditor
+          key={editingInstrument}
+          id={editingInstrument}
+          onClose={() => setEditingInstrument(undefined)}
+        />
+      )}
       {error && <p role="alert">{error}</p>}
     </div>
+  );
+}
+
+/** Reuse the existing instrument form and its writer for quote-warning recovery. */
+function QuoteInstrumentEditor({ id, onClose }: { id: string; onClose: () => void }) {
+  const query = useQuery(instrumentQuery(id));
+  const [dirty, setDirty] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const blocker = useBlocker({
+    shouldBlockFn: () => busy || dirty,
+    withResolver: true,
+    enableBeforeUnload: () => busy || dirty,
+  });
+  const mayClose = () =>
+    !busy && (!dirty || window.confirm('Ungespeicherte Änderungen verwerfen?'));
+  useEffect(() => {
+    if (blocker.status !== 'blocked') return;
+    if (!busy && (!dirty || window.confirm('Ungespeicherte Änderungen verwerfen?')))
+      blocker.proceed();
+    else blocker.reset();
+  }, [blocker, busy, dirty]);
+  return (
+    <WideDialog open title="Stammdaten bearbeiten" onClose={onClose} beforeClose={mayClose}>
+      {query.isPending && <LoadingNote what="Wertpapier" />}
+      {query.isError && (
+        <ErrorNote what="Wertpapier" error={query.error} onRetry={() => void query.refetch()} />
+      )}
+      {query.data && (
+        <InstrumentForm
+          security={query.data.security}
+          onDirty={setDirty}
+          onBusy={setBusy}
+          onSaved={onClose}
+          onSelect={onClose}
+        />
+      )}
+    </WideDialog>
   );
 }
