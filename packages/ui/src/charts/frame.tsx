@@ -227,15 +227,17 @@ export function ChartSvg({
             >
               {point.series.map((s, i) => (
                 <div className="chart-tooltip-row" key={i}>
-                  <svg width="12" height="12" aria-hidden="true">
-                    <rect
-                      width="12"
-                      height="12"
-                      className={s.className}
-                      fill={s.color ?? 'var(--line)'}
-                    />
-                  </svg>
-                  <span>{s.name}</span>
+                  <div className="chart-tooltip-label">
+                    <svg width="12" height="12" aria-hidden="true">
+                      <rect
+                        width="12"
+                        height="12"
+                        className={s.className}
+                        fill={s.color ?? 'var(--line)'}
+                      />
+                    </svg>
+                    <span>{s.name}</span>
+                  </div>
                   <strong>{privateAmount(s.value)}</strong>
                 </div>
               ))}

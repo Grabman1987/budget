@@ -8,9 +8,18 @@ import {
   maskMoneyText,
   useAmountPrivacy,
 } from '@budget/ui';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRef, useState, type FormEvent } from 'react';
 import { ApiError, request } from '../api/http';
+import {
+  ArivaLinkField,
+  ARIVA_LINK_ERROR,
+  validArivaLink,
+  quoteFailureText,
+  latestQuoteFailure,
+} from './quote-source';
+import type { QuoteDiagnostics, QuotePreview } from '../inbox/quote-cause';
+import { LEDGER_KEY } from '../ledger/queries';
 import { undoGroup } from '../ledger/api';
 import { errorText } from '../ledger/labels';
 import { ErrorNote, LoadingNote } from '../ledger/states';
@@ -33,6 +42,7 @@ type Draft = {
   currency: string;
   isin: string;
   symbol: string;
+  quoteUrl: string;
   assetClassId: string;
   exposureValidFrom: string;
   ter: string;
@@ -45,6 +55,7 @@ const draftFor = (security?: SecurityRecord, effectiveDay = todayInVienna()): Dr
   currency: security?.currency ?? 'EUR',
   isin: security?.isin ?? '',
   symbol: security?.symbol ?? '',
+  quoteUrl: security?.quoteUrl ?? '',
   assetClassId: security?.assetClassId ?? '',
   exposureValidFrom: effectiveDay,
   ter: String((security?.terBp ?? 0) / 100).replace('.', ','),
@@ -52,7 +63,7 @@ const draftFor = (security?: SecurityRecord, effectiveDay = todayInVienna()): Dr
 });
 type Errors = Partial<Record<keyof Draft | 'form', string>>;
 
-/** Basic metadata only: existing source settings, costs and account ownership stay authoritative. */
+/** Metadata and the explicit quote link use the existing audited security update. */
 export function InstrumentForm({
   security,
   onDirty,
@@ -80,6 +91,24 @@ export function InstrumentForm({
   const [busy, setBusy] = useState(false);
   const saving = useRef(false);
   const classes = useQuery(assetClassesQuery());
+  const diagnostics = useQuery({
+    queryKey: [...LEDGER_KEY, 'quote-diagnostics', security?.id],
+    enabled: !!security,
+    queryFn: () =>
+      request<QuoteDiagnostics>(
+        'GET',
+        `/api/securities/${encodeURIComponent(security!.id)}/quote-diagnostics`,
+      ),
+  });
+  const preview = useMutation({
+    mutationFn: () =>
+      request<QuotePreview>(
+        'POST',
+        `/api/securities/${encodeURIComponent(security!.id)}/quote-preview`,
+        {},
+      ),
+  });
+  const latestFailure = latestQuoteFailure(diagnostics.data?.attempts);
   const qc = useQueryClient();
   const toast = useToast();
   const changed = JSON.stringify(draft) !== JSON.stringify(original);
@@ -116,6 +145,12 @@ export function InstrumentForm({
     const currency = draft.currency.trim().toUpperCase();
     const isin = draft.isin.trim().toUpperCase() || null;
     const invalid: Errors = {};
+    if (
+      draft.quoteUrl !== original.quoteUrl &&
+      draft.quoteUrl.trim() &&
+      !validArivaLink(draft.quoteUrl)
+    )
+      invalid.quoteUrl = ARIVA_LINK_ERROR;
     if (draft.regionsJson.trim() && !parseRegionWeights(draft.regionsJson))
       invalid.regionsJson =
         'Länderanteile als JSON eingeben; Anteile zwischen 0 und 1, Summe höchstens 1.';
@@ -149,6 +184,9 @@ export function InstrumentForm({
         currency,
         isin,
         symbol: draft.symbol.trim() || null,
+        ...(draft.quoteUrl !== original.quoteUrl
+          ? { quoteUrl: draft.quoteUrl.trim() || null }
+          : {}),
         ...(!security ||
         draft.assetClassId !== original.assetClassId ||
         draft.exposureValidFrom !== original.exposureValidFrom
@@ -267,6 +305,58 @@ export function InstrumentForm({
             />
           )}
         </Field>
+        {security && latestFailure && (
+          <p className="vnote">{quoteFailureText(latestFailure, security.currency)}</p>
+        )}
+        {draft.kind !== 'crypto' && !draft.quoteUrl && (
+          <p className="vnote">Kein Kurs-Link hinterlegt</p>
+        )}
+        {security && (
+          <div>
+            <Button
+              type="button"
+              variant="ghost"
+              disabled={preview.isPending || changed}
+              onClick={() => preview.mutate()}
+            >
+              Quelle testen (Vorschau)
+            </Button>
+            {changed && <p className="vnote">Änderungen vor dem Quellentest speichern.</p>}
+            {preview.isError && (
+              <ErrorNote
+                what="Quellvorschau"
+                error={preview.error}
+                onRetry={() => preview.reset()}
+              />
+            )}
+            {preview.data && (
+              <div role="status">
+                <p>Vorschau: Keine Kurse gespeichert.</p>
+                {preview.data.attempts.map((attempt, index) => (
+                  <p key={index}>
+                    {attempt.source}:{' '}
+                    {attempt.latest
+                      ? 'Die Quelle liefert Kurse'
+                      : quoteFailureText(
+                          attempt.error ?? 'unbekannt',
+                          security.currency,
+                          attempt.currencyEvidence?.origin === 'response'
+                            ? attempt.currencyEvidence.currency
+                            : undefined,
+                        )}
+                  </p>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+        {draft.kind !== 'crypto' && (
+          <ArivaLinkField
+            value={draft.quoteUrl}
+            onChange={(value) => update('quoteUrl', value)}
+            error={errors.quoteUrl}
+          />
+        )}
         <Field label="TER (%)" error={errors.ter} hint="Bei ETF und Fonds bedeutet 0: unbekannt.">
           {({ id, describedBy, invalid }) => (
             <TextInput

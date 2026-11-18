@@ -360,6 +360,7 @@ svg.chart {
   top: var(--chart-tooltip-top, 8px);
   z-index: 45;
   width: min(360px, calc(100vw - 32px));
+  box-sizing: border-box;
   left: var(--chart-tooltip-left, 0px);
   padding: 10px 12px;
   border: 1px solid var(--rule-strong);
@@ -371,20 +372,36 @@ svg.chart {
   pointer-events: none;
 }
 .chart-tooltip-row {
-  display: grid;
-  grid-template-columns: 12px minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 8px;
 }
 .chart-tooltip-row + .chart-tooltip-row {
   margin-top: 4px;
 }
-.chart-tooltip-row span {
-  overflow-wrap: anywhere;
+.chart-tooltip-label {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: baseline;
+  gap: 8px;
+  max-width: 100%;
+}
+.chart-tooltip-label svg {
+  flex: 0 0 12px;
+}
+.chart-tooltip-label span {
+  min-width: 0;
+  overflow-wrap: break-word;
 }
 .chart-tooltip-row strong {
+  flex: 1 0 auto;
+  min-width: 0;
+  max-width: 100%;
   font-variant-numeric: tabular-nums;
-  white-space: nowrap;
+  text-align: right;
+  white-space: normal;
+  overflow-wrap: break-word;
 }
 .chart-tooltip-date {
   margin-top: 8px;
