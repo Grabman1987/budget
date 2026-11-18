@@ -72,3 +72,18 @@
     white-space: normal;
   }
 }
+.statement-purchase-check {
+  border-block: 1px solid var(--rule);
+  padding-block: 12px;
+  margin-block: 16px;
+}
+.statement-purchase-check li + li {
+  border-top: 1px solid var(--rule);
+  margin-block-start: 8px;
+  padding-block-start: 8px;
+}
+.statement-purchase-check summary {
+  min-height: 44px;
+  padding-block: 12px;
+  cursor: pointer;
+}

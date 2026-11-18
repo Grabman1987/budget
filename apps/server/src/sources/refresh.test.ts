@@ -714,6 +714,48 @@ describe('source start date (Bewegungen ab)', () => {
 });
 
 describe('ledger matching (Abgleich)', () => {
+  it('keeps unreadable transfers and net overflow open with the failing field across repeated reconciliation', () => {
+    const unreadable = buy('unreadable-transfer', '2026-03-10');
+    unreadable.type = 'transfer';
+    unreadable.transactions = [
+      {
+        ...unreadable.transactions[1]!,
+        type: 'transfer',
+        tradeId: null,
+        amount: { value: '0.123456789', assetId: 'coin', currencyId: null, cents: null },
+      },
+      {
+        ...unreadable.transactions[1]!,
+        id: 'out',
+        type: 'transfer',
+        flow: 'OUTGOING',
+        tradeId: null,
+        amount: { value: '0.00000001', assetId: 'coin', currencyId: null, cents: null },
+      },
+    ];
+    const overflow = buy('overflow', '2026-03-10');
+    overflow.type = 'sell';
+    overflow.transactions = [
+      {
+        ...overflow.transactions[1]!,
+        type: 'sell',
+        flow: 'OUTGOING',
+        amount: { value: '90071992.54740991', assetId: 'coin', currencyId: null, cents: null },
+        fee: { value: '0.00000001', assetId: 'coin', currencyId: null, cents: null },
+      },
+    ];
+    stage([unreadable, overflow]);
+    for (const [id, field] of [
+      ['unreadable-transfer', 'transactions[0].amount.value'],
+      ['overflow', 'assets[0].netE8'],
+    ] as const) {
+      expect(row(id)).toMatchObject({ resolvedAt: null, resolution: null });
+      expect(row(id).title).toContain(field);
+    }
+    const before = inbox();
+    expect(reconcileReadSource(opened.db, ctx).groupId).toBeNull();
+    expect(inbox()).toEqual(before);
+  });
   const MATCHED = 'Bereits in der App erfasst';
   const CLEANUP = 'Vor dem Übernahme-Stichtag 03.10.2026: Bestände stammen aus der Übernahme.';
   const OWNER = 'Vom Nutzer als erledigt markiert';
@@ -753,6 +795,14 @@ describe('ledger matching (Abgleich)', () => {
         id: id + '-tx',
         type: 'stake',
         flow: 'OUTGOING',
+        creditedAt: day + 'T10:00:00.000Z',
+        amount: { value: '1', assetId: 'coin', currencyId: null, cents: null },
+      },
+      {
+        ...operation.transactions[0]!,
+        id: id + '-incoming',
+        type: 'stake',
+        flow: 'INCOMING',
         creditedAt: day + 'T10:00:00.000Z',
         amount: { value: '1', assetId: 'coin', currencyId: null, cents: null },
       },
@@ -910,8 +960,9 @@ describe('ledger matching (Abgleich)', () => {
         .filter((a) => a.entityType === 'inbox_item' && a.groupId === first.groupId)
         .map((a) => a.entityId),
     );
-    expect(touched.size).toBe(2);
-    const undone = undo(opened.db, { groupId: first.groupId }, ctx);
+    // Two movements plus the holdings warning that the run recomputes.
+    expect(touched.size).toBe(3);
+    const undone = undo(opened.db, { groupId: first.groupId! }, ctx);
     expect(JSON.stringify(inbox())).toBe(snapshot);
     undo(opened.db, { groupId: undone.groupId }, ctx);
     expect(JSON.stringify(inbox())).toBe(after);
@@ -969,6 +1020,133 @@ describe('ledger matching (Abgleich)', () => {
       unmapped: 0,
       informational: 1,
     });
+  });
+  it('matches by the operation id in the ledger row key, twice with the same result, and undoes', () => {
+    mapAll();
+    // Dated and sized differently from the source: only the id links them.
+    const linked = createTrade(
+      opened.db,
+      {
+        securityId: 'coin',
+        accountId: 'depot',
+        date: '2026-05-20',
+        kind: 'delivery_in',
+        unitsE8: 12_345,
+        amountCents: 0,
+        importKey: 'rebuild:id-linked-operation-0001:0',
+      },
+      ctx,
+    ).trade;
+    stage([buy('id-linked-operation-0001', '2026-03-10')]);
+    const first = reconcileReadSource(opened.db, ctx);
+    expect(row('id-linked-operation-0001').resolution).toBe(MATCHED + ' (Einlieferung 20.05.2026)');
+    expect(first.matched).toBe(1);
+    const snapshot = JSON.stringify(inbox());
+    stage([buy('id-linked-operation-0001', '2026-03-10')]);
+    const second = reconcileReadSource(opened.db, ctx);
+    expect(second).toMatchObject({ matched: 1, changed: 0 });
+    expect(JSON.stringify(inbox())).toBe(snapshot);
+    expect(
+      opened.db
+        .select()
+        .from(schema.trade)
+        .all()
+        .map((t) => t.id),
+    ).toEqual([linked.id]);
+    deleteTrade(opened.db, linked.id, ctx);
+    const reopened = reconcileReadSource(opened.db, ctx);
+    expect(row('id-linked-operation-0001').resolvedAt).toBeNull();
+    undo(opened.db, { groupId: reopened.groupId! }, ctx);
+    expect(row('id-linked-operation-0001').resolvedAt).toBeTruthy();
+  });
+  it('names the cause of a holdings difference and recomputes it after matching', () => {
+    mapAll();
+    const reward = (id: string, day: string): SourceOperation => ({
+      id,
+      type: 'reward',
+      transactions: [
+        {
+          ...operation.transactions[0]!,
+          id: id + '-tx',
+          type: 'reward',
+          flow: 'INCOMING',
+          creditedAt: day + 'T10:00:00.000Z',
+          amount: { value: '0.00000005', assetId: 'coin', currencyId: null, cents: null },
+        },
+      ],
+    });
+    // Source holds 3 + 5 units (e8), the app only 3: one open reward explains the difference.
+    const bigger: SourceBalance = {
+      ...asset,
+      amount: { ...asset.amount, value: '0.00000008' },
+    };
+    saveReadSourceState(
+      opened.db,
+      { ...readSourceState(opened.db), balances: [balance, bigger] },
+      ctx,
+    );
+    stage([reward('r1', '2026-03-10')]);
+    reconcileReadSource(opened.db, ctx);
+    const warning = () => inbox().find((i) => i.title === 'Quellsaldo weicht ab' && !i.resolvedAt);
+    expect(JSON.parse(warning()!.detail!)).toMatchObject({
+      reason: 'difference',
+      cause: 'missing_movement',
+      openMovementCount: 1,
+    });
+    // Recording the reward (matched by id) removes the open movement and the difference.
+    appTrade('2026-03-10', 5, 0);
+    reconcileReadSource(opened.db, ctx);
+    expect(warning()).toBeUndefined();
+  });
+  it('keeps an ambiguous movement open with its candidate count and reports no group when nothing changed', () => {
+    mapAll();
+    for (const day of ['2026-03-09', '2026-03-11'])
+      createBooking(
+        opened.db,
+        { accountId: 'cash', date: day, amountCents: 2000, splits: [{ amountCents: 2000 }] },
+        ctx,
+      );
+    stage([deposit('d1', '2026-03-10', 20)]);
+    expect(row('d1')).toMatchObject({
+      resolvedAt: null,
+      title: 'Quellbewegung mehrdeutig (2 gleich passende Gegenbuchungen): Umbuchung abgleichen',
+    });
+    reconcileReadSource(opened.db, ctx);
+    expect(reconcileReadSource(opened.db, ctx).groupId).toBeNull();
+  });
+  it('names an unreadable source balance as its own cause, not a mapping problem', () => {
+    mapAll();
+    const duplicate: SourceBalance = { ...asset, issue: 'duplicate' };
+    saveReadSourceState(
+      opened.db,
+      { ...readSourceState(opened.db), balances: [balance, duplicate] },
+      ctx,
+    );
+    reconcileReadSource(opened.db, ctx);
+    const warning = inbox().find((i) => i.title === 'Quellsaldo: Abgleich offen' && !i.resolvedAt);
+    expect(JSON.parse(warning!.detail!)).toMatchObject({
+      reason: 'duplicate_rows',
+      cause: 'source_unreadable',
+    });
+  });
+  it('states the fetch time when a recomputation closes a balance warning', () => {
+    mapAll();
+    const bigger: SourceBalance = { ...asset, amount: { ...asset.amount, value: '0.00000008' } };
+    saveReadSourceState(
+      opened.db,
+      {
+        ...readSourceState(opened.db),
+        balances: [balance, bigger],
+        lastSuccess: '2026-10-01T10:00:00.000Z',
+      },
+      ctx,
+    );
+    reconcileReadSource(opened.db, ctx);
+    expect(inbox().some((i) => i.title === 'Quellsaldo weicht ab' && !i.resolvedAt)).toBe(true);
+    appTrade('2026-03-10', 5, 0);
+    reconcileReadSource(opened.db, ctx);
+    const closed = inbox().find((i) => i.title === 'Quellsaldo weicht ab');
+    expect(closed?.resolution).toBe('Quellsaldo stimmte beim Abruf vom 01.10.2026 überein.');
   });
   it('applies the same rules during a refresh', async () => {
     mapAll();

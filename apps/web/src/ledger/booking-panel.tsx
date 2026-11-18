@@ -56,18 +56,26 @@ export function BookingPanel({
         return;
       const body = active.closest<HTMLElement>('.bk-body');
       if (!body) return;
-      const clip = body.getBoundingClientRect();
+      const form = body.closest<HTMLElement>('.bkform-redesign');
+      const scroller = form && getComputedStyle(form).overflowY === 'auto' ? form : body;
+      const clip = scroller.getBoundingClientRect();
       const box = active.getBoundingClientRect();
-      // Scroll only the form body, keeping the header/footer and safe areas fixed.
-      if (box.top < clip.top) body.scrollTop += Math.floor(box.top - clip.top);
-      else if (box.bottom > clip.bottom) body.scrollTop += Math.ceil(box.bottom - clip.bottom);
+      // Compact sheets scroll the whole form, so actions follow all fields in normal flow.
+      if (box.top < clip.top) scroller.scrollTop += Math.floor(box.top - clip.top);
+      else if (box.bottom > clip.bottom) scroller.scrollTop += Math.ceil(box.bottom - clip.bottom);
     };
     const update = () => {
       const height = viewport?.height ?? window.innerHeight;
       focusScope.current?.style.setProperty('--bk-viewport-height', `${height}px`);
       focusScope.current?.style.setProperty('--bk-viewport-top', `${viewport?.offsetTop ?? 0}px`);
-      // Reclaim sheet chrome while the software keyboard leaves little room for primary fields.
-      focusScope.current?.toggleAttribute('data-compact-viewport', height <= 500);
+      // Tall phones can still have more than 500px left above an open keyboard.
+      const active = document.activeElement;
+      const keyboardOpen =
+        active instanceof HTMLElement &&
+        focusScope.current?.contains(active) &&
+        active.matches('input:not([type="file"]), textarea, [contenteditable="true"]') &&
+        window.innerHeight - height > 150;
+      focusScope.current?.toggleAttribute('data-compact-viewport', height <= 500 || keyboardOpen);
       // Compact padding/handle changes and native scroll anchoring can clip the focused row.
       // Measure after the new geometry is applied, without fighting deliberate body scrolling.
       cancelAnimationFrame(frame);
@@ -77,11 +85,14 @@ export function BookingPanel({
     viewport?.addEventListener('resize', update);
     viewport?.addEventListener('scroll', update);
     window.addEventListener('resize', update);
+    const scope = focusScope.current;
+    scope?.addEventListener('focusin', update);
     return () => {
       cancelAnimationFrame(frame);
       viewport?.removeEventListener('resize', update);
       viewport?.removeEventListener('scroll', update);
       window.removeEventListener('resize', update);
+      scope?.removeEventListener('focusin', update);
     };
   }, [state]);
   useEffect(() => {

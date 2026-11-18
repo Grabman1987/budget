@@ -340,3 +340,22 @@ Einstellungen erreicht der Nutzer über die Navigation „Einstellungen“. Die 
   4. Ohne Auswahl von mindestens zwei Empfängern ist „Ausgewählte zusammenführen“ gesperrt.
   5. Am Handy bleibt die Seite ohne seitliches Scrollen bedienbar.
 - **Status:** offen — **Verweis:** #1202 (Kontakte siehe E-13b, #871)
+
+### E-15 – Krypto-Quellbewegungen als Vorgang abgleichen
+- **Story:** Als Nutzer möchte ich, dass die App zusammengehörige Bewegungen der Krypto-Quelle (Kauf mit Gebühr, Staking-Belohnung, Sparplan) als einen Vorgang gegen meine Trades und Buchungen abgleicht, damit nur echte Lücken offen bleiben und nichts doppelt erfasst wird.
+- **Ausgangslage:** Die Krypto-Lesequelle ist verbunden, Konten und Instrumente sind zugeordnet, „Bewegungen ab“ ist gesetzt.
+- **Ablauf:**
+  1. Nutzer öffnet Einstellungen › Datenquellen › Krypto-Lesequelle und klickt „Abgleich neu ausführen“.
+  2. Bewegungen, deren Kennung in einem aus der Quelle aufgebauten Trade steht, gelten als erfasst, egal an welchem Tag oder mit welchem Betrag der Trade steht. Monatliche Sammelbuchungen von Belohnungen decken alle enthaltenen Bewegungen ab.
+  3. Sparplan-Bewegungen finden ihre Bankbuchung bis zu zehn Tage daneben; nähere Treffer haben Vorrang.
+  4. Kauf, Verkauf, Gebühr im Plattform-Token und Staking-Umbuchungen gehören zu einem Vorgang. Die App bucht nie selbst eine Einzahlung oder Ausgleichsbuchung.
+  5. Was keine Gegenbuchung hat, bleibt offen und nennt, was fehlt. Der Abgleich ist ein Schritt mit „Rückgängig“.
+  6. Die Bestandsabweichung je Wert wird danach neu berechnet und nennt die Ursache: Zuordnung fehlt, Bewegung fehlt (offene Bewegungen ergeben genau die Differenz) oder echte Differenz.
+- **Ergebnis:** Erfasste Bewegungen sind erledigt, die Abweichung nennt ihre Ursache, und ein zweiter Lauf ändert nichts.
+- **Abnahmekriterien:**
+  1. Ein zweiter Lauf ändert keinen Eintrag und legt keine Buchung oder keinen Trade an.
+  2. Eine über die Kennung verbundene Zeile steht keiner anderen Bewegung zur Verfügung.
+  3. „Rückgängig“ stellt die vorherigen Zustände der Einträge und Warnungen wieder her.
+  4. Nicht lesbare Bewegungen nennen das fehlerhafte Feld (nie einen Wert).
+  5. Eine Sparplan-Bewegung ohne Bankbuchung innerhalb von zehn Tagen bleibt offen.
+- **Status:** in Arbeit — **Verweis:** #1205, #1081

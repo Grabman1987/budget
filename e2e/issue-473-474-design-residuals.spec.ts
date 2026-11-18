@@ -112,6 +112,19 @@ isolatedTest(
     for (const theme of ['light', 'dark'] as const) {
       await page.evaluate((value) => (document.documentElement.dataset['theme'] = value), theme);
       await expect(page.locator('main')).toBeVisible();
+      // A theme switch can transition the primary button's background while its ink flips at once.
+      await page.mouse.move(0, 0);
+      for (const button of await page.locator('main .btn-primary').all()) {
+        const restingBackground = await button.evaluate((element) => {
+          const probe = document.createElement('span');
+          probe.style.backgroundColor = 'var(--primary)';
+          element.append(probe);
+          const color = getComputedStyle(probe).backgroundColor;
+          probe.remove();
+          return color;
+        });
+        await expect(button).toHaveCSS('background-color', restingBackground);
+      }
       expect(await new AxeBuilder({ page }).include('main').analyze()).toMatchObject({
         violations: [],
       });

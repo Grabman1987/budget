@@ -42,7 +42,6 @@ import { flushSync } from 'react-dom';
 import { ApiError, request } from '../api/http';
 import { discardRejectedChange } from '../pwa/queue';
 import { REDESIGN_ENABLED } from '../shell/redesign-flag';
-import { DocumentUploadButton } from '../document-intake/document-upload';
 import './capture-redesign.css';
 import { budgetQuery } from '../budget/budget-api';
 import {
@@ -1712,13 +1711,6 @@ export function CaptureForm({
         </p>
       )}
       {formActions}
-      {mobileRedesign && !editing && (
-        // The phone header has no room for a global upload action; the + sheet carries it. It
-        // follows the form actions, which stay pinned below the body (#1146).
-        <div className="bk-editor-document-row">
-          <DocumentUploadButton label="Dokument hochladen" />
-        </div>
-      )}
       {mobileRedesign && (
         <Button
           className="bk-keyboard-save"

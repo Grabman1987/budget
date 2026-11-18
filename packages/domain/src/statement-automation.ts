@@ -62,6 +62,8 @@ export type CardParseContext = {
   mappingKey: string;
   mappedCardAccounts: Readonly<Record<string, string>>;
   previous?: CardBoundary | null;
+  /** Explicit cycle for read-only position checks; never supplied by automation. */
+  period?: { from: string; to: string } | null;
   /** Server-only identity function; raw source tokens never leave this reader. */
   cardIdentity?: (raw: string) => { fingerprint: string; hint: string };
 };
@@ -167,6 +169,23 @@ function rowDate(raw: string, previous: CardBoundary | null, current: string | n
   for (let year = from; year <= to; year++) {
     const date = day(`${short}.${year}`);
     if (date && date > previous.issueDate && date <= current) possible.push(date);
+  }
+  return possible.length === 1 ? possible[0]! : null;
+}
+function cycleRowDate(
+  raw: string,
+  context: CardParseContext,
+  previous: CardBoundary | null,
+  current: string | null,
+) {
+  if (!context.period) return rowDate(raw, previous, current);
+  const possible: string[] = [];
+  const from = Number(context.period.from.slice(0, 4)),
+    to = Number(context.period.to.slice(0, 4));
+  if (to - from > 1 || from > to) return null;
+  for (let year = from; year <= to; year++) {
+    const date = day(`${raw.replace(/\.$/, '')}.${year}`);
+    if (date && date >= context.period.from && date <= context.period.to) possible.push(date);
   }
   return possible.length === 1 ? possible[0]! : null;
 }
@@ -420,8 +439,10 @@ export function parseCardDocument(
       }
       descriptionColumn = line.length - rest.length + (rest.length - rest.trimStart().length);
       afterRow = true;
-      const transactionDate = rowDate(rawDate!, doc.previous, current),
-        bookingDate = rowDate(rawBooked!, doc.previous, current);
+      const bookingDate = cycleRowDate(rawBooked!, context, doc.previous, current),
+        transactionDate = context.period
+          ? rowDate(rawDate!, null, bookingDate)
+          : rowDate(rawDate!, doc.previous, current);
       if (!transactionDate || !bookingDate) issue(doc, 'row_year_unavailable');
       let rowKind = kind(description, amount);
       // A payment printed without a card index settles the card account, not one card.

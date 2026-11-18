@@ -140,7 +140,8 @@ it('reports the match summary and re-runs the reconciliation behind a passkey se
     missing: 0,
     unmapped: 0,
     informational: 0,
-    groupId: expect.any(String),
+    // Nothing was written: no audit group to undo.
+    groupId: null,
     changed: 0,
     ownerResolved: 0,
   });

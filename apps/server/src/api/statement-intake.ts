@@ -23,6 +23,7 @@ import { digest, RECEIPT_LIMIT, sanitizedFilename, storeReceipt } from '../recei
 import { extractStatement, readStatementSource } from '../statements/service';
 import { rememberedPayslipPassword } from '../payslips/password';
 import { ACTOR, ApiError, readBody, readQuery } from './http';
+import { statementPurchaseCheck } from '../statements/purchase-check';
 import {
   automateRetainedStatement,
   unchangedStatementAutomation,
@@ -117,6 +118,19 @@ export function statementIntakeRoutes(db: Db, dir: string) {
       ),
     ),
   );
+  api.post('/:id/purchase-check', async (c) => {
+    const body = await readBody(c, cas.extend({ facts: statementFactsSchema, password }));
+    return c.json(
+      await statementPurchaseCheck(
+        db,
+        dir,
+        identity.parse(c.req.param('id')),
+        body,
+        body.facts,
+        body.password,
+      ),
+    );
+  });
   api.get('/:id/booking-links', async (c) => {
     const id = identity.parse(c.req.param('id'));
     const query = readQuery(

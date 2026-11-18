@@ -149,10 +149,12 @@ test('K5: safe source-backed rule preview is read-only until confirmation and us
           return a.left >= b.left && a.right <= b.right && a.top >= b.top && a.bottom <= b.bottom;
         };
         const payee = element.querySelector('.bank-v1-payee')!;
+        // Phone rows flatten the payee cell into flex items; the row owns their visible bounds.
+        const payeeBounds = getComputedStyle(payee).display === 'contents' ? element : payee;
         const amount = element.querySelector('.bank-v1-amount')!;
         const action = element.querySelector('.bank-v1-action')!;
         const payeeText = element.querySelector('.bank-v1-payee strong')!;
-        const date = element.querySelector('.bank-v1-payee > span')!;
+        const date = element.querySelector('.bank-v1-meta > span, .bank-v1-payee > span')!;
         const source = element.querySelector('.bank-v1-phone-source')!;
         const a = payeeText.getBoundingClientRect();
         const text = document.createRange();
@@ -160,9 +162,9 @@ test('K5: safe source-backed rule preview is read-only until confirmation and us
         const money = text.getBoundingClientRect(),
           moneyCell = amount.getBoundingClientRect();
         return {
-          payee: within(payeeText, payee),
-          date: within(date, payee),
-          source: source.getClientRects().length === 0 || within(source, payee),
+          payee: within(payeeText, payeeBounds),
+          date: within(date, payeeBounds),
+          source: source.getClientRects().length === 0 || within(source, payeeBounds),
           amount: money.left >= moneyCell.left && money.right <= moneyCell.right,
           action: within(action.querySelector('button')!, action),
           separate:
@@ -213,7 +215,10 @@ test('K5: safe source-backed rule preview is read-only until confirmation and us
     await expect(suggestion).toContainText(longRule);
     const bounds = await suggestion.evaluate((element) => {
       const pill = element.getBoundingClientRect();
-      const cell = element.closest('td')!.getBoundingClientRect();
+      const owner = element.closest('td')!;
+      const cell = (
+        getComputedStyle(owner).display === 'contents' ? owner.closest('.bank-v1-row')! : owner
+      ).getBoundingClientRect();
       const text = document.createRange();
       text.selectNodeContents(element);
       const content = text.getBoundingClientRect();

@@ -158,10 +158,14 @@ describe('read-only provider boundary', () => {
     }).operations(window);
     expect(result.operations.map((op) => op.id)).toEqual(['operation-test', 'second-op']);
     expect(result.nextCursor).toBe('next');
-    expect(result.invalidOperations?.[0]).toEqual({ id: 'bad-op', reason: 'schema' });
+    expect(result.invalidOperations?.[0]).toEqual({
+      id: 'bad-op',
+      reason: 'schema',
+      field: expect.any(String),
+    });
     expect(result.invalidOperations).toHaveLength(2);
     expect(JSON.stringify(result)).not.toContain('synthetic-private-body');
-    expect(Object.keys(result.invalidOperations![1]!)).toEqual(['id', 'reason']);
+    expect(Object.keys(result.invalidOperations![1]!)).toEqual(['id', 'reason', 'field']);
   });
   it('tolerates row errors, unrelated currency schemas and duplicate portfolio balances', async () => {
     const request = vi
