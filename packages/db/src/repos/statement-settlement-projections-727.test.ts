@@ -1,5 +1,10 @@
 import { afterEach, beforeEach, expect, it } from 'vitest';
-import { candidateFits, parseStatementText, type StatementBonusEvidence } from '@budget/domain';
+import {
+  candidateFits,
+  evaluate,
+  parseStatementText,
+  type StatementBonusEvidence,
+} from '@budget/domain';
 import { createTestDatabase, type OpenedDatabase } from '../client';
 import { categoryGroup, payee } from '../schema';
 import { accounts, categories, createEntity } from './entities';
@@ -11,6 +16,7 @@ import { performStatementAction } from './statement-settlement';
 import { statementForecastLegs } from './statement-settlement-read';
 import { accountPreview, unbookedAccountOccurrences } from './account-preview';
 import { forecastInputs, loadFacts, scheduled } from './rule-inputs';
+import { scenarioBaseline } from './scenario-baseline';
 import { liquidityReportView } from './liquidity-report';
 import { readPaymentsPreview } from './payments-preview';
 import { createExpectedPayment, upcoming } from './expected';
@@ -310,6 +316,23 @@ it.each(['pending', 'confirmed'] as const)(
           .sort((a, b) => a - b),
       ).toEqual([-10000, 10000]);
       expect(point('2026-10-09', '2026-10-10').balanceCents).toBe(37000);
+      const snapshot = scenarioBaseline(opened.db, '2026-10-09');
+      expect(snapshot.items).toHaveLength(2);
+      expect(snapshot.items.map((item) => item.source?.bookingId).sort()).toEqual(
+        bookings.map((b) => b.id).sort(),
+      );
+      expect(snapshot.items.every((item) => item.source?.kind === 'cardPayment')).toBe(true);
+      const outcome = evaluate(snapshot, { through: '2026-10-10' }).outcomes[0]!;
+      expect(outcome.expectedInflows).toEqual([]);
+      expect(outcome.withoutExpectedInflows.household.series.map((day) => day.cents)).toEqual([
+        37_000, 37_000,
+      ]);
+      expect(
+        outcome.withoutExpectedInflows.accounts.map((a) => [a.accountId, a.series[1]?.cents]),
+      ).toEqual([
+        [FUND, 40_000],
+        [CARD, -3000],
+      ]);
       // An Oct-start annual window contains the actual represented Oct10 transfer.
       const annual = readPaymentsPreview(opened.db, '2026-09-30');
       expect(annual.from).toBe('2026-10-01');
@@ -597,9 +620,17 @@ it('counts an overdue open settlement only when its debit leaves the cash scope'
   fixture().accept();
   const day = '2026-10-11';
   expect(household(day)).toMatchObject({ startCents: 37000, openOutflows: [] });
+  expect(
+    evaluate(scenarioBaseline(opened.db, day), { through: day }).outcomes[0]!.withExpectedInflows
+      .household.series[0]!.cents,
+  ).toBe(37000);
   accounts.update(opened.db, CARD, { role: 'debt' }, ctx);
   expect(household(day)).toMatchObject({
     startCents: 40000,
     openOutflows: [{ day: '2026-10-10', cents: 10000 }],
   });
+  expect(
+    evaluate(scenarioBaseline(opened.db, day), { through: day }).outcomes[0]!.withExpectedInflows
+      .household.series[0]!.cents,
+  ).toBe(40000);
 });
