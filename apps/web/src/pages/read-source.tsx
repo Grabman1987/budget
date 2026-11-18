@@ -1,4 +1,4 @@
-import { Button, Field, SectionHead, Select, TextInput } from '@budget/ui';
+import { Button, Field, SectionHead, Select, TextInput, WideDialog } from '@budget/ui';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import type { SourceBalance, SourceMapping } from '@budget/domain';
@@ -9,7 +9,13 @@ import { AccountOptions } from '../ledger/account-options';
 import { undoGroup } from '../ledger/api';
 import type { AccountRow } from '../ledger/types';
 import './read-source.css';
-import { SettingsSourceCard } from './settings-source-card';
+import {
+  SettingsSourceCard,
+  sourceDate,
+  sourceReadState,
+  type SourceRow,
+  type SourceState,
+} from './settings-source-card';
 import { Bitcoin } from 'lucide-react';
 
 interface SourceStatus {
@@ -49,15 +55,28 @@ const labels = {
   partial: 'Weitere Seiten ausständig',
   failed: 'Abruf fehlgeschlagen',
 };
-const stamp = (value: string | null) =>
-  value ? new Date(value).toLocaleString('de-AT') : 'Noch nicht';
+const stamp = (value: string | null) => sourceDate(value);
 
 export function CryptoReadSourceSection({ compact = false }: { compact?: boolean } = {}) {
+  const source = useCryptoSource(compact);
+  return source.row ? (
+    <ul>
+      <SettingsSourceCard {...source.row} />
+    </ul>
+  ) : (
+    source.legacy
+  );
+}
+
+export function useCryptoSource(compact: true): { row: SourceRow };
+export function useCryptoSource(compact: boolean): { row?: SourceRow; legacy?: React.ReactNode };
+export function useCryptoSource(compact: boolean) {
   const query = useQuery({ queryKey: key, queryFn: () => request<SourceStatus>('GET', path) });
   const client = useQueryClient();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [pages, setPages] = useState(0);
+  const [reviewOpen, setReviewOpen] = useState(false);
   // The server reads one bounded page per call; keep fetching until the history is complete.
   async function refresh(fullHistory = false) {
     setBusy(true);
@@ -87,75 +106,136 @@ export function CryptoReadSourceSection({ compact = false }: { compact?: boolean
       setPages(0);
     }
   }
-  if (compact)
-    return (
-      <SettingsSourceCard
-        title="Krypto"
-        initiallyOpen={window.location.hash === '#crypto-source-title'}
-        icon={Bitcoin}
-        status={
-          busy || query.data?.running
-            ? 'Abruf läuft'
-            : !query.data?.configured
-              ? 'Nicht eingerichtet'
-              : labels[query.data.status]
-        }
-        attention={
-          !query.data?.configured ||
-          query.data.status === 'partial' ||
-          query.data.status === 'failed' ||
-          query.data.match.unmapped > 0
-        }
-        detail={
-          query.data
-            ? `Lesezugriff · ${query.data.mappings.length} Zuordnungen · ${query.data.match.missing} ausstehend · ${query.data.match.unmapped} ohne Zuordnung`
-            : 'Lesezugriff · Bewegungen und Bestände'
-        }
-        date={query.data?.lastSuccess}
-        loading={query.isPending}
-        error={query.isError}
-        onRetry={() => void query.refetch()}
-        action={
-          <Button
-            variant="ghost"
-            disabled={busy || query.data?.running || !query.data?.configured}
-            onClick={() => void refresh()}
-          >
-            {busy
-              ? `Ruft ab … ${pages} Seiten`
-              : query.data?.status === 'partial'
-                ? 'Abruf fortsetzen'
-                : 'Jetzt abrufen'}
-          </Button>
-        }
+  if (compact) {
+    const data = query.data;
+    const state: SourceState = !data?.configured
+      ? 'unconfigured'
+      : data.status === 'failed'
+        ? 'failed'
+        : data.match.unmapped
+          ? 'unmapped'
+          : data.status === 'partial'
+            ? 'partial'
+            : busy || data.running
+              ? 'running'
+              : data.status === 'ok' && data.lastSuccess
+                ? 'connected'
+                : 'waiting';
+    const impacts: Partial<Record<SourceState, string>> = {
+      unconfigured: 'Für den Abruf fehlt der Lesezugang.',
+      failed: 'Bewegungen konnten nicht vollständig abgerufen werden.',
+      unmapped: `${data?.match.unmapped} Bewegungen haben kein zugeordnetes Konto.`,
+      partial: 'Ein Teil der Bewegungen fehlt noch.',
+      waiting: 'Bewegungen wurden noch nicht abgerufen.',
+    };
+    const action = (
+      <Button
+        variant={state === 'unmapped' || state === 'unconfigured' ? 'ghost' : 'primary'}
+        disabled={busy || data?.running || !data?.configured}
+        aria-busy={busy || data?.running}
+        onClick={() => void refresh()}
       >
-        {query.data && (
-          <>
-            <h3 id="crypto-source-title">Krypto-Lesequelle</h3>
-            <p>Schlüssel gesetzt: {query.data.configured ? 'ja' : 'nein'}</p>
-            <p>
-              Letzter Versuch: {stamp(query.data.lastAttempt)}. Ein- und Auszahlungen mit den
-              Bankkonten abgleichen. Buchungen und Trades bestätigst du selbst.
-            </p>
-            <Button
-              variant="ghost"
-              disabled={busy || query.data.running || !query.data.configured}
-              onClick={() => void refresh(true)}
-            >
-              Gesamten Verlauf prüfen
-            </Button>
-            <SinceForm saved={query.data.since} />
-            <MatchSection match={query.data.match} disabled={busy || query.data.running} />
-            <InboxWorkflow readSource="crypto" />
-            {query.data.balances.map((balance) => (
-              <Mapping key={balance.key} balance={balance} data={query.data!} />
-            ))}
-          </>
-        )}
-        {error && <p role="alert">{error}</p>}
-      </SettingsSourceCard>
+        {busy || data?.running
+          ? 'Ruft ab …'
+          : state === 'failed'
+            ? 'Erneut versuchen'
+            : state === 'partial'
+              ? 'Abruf fortsetzen'
+              : 'Jetzt abrufen'}
+      </Button>
     );
-  return (
+    return {
+      row: sourceReadState(query, {
+        id: 'quelle-krypto',
+        title: 'Krypto',
+        icon: Bitcoin,
+        scope: 'Bewegungen und Bestände',
+        state,
+        impact: impacts[state],
+        date: data?.lastSuccess,
+        initiallyOpen: window.location.hash === '#crypto-source-title',
+        detailAction:
+          state === 'unmapped'
+            ? { label: 'Konto zuordnen', target: '[data-source-mapping]:enabled' }
+            : state === 'unconfigured'
+              ? { label: 'Einrichten' }
+              : undefined,
+        action,
+        content: () =>
+          data && (
+            <>
+              <div className="settings-source-subrow">
+                <span>Bewegungen</span>
+                <a
+                  href="#crypto-movements"
+                  onClick={(event) => {
+                    event.preventDefault();
+                    setReviewOpen(true);
+                  }}
+                >
+                  {data.match.missing + data.match.unmapped > 0
+                    ? `${data.match.missing + data.match.unmapped} zu prüfen`
+                    : 'Bewegungen prüfen'}
+                </a>
+                <span>
+                  {[
+                    data.match.matched > 0 ? `${data.match.matched} erfasst` : null,
+                    data.match.informational > 0 ? `${data.match.informational} informativ` : null,
+                  ]
+                    .filter(Boolean)
+                    .join(' · ') || 'keine neuen Bewegungen'}
+                </span>
+                <div className="sources-actions">
+                  {(state === 'unmapped' || state === 'unconfigured') && action}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    disabled={busy || data.running || !data.configured}
+                    onClick={() => void refresh(true)}
+                  >
+                    Gesamten Verlauf prüfen
+                  </Button>
+                </div>
+              </div>
+              {reviewOpen && (
+                <WideDialog
+                  open
+                  title="Krypto-Bewegungen prüfen"
+                  onClose={() => setReviewOpen(false)}
+                >
+                  <InboxWorkflow readSource="crypto" />
+                </WideDialog>
+              )}
+            </>
+          ),
+        children: (
+          <>
+            {query.data && (
+              <>
+                <h3 id="crypto-source-title">Krypto-Lesequelle</h3>
+                <p>Schlüssel gesetzt: {query.data.configured ? 'ja' : 'nein'}</p>
+                <p>
+                  Letzter Versuch: {stamp(query.data.lastAttempt)} ·{' '}
+                  <span>{labels[query.data.status]}</span>. Ein- und Auszahlungen mit den Bankkonten
+                  abgleichen. Buchungen und Trades bestätigst du selbst.
+                </p>
+                <SinceForm saved={query.data.since} />
+                <MatchSection match={query.data.match} disabled={busy || query.data.running} />
+                <Button variant="ghost" onClick={() => setReviewOpen(true)}>
+                  Bewegungen prüfen
+                </Button>
+                {query.data.balances.map((balance) => (
+                  <Mapping key={balance.key} balance={balance} data={query.data!} />
+                ))}
+              </>
+            )}
+            {error && <p role="alert">{error}</p>}
+          </>
+        ),
+      }),
+    };
+  }
+  const legacy = (
     <section aria-labelledby="crypto-source-title" className="data-source-section">
       <SectionHead id="crypto-source-title" title="Krypto-Lesequelle" />
       <p>
@@ -227,6 +307,7 @@ export function CryptoReadSourceSection({ compact = false }: { compact?: boolean
       )}
     </section>
   );
+  return { legacy };
 }
 function MatchSection({ match, disabled }: { match: MatchCounts; disabled: boolean }) {
   const [busy, setBusy] = useState(false);
@@ -422,6 +503,7 @@ function Mapping({ balance, data }: { balance: SourceBalance; data: SourceStatus
       <Field label={asset ? 'Anlagekonto' : 'Verrechnungskonto'}>
         {({ id }) => (
           <Select
+            data-source-mapping={!saved ? '' : undefined}
             id={id}
             value={accountId}
             disabled={busy}

@@ -332,7 +332,7 @@ const probes = {
     if ((await p.locator('.app').getAttribute('data-budget-redesign')) === '1')
       await p
         .getByRole('region', { name: 'Bank', exact: true })
-        .getByRole('button', { name: 'Prüfen', exact: true })
+        .getByRole('button', { name: 'Bank: Einrichtung und Details', exact: true })
         .click();
     await expect(p.locator('.data-sources .bank-connect')).toContainText(
       'Bank-Sync ist noch nicht eingerichtet.',

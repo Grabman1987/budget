@@ -47,17 +47,16 @@ Einstellungen erreicht der Nutzer über die Navigation „Einstellungen“. Die 
 - **Ausgangslage:** Der Nutzer will prüfen, ob der Bankabruf läuft, oder eine Quelle einrichten.
 - **Ablauf:**
   1. Nutzer öffnet Einstellungen › Datenquellen („Verbindungen“).
-  2. Die App zeigt je Quelle eine Karte: Bank („PSD2 · Bankkonten und Umsätze“), Gehaltszettel („PDF-Import · Dropbox“), Kurse und VPI mit Status und „Letzter Erfolg“.
-  3. Bei „Kurse“ und „VPI“ klickt er „Jetzt abrufen“; bei den anderen „Verwalten“ oder, bei Handlungsbedarf, „Prüfen“.
-  4. Die App meldet den Abruf und aktualisiert Datum und Status.
-- **Ergebnis:** Der Nutzer sieht je Quelle den letzten erfolgreichen Abruf. Neue Bankumsätze erscheinen unter Prüfen.
-- **Abnahmekriterien:**
-  1. Jede Karte zeigt Status und Datum des letzten Erfolgs („Noch kein erfolgreicher Abruf“, wenn keiner da ist).
-  2. Bei nicht erreichbarem Dienst steht „Dienst nicht erreichbar“ statt eines grünen Status.
-  3. „Jetzt abrufen“ ist während des Abrufs gesperrt („Ruft ab …“).
-  4. Beträge und Namen folgen dem Datenschutz-Modus.
-- **Status:** teilweise — **Verweis:** FEATURES KPIs
-  Fehlt noch: Einheitliche Fehler- und Wiederaufnahme-Zustände aller Quellen (E-04); Abnahme durch den Nutzer.
+  2. The redesign shows one register for Bank, Krypto, Spritmonitor, Gehaltszettel, Kurse and VPI. The summary links to sources needing attention, and those rows appear first.
+  3. Use the row action to refresh, review or focus the relevant control in the existing details. Use the chevron to toggle setup and details separately.
+  4. A refresh updates the available status and dates.
+- **Result:** Each row shows its scope, state, affected data when applicable, and the last successful retrieval if known. New bank transactions still appear under Prüfen.
+- **Acceptance:**
+  1. Loading is neutral. An unavailable service offers a retry, and an unsuccessful document scan retains its attempt date in the details.
+  2. The next scheduled retrieval appears only when the endpoint supplies a real date.
+  3. The status column aligns on desktop. At 320 px, details and the 44 px action fit without horizontal scrolling.
+  4. Amounts and names follow the existing privacy mode.
+- **Status:** teilweise — **Reference:** #859. Owner acceptance remains open.
 
 ### E-03a – Anlageklassen und Sollquoten verwalten
 - **Story:** Als Nutzer möchte ich Anlageklassen, Gruppen und Sollquoten pflegen, damit Portfolio, Rebalancing und die Regeln R13 bis R15 mit meinen Zielen rechnen.
@@ -93,7 +92,7 @@ Einstellungen erreicht der Nutzer über die Navigation „Einstellungen“. Die 
   4. Während eines Abrufs oder bei Pause ist die Zuordnung gesperrt und die App sagt warum.
   5. Es wird kein grüner Erfolgsstempel ohne echten Lauf angezeigt.
 - **Status:** offen — **Verweis:** #859
-  Fehlt noch: Einheitliche Darstellung für alle fünf Fälle (verbunden, Einwilligung abgelaufen, Abruf fehlgeschlagen, teilweise synchronisiert, nicht zugeordnet, Dienst nicht erreichbar) mit jeweils Datum, Umfang und Wiederaufnahme-Aktion; die Statusanzeigen sind teils schon da.
+  The redesign register distinguishes connected, expired consent, failed retrieval, partial retrieval, unmapped account and unavailable service, plus pending approval, paused, unconfigured and loading. Synthetic browser cases exercise recovery focus or retry. Owner acceptance and live provider verification remain open.
 
 ### E-05 – Mit Passkey anmelden und Passkeys verwalten
 - **Story:** Als Nutzer möchte ich mich nur mit einem Passkey anmelden und weitere Geräte hinzufügen oder entfernen, damit niemand ohne mein Gerät an meine Finanzdaten kommt und ich bei Gerätewechsel nicht ausgesperrt bin.
