@@ -983,6 +983,8 @@
     flex-wrap: wrap;
     gap: 0 var(--space-xs);
     flex-basis: 100%;
+    min-width: 0;
+    max-width: 100%;
     color: var(--ink-2);
     font-size: var(--fs-label);
   }

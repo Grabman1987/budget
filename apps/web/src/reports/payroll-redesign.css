@@ -53,3 +53,11 @@
   align-items: center;
   min-height: 44px;
 }
+/* Leave scrolling room above the phone toast as well as the dock for the last slip action. */
+@media (max-width: 767px) {
+  .app[data-budget-redesign='1']:has(~ .toast.is-open) .sheet:has(.pp-slip) {
+    padding-bottom: calc(
+      var(--tabbar-h) + var(--fab-gap) + var(--fab-size) + 16px + 2 * var(--touch)
+    );
+  }
+}

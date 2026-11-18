@@ -18,7 +18,27 @@ for (const theme of ['light', 'dark'] as const)
     expect(childBox.x).toBeGreaterThan(parentBox.x);
     await page.screenshot({ path: info.outputPath(`report-menu-${theme}.png`) });
     await expectScreenshot(page, `report-menu-${theme}.png`);
+    // Rule derivation invalidates the ledger queries after the first report render. Capture
+    // only after the subsequent rule check and Health Scores have settled.
+    const derived = page.waitForResponse(
+      (response) =>
+        new URL(response.url()).pathname === '/api/rules/evaluate' &&
+        response.request().method() === 'POST',
+    );
+    const refreshedCheck = page.waitForResponse(async (response) => {
+      if (new URL(response.url()).pathname !== '/api/rules/check') return false;
+      const evaluation = await derived;
+      await evaluation.finished();
+      const timing = evaluation.request().timing();
+      return response.request().timing().startTime >= timing.startTime + timing.responseEnd;
+    });
     await child.click();
+    expect((await derived).ok()).toBe(true);
+    expect((await refreshedCheck).ok()).toBe(true);
+    await expect(page.getByTestId('report-verdict')).not.toContainText('Keine Bewertung möglich');
+    await expect(page.getByTestId('health-assessment')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Bewertung aktualisieren' })).toBeEnabled();
+    await expect(page.locator('.health-stale')).toHaveCount(0);
     await expect(page).toHaveURL(/darstellung=finanzcheck/);
     await expect(page.getByTestId('fc-ok-count')).toBeVisible();
     await expect(head.getByRole('heading', { level: 1 })).toHaveText('Finanz-Check-Verlauf');

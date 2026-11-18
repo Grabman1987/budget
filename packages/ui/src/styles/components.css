@@ -1368,6 +1368,8 @@ dialog.sheet-bottom.is-full .sheet-grip {
 }
 .toast button {
   flex-shrink: 0;
+  /* Keep WebKit's composited hit/visibility bounds exact for fractional label widths. */
+  transform: translateZ(0);
   white-space: nowrap;
   overflow: visible;
   color: var(--ground);

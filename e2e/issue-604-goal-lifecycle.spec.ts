@@ -165,6 +165,8 @@ for (const profile of ['desktop', 'phone'] as const)
         await hit(undo);
         await undo.click();
         await expect.poll(async () => (await current()).savedCents).toBe(15000);
+        // Undo refreshes the queries before offering redo; the stored amount can arrive first.
+        await expect(page.locator('.toast.is-open').getByRole('button')).toHaveText('Wiederholen');
         await dismissToast(page);
         const complete = page.getByRole('button', { name: 'Manuell abschließen', exact: true });
         await hit(complete);
