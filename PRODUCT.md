@@ -321,6 +321,6 @@ Verbindliche Definitionen mit der jeweils einen Funktion: SPEC „Financial term
 - **Letzte Reserve (Dispo):** der noch nicht genutzte Dispo-Rahmen; Bankkredit, nie freies Geld, eigene Zeile.
 - **Verbindlichkeiten (brutto):** alles, was du schuldest: jeder negative Kontowert (Kredit, Karte, genutzter Dispo).
 - **Nettovermögen:** Summe aller Kontowerte; auf jeder Seite gleich.
-- **Investierbarer Betrag:** Geld, das nach Pflichten bis Gehalt + 30 Tage, gebundenen Rücklagen und verfügbaren Bedarf-/Wunsch-Umschlägen übrig ist; nie aus erwartetem Einkommen (noch nicht umgesetzt).
+- **Investierbarer Betrag:** Geld auf Budgetkonten abzüglich offener Verpflichtungen bis zum nächsten Gehalt plus 30 Tage, gebundener Rücklagen aus diesem Geld und positiver verfügbarer Beträge in Bedarf und Wunsch im laufenden Monat. Erwartete Eingänge und Dispo zählen nicht. Die Anzeige beginnt bei null; ein Fehlbetrag steht in der Herleitung.
 
 Schulden netto bezeichnet die signierte Schuldenkomponente der Vermögensaufteilung: negative Kontowerte plus positive Guthaben auf Konten mit Schuldenrolle. Verbindlichkeiten zeigen dagegen die Summe aller negativen Kontowerte als positiven Bruttobetrag.

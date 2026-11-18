@@ -81,10 +81,11 @@ export type StatementForecastLeg = {
   bookingId: string | null;
   status: string | null;
   kind: 'settlement' | 'bonus';
+  counterpartyAccountId?: string;
 };
 export function statementForecastLegs(
   db: Executor,
-  from: string,
+  from: string | null,
   to: string,
   universe: ReadonlySet<string>,
   includedBookings: ReadonlySet<string> = new Set(),
@@ -93,14 +94,19 @@ export function statementForecastLegs(
   const facts = statementSettlementRead(db);
   const add = (leg: StatementForecastLeg) => {
     if (
-      leg.day >= from &&
+      (from === null || leg.day >= from) &&
       leg.day <= to &&
       universe.has(leg.accountId) &&
       (!leg.bookingId || !includedBookings.has(leg.bookingId))
     )
       out.push(leg);
   };
-  const actual = (id: string, kind: 'settlement' | 'bonus', entityId: string) => {
+  const actual = (
+    id: string,
+    kind: 'settlement' | 'bonus',
+    entityId: string,
+    counterpartyAccountId?: string,
+  ) => {
     const b = db.select().from(booking).where(eq(booking.id, id)).get();
     if (!b || b.deletedAt) return;
     const a = db.select().from(account).where(eq(account.id, b.accountId)).get();
@@ -114,6 +120,7 @@ export function statementForecastLegs(
       bookingId: b.id,
       status: b.status,
       kind,
+      ...(counterpartyAccountId ? { counterpartyAccountId } : {}),
     });
   };
   for (const r of facts.settlements) {
@@ -131,10 +138,12 @@ export function statementForecastLegs(
           bookingId: null,
           status: null,
           kind: 'settlement',
+          counterpartyAccountId:
+            accountId === r.cardAccountId ? r.fundingAccountId : r.cardAccountId,
         });
     if (r.state === 'represented') {
-      actual(r.fromBookingId!, 'settlement', r.id);
-      actual(r.toBookingId!, 'settlement', r.id);
+      actual(r.fromBookingId!, 'settlement', r.id, r.cardAccountId);
+      actual(r.toBookingId!, 'settlement', r.id, r.fundingAccountId);
     }
   }
   for (const r of facts.bonuses) if (r.state === 'represented') actual(r.bookingId!, 'bonus', r.id);
