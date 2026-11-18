@@ -166,9 +166,14 @@ test('project P&L through the real API, retaining archived attribution and mobil
   await expect(page.getByTestId('projects-report')).toContainText('500,00');
   await expect(page.locator('.pp-chart .pp-negative').first()).toBeVisible();
   await page.getByText('Buchungen (2)', { exact: true }).click();
-  await expect(page.getByRole('link', { name: 'Buchung 1 öffnen' })).toHaveAttribute(
+  const bookings = page.getByRole('table', { name: 'Buchungen · Synthetisches Nebenprojekt' });
+  const rows = bookings.getByRole('row');
+  await expect(rows).toHaveCount(3);
+  await expect(rows.nth(1)).toContainText('03.09.2026');
+  await expect(rows.nth(2)).toContainText('Nebeneinkünfte');
+  await expect(rows.nth(2).getByRole('link')).toHaveAttribute(
     'href',
-    /buchung=/,
+    `/konten/buchungen?buchung=${incomeBooking.id}`,
   );
   await inspectReport(page, info, 'projects');
   await page.goto(`/konten/buchungen?buchung=${incomeBooking.id}`);

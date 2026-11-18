@@ -88,3 +88,18 @@ invocation has its own group, undone in reverse order. Selection avoids loading 
 booking payloads or all splits into JavaScript. Default output is aggregate-only, with booking date/cent amounts on skips only
 under `--details`. Report 1.9 reads the attributed splits through its existing P&L rules.
 Status: implemented for review; owner acceptance pending. See [operator contract](ops.md#126-owner-configuration-operator-task).
+
+
+## Project booking breakdown (#1245)
+
+As a report reader, I can open a project's booking breakdown in report 1.9 to see what
+makes up the result for the selected period.
+
+- The disclosure shows the booking count. Its table shows the most recent booking first,
+  with the date, payee (then memo or a dash), category or income type, and signed amount.
+- Each booking opens in the ledger. For split bookings, the row lists the classifications
+  and sums the splits that contribute to the project result. The rows reconcile to that result.
+- Privacy mode masks amounts. At widths of 430 px or less, each row shows date and payee
+  above classification and amount without horizontal page scrolling.
+
+Status for this change is implemented for review.
