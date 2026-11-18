@@ -7,6 +7,13 @@ import { longDay } from '../ledger/format';
 import { ErrorNote, LoadingNote } from '../ledger/states';
 import { LEDGER_KEY } from '../ledger/queries';
 import { INBOX_KEY } from './api';
+import {
+  ArivaLinkField,
+  ARIVA_LINK_ERROR,
+  validArivaLink,
+  quoteFailureText,
+  latestQuoteFailure,
+} from '../wealth/quote-source';
 import { quoteText } from '../wealth/portfolio-format';
 
 export type MarketRunSummary = { finishedAt: string; status: string; errorClasses: string | null };
@@ -57,22 +64,14 @@ export interface QuotePreview {
 }
 
 const ERRORS: Record<string, string> = {
-  currency_mismatch: 'Die Quelle liefert eine andere Kurswährung.',
-  empty: 'Keine Kurse im Prüfzeitraum erhalten.',
-  not_configured: 'Für diese Quelle fehlt eine passende Zuordnung.',
-  http: 'Abruf fehlgeschlagen.',
   timeout: 'Die Quelle hat nicht rechtzeitig geantwortet.',
   parse: 'Die Antwort konnte nicht gelesen werden.',
 };
 
-const attemptText = (a: QuoteAttempt): string =>
+const attemptText = (a: QuoteAttempt, currency: string): string =>
   a.outcome === 'ok'
     ? `erfolgreich${a.detail ? ` (${a.detail})` : ''}`
-    : a.outcome === 'empty'
-      ? 'keine Zeilen'
-      : a.httpStatus !== null
-        ? `HTTP ${a.httpStatus}`
-        : (ERRORS[a.outcome] ?? `Fehlerklasse: ${a.outcome}`);
+    : `${ERRORS[a.outcome] ?? quoteFailureText(a.outcome, currency)}${a.httpStatus !== null ? ` (HTTP ${a.httpStatus})` : ''}`;
 const attemptTime = (a: QuoteAttempt): string =>
   `${new Date(a.attemptedAt).toLocaleString('de-AT')} · ${a.source}`;
 
@@ -97,6 +96,18 @@ export function QuoteCause({
   const qc = useQueryClient(),
     toast = useToast(),
     [reason, setReason] = useState('');
+  const [quoteUrl, setQuoteUrl] = useState('');
+  const [linkError, setLinkError] = useState<string>();
+  const saveLink = useMutation({
+    mutationFn: () => request('PATCH', path, { quoteUrl: quoteUrl.trim() }),
+    onSuccess: async () => {
+      setQuoteUrl('');
+      toast.show({
+        message: 'Kurs-Link gespeichert. Die Quelle kann jetzt erneut getestet werden.',
+      });
+      await qc.invalidateQueries({ queryKey: LEDGER_KEY });
+    },
+  });
   const decide = useMutation({
     mutationFn: (mode: 'manual_only' | 'fetch_off') =>
       request<{ resolved: number; groupId: string }>('POST', `${path}/quote-source-decision`, {
@@ -140,11 +151,45 @@ export function QuoteCause({
       <ErrorNote what="Kursursache" error={query.error} onRetry={() => void query.refetch()} />
     );
   const data = query.data;
+  const latestFailure = latestQuoteFailure(data.attempts);
   return (
     <section className="quote-cause" aria-label="Kursursache">
       <p>
-        Warnung vom {longDay(createdAt.slice(0, 10))}: {detail ?? 'Fehlerklasse nicht gespeichert.'}
+        Warnung vom {longDay(createdAt.slice(0, 10))}:{' '}
+        {detail?.startsWith('Fehlerklasse: ')
+          ? quoteFailureText(detail.slice('Fehlerklasse: '.length), data.currency)
+          : (detail ?? 'Fehlerklasse nicht gespeichert.')}
       </p>
+      {!data.hasQuoteUrl && !data.coingeckoId && (
+        <div>
+          <p>Kein Kurs-Link hinterlegt</p>
+          <ArivaLinkField
+            value={quoteUrl}
+            onChange={(value) => {
+              setQuoteUrl(value);
+              setLinkError(undefined);
+            }}
+            error={linkError}
+            disabled={saveLink.isPending}
+          />
+          <Button
+            disabled={saveLink.isPending}
+            onClick={() => {
+              if (!validArivaLink(quoteUrl)) {
+                setLinkError(ARIVA_LINK_ERROR);
+                return;
+              }
+              saveLink.mutate();
+            }}
+          >
+            Kurs-Link speichern
+          </Button>
+          {saveLink.isError && (
+            <ErrorNote what="Kurs-Link" error={saveLink.error} onRetry={() => saveLink.reset()} />
+          )}
+        </div>
+      )}
+      {latestFailure && <p>{quoteFailureText(latestFailure, data.currency)}</p>}
       <p>Der damalige Quellwert und die antwortende Quelle wurden nicht gespeichert.</p>
       <h3>Aktuelle Zuordnung · Stand {longDay(data.asOf)}</h3>
       <dl>
@@ -193,7 +238,7 @@ export function QuoteCause({
             <dt>Letzter Abrufversuch</dt>
             <dd>
               {data.attempts[0]
-                ? `${attemptTime(data.attempts[0])} · ${attemptText(data.attempts[0])}`
+                ? `${attemptTime(data.attempts[0])} · ${attemptText(data.attempts[0], data.currency)}`
                 : 'Noch keiner aufgezeichnet'}
             </dd>
             <dt>Letzter Erfolg</dt>
@@ -226,7 +271,7 @@ export function QuoteCause({
           <ul>
             {data.attempts.map((a, index) => (
               <li key={`${a.attemptedAt}-${index}`}>
-                {attemptTime(a)} · {attemptText(a)}
+                {attemptTime(a)} · {attemptText(a, data.currency)}
               </li>
             ))}
           </ul>
@@ -268,8 +313,13 @@ export function QuoteCause({
                   : attempt.error === 'currency_mismatch' &&
                       attempt.currencyEvidence?.origin === 'mapping'
                     ? 'Die Quellzuordnung verwendet eine andere Kurswährung.'
-                    : (ERRORS[attempt.error ?? ''] ??
-                      'Abruf fehlgeschlagen. Fehlerklasse: ' + attempt.error)}
+                    : quoteFailureText(
+                        attempt.error ?? 'unbekannt',
+                        preview.data.currency,
+                        attempt.currencyEvidence?.origin === 'response'
+                          ? attempt.currencyEvidence.currency
+                          : undefined,
+                      )}
                 {attempt.error === 'currency_mismatch' && (
                   <span>
                     {' '}

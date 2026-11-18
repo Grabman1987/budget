@@ -71,7 +71,9 @@ it('separates historic missing evidence from current mapping and previews each s
   expect(screen.getByText(/manueller Kurs repariert/)).toBeTruthy();
   expect(screen.queryByRole('button', { name: 'Als erledigt markieren' })).toBeNull();
   fireEvent.click(screen.getByRole('button', { name: 'Quelle erneut testen (Vorschau)' }));
-  expect(await screen.findByText(/ariva: Die Quelle liefert eine andere Kurswährung/)).toBeTruthy();
+  expect(
+    await screen.findByText(/ariva: Die Quelle liefert USD, das Wertpapier wird in EUR geführt/),
+  ).toBeTruthy();
   expect(screen.getByText(/coingecko: 2,345678/)).toBeTruthy();
   expect(screen.getByText(/Erwartet: EUR · Von der Quelle gemeldet: USD/)).toBeTruthy();
   expect(screen.getByText(/Keine Kurse gespeichert, Warnung bleibt offen/)).toBeTruthy();
@@ -187,4 +189,36 @@ it('shows the attempt history and offers the ECB conversion for a foreign quote 
     '/api/securities/synthetic-coin/quote-fx-currency',
     { currency: 'USD' },
   ]);
+});
+
+it('repairs a missing quote link in place and rejects invalid links without a request', async () => {
+  let saved = false;
+  vi.mocked(request).mockImplementation(async (method) => {
+    if (method === 'PATCH') {
+      saved = true;
+      return { groupId: 'synthetic-group' };
+    }
+    return { ...diagnostics, coingeckoId: null, hasQuoteUrl: saved };
+  });
+  mount();
+  expect(await screen.findByText('Kein Kurs-Link hinterlegt')).toBeTruthy();
+  const input = screen.getByLabelText('Ariva-Link · Historische Kurse');
+  for (const value of [
+    'https://example.org/kurse',
+    'http://ariva.de/etf/test/kurse/historische-kurse',
+  ]) {
+    fireEvent.change(input, { target: { value } });
+    fireEvent.click(screen.getByRole('button', { name: 'Kurs-Link speichern' }));
+    expect(await screen.findByText(/Bitte den HTTPS-Link/)).toBeTruthy();
+  }
+  expect(vi.mocked(request).mock.calls.some(([method]) => method === 'PATCH')).toBe(false);
+  const value = 'https://www.ariva.de/etf/synthetic/kurse/historische-kurse';
+  fireEvent.change(input, { target: { value } });
+  fireEvent.click(screen.getByRole('button', { name: 'Kurs-Link speichern' }));
+  await vi.waitFor(() =>
+    expect(request).toHaveBeenCalledWith('PATCH', '/api/securities/synthetic-coin', {
+      quoteUrl: value,
+    }),
+  );
+  await vi.waitFor(() => expect(screen.queryByText('Kein Kurs-Link hinterlegt')).toBeNull());
 });

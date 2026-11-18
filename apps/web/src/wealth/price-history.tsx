@@ -289,12 +289,12 @@ export function InstrumentHistoryDrawing({
                 name: maskMoneyText(
                   `Tagesquelle · ${history?.position?.accounts.find((a) => a.accountId === source.accountId)?.name ?? 'Konto ohne Stichtagsbestand'}`,
                 ),
-                value: `${SOURCE_LABELS[source.kind]} · ${source.date ?? 'ohne Kursdatum'} · ${source.currency ?? 'Währung unbekannt'}${source.lookAhead ? ' · spätere Ausführung als Bewertungsquelle' : ''} · ${FX_LABELS[source.fx.kind]}${source.fx.kind === 'rate' ? ` ${source.fx.date}` : ''}`,
+                value: `${SOURCE_LABELS[source.kind]} · ${source.date ? longDay(source.date) : 'ohne Kursdatum'} · ${source.currency ?? 'Währung unbekannt'}${source.lookAhead ? ' · spätere Ausführung als Bewertungsquelle' : ''} · ${FX_LABELS[source.fx.kind]}${source.fx.kind === 'rate' ? ` ${longDay(source.fx.date)}` : ''}`,
               })),
             ]
           : []),
         ...(basis !== null
-          ? [{ name: `Stichtag-Einstand ${history!.to}`, value: eur(basis) }]
+          ? [{ name: `Stichtag-Einstand ${longDay(history!.to)}`, value: eur(basis) }]
           : []),
         ...events
           .filter((e) => e.date === date)

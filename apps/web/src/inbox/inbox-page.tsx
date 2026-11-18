@@ -34,6 +34,7 @@ import { InboxTypeIcon } from './type-icon';
 import { ReadSourceDetail, sourceWarningReason } from './read-source-detail';
 import { ReconciliationChanges } from './reconciliation-changes';
 import { QuoteCause } from './quote-cause';
+import { quoteFailureText } from '../wealth/quote-source';
 import { ReadSourceSummaries } from './read-source-summaries';
 import { AutoResolvedHistory } from './auto-resolved-history';
 import { inboxCause, type InboxSegment } from '@budget/domain';
@@ -1522,7 +1523,11 @@ function InboxRow({
               ? `${longDay(item.date)} · ${item.accountName} · ${item.missingSplits} ${item.missingSplits === 1 ? 'Anteil' : 'Anteile'} ohne Kategorie${item.status === 'pending' ? ' · vorgemerkt' : ''}${item.memo ? ` · ${item.memo}` : ''}`
               : item.type === 'savings'
                 ? `${longDay(item.date)} · ${item.accountName} · Ausführung anhand der Abrechnung prüfen`
-                : maskMoneyText(item.detail ?? '')}
+                : item.type === 'stored' &&
+                    item.refType === 'security' &&
+                    item.detail?.startsWith('Fehlerklasse: ')
+                  ? quoteFailureText(item.detail.slice('Fehlerklasse: '.length))
+                  : maskMoneyText(item.detail ?? '')}
           </span>
         )}
         {item.type === 'booking' && item.status !== 'reconciled' && (

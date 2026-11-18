@@ -52,6 +52,21 @@ Entschieden am 15.11.2026: H-01 (nächstes Sparziel im Block „Ziele finanziere
 
 Jede neue Funktion und jede Entscheidung des Nutzers bekommt im selben Pull Request ihre Story oder eine Aktualisierung von Status und Kriterien.
 
+## Position inspection and quote-source repair (#1248)
+
+As the owner, I can read every chart inspection row on desktop and phone, including
+long account names and stored-price provenance. Labels and values share a line when
+they fit; otherwise the value moves below the label. Rows stay inside the viewport-bound
+tooltip, wrap at word boundaries, and keep numeric values right aligned with tabular
+figures. Position source, FX and cost-basis dates use `dd.MM.yyyy`.
+
+When automatic prices fail, the inbox detail and instrument editor explain a missing
+Ariva link, an empty response, an unreachable source or a currency mismatch (including
+both currencies when known). I can save a validated HTTPS Ariva historical-prices link
+through the existing instrument update and test the source with the existing preview.
+The preview does not save prices or close the warning. No schedule or valuation changes.
+Status: implemented for review; owner acceptance pending.
+
 
 ## Operator project attribution (#1243 / #1245)
 

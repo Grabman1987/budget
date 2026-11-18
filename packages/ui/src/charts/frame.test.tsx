@@ -3,6 +3,7 @@ import { act, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ChartSvg, ChartValues, chartDate } from './frame';
 import { setAmountsHidden } from '../amount-privacy';
+import { readFileSync } from 'node:fs';
 
 const points = [
   {
@@ -34,6 +35,52 @@ afterEach(() => {
 });
 
 describe('shared chart inspection', () => {
+  it('keeps long source labels and stored-price facts in wrapping, bounded rows', () => {
+    const style = document.createElement('style');
+    style.textContent = readFileSync('packages/ui/src/styles/charts.css', 'utf8');
+    document.head.append(style);
+    try {
+      render(
+        <ChartSvg
+          width={760}
+          height={280}
+          label="Quellenprüfung"
+          points={[
+            {
+              x: 20,
+              date: '2026-11-16',
+              series: [
+                { name: 'Wert', value: '12,34 €' },
+                {
+                  name: 'Tagesquelle · Synthetisches Depot mit einem langen Kontonamen',
+                  value: 'Gespeicherter Kurs · 16.11.2026 · EUR · EUR ohne Umrechnung',
+                },
+              ],
+            },
+          ]}
+        >
+          <path d="M20 80" />
+        </ChartSvg>,
+      );
+      fireEvent.focus(screen.getByRole('group', { name: 'Quellenprüfung' }));
+      const tooltip = screen.getByRole('status');
+      expect(style.textContent).toContain('width: min(360px, calc(100vw - 32px))');
+      for (const row of tooltip.querySelectorAll('.chart-tooltip-row')) {
+        expect(getComputedStyle(row).flexWrap).toBe('wrap');
+        expect(getComputedStyle(row.querySelector('span')!).overflowWrap).not.toBe('anywhere');
+        const value = getComputedStyle(row.querySelector('strong')!);
+        expect(value.whiteSpace).toBe('normal');
+        expect(value.maxWidth).toBe('100%');
+        expect(value.textAlign).toBe('right');
+        expect(value.fontVariantNumeric).toBe('tabular-nums');
+      }
+      expect(tooltip.textContent).toContain(
+        'Gespeicherter Kurs · 16.11.2026 · EUR · EUR ohne Umrechnung',
+      );
+    } finally {
+      style.remove();
+    }
+  });
   it('shows every series with its swatch, exact values and date at the bottom; arrows move and Escape hides', () => {
     const { container } = chart();
     const group = screen.getByRole('group', { name: 'Musterverlauf' });
