@@ -592,8 +592,6 @@ export function forecastInputs(
   for (const split of f.ledgerSplits) {
     if (
       split.bookingId &&
-      split.date > asOf &&
-      split.date <= to &&
       split.transferAccountId &&
       cashIds.has(split.accountId) &&
       cashIds.has(split.transferAccountId)
@@ -645,6 +643,25 @@ export function forecastInputs(
   }
   const linkedTransferItems: SourcedForecastItem[] = [];
   const includedTransfers = new Set<string>();
+  const transitDebitDay = (pair: NonNullable<ReturnType<typeof transferPairs.get>>) => {
+    if (pair.length !== 2 || pair[0]!.cents !== -pair[1]!.cents) return null;
+    const debit = pair.find((leg) => leg.cents < 0);
+    const receipt = pair.find((leg) => leg.cents > 0);
+    if (!debit || !receipt || !pair.every((leg) => leg.whole)) return null;
+    const from = f.accounts.find((a) => a.id === debit.accountId);
+    const to = f.accounts.find((a) => a.id === receipt.accountId);
+    const bank = (a: AccountRow | undefined) => a?.type === 'checking' || a?.type === 'savings';
+    return from &&
+      to &&
+      bank(from) &&
+      bank(to) &&
+      from.currency === to.currency &&
+      debit.day >= from.openingDate &&
+      receipt.day >= to.openingDate &&
+      debit.day >= to.openingDate
+      ? debit.day
+      : null;
+  };
   const addLinkedTransfers = (payment: PaymentRow, dueDate: string, bookingId: string) => {
     for (const [id, pair] of transferPairs) {
       if (includedTransfers.has(id) || !pair.some((leg) => leg.bookingId === bookingId)) continue;
@@ -652,16 +669,9 @@ export function forecastInputs(
       if (pair.length !== 2 || pair[0]!.cents !== -pair[1]!.cents)
         throw new RangeError('Ambiguous linked internal transfer');
       includedTransfers.add(id);
-      const debit = pair.find((leg) => leg.cents < 0)!;
-      const transit = pair.every(
-        (leg) =>
-          leg.whole &&
-          f.accounts.some(
-            (a) => a.id === leg.accountId && (a.type === 'checking' || a.type === 'savings'),
-          ),
-      );
+      const transitDay = transitDebitDay(pair);
       for (const leg of pair) {
-        const day = transit ? debit.day : leg.day;
+        const day = transitDay ?? leg.day;
         if (day <= asOf || day > to) continue;
         const item = toItem(payment, dueDate, leg.cents, day);
         linkedTransferItems.push({
@@ -683,11 +693,15 @@ export function forecastInputs(
     const mark = f.planMarks.get(key);
     if (typeof mark === 'object') {
       if (mark.bookingId) addLinkedTransfers(payment, o.dueDate, mark.bookingId);
-      if (mark.settledOn <= asOf || mark.settledOn > to) return [];
+      const wholePair = [...transferPairs.values()].find((pair) =>
+        pair.some((leg) => leg.whole && leg.bookingId === mark.bookingId),
+      );
+      const cashDay = (wholePair && transitDebitDay(wholePair)) ?? mark.settledOn;
+      if (cashDay <= asOf || cashDay > to) return [];
       if (mark.accountId === null || !cashIds.has(mark.accountId) || mark.cents === null) return [];
       const externalCents =
         mark.cents - (mark.bookingId ? (internalTransferCents.get(mark.bookingId) ?? 0) : 0);
-      return externalCents !== 0 ? [toItem(payment, o.dueDate, externalCents, mark.settledOn)] : [];
+      return externalCents !== 0 ? [toItem(payment, o.dueDate, externalCents, cashDay)] : [];
     }
     if (
       payment.kind !== 'outflow' ||

@@ -99,6 +99,29 @@ it('keeps a linked transfer to a reserve account as an external obligation', () 
   expect(heute(db, { today }).lead.freeCents).toBe(98_766);
 });
 
+it('does not count the receipt of an already valued reserve transfer in transit twice', () => {
+  const { db } = opened;
+  accounts.update(db, 'spar', { openingBalanceCents: 5432 }, testCtx);
+  const linked = payment('linked-receipt', today, 1234, 'giro', 'inflow');
+  const transfer = createTransfer(
+    db,
+    { fromAccountId: 'spar', toAccountId: 'giro', date: '2026-10-09', amountCents: 1234 },
+    testCtx,
+    {
+      bankLegs: {
+        from: { date: '2026-10-09', status: 'confirmed' },
+        to: { date: '2026-10-11', status: 'confirmed' },
+      },
+    },
+  );
+  linkOccurrence(db, linked.id, transfer.toBookingId, testCtx);
+  const result = evaluate(scenarioBaseline(db, today), { through }).outcomes[0]!;
+  expect(heute(db, { today }).lead.balanceCents).toBe(101_234);
+  expect(result.withExpectedInflows.household.series.map((d) => d.cents)).toEqual([
+    101_234, 101_234, 101_234, 101_234, 101_234,
+  ]);
+});
+
 it('does not reject an unpriced inflow due today that the forecast omits', () => {
   const { db } = opened;
   createExpectedPayment(
