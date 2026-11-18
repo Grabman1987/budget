@@ -37,6 +37,7 @@ export function CategoryCombobox({
   leading = [],
   trailing = [],
   capturePicker = false,
+  overlayAvoid,
   selectedName,
   onSelect,
   error,
@@ -51,6 +52,7 @@ export function CategoryCombobox({
   trailing?: ReadonlyArray<ComboOption>;
   /** Capture only: retain group order and fit the complete list inside its dialog. */
   capturePicker?: boolean;
+  overlayAvoid?: string | undefined;
   /** Text shown while nothing is being typed. */
   selectedName: string;
   onSelect: (id: string) => void;
@@ -106,6 +108,7 @@ export function CategoryCombobox({
         onInvalid={() => setInvalid(true)}
         listWhenEmpty
         captureCategory={capturePicker}
+        overlayAvoid={overlayAvoid}
         pickFirst={pickFirst}
         emptyText="Keine Kategorie gefunden."
         options={options}
