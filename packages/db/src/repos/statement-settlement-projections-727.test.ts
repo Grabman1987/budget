@@ -615,3 +615,22 @@ it.each(['gross_then_credit', 'already_net'] as const)(
     });
   },
 );
+
+it('counts an overdue open settlement only when its debit leaves the cash scope', () => {
+  fixture().accept();
+  const day = '2026-10-11';
+  expect(household(day)).toMatchObject({ startCents: 37000, openOutflows: [] });
+  expect(
+    evaluate(scenarioBaseline(opened.db, day), { through: day }).outcomes[0]!.withExpectedInflows
+      .household.series[0]!.cents,
+  ).toBe(37000);
+  accounts.update(opened.db, CARD, { role: 'debt' }, ctx);
+  expect(household(day)).toMatchObject({
+    startCents: 40000,
+    openOutflows: [{ day: '2026-10-10', cents: 10000 }],
+  });
+  expect(
+    evaluate(scenarioBaseline(opened.db, day), { through: day }).outcomes[0]!.withExpectedInflows
+      .household.series[0]!.cents,
+  ).toBe(40000);
+});

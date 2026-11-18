@@ -5,6 +5,10 @@ import {
   addMonths,
   changeBp,
   freeUntilPayday,
+  emergencyCoverage,
+  investableAmount,
+  PARAM_SCHEMAS,
+  type InvestableAmount,
   dailyBudget,
   heuteWindow,
   lastDayOfMonth,
@@ -23,12 +27,10 @@ import {
   overspentEnvelopes,
   summarizeMonth,
   type BudgetMonth,
-  type FreeAccount,
   type FreeUntilPayday,
   type HeutePeriod,
   type LowPoint,
   type NetWorthParts,
-  type OpenOutflow,
   type PaceModel,
   type PaceSpending,
   type Payday,
@@ -40,15 +42,16 @@ import {
   contact,
   expectedOccurrence,
   INCOME_TYPES,
+  rule,
   SYSTEM_PAYEE_IDS,
 } from '../schema';
 import { budget as readBudget } from './queries';
 import { queryBookings } from './ledger-queries';
-import { cashSeries, netWorthAsOf } from './portfolio';
+import { cashSeries, netWorthAsOf, netWorthValuationAsOf } from './portfolio';
 import { isLiquidityAccount } from './liquidity-account';
 import {
-  forecastBudgetValues,
   forecastInputs,
+  healthBudgetInputs,
   loadFacts,
   scheduled,
   type RuleFacts,
@@ -492,6 +495,107 @@ export function paceOfMonth(
   };
 }
 
+function liquidityPlanningInputs(
+  facts: RuleFacts,
+  today: string,
+  valuation = netWorthValuationAsOf(facts.db, today),
+) {
+  const byAccount = Object.fromEntries(
+    facts.accounts
+      .filter((a) => isLiquidityAccount(a, today))
+      .map(({ id }) => [id, requiredAccountValue(valuation, id, today)]),
+  );
+  return forecastInputs(facts, today, { byAccount });
+}
+
+function requiredAccountValue(
+  valuation: ReturnType<typeof netWorthValuationAsOf>,
+  id: string,
+  today: string,
+): number {
+  const value = valuation.byAccount[id];
+  if (value !== null) return value ?? 0;
+  const currency = valuation.missingFxByAccount[id]?.[0];
+  if (currency) throw new MissingFxRateError(currency, today);
+  throw new PriceUnavailableError(id, valuation.missingPriceByAccount[id]![0]!, today);
+}
+
+export function investableAmountAsOf(
+  db: Executor,
+  today: string,
+):
+  | InvestableAmount
+  | HeuteUnavailable
+  | { unavailable: { reason: 'invalid_source'; message: string; asOf: string } } {
+  return availableSection(() => {
+    const facts = loadFacts(db, today);
+    const valuation = netWorthValuationAsOf(db, today);
+    const { cashAccounts, openOutflows, missingFx } = liquidityPlanningInputs(
+      facts,
+      today,
+      valuation,
+    );
+    const payday = nextPayday(today).day;
+    const missing = missingFx.find(
+      (item) =>
+        item.dueDate <= addDays(payday, 30) &&
+        facts.payments.some((p) => p.id === item.paymentId && p.kind === 'outflow'),
+    );
+    if (missing) throw new MissingFxRateError(missing.currency, today);
+    const cashIds = new Set(cashAccounts.map((a) => a.id));
+    const envelopes = facts.budgetByMonth.get(monthOf(today))?.envelopes ?? {};
+    const { refMonth, firstMonth, needSpending } = healthBudgetInputs(facts, today);
+    const { averageNeedCents } = emergencyCoverage({
+      reserveCents: 0,
+      currentMonth: addMonths(refMonth, 1),
+      firstMonth,
+      needSpending,
+    });
+    const stored = db
+      .select({ paramsJson: rule.paramsJson })
+      .from(rule)
+      .where(and(eq(rule.kind, 'rule'), eq(rule.code, 'R02'), isNull(rule.deletedAt)))
+      .get();
+    let params: unknown;
+    try {
+      params = JSON.parse(stored?.paramsJson ?? '{}');
+    } catch (error) {
+      if (!(error instanceof SyntaxError)) throw error;
+    }
+    const r02 = PARAM_SCHEMAS.R02.safeParse(params);
+    if (!r02.success) {
+      return {
+        unavailable: {
+          reason: 'invalid_source' as const,
+          message: 'Die Einstellungen für das Notgroschen-Ziel sind nicht lesbar.',
+          asOf: today,
+        },
+      };
+    }
+    return investableAmount({
+      accounts: cashAccounts,
+      openOutflows,
+      payday,
+      reserves: {
+        futureEnvelopeAvailableCents: facts.categories
+          .filter((c) => c.class === 'future')
+          .map((c) => envelopes[c.id]?.availableCents ?? 0),
+        reserveAccounts: facts.accounts
+          .filter((a) => a.role === 'reserve' && a.openingDate <= today)
+          .map((a) => ({
+            balanceCents: requiredAccountValue(valuation, a.id, today),
+            onBudget: a.onBudget,
+            inCash: cashIds.has(a.id),
+          })),
+        emergency: { averageNeedCents, targetMonths: r02.data.targetMonths },
+      },
+      needWantEnvelopeAvailableCents: facts.categories
+        .filter((c) => c.class === 'need' || c.class === 'want')
+        .map((c) => envelopes[c.id]?.availableCents ?? 0),
+    });
+  });
+}
+
 export function heute(db: Executor, query: HeuteQuery): Heute {
   const today = query.today;
   const month = query.month ?? monthOf(today);
@@ -499,9 +603,8 @@ export function heute(db: Executor, query: HeuteQuery): Heute {
   const todayBudget = facts.budgetByMonth.get(monthOf(today));
   const monthBudget = facts.budgetByMonth.get(month);
   const categories = new Map(facts.categories.map((c) => [c.id, c]));
-  const budgetAccounts = facts.accounts.filter((a) => isLiquidityAccount(a, today));
-  const budgetIds = budgetAccounts.map((a) => a.id);
-  const budgetValues = forecastBudgetValues(db, today, budgetIds);
+  const inputs = liquidityPlanningInputs(facts, today);
+  const budgetIds = inputs.cashAccounts.map((a) => a.id);
   const sumBudget = (balanceOf: (id: string) => number) =>
     budgetIds.reduce((s, id) => s + balanceOf(id), 0);
 
@@ -545,41 +648,9 @@ export function heute(db: Executor, query: HeuteQuery): Heute {
   const window = heuteWindow(query.period ?? 'month', month, today, payday.day);
 
   // ---- lead: free until payday ----
-  // A closed account keeps its stored limit; it must not lend headroom.
-  const leadIds = new Set(budgetIds);
-  const onLeadAccount = (o: { accountId: string | null }) =>
-    o.accountId === null || leadIds.has(o.accountId);
-  const accounts: FreeAccount[] = budgetAccounts
-    .filter((a) => a.closedAt === null)
-    .map((a) => ({
-      id: a.id,
-      name: a.name,
-      balanceCents: budgetValues[a.id] ?? 0,
-      overdraftLimitCents: a.overdraftLimitCents,
-    }));
-  // Every payment leaving a budget account before payday reduces liquidity, in every class.
-  const openOutflows: OpenOutflow[] = all
-    .filter((o) => o.kind === 'outflow' && o.status === 'expected' && onLeadAccount(o))
-    .map((o) => ({
-      id: o.occurrenceId ?? `${o.paymentId}|${o.dueDate}`,
-      label: o.name,
-      day: o.dueDate,
-      cents: -o.amountCents,
-    }));
-  // A linked occurrence whose booking is dated after today is not in the balance yet (#1102):
-  // it still counts once, on its booking date.
-  for (const o of all) {
-    if (!onLeadAccount(o) || (o.status !== 'received' && o.status !== 'deviating')) continue;
-    const mark = facts.planMarks.get(`${o.paymentId}|${o.dueDate}`);
-    if (typeof mark !== 'object' || mark.settledOn <= today) continue;
-    const id = o.occurrenceId ?? `${o.paymentId}|${o.dueDate}`;
-    // Inflows never count in the free figure (owner decision 2026-11-17); they are forecast only.
-    if (o.kind === 'outflow')
-      openOutflows.push({ id, label: o.name, day: mark.settledOn, cents: -o.amountCents });
-  }
   const lead = freeUntilPayday({
-    accounts,
-    openOutflows,
+    accounts: inputs.cashAccounts,
+    openOutflows: inputs.openOutflows,
     payday: payday.day,
     today,
   });
@@ -593,11 +664,10 @@ export function heute(db: Executor, query: HeuteQuery): Heute {
     day,
     balanceCents: sumBudget((id) => series.get(id)?.[i] ?? 0),
   }));
-  const inputs = forecastInputs(facts, today, { byAccount: budgetValues });
   const { actual, forecast: projected, low } = balanceForecast(inputs, window, history);
-  const forecast: Heute['balance']['forecast'] = budgetAccounts.length > 0 ? projected : [];
+  const forecast: Heute['balance']['forecast'] = budgetIds.length > 0 ? projected : [];
   let salaryJump: Heute['balance']['salary'] = null;
-  if (window.to > today && budgetAccounts.length > 0) {
+  if (window.to > today && budgetIds.length > 0) {
     // A planning boundary must never invent or move a salary receipt in the cash forecast.
     const salaryDay = salary.find((o) => o.dueDate > today && o.dueDate <= window.to)?.dueDate;
     if (salaryDay) {
@@ -752,7 +822,7 @@ export function heute(db: Executor, query: HeuteQuery): Heute {
       from: window.from,
       to: window.to,
       payday: { ...payday, daysToPayday: lead.daysToPayday },
-      budgetBalanceCents: sumBudget((id) => budgetValues[id] ?? 0),
+      budgetBalanceCents: lead.balanceCents,
     },
     lead,
     dailyBudget: dailyBudget(lead),

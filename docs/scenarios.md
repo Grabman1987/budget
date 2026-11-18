@@ -37,17 +37,22 @@ planned-event expansion and statement settlement projections. Its schedule cover
 the same 365 days. Every captured leg retains the account, signed cents, cash date
 and source identity with its original due day. Unmaterialized occurrences use the
 payment ID and due day as their identity. Linked future bookings use their booking
-date and retain the booking ID. Overdue open debits within the forecast's existing
-31-day lookback reduce projected day zero once. The actual starting balances do
+date and retain the booking ID. All persisted overdue open debits reduce projected
+day zero once, even after their schedule changes. The actual starting balances do
 not include those unpaid debits or overdraft headroom.
 
 The snapshot rejects an unassigned cash leg, a missing forecast FX rate, a linked
-booking whose amount or account disagrees with the forecast, and an aggregate
+booking whose amount disagrees with the stored expectation, and an aggregate
 variable spending estimate with multiple eligible accounts. With one eligible
 account the full aggregate variable estimate applies there. Expected positive
 scheduled and planned legs are separate from linked actual cash and the two sides
 of a represented settlement. An internal settlement is household-neutral when
 both accounts are in the forecast scope.
+
+Linked internal transfers retain both proven account legs, grouped by their stored
+transfer identity. They never enter the external-obligation deduction. Whole bank
+transfers use the same transit-aware valuation as the opening cash: their receipt
+value becomes available on the debit date, without inventing a ledger booking.
 
 Loan instalments already modelled as expected payments keep their occurrence
 identity. Heute does not independently expand loan terms, savings schedules or

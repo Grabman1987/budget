@@ -1,4 +1,3 @@
-import { MissingFxRateError } from './errors';
 import { isLiquidityAccount } from './liquidity-account';
 import { readPaymentLifecycles, type PaymentLifecycle } from './expected-lifecycle-invariants';
 import { allocationInputsAsOf } from './allocation-inputs';
@@ -9,6 +8,7 @@ import {
   addDays,
   addMonths,
   averageCents,
+  roundDivCents,
   BOOK_RULE_CODES,
   freedomProgressBp,
   freedomTargetCents,
@@ -36,13 +36,15 @@ import {
   overdraftLastResort,
   type ForecastItem,
   type Snapshot,
+  type FreeAccount,
   type MoneyEvent,
+  type OpenOutflow,
   type MonthFlow,
   type RuleInputs,
   type SinkingFund,
   type Rhythm,
 } from '@budget/domain';
-import { and, asc, eq, inArray, isNull, gte, lte } from 'drizzle-orm';
+import { and, asc, eq, inArray, isNull } from 'drizzle-orm';
 import {
   account,
   assetClass,
@@ -65,6 +67,7 @@ import {
 import { allocationMonth, isIncomeCategorySplit } from './allocation';
 import { scheduleVersion, schedulePayment } from './expected';
 import { netWorthAsOf, netWorthValuationAsOf, type NetWorth } from './portfolio';
+import { MissingFxRateError } from './errors';
 import { fxRateOnOrBefore } from './prices';
 import { memoizedShared } from './request-memo';
 import { budgetLedger, budgetOfLedger } from './queries';
@@ -85,7 +88,10 @@ type AccountRow = typeof account.$inferSelect;
 type CategoryRow = typeof category.$inferSelect;
 type PaymentRow = typeof expectedPayment.$inferSelect;
 /** A marked occurrence: taken out of the plan, or settled by a booking dated `settledOn`. */
-type PlanMark = 'skipped' | 'missed' | { settledOn: string };
+type PlanMark =
+  | 'skipped'
+  | 'missed'
+  | { settledOn: string; bookingId: string | null; accountId: string | null; cents: number | null };
 type VersionRow = typeof expectedPaymentVersion.$inferSelect;
 
 interface IncomeSplit {
@@ -193,6 +199,9 @@ function readFacts(db: Executor, upTo: string, ledger: ReturnType<typeof budgetL
       dueDate: expectedOccurrence.dueDate,
       status: expectedOccurrence.status,
       bookedOn: booking.date,
+      bookingId: booking.id,
+      bookedAccountId: booking.accountId,
+      bookedCents: booking.amountCents,
     })
     .from(expectedOccurrence)
     .leftJoin(booking, eq(booking.id, expectedOccurrence.bookingId))
@@ -206,7 +215,12 @@ function readFacts(db: Executor, upTo: string, ledger: ReturnType<typeof budgetL
     planMarks.set(
       `${o.paymentId}|${o.dueDate}`,
       o.status === 'received' || o.status === 'deviating'
-        ? { settledOn: o.bookedOn ?? o.dueDate }
+        ? {
+            settledOn: o.bookedOn ?? o.dueDate,
+            bookingId: o.bookingId,
+            accountId: o.bookedAccountId,
+            cents: o.bookedCents,
+          }
         : (o.status as 'skipped' | 'missed'),
     );
 
@@ -332,7 +346,8 @@ function allocOf(f: RuleFacts, month: string): AllocMonth | null {
   return alloc;
 }
 
-const netIncomeOf = (a: AllocMonth): number => a.incomeCents + Math.round(a.annualIncomeCents / 12);
+const netIncomeOf = (a: AllocMonth): number =>
+  a.incomeCents + roundDivCents(a.annualIncomeCents, 12);
 
 /** The target of a category valid in `month` (latest `valid_from` not after it). */
 function targetOf(f: RuleFacts, categoryId: string, month: string): CategoryTarget | null {
@@ -368,6 +383,36 @@ export function isPlannedOccurrence(
   if (typeof mark === 'object')
     return options.skipSettledBy === undefined || mark.settledOn > options.skipSettledBy;
   return mark === undefined || (mark === 'missed' && options.keepMissed === true);
+}
+
+/** Translate a scheduled or materialized occurrence to the same forecast EUR basis. */
+function forecastOccurrenceCents(
+  f: RuleFacts,
+  payment: PaymentRow,
+  dueDate: string,
+  amountCents: number,
+  asOf: string,
+  applyIncomePauses: boolean,
+): number | null {
+  const currency = versionOn(f.versions.get(payment.id) ?? [], dueDate)?.currency ?? 'EUR';
+  const pause =
+    applyIncomePauses && payment.kind === 'inflow'
+      ? f.incomePauses.find(
+          (row) =>
+            row.expectedPaymentId === payment.id &&
+            row.startDate <= dueDate &&
+            dueDate <= row.endDate,
+        )
+      : undefined;
+  const amount = pause
+    ? incomePauseAmount(
+        { expectedPaymentId: payment.id, dueDate, kind: payment.kind, currency, amountCents },
+        pause,
+      )
+    : amountCents;
+  if (currency === 'EUR') return amount;
+  const rate = fxRateOnOrBefore(f.db, currency, asOf);
+  return rate ? toEurCents(amount, rate.rateMicro) : null;
 }
 
 /**
@@ -407,35 +452,17 @@ export function scheduled(
       if (replaced.has(p.id + '|' + occ.dueDate)) continue;
       // One predicate for income and outflows: a settled occurrence already in the balance leaves.
       if (!isPlannedOccurrence(f, p.id, occ.dueDate, options)) continue;
-      const v = versionOn(versions, occ.dueDate);
-      const pause = options.applyIncomePauses
-        ? f.incomePauses.find(
-            (item) =>
-              item.expectedPaymentId === p.id &&
-              item.startDate <= occ.dueDate &&
-              occ.dueDate <= item.endDate,
-          )
-        : undefined;
-      let cents =
-        pause && v
-          ? incomePauseAmount(
-              {
-                expectedPaymentId: p.id,
-                dueDate: occ.dueDate,
-                kind: p.kind,
-                currency: v.currency,
-                amountCents: occ.amountCents,
-              },
-              pause,
-            )
-          : occ.amountCents;
-      if (v && v.currency !== 'EUR') {
-        const rate = fxRateOnOrBefore(f.db, v.currency, asOf);
-        if (!rate) {
-          options.onMissingFx?.(p, occ.dueDate, v.currency);
-          continue;
-        }
-        cents = toEurCents(cents, rate.rateMicro);
+      const cents = forecastOccurrenceCents(
+        f,
+        p,
+        occ.dueDate,
+        occ.amountCents,
+        asOf,
+        options.applyIncomePauses === true,
+      );
+      if (cents === null) {
+        options.onMissingFx?.(p, occ.dueDate, versionOn(versions, occ.dueDate)!.currency);
+        continue;
       }
       const acct = p.accountId ? accounts.get(p.accountId) : undefined;
       out.push({
@@ -474,8 +501,6 @@ const monthlyAmount = (f: RuleFacts, p: PaymentRow, day: string): number =>
 const yearlyAmount = (f: RuleFacts, p: PaymentRow, day: string): number =>
   yearlyEquivalent(p.rhythm as Rhythm, unitAmount(f, p, day), p.intervalWeeks);
 
-const OVERDUE_LOOKBACK_DAYS = 31;
-
 // ---- the inputs ----
 
 /** Last full month: the month itself when `asOf` is its last day. */
@@ -484,36 +509,31 @@ export function referenceMonth(asOf: string): string {
   return asOf === lastDayOfMonth(month) ? month : addMonths(month, -1);
 }
 
-/** Valuation shared by the Heute projection and scenario snapshot. */
-export function forecastBudgetValues(db: Executor, today: string, budgetIds: string[]) {
-  const valuation = netWorthValuationAsOf(db, today);
-  // Forecast only consumes budget accounts; an unknown depot cannot block daily cash planning.
-  return Object.fromEntries(
-    budgetIds.map((id) => {
-      const value = valuation.byAccount[id] ?? (Object.hasOwn(valuation.byAccount, id) ? null : 0);
-      if (value === null) {
-        const currency = valuation.missingFxByAccount[id]?.[0];
-        if (currency) throw new MissingFxRateError(currency, today);
-        throw new PriceUnavailableError(id, valuation.missingPriceByAccount[id]![0]!, today);
-      }
-      return [id, value];
-    }),
-  );
-}
-
-type ForecastSource = NonNullable<Snapshot['items'][number]['source']>;
-type SourcedForecastItem = ForecastItem & {
-  accountId: string | null;
-  source: ForecastSource;
-  expected: boolean;
-  linkedBookingMismatch?: boolean;
-};
-
 /**
  * The liquidity forecast inputs of the budget accounts on `asOf` (rule R07 and the Heute chart):
  * start balance, scheduled payments and planned events of the next 365 days, and the planned
  * variable spending per month.
  */
+export function forecastBudgetValues(db: Executor, today: string, budgetIds: string[]) {
+  const valuation = netWorthValuationAsOf(db, today);
+  return Object.fromEntries(
+    budgetIds.map((id) => {
+      const value = valuation.byAccount[id];
+      if (value !== null) return [id, value ?? 0];
+      const currency = valuation.missingFxByAccount[id]?.[0];
+      if (currency) throw new MissingFxRateError(currency, today);
+      throw new PriceUnavailableError(id, valuation.missingPriceByAccount[id]![0]!, today);
+    }),
+  );
+}
+
+type SourcedForecastItem = ForecastItem & {
+  accountId: string | null;
+  source: NonNullable<Snapshot['items'][number]['source']>;
+  expected: boolean;
+  linkedBookingMismatch?: boolean;
+};
+
 export function forecastInputs(
   f: RuleFacts,
   asOf: string,
@@ -522,120 +542,214 @@ export function forecastInputs(
   items: SourcedForecastItem[];
   dayZeroItems: SourcedForecastItem[];
   through: string;
+  cashAccounts: FreeAccount[];
+  openOutflows: OpenOutflow[];
   missingFx: { paymentId: string; dueDate: string; currency: string }[];
 } {
   const cur = monthOf(asOf);
   const ref = referenceMonth(asOf);
   const budgetAccounts = f.accounts.filter((a) => isLiquidityAccount(a, asOf));
   const to = addDays(asOf, 365);
-  const budgetIds = new Set(budgetAccounts.map((a) => a.id));
+  const toItem = (
+    payment: PaymentRow,
+    dueDate: string,
+    cents: number,
+    day = dueDate,
+  ): SourcedForecastItem => {
+    const group = payment.categoryId ? categories.get(payment.categoryId)?.class : undefined;
+    const key = `${payment.id}|${dueDate}`;
+    const row = byKey.get(key);
+    const mark = f.planMarks.get(key);
+    const linked = typeof mark === 'object';
+    return {
+      accountId: linked ? mark.accountId : payment.accountId,
+      source: {
+        kind: 'expectedOccurrence',
+        id: row?.id ?? key,
+        dueDay: dueDate,
+        ...(linked && mark.bookingId ? { bookingId: mark.bookingId } : {}),
+      },
+      expected: !linked && cents > 0,
+      ...(linked && mark.cents !== row?.cents ? { linkedBookingMismatch: true } : {}),
+      day,
+      cents,
+      kind: cents >= 0 ? 'income' : 'fixed',
+      label: payment.name,
+      ref: { paymentId: payment.id, dueDate },
+      ...(group ? { group } : {}),
+    };
+  };
+  const categories = catById(f);
+  const payments = new Map(f.payments.map((p) => [p.id, p]));
+  const cashIds = new Set(budgetAccounts.map((a) => a.id));
+  const onCashAccount = (id: string | null) => id === null || cashIds.has(id);
   const missingFx: { paymentId: string; dueDate: string; currency: string }[] = [];
-  const from = addDays(asOf, -OVERDUE_LOOKBACK_DAYS);
-  const occurrenceRows = f.db
+  const recordMissingFx = (payment: PaymentRow, dueDate: string, currency: string) => {
+    if (onCashAccount(payment.accountId))
+      missingFx.push({ paymentId: payment.id, dueDate, currency });
+  };
+  const internalTransferCents = new Map<string, number>();
+  for (const split of f.ledgerSplits) {
+    if (
+      split.bookingId &&
+      split.date > asOf &&
+      split.date <= to &&
+      split.transferAccountId &&
+      cashIds.has(split.accountId) &&
+      cashIds.has(split.transferAccountId)
+    ) {
+      internalTransferCents.set(
+        split.bookingId,
+        (internalTransferCents.get(split.bookingId) ?? 0) + split.amountCents,
+      );
+    }
+  }
+  const replaced = statementLegacyKeys(f.db);
+  const stored = f.db
     .select({
       id: expectedOccurrence.id,
       paymentId: expectedOccurrence.expectedPaymentId,
       dueDate: expectedOccurrence.dueDate,
       status: expectedOccurrence.status,
-      bookingId: expectedOccurrence.bookingId,
-      bookingAccountId: booking.accountId,
-      bookingCents: booking.amountCents,
+      cents: expectedOccurrence.expectedAmountCents,
     })
     .from(expectedOccurrence)
-    .leftJoin(booking, and(eq(booking.id, expectedOccurrence.bookingId), isNull(booking.deletedAt)))
-    .where(
-      and(
-        isNull(expectedOccurrence.deletedAt),
-        gte(expectedOccurrence.dueDate, from),
-        lte(expectedOccurrence.dueDate, to),
-      ),
-    )
+    .where(isNull(expectedOccurrence.deletedAt))
     .all();
-  const occurrenceByKey = new Map(occurrenceRows.map((o) => [`${o.paymentId}|${o.dueDate}`, o]));
-  const scheduleOptions = {
+  const byKey = new Map(stored.map((o) => [`${o.paymentId}|${o.dueDate}`, o]));
+  // Retain proven transfer identities, never pair legs by matching amounts alone.
+  const transferPairs = new Map<
+    string,
+    { bookingId: string; accountId: string; day: string; cents: number; whole: boolean }[]
+  >();
+  for (const leg of f.db
+    .select({
+      bookingId: booking.id,
+      accountId: booking.accountId,
+      day: booking.date,
+      cents: bookingSplit.amountCents,
+      wholeId: booking.transferId,
+      splitId: bookingSplit.transferId,
+    })
+    .from(bookingSplit)
+    .innerJoin(booking, eq(booking.id, bookingSplit.bookingId))
+    .where(isNull(booking.deletedAt))
+    .all()) {
+    const id = leg.wholeId ?? leg.splitId;
+    if (!id) continue;
+    const pair = transferPairs.get(id) ?? [];
+    const existing = pair.find((entry) => entry.bookingId === leg.bookingId);
+    if (existing) existing.cents += leg.cents;
+    else pair.push({ ...leg, whole: leg.wholeId !== null });
+    transferPairs.set(id, pair);
+  }
+  const linkedTransferItems: SourcedForecastItem[] = [];
+  const includedTransfers = new Set<string>();
+  const addLinkedTransfers = (payment: PaymentRow, dueDate: string, bookingId: string) => {
+    for (const [id, pair] of transferPairs) {
+      if (includedTransfers.has(id) || !pair.some((leg) => leg.bookingId === bookingId)) continue;
+      if (!pair.every((leg) => cashIds.has(leg.accountId))) continue;
+      if (pair.length !== 2 || pair[0]!.cents !== -pair[1]!.cents)
+        throw new RangeError('Ambiguous linked internal transfer');
+      includedTransfers.add(id);
+      const debit = pair.find((leg) => leg.cents < 0)!;
+      const transit = pair.every(
+        (leg) =>
+          leg.whole &&
+          f.accounts.some(
+            (a) => a.id === leg.accountId && (a.type === 'checking' || a.type === 'savings'),
+          ),
+      );
+      for (const leg of pair) {
+        const day = transit ? debit.day : leg.day;
+        if (day <= asOf || day > to) continue;
+        const item = toItem(payment, dueDate, leg.cents, day);
+        linkedTransferItems.push({
+          ...item,
+          accountId: leg.accountId,
+          expected: false,
+          linkedBookingMismatch: false,
+          source: { ...item.source, id: `${id}|${leg.bookingId}`, bookingId: leg.bookingId },
+        });
+      }
+    }
+  };
+  // Stored obligations survive changes to the recurring schedule. A future-dated linked debit
+  // uses the actual booking's date, account and amount until it is included in cash.
+  const storedItems = stored.flatMap((o): SourcedForecastItem[] => {
+    const payment = payments.get(o.paymentId);
+    const key = `${o.paymentId}|${o.dueDate}`;
+    if (!payment || replaced.has(key)) return [];
+    const mark = f.planMarks.get(key);
+    if (typeof mark === 'object') {
+      if (mark.bookingId) addLinkedTransfers(payment, o.dueDate, mark.bookingId);
+      if (mark.settledOn <= asOf || mark.settledOn > to) return [];
+      if (mark.accountId === null || !cashIds.has(mark.accountId) || mark.cents === null) return [];
+      const externalCents =
+        mark.cents - (mark.bookingId ? (internalTransferCents.get(mark.bookingId) ?? 0) : 0);
+      return externalCents !== 0 ? [toItem(payment, o.dueDate, externalCents, mark.settledOn)] : [];
+    }
+    if (
+      payment.kind !== 'outflow' ||
+      o.status !== 'expected' ||
+      o.dueDate > asOf ||
+      !onCashAccount(payment.accountId)
+    )
+      return [];
+    const amount = forecastOccurrenceCents(f, payment, o.dueDate, o.cents, asOf, false);
+    if (amount === null)
+      recordMissingFx(
+        payment,
+        o.dueDate,
+        versionOn(f.versions.get(payment.id) ?? [], o.dueDate)!.currency,
+      );
+    return amount === null ? [] : [toItem(payment, o.dueDate, amount)];
+  });
+  const previews = scheduled(f, asOf, to, asOf, {
     applyIncomePauses: true,
-    onMissingFx(payment: PaymentRow, dueDate: string, currency: string) {
-      const key = `${payment.id}|${dueDate}`;
-      const mark = f.planMarks.get(key);
-      const included =
-        dueDate > asOf ||
-        (typeof mark === 'object'
-          ? mark.settledOn > asOf
-          : payment.kind === 'outflow' && occurrenceByKey.get(key)?.status === 'expected');
-      if (included && (payment.accountId === null || budgetIds.has(payment.accountId)))
-        missingFx.push({ paymentId: payment.id, dueDate, currency });
+    onMissingFx: (payment, dueDate, currency) => {
+      if (dueDate === asOf && payment.kind === 'inflow') return;
+      if (typeof f.planMarks.get(`${payment.id}|${dueDate}`) !== 'object')
+        recordMissingFx(payment, dueDate, currency);
     },
-  };
-  const toItem = (
-    o: ReturnType<typeof scheduled>[number],
-    day: string,
-    linked: boolean,
-  ): SourcedForecastItem => {
-    const row = occurrenceByKey.get(`${o.payment.id}|${o.dueDate}`);
-    return {
-      accountId: o.payment.accountId,
-      source: {
-        kind: 'expectedOccurrence',
-        id: row?.id ?? `${o.payment.id}|${o.dueDate}`,
-        dueDay: o.dueDate,
-        ...(row?.bookingId ? { bookingId: row.bookingId } : {}),
-      },
-      ...(linked && (row?.bookingAccountId !== o.payment.accountId || row?.bookingCents !== o.cents)
-        ? { linkedBookingMismatch: true }
-        : {}),
-      expected: !linked && o.cents > 0,
-      day,
-      cents: o.cents,
-      kind: o.cents >= 0 ? 'income' : 'fixed',
-      label: o.payment.name,
-      ref: { paymentId: o.payment.id, dueDate: o.dueDate },
-      ...(o.category?.class ? { group: o.category.class } : {}),
-    };
-  };
-  // Occurrences due up to the start day that the balance does not contain yet (#1102): a linked
-  // one whose booking is dated after the start day lands on that booking date; an overdue open
-  // outflow (stored `expected`, window still open) is deducted from projected day zero, as the lead
-  // of Heute counts it.
-  const pending = scheduled(f, from, asOf, asOf, scheduleOptions)
-    .filter((o) => o.onBudget)
-    .flatMap((o): SourcedForecastItem[] => {
-      const key = `${o.payment.id}|${o.dueDate}`;
-      const mark = f.planMarks.get(key);
-      if (typeof mark === 'object')
-        return mark.settledOn > asOf ? [toItem(o, mark.settledOn, true)] : [];
-      return o.payment.kind === 'outflow' && occurrenceByKey.get(key)?.status === 'expected'
-        ? [toItem(o, asOf, false)]
-        : [];
-    });
-  const dayZeroItems = pending.filter((o) => o.day === asOf);
-  const items: SourcedForecastItem[] = [
-    ...statementForecastLegs(f.db, addDays(asOf, 1), to, budgetIds).map(
-      (l): SourcedForecastItem => ({
-        accountId: l.accountId,
-        source: {
-          kind: l.kind === 'settlement' ? 'cardPayment' : 'cardCredit',
-          id: l.id,
-          dueDay: l.day,
-          ...(l.bookingId ? { bookingId: l.bookingId } : {}),
+  }).flatMap((o): SourcedForecastItem[] => {
+    const key = `${o.payment.id}|${o.dueDate}`;
+    if (!o.onBudget || typeof f.planMarks.get(key) === 'object') return [];
+    if (o.dueDate === asOf && (o.payment.kind === 'inflow' || byKey.has(key))) return [];
+    return [toItem(o.payment, o.dueDate, o.cents)];
+  });
+  const statementItems: { item: SourcedForecastItem; internal: boolean }[] = statementForecastLegs(
+    f.db,
+    null,
+    to,
+    cashIds,
+  ).flatMap((leg) => {
+    const internal =
+      leg.counterpartyAccountId !== undefined && cashIds.has(leg.counterpartyAccountId);
+    if (leg.day <= asOf && (leg.bookingId !== null || (!internal && leg.cents >= 0))) return [];
+    return [
+      {
+        item: {
+          accountId: leg.accountId,
+          source: {
+            kind: leg.kind === 'settlement' ? 'cardPayment' : 'cardCredit',
+            id: leg.id,
+            dueDay: leg.day,
+            ...(leg.bookingId ? { bookingId: leg.bookingId } : {}),
+          },
+          expected: false,
+          day: leg.day,
+          cents: leg.cents,
+          kind: 'event' as const,
+          label: leg.kind === 'settlement' ? 'Abrechnungsausgleich' : 'Ausgabengutschrift',
         },
-        expected: false,
-        day: l.day,
-        cents: l.cents,
-        kind: 'event' as const,
-        label: l.kind === 'settlement' ? 'Abrechnungsausgleich' : 'Ausgabengutschrift',
-      }),
-    ),
-    ...scheduled(f, addDays(asOf, 1), to, asOf, { ...scheduleOptions, skipSettledBy: asOf })
-      .filter((o) => o.onBudget)
-      .map((o) => {
-        const mark = f.planMarks.get(`${o.payment.id}|${o.dueDate}`);
-        return toItem(
-          o,
-          typeof mark === 'object' ? mark.settledOn : o.dueDate,
-          typeof mark === 'object',
-        );
-      }),
-    ...pending.filter((o) => o.day > asOf),
+        internal,
+      },
+    ];
+  });
+  const datedItems: SourcedForecastItem[] = [
+    ...previews,
+    ...storedItems,
     ...f.plannedEvents
       .filter((e) => {
         const a = e.accountId ? f.accounts.find((x) => x.id === e.accountId) : undefined;
@@ -665,28 +779,50 @@ export function forecastInputs(
     planned > 0
       ? planned
       : Math.max(0, averageCents(last3.map((m) => spent(f, m, (c) => c.kind === 'variable'))));
+  const cashAccounts = budgetAccounts.map((a) => ({
+    id: a.id,
+    name: a.name,
+    balanceCents: nw.byAccount[a.id] ?? 0,
+    overdraftLimitCents: a.overdraftLimitCents,
+  }));
+  const openOutflows = [
+    ...datedItems,
+    ...statementItems.filter(({ internal }) => !internal).map(({ item }) => item),
+  ]
+    .flatMap((item, index): OpenOutflow[] => {
+      if (item.cents >= 0) return [];
+      const key = item.ref && `${item.ref.paymentId}|${item.ref.dueDate}`;
+      return [
+        {
+          id: key ? (byKey.get(key)?.id ?? key) : `forecast-event-${index}`,
+          label: item.label ?? '',
+          day: item.day,
+          cents: -item.cents,
+        },
+      ];
+    })
+    .sort((a, b) => a.day.localeCompare(b.day) || a.label.localeCompare(b.label));
+  const forecastItems = [
+    ...statementItems.map(({ item }) => item),
+    ...datedItems,
+    ...linkedTransferItems,
+  ];
   return {
-    startDay: asOf,
-    // Unpaid overdue outflows are immediate obligations, including when payday is tomorrow.
-    // Projected day zero differs from the actual bank balance by these obligations only.
-    startCents:
-      budgetAccounts.reduce((s, a) => s + (nw.byAccount[a.id] ?? 0), 0) +
-      dayZeroItems.reduce((s, o) => s + o.cents, 0),
-    items,
-    dayZeroItems,
-    through: to,
+    cashAccounts,
+    openOutflows,
     missingFx,
+    through: to,
+    dayZeroItems: forecastItems
+      .filter((item) => item.day <= asOf)
+      .map((item) => ({ ...item, day: asOf })),
+    startDay: asOf,
+    // Projected day zero deducts open obligations already due; the cash balance does not.
+    startCents:
+      cashAccounts.reduce((sum, a) => sum + a.balanceCents, 0) +
+      forecastItems.filter((item) => item.day <= asOf).reduce((sum, item) => sum + item.cents, 0),
+    items: forecastItems.filter((item) => item.day > asOf),
     variableMonthlyCents,
-    // Letzte Reserve, the same figure as the lead of Heute: open accounts only (a closed account
-    // keeps its stored limit but lends nothing).
-    lastResortCents: overdraftLastResort(
-      budgetAccounts
-        .filter((a) => a.closedAt === null)
-        .map((a) => ({
-          balanceCents: nw.byAccount[a.id] ?? 0,
-          overdraftLimitCents: a.overdraftLimitCents,
-        })),
-    ),
+    lastResortCents: overdraftLastResort(cashAccounts),
   };
 }
 

@@ -190,10 +190,9 @@ function validate(input: Snapshot): void {
     account(i.accountId);
     const dayZeroObligation =
       i.day === input.asOf &&
-      i.kind === 'fixed' &&
-      i.cents < 0 &&
       !i.expected &&
-      i.source?.kind === 'expectedOccurrence' &&
+      ((i.kind === 'fixed' && i.cents < 0 && i.source?.kind === 'expectedOccurrence') ||
+        (i.kind === 'event' && i.cents !== 0 && i.source?.kind === 'cardPayment')) &&
       i.source.bookingId === undefined &&
       i.source.dueDay <= input.asOf;
     if ((i.day <= input.asOf && !dayZeroObligation) || i.day > input.through)

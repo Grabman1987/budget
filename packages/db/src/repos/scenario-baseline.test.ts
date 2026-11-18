@@ -3,7 +3,7 @@ import { eq } from 'drizzle-orm';
 import { afterEach, beforeEach, expect, it } from 'vitest';
 import { createTestDatabase, type OpenedDatabase } from '../client';
 import { account, expectedOccurrence, plannedEvent } from '../schema';
-import { createBooking } from './bookings';
+import { createBooking, createTransfer } from './bookings';
 import { accounts, categories } from './entities';
 import { createExpectedPayment, linkOccurrence } from './expected';
 import { heute } from './heute';
@@ -19,6 +19,108 @@ beforeEach(() => {
   seedBasics(opened.db);
 });
 afterEach(() => opened.close());
+
+it('retains an old persisted obligation on day zero exactly once', () => {
+  const { db } = opened;
+  createExpectedPayment(
+    db,
+    {
+      id: 'old-open',
+      name: 'Synthetic old obligation',
+      accountId: 'giro',
+      categoryId: 'miete',
+      kind: 'outflow',
+      rhythm: 'monthly',
+      startDate: '2026-08-10',
+      endDate: '2026-08-10',
+      dueDay: 10,
+      dateWindowDays: 3,
+    },
+    { validFrom: '2026-08-10', amountCents: 123 },
+    testCtx,
+    '2026-08-10',
+  );
+  const snapshot = scenarioBaseline(db, today);
+  expect(snapshot.items).toHaveLength(1);
+  const result = evaluate(applyAssumptions(snapshot, []), { through }).outcomes[0]!;
+  expect(result.withExpectedInflows.household.series.map((d) => d.cents)).toEqual([
+    99_877, 99_877, 99_877, 99_877, 99_877,
+  ]);
+  expect(heute(db, { today }).lead.freeCents).toBe(99_877);
+  expect(
+    forecastInputs(loadFacts(db, today), today, { byAccount: { giro: 100_000 } }).startCents,
+  ).toBe(99_877);
+});
+
+it('retains both actual linked transfer legs without creating a household obligation', () => {
+  const { db } = opened;
+  accounts.create(
+    db,
+    {
+      id: 'second',
+      name: 'Synthetic second',
+      type: 'checking',
+      role: 'budget',
+      onBudget: true,
+      openingDate: '2026-01-01',
+      openingBalanceCents: 5432,
+    },
+    testCtx,
+  );
+  const linked = payment('linked-transfer', today, 1234, 'giro');
+  const transfer = createTransfer(
+    db,
+    { fromAccountId: 'giro', toAccountId: 'second', date: '2026-10-11', amountCents: 1234 },
+    testCtx,
+  );
+  linkOccurrence(db, linked.id, transfer.fromBookingId, testCtx);
+  const snapshot = scenarioBaseline(db, today);
+  const result = evaluate(applyAssumptions(snapshot, []), { through }).outcomes[0]!;
+  expect(result.withExpectedInflows.household.series.map((d) => d.cents)).toEqual([
+    105_432, 105_432, 105_432, 105_432, 105_432,
+  ]);
+  expect(result.withExpectedInflows.accounts.map((a) => a.series.at(-1)?.cents)).toEqual([
+    98_766, 6666,
+  ]);
+  expect(heute(db, { today }).lead.freeCents).toBe(105_432);
+});
+
+it('keeps a linked transfer to a reserve account as an external obligation', () => {
+  const { db } = opened;
+  const linked = payment('reserve-transfer', today, 1234, 'giro');
+  const transfer = createTransfer(
+    db,
+    { fromAccountId: 'giro', toAccountId: 'spar', date: '2026-10-11', amountCents: 1234 },
+    testCtx,
+  );
+  linkOccurrence(db, linked.id, transfer.fromBookingId, testCtx);
+  const result = evaluate(scenarioBaseline(db, today), { through }).outcomes[0]!;
+  expect(result.withExpectedInflows.household.series.at(-1)?.cents).toBe(98_766);
+  expect(heute(db, { today }).lead.freeCents).toBe(98_766);
+});
+
+it('does not reject an unpriced inflow due today that the forecast omits', () => {
+  const { db } = opened;
+  createExpectedPayment(
+    db,
+    {
+      id: 'fx-today',
+      name: 'Synthetic foreign inflow',
+      kind: 'inflow',
+      accountId: 'giro',
+      rhythm: 'monthly',
+      startDate: today,
+      endDate: today,
+      dueDay: 10,
+      dateWindowDays: 3,
+    },
+    { validFrom: today, amountCents: 123, currency: 'USD' },
+    testCtx,
+    today,
+  );
+  const result = evaluate(scenarioBaseline(db, today), { through }).outcomes[0]!;
+  expect(result.withExpectedInflows.household.series.at(-1)?.cents).toBe(100_000);
+});
 
 function payment(
   id: string,
@@ -184,7 +286,8 @@ it('replays the same account cash legs and low points as Heute with zero assumpt
   ]);
   const h = heute(db, { today });
   expect(h.lead.balanceCents).toBe(121_000);
-  expect(h.lead.freeCents).toBe(118_000);
+  // F6 shares every dated outflow with the lead, including the 600-cent planned event.
+  expect(h.lead.freeCents).toBe(117_400);
   expect(h.balance.forecast.filter((d) => d.day <= through).map((d) => d.balanceCents)).toEqual([
     120_000, 118_000, 123_000, 122_400, 122_400,
   ]);
