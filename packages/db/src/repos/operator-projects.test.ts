@@ -9,6 +9,7 @@ import {
   booking,
   category,
   categoryGroup,
+  INCOME_TYPES,
   project,
   payee,
   incomeType,
