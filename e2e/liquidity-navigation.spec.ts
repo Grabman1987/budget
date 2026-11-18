@@ -68,6 +68,9 @@ test('account shortfall stays visible with positive household cash and prepares 
   await page.goto('/');
   if (await redesignEnabled(page)) {
     const alert = page.getByRole('region', { name: 'Konten mit Engpass' });
+    await expect(
+      page.locator('.hv-lead').getByRole('region', { name: 'Konten mit Engpass' }),
+    ).toHaveCount(1);
     await expect(alert).toContainText('Konto Testkonto Rechnungen rutscht am 20.03. auf −50,01 €');
     await alert.getByRole('button', { name: 'Umbuchung vorbereiten' }).click();
     const dialog = page.getByRole('dialog', { name: 'Buchung erfassen' });

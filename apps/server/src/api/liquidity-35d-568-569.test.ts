@@ -215,6 +215,7 @@ describe('GET /liquidity 35d (#568/#569)', () => {
     expect(await forecast('?horizon=35d')).toEqual({
       asOf: TODAY,
       available: false,
+      accountLiquidity: null,
       report: null,
       events: [],
       incomePauses: [],

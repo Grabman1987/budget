@@ -224,11 +224,14 @@ const r06: Rule<'R06'> = (_p, i) => {
 const r07: Rule<'R07'> = (p, i) => {
   const f = i.forecast;
   if (!f) return null;
+  if (f.accountLiquidity && !f.accountLiquidity.accounts.some((a) => a.paymentAccount !== false))
+    return null;
   const { low, accountLiquidity } = budgetLiquidityForecast(f, p.horizonDays);
   if (accountLiquidity?.incomplete) return null;
   if (!low) return null;
   const shortAccounts = accountLiquidity?.withoutExpectedInflows.accounts.filter(
     (account) =>
+      account.paymentAccount &&
       account.firstBelowZero !== null &&
       (account.nextSafeInflowDay === null ||
         account.firstBelowZero.day < account.nextSafeInflowDay),
@@ -236,7 +239,7 @@ const r07: Rule<'R07'> = (p, i) => {
   const conservativeLow = accountLiquidity?.withoutExpectedInflows.household.low;
   const verdictLow = conservativeLow ?? low;
   const status: RuleStatus =
-    low.cents < 0 || verdictLow.cents < 0 || (shortAccounts?.length ?? 0) > 0
+    verdictLow.cents < 0 || (shortAccounts?.length ?? 0) > 0
       ? 'bad'
       : verdictLow.cents >= p.minCents
         ? 'ok'

@@ -301,7 +301,6 @@ export function HeuteOverview({
           {longDay(data.stand.today)}
         </p>
       )}
-      {data && <AccountLiquidityAlerts result={data.accountLiquidity} today={data.stand.today} />}
       <div className="hv-top">
         <section
           className="hv-lead"
@@ -379,6 +378,7 @@ export function HeuteOverview({
                 </DetailLink>
               </div>
               <div className="hv-lead-foot">
+                <AccountLiquidityAlerts result={data.accountLiquidity} today={data.stand.today} />
                 <span>
                   {data.dailyBudget.perDayCents === null
                     ? 'Kein Spielraum bis Gehalt'

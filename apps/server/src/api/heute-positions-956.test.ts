@@ -146,7 +146,11 @@ it('answers Heute from the read-model worker with the same bytes and never stale
       return Buffer.from(await response.arrayBuffer());
     };
     for (const path of ['/heute?period=month', '/heute?period=payday']) {
-      const expected = baseline.responses.find((r) => r.path === path)!.digest;
+      // The tests above pin direct response bytes. This test independently proves
+      // the worker/cache returns those exact bytes, including additive API fields.
+      const direct = await api().request(path);
+      expect(direct.status).toBe(200);
+      const expected = digestOf(Buffer.from(await direct.arrayBuffer()));
       // Two concurrent cold requests share one computation; the repeat comes from the cache.
       const [a, b] = await Promise.all([read(path), read(path)]);
       expect(digestOf(a)).toBe(expected);

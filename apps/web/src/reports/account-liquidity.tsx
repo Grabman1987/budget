@@ -1,6 +1,8 @@
 import { cents, formatDecimal, type AccountLiquidityResult } from '@budget/domain';
 import { Button, maskMoneyText, useAmountPrivacy } from '@budget/ui';
 import { Fragment, useState } from 'react';
+import { TriangleAlert } from 'lucide-react';
+import { ReportTable } from './report-table';
 import { BookingPanel, type BookingPanelState } from '../ledger/booking-panel';
 import { eur, shortDay } from '../ledger/format';
 import { AppLink } from '../shell/app-link';
@@ -22,27 +24,34 @@ export function AccountLiquidityAlerts({
         Kontoliquidität unvollständig: Wechselkurs fehlt.
       </p>
     );
-  const accounts = result?.withoutExpectedInflows.accounts ?? [];
-  const short = accounts.filter(
-    (account) =>
-      account.firstBelowZero &&
-      (!account.nextSafeInflowDay || account.firstBelowZero.day < account.nextSafeInflowDay),
-  );
+  const accounts = result?.withoutExpectedInflows.accounts.filter((a) => a.paymentAccount) ?? [];
+  const short = accounts
+    .filter(
+      (account) =>
+        account.firstBelowZero &&
+        (!account.nextSafeInflowDay || account.firstBelowZero.day < account.nextSafeInflowDay),
+    )
+    .sort(
+      (a, b) =>
+        a.firstBelowZero!.day.localeCompare(b.firstBelowZero!.day) ||
+        a.accountId.localeCompare(b.accountId),
+    );
   if (short.length === 0) return null;
   return (
     <section className="account-liquidity-alerts" aria-label="Konten mit Engpass">
-      {short.map((account) => {
+      {short.slice(0, 1).map((account) => {
         const source = accounts
           .filter((other) => other.accountId !== account.accountId)
           .map((other) => ({
             ...other,
-            free: Math.max(0, other.lowBeforeSafeInflow.cents - (other.bufferCents ?? 0)),
+            free: Math.max(0, other.low.cents - (other.bufferCents ?? 0)),
           }))
           .sort((a, b) => b.free - a.free || a.accountId.localeCompare(b.accountId))[0];
         const low = account.lowBeforeSafeInflow;
         return (
-          <div className="account-liquidity-alert" key={account.accountId} role="alert">
+          <div className="account-liquidity-alert" key={account.accountId}>
             <p>
+              <TriangleAlert size={16} aria-hidden="true" />
               Konto {maskMoneyText(account.name)} rutscht am {shortDay(account.firstBelowZero!.day)}{' '}
               auf {eur(account.firstBelowZero!.cents)}
             </p>
@@ -57,7 +66,7 @@ export function AccountLiquidityAlerts({
                     kind: 'transfer',
                     accountId: source.accountId,
                     toAccountId: account.accountId,
-                    amount: formatDecimal(cents(-low.cents)),
+                    amount: formatDecimal(cents(Math.min(source.free, -low.cents))),
                     date: today,
                   },
                 })
@@ -65,15 +74,6 @@ export function AccountLiquidityAlerts({
             >
               Umbuchung vorbereiten
             </Button>
-            {source && source.free > 0 && source.free < -low.cents && (
-              <small>
-                Auf {maskMoneyText(source.name)} sind nur {eur(source.free)} frei; für den Engpass
-                fehlen {eur(-low.cents)}. Prüfe die Umbuchung vor dem Speichern.
-              </small>
-            )}
-            {(!source || source.free <= 0) && (
-              <small>Kein freier Betrag auf einem anderen Zahlungskonto.</small>
-            )}
           </div>
         );
       })}
@@ -105,10 +105,10 @@ export function AccountLiquidityTable({
         Bis Gehalt + 30 Tage · ohne erwartete Einnahmen · ohne Stellschrauben. Dispo ist kein
         Guthaben.
       </p>
-      <table>
-        <caption className="sr-only">
-          Tagesendstände je Zahlungskonto ohne erwartete Einnahmen
-        </caption>
+      <ReportTable
+        caption="Tagesendstände je Zahlungskonto ohne erwartete Einnahmen"
+        regionLabel="Kontoliquidität im Detail"
+      >
         <thead>
           <tr>
             <th>Konto</th>
@@ -135,6 +135,7 @@ export function AccountLiquidityTable({
                       onClick={() => setExpanded(open ? null : account.accountId)}
                     >
                       {maskMoneyText(account.name)}
+                      {!account.paymentAccount && ' (kein Zahlungskonto)'}
                     </button>
                   </td>
                   <td data-label="Stand heute">{eur(account.balanceTodayCents)}</td>
@@ -176,7 +177,7 @@ export function AccountLiquidityTable({
             );
           })}
         </tbody>
-      </table>
+      </ReportTable>
       <h3>Zahlungen ohne Konto</h3>
       <p>Im Haushalt enthalten, keinem Konto belastet.</p>
       {result.unassignedPayments.length ? (

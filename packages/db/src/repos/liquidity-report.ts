@@ -310,10 +310,12 @@ export function liquidityReportView(
   return {
     asOf,
     available: true,
-    accountLiquidity: accountLiquidityForecast(
-      inputs.accountLiquidity,
-      daysBetween(asOf, addDays(nextPayday(asOf).day, 30)),
-    ),
+    accountLiquidity: inputs.accountLiquidity.accounts.some((a) => a.paymentAccount)
+      ? accountLiquidityForecast(
+          inputs.accountLiquidity,
+          daysBetween(asOf, addDays(nextPayday(asOf).day, 30)),
+        )
+      : null,
     report,
     events,
     incomePauses: incomePausesView(db, facts, asOf, hDays, report.verdictEnd),

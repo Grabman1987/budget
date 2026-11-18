@@ -514,6 +514,7 @@ describe('GET /heute', () => {
     expect(res.status).toBe(200);
     expect(Object.keys(res.body).sort()).toEqual(
       [
+        'accountLiquidity',
         'accountReminders',
         'upcomingEvents',
         'attention',

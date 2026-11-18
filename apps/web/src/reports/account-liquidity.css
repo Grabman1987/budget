@@ -52,29 +52,43 @@
   align-items: center;
   min-height: 44px;
 }
+/* Use the lead's existing footer, so a warning never precedes the title block. */
+.hv-lead-foot:has(.account-liquidity-alerts) {
+  margin-top: 0;
+}
+.hv-lead-foot:has(.account-liquidity-alerts) > span {
+  display: none;
+}
 .account-liquidity-alerts {
-  display: grid;
-  gap: 12px;
-  background: var(--surface);
-  padding: 16px;
-  border: 1px solid var(--rule);
+  width: 100%;
+  min-width: 0;
 }
 .account-liquidity-alert {
   display: flex;
-  align-items: center;
   flex-wrap: wrap;
-  gap: 8px 16px;
+  align-items: center;
+  gap: 4px 8px;
   min-width: 0;
 }
 .account-liquidity-alert p {
-  flex: 1 1 260px;
+  flex: 1 1 160px;
   margin: 0;
   color: var(--red);
-  font-weight: 600;
+  font-size: var(--fs-label);
   overflow-wrap: anywhere;
 }
-.account-liquidity-alert small {
-  flex-basis: 100%;
+.account-liquidity-alert p svg {
+  vertical-align: middle;
+  margin-right: 4px;
+}
+:root .heute-screen .account-liquidity-alert .btn.btn {
+  flex: 0 1 auto;
+  height: auto;
+  min-height: 44px;
+  max-width: 100%;
+  white-space: normal;
+  font-size: var(--fs-label);
+  padding: 4px;
 }
 @media (max-width: 767px) {
   .account-liquidity {

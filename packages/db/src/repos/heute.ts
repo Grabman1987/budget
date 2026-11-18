@@ -170,7 +170,7 @@ export function availableSection<T>(read: () => T): T | HeuteUnavailable {
 }
 
 export interface Heute {
-  accountLiquidity: ReturnType<typeof accountLiquidityForecast>;
+  accountLiquidity: ReturnType<typeof accountLiquidityForecast> | null;
   monthResult: ReturnType<typeof monthResultRead>;
   budgetAnswer: {
     spentCents: number;
@@ -803,10 +803,12 @@ export function heute(db: Executor, query: HeuteQuery): Heute {
   const goal = listGoals(db, monthOf(today)).find((g) => g.remainingCents > 0);
   return {
     monthResult: monthResultRead(db, today, monthOf(today)),
-    accountLiquidity: accountLiquidityForecast(
-      inputs.accountLiquidity,
-      daysBetween(today, addDays(payday.day, 30)),
-    ),
+    accountLiquidity: inputs.accountLiquidity.accounts.some((a) => a.paymentAccount)
+      ? accountLiquidityForecast(
+          inputs.accountLiquidity,
+          daysBetween(today, addDays(payday.day, 30)),
+        )
+      : null,
     budgetAnswer: {
       spentCents: currentPace.figures.spentCents,
       plannedCents: currentPace.figures.limitCents,
