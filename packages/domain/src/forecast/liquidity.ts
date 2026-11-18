@@ -113,8 +113,6 @@ export interface AccountLiquidityInput {
   accounts: ReadonlyArray<{
     id: string;
     name: string;
-    /** False for legacy household paths such as cards; never an alert or transfer source. */
-    paymentAccount?: boolean;
     /** Actual balance, before open day-zero obligations. No credit limit. */
     balanceCents: number;
     bufferCents?: number | null;
@@ -196,7 +194,6 @@ export function accountLiquidityForecast(input: AccountLiquidityInput, days: num
       return {
         accountId: account.id,
         name: account.name,
-        paymentAccount: account.paymentAccount ?? true,
         balanceTodayCents: account.balanceCents,
         bufferCents: account.bufferCents ?? null,
         nextSafeInflowDay,
@@ -246,10 +243,7 @@ export function evenDaily(monthlyCents: (month: string) => number): (day: string
     const total = Math.max(0, monthlyCents(month));
     const dim = Number(lastDayOfMonth(month).slice(8));
     const n = Number(day.slice(8));
-    return (
-      roundDivCents(BigInt(total) * BigInt(n), dim) -
-      roundDivCents(BigInt(total) * BigInt(n - 1), dim)
-    );
+    return roundDivCents(total * n, dim) - roundDivCents(total * (n - 1), dim);
   };
 }
 

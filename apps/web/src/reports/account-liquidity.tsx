@@ -25,7 +25,6 @@ export function AccountLiquidityAlerts({
   const accounts = result?.withoutExpectedInflows.accounts ?? [];
   const short = accounts.filter(
     (account) =>
-      account.paymentAccount &&
       account.firstBelowZero &&
       (!account.nextSafeInflowDay || account.firstBelowZero.day < account.nextSafeInflowDay),
   );
@@ -34,10 +33,10 @@ export function AccountLiquidityAlerts({
     <section className="account-liquidity-alerts" aria-label="Konten mit Engpass">
       {short.map((account) => {
         const source = accounts
-          .filter((other) => other.paymentAccount && other.accountId !== account.accountId)
+          .filter((other) => other.accountId !== account.accountId)
           .map((other) => ({
             ...other,
-            free: Math.max(0, other.low.cents - (other.bufferCents ?? 0)),
+            free: Math.max(0, other.lowBeforeSafeInflow.cents - (other.bufferCents ?? 0)),
           }))
           .sort((a, b) => b.free - a.free || a.accountId.localeCompare(b.accountId))[0];
         const low = account.lowBeforeSafeInflow;
@@ -58,7 +57,7 @@ export function AccountLiquidityAlerts({
                     kind: 'transfer',
                     accountId: source.accountId,
                     toAccountId: account.accountId,
-                    amount: formatDecimal(cents(Math.min(source.free, -low.cents))),
+                    amount: formatDecimal(cents(-low.cents)),
                     date: today,
                   },
                 })
@@ -136,7 +135,6 @@ export function AccountLiquidityTable({
                       onClick={() => setExpanded(open ? null : account.accountId)}
                     >
                       {maskMoneyText(account.name)}
-                      {!account.paymentAccount && ' (kein Zahlungskonto)'}
                     </button>
                   </td>
                   <td data-label="Stand heute">{eur(account.balanceTodayCents)}</td>

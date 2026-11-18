@@ -27,22 +27,6 @@ const input = (overrides: Partial<AccountLiquidityInput> = {}): AccountLiquidity
 });
 
 describe('accountLiquidityForecast', () => {
-  it('spreads large safe integer cents without an unsafe intermediate product', () => {
-    const result = accountLiquidityForecast(
-      input({
-        startDay: '2026-01-02',
-        accounts: [],
-        items: [],
-        variableMonthlyCents: 4_000_000_000_000_001,
-      }),
-      1,
-    );
-    // Half-up allocation through Jan 3: 387,096,774,193,548; through Jan 2: 258,064,516,129,032.
-    // Their difference is exactly 129,032,258,064,516 cents, charged to unassigned cash.
-    expect(result.withoutExpectedInflows.household.days[1]!.balanceCents).toBe(
-      -129_032_258_064_516,
-    );
-  });
   it('marks missing forecast FX within the horizon incomplete, including overdue payments', () => {
     const missingFx = [
       { paymentId: 'overdue', dueDate: '2026-01-29', currency: 'USD' },

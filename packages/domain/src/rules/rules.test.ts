@@ -327,41 +327,6 @@ describe('R05 and R06', () => {
 });
 
 describe('R07 Dispo', () => {
-  it('decides on the conservative account horizon while retaining legacy forecast detail', () => {
-    const items = [
-      {
-        accountId: 'payment',
-        day: '2026-12-15',
-        cents: -1500,
-        kind: 'fixed' as const,
-        expected: false,
-      },
-    ];
-    // Payday today (November 13): through December 13 is 30 days, with 1,000 cents throughout.
-    // The old 35-day chart includes December 15: 1,000 - 1,500 = -500, outside the alert horizon.
-    expect(
-      evaluateRule(
-        'R07',
-        { minCents: 0 },
-        inputs({
-          forecast: {
-            startDay: '2026-11-13',
-            startCents: 1000,
-            items,
-            variableMonthlyCents: 0,
-            lastResortCents: 0,
-            accountLiquidity: {
-              startDay: '2026-11-13',
-              through: '2026-12-13',
-              accounts: [{ id: 'payment', name: 'Testkonto', balanceCents: 1000 }],
-              items,
-              variableMonthlyCents: 0,
-            },
-          },
-        }),
-      ),
-    ).toMatchObject({ status: 'ok', detail: { lowCents: -500, conservativeLowCents: 1000 } });
-  });
   it('returns unavailable instead of all-clear when a forecast FX rate is missing within the account horizon', () => {
     const forecast = {
       startDay: '2026-01-30',

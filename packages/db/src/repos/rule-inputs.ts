@@ -1,4 +1,4 @@
-import { isLiquidityAccount, isPaymentAccount } from './liquidity-account';
+import { isLiquidityAccount } from './liquidity-account';
 import { readPaymentLifecycles, type PaymentLifecycle } from './expected-lifecycle-invariants';
 import { allocationInputsAsOf } from './allocation-inputs';
 import { cashlessContactBookingIds } from './contact-invariants';
@@ -886,10 +886,6 @@ export function forecastInputs(
         return {
           id,
           name,
-          paymentAccount: isPaymentAccount(
-            f.accounts.find((account) => account.id === id)!,
-            asOf,
-          ),
           balanceCents,
           ...(nextSafeInflowDay ? { nextSafeInflowDay } : {}),
         };
