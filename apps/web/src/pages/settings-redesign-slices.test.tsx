@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
-import { registerDate, sourceDate, sourceSeverity } from './settings-source-card';
+import { SourceRegister, registerDate, sourceDate, sourceSeverity } from './settings-source-card';
+import { Bitcoin } from 'lucide-react';
 import { createTestDatabase, ensureDefaultRules, type OpenedDatabase } from '@budget/db';
 import { seedBasics } from '../../../../packages/db/src/repos/test-helpers';
 import { ToastProvider } from '@budget/ui';
@@ -504,6 +505,41 @@ it('E4 ON exposes upload immediately and retains source setup in a single disclo
   }
   expect(document.querySelector('.data-sources > .data-source-section')).toBeNull();
   expect(writes).toEqual([]);
+});
+
+it('follows a source anchor after reads settle without scrolling again on status changes', () => {
+  const originalHash = window.location.hash;
+  window.location.hash = 'crypto-source-title';
+  const scroll = vi.fn();
+  const crypto = {
+    id: 'quelle-krypto',
+    title: 'Krypto',
+    icon: Bitcoin,
+    scope: 'Bewegungen und Bestände',
+    state: 'connected' as const,
+    initiallyOpen: true,
+    children: (
+      <h3
+        id="crypto-source-title"
+        ref={(node) => {
+          if (node) node.scrollIntoView = scroll;
+        }}
+      >
+        Krypto-Lesequelle
+      </h3>
+    ),
+  };
+  const bank = { ...crypto, id: 'quelle-bank', title: 'Bank', children: null };
+  try {
+    const view = render(<SourceRegister sources={[crypto, { ...bank, state: 'loading' }]} />);
+    expect(scroll).not.toHaveBeenCalled();
+    view.rerender(<SourceRegister sources={[crypto, bank]} />);
+    expect(scroll).toHaveBeenCalledExactlyOnceWith({ block: 'center' });
+    view.rerender(<SourceRegister sources={[crypto, { ...bank, state: 'failed' }]} />);
+    expect(scroll).toHaveBeenCalledTimes(1);
+  } finally {
+    window.location.hash = originalHash;
+  }
 });
 
 it('formats connection timestamps consistently and keeps optional setup neutral', () => {

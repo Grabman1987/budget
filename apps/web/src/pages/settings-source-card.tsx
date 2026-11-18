@@ -251,6 +251,8 @@ export function SettingsSourceCard({
 }
 
 export function SourceRegister({ sources }: { sources: SourceRow[] }) {
+  const register = useRef<HTMLElement>(null);
+  const followedAnchor = useRef(false);
   const sorted = [...sources].sort((a, b) => {
     // Healthy and in-progress rows follow everything that needs attention.
     return (
@@ -260,6 +262,14 @@ export function SourceRegister({ sources }: { sources: SourceRow[] }) {
   });
   const problems = sorted.filter((source) => sourceSeverity(source.state));
   const loading = sources.some(({ state }) => state === 'loading');
+  useLayoutEffect(() => {
+    if (loading || followedAnchor.current) return;
+    const target = document.getElementById(window.location.hash.slice(1));
+    if (!target || !register.current?.contains(target) || target.closest('[hidden]')) return;
+    // Source reads can reorder rows after the router's initial fragment scroll.
+    target.scrollIntoView?.({ block: 'center' });
+    followedAnchor.current = true;
+  }, [loading]);
   const running = sources.some(({ state }) => state === 'running');
   const allCurrent = sources.every(({ state }) => state === 'connected');
   const latest = sources
@@ -267,7 +277,7 @@ export function SourceRegister({ sources }: { sources: SourceRow[] }) {
     .sort()
     .at(-1);
   return (
-    <section className="settings-source-register" aria-label="Quellenregister">
+    <section ref={register} className="settings-source-register" aria-label="Quellenregister">
       <div className="settings-source-summary">
         <p role="status">
           <SourceMark

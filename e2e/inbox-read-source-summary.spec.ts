@@ -70,7 +70,7 @@ test('source summaries leave decisions clear and retain grouped, filtered, paged
   await summary.click();
   await expect(page).toHaveURL(/einstellungen\/datenquellen#crypto-source-title/);
   const redesign = (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
-  const source = page.getByRole('region', {
+  let source = page.getByRole('region', {
     name: redesign ? 'Krypto' : 'Krypto-Lesequelle',
     exact: true,
   });
@@ -83,6 +83,10 @@ test('source summaries leave decisions clear and retain grouped, filtered, paged
     await expect(
       source.getByRole('heading', { name: 'Krypto-Lesequelle', exact: true }),
     ).toBeVisible();
+    await expect(source.locator('#crypto-source-title')).toBeInViewport();
+    await source.getByRole('link', { name: /zu prüfen|Bewegungen prüfen/ }).click();
+    source = page.getByRole('dialog', { name: 'Krypto-Bewegungen prüfen', exact: true });
+    await expect(source).toBeVisible();
   }
   await source.getByLabel('Bewegungen nach Titel').selectOption('Quellbewegung: Zuordnung fehlt');
   const group = source.getByRole('button', {
