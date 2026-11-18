@@ -178,7 +178,12 @@ export function useCryptoSource(compact: boolean) {
                     : 'Bewegungen prüfen'}
                 </a>
                 <span>
-                  {data.match.matched} erfasst · {data.match.informational} informativ
+                  {[
+                    data.match.matched > 0 ? `${data.match.matched} erfasst` : null,
+                    data.match.informational > 0 ? `${data.match.informational} informativ` : null,
+                  ]
+                    .filter(Boolean)
+                    .join(' · ') || 'keine neuen Bewegungen'}
                 </span>
                 <div className="sources-actions">
                   {(state === 'unmapped' || state === 'unconfigured') && action}

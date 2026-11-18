@@ -56,6 +56,7 @@ export type SourceRow = {
   date?: string | null | undefined;
   next?: string | null | undefined;
   action?: ReactNode;
+  secondaryAction?: ReactNode;
   detailAction?: { label: string; target?: string | undefined } | undefined;
   initiallyOpen?: boolean;
   content?: (setupOpen: boolean) => ReactNode;
@@ -113,6 +114,7 @@ export function SettingsSourceCard({
   date,
   next,
   action,
+  secondaryAction,
   detailAction,
   initiallyOpen = false,
   content,
@@ -180,7 +182,7 @@ export function SettingsSourceCard({
             ) : (
               <div>
                 <dt>Nächster Abruf</dt>
-                <dd className="settings-source-no-schedule">– kein Zeitplan</dd>
+                <dd className="settings-source-no-schedule">kein Zeitplan</dd>
               </div>
             )}
           </dl>
@@ -213,6 +215,7 @@ export function SettingsSourceCard({
             ) : (
               action
             )}
+            {secondaryAction}
           </div>
           <Button
             id={`${id}-details`}

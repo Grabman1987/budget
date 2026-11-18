@@ -10,6 +10,7 @@ const state = vi.hoisted(() => ({
 }));
 vi.mock('../reports/payslip-intake', () => ({
   PayslipSourceSection: () => null,
+  PayslipUploadExplanation: () => null,
   PayslipUpload: () => null,
 }));
 vi.mock('@tanstack/react-router', async (importOriginal) => ({
@@ -69,6 +70,8 @@ it('calls a failed payslip scan an attempt and does not label its timestamp as s
   expect(await card.findByText('Abruf fehlgeschlagen')).toBeTruthy();
   expect(card.getByText(/Letzter Scanversuch:/)).toBeTruthy();
   expect(card.getByText(/0 Dateien bis zum Fehler/)).toBeTruthy();
+  expect(card.getByText('1 Fehler / Warnungen')).toBeTruthy();
+  expect(card.queryByText(/0 Dateien gefunden/)).toBeNull();
   expect(row.querySelector('.settings-source-time dd')?.textContent).toBe('Nicht verfügbar');
   expect(row.querySelector('.settings-source-time time')).toBeNull();
   expect(

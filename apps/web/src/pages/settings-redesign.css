@@ -535,6 +535,10 @@
   max-width: 100%;
   text-align: center;
 }
+.settings-redesign .settings-source-action:has(> .btn ~ .btn) {
+  display: grid;
+  gap: 4px;
+}
 .settings-redesign .settings-source-action .btn[aria-busy='true'] {
   cursor: progress;
 }

@@ -327,11 +327,7 @@ export function PayslipUpload({
           </>
         )}
       </label>
-      <p>
-        Mit eingerichteter Gehaltsquelle werden eindeutige neue Gehaltszettel automatisch
-        gespeichert und passende Auszahlungen verknüpft. Neue Auszahlungen werden vorgemerkt
-        (Bargeld bestätigt). Unklare Angaben bleiben unter Prüfen.
-      </p>
+      {!compact && <PayslipUploadExplanation />}
       {message && <p role="status">{message}</p>}
       {message && dropbox === 'saved' && <p role="status">In Dropbox abgelegt</p>}
       {message && dropbox === 'failed' && (
@@ -1017,6 +1013,16 @@ type SourceStatus = {
   config: PayslipSourceConfig;
   payees?: { id: string; name: string }[];
 };
+export function PayslipUploadExplanation() {
+  return (
+    <p>
+      Mit eingerichteter Gehaltsquelle werden eindeutige neue Gehaltszettel automatisch gespeichert
+      und passende Auszahlungen verknüpft. Neue Auszahlungen werden vorgemerkt (Bargeld bestätigt).
+      Unklare Angaben bleiben unter Prüfen.
+    </p>
+  );
+}
+
 export function PayslipSourceSection() {
   const query = useQuery({
     queryKey: ['payslip-source'],

@@ -68,7 +68,7 @@ const market = {
   lastSuccess: { finishedAt: success },
 };
 
-async function mockSources(page: Page, mixed = false) {
+async function mockSources(page: Page, mixed = false, counts = { first: 0, second: 0 }) {
   await page.route('**/api/securities/synthetic-security', (route) =>
     route.fulfill({
       json: {
@@ -130,7 +130,7 @@ async function mockSources(page: Page, mixed = false) {
         since: null,
         accounts: [],
         securities: [],
-        match: { matched: 0, missing: 0, unmapped: 0, informational: 0 },
+        match: { matched: counts.first, missing: 0, unmapped: 0, informational: counts.second },
       },
     }),
   );
@@ -155,8 +155,8 @@ async function mockSources(page: Page, mixed = false) {
         dropboxConfigured: true,
         dropboxWrite: false,
         lastScanAt: success,
-        filesFound: 0,
-        errors: 0,
+        filesFound: counts.first,
+        errors: counts.second,
         errorCode: null,
         accounts: [],
         payees: [],
@@ -195,6 +195,66 @@ async function openRegister(page: Page, search = '') {
   await expect(register).toBeVisible();
   return register;
 }
+
+for (const entry of [
+  { first: 0, second: 0, movements: 'keine neuen Bewegungen', files: 'keine neuen Dateien' },
+  { first: 3, second: 0, movements: '3 erfasst', files: '3 Dateien gefunden' },
+  { first: 0, second: 2, movements: '2 informativ', files: '2 Fehler / Warnungen' },
+  {
+    first: 3,
+    second: 2,
+    movements: '3 erfasst · 2 informativ',
+    files: '3 Dateien gefunden · 2 Fehler / Warnungen',
+  },
+]) {
+  test(`connections shows only non-zero subrow counts: ${entry.first}/${entry.second}`, async ({
+    page,
+  }) => {
+    await mockSources(page, false, entry);
+    const register = await openRegister(page);
+    if (!register) return;
+    await expect(
+      register.locator('#quelle-krypto .settings-source-subrow > span').last(),
+    ).toHaveText(entry.movements);
+    await expect(
+      register.locator('#quelle-gehaltszettel .settings-source-subrow > span').nth(1),
+    ).toHaveText(entry.files);
+    const time = register.locator('#quelle-krypto .settings-source-time > div').last();
+    await expect(time.locator('dt')).toHaveText('Nächster Abruf');
+    await expect(time.locator('dd')).toHaveText('kein Zeitplan');
+  });
+}
+
+test('failed document scan retains one source-row review link and retry', async ({ page }) => {
+  await mockSources(page);
+  await page.route('**/api/payslip-intake/status', (route) =>
+    route.fulfill({
+      json: {
+        dropboxConfigured: true,
+        dropboxConnected: false,
+        lastScanAt: success,
+        filesFound: 0,
+        errors: 1,
+        errorCode: 'dropbox_path',
+        accounts: [],
+        payees: [],
+        config: { salaryAccountId: null, wageTypes: {} },
+      },
+    }),
+  );
+  const register = await openRegister(page);
+  if (!register) return;
+  const row = register.locator('#quelle-gehaltszettel');
+  await expect(row.locator('.settings-source-status')).toHaveText('Abruf fehlgeschlagen');
+  await expect(row.getByRole('link', { name: 'Dokumente prüfen' })).toHaveCount(1);
+  await expect(
+    row.locator('.settings-source-head').getByRole('link', { name: 'Dokumente prüfen' }),
+  ).toBeVisible();
+  await expect(row.getByRole('button', { name: 'Erneut versuchen' })).toBeEnabled();
+  await expect(row.locator('.settings-source-subrow > span').nth(1)).toHaveText(
+    '1 Fehler / Warnungen',
+  );
+});
 
 const cases = [
   {
@@ -299,7 +359,7 @@ for (const state of cases) {
       (state.status === 'active' || state.status === 'error') &&
         !('change' in state && 'accountId' in state.change)
         ? '18.09.2026 06:15'
-        : '– kein Zeitplan',
+        : 'kein Zeitplan',
     );
     await expect(time.locator('dt')).toHaveText(['Letzter Erfolg', 'Nächster Abruf']);
     const action = head.getByRole('button', { name: state.action, exact: true });
@@ -509,7 +569,13 @@ test('routine commands work without expanding setup and preserve request payload
   await cryptoReview.getByRole('button', { name: 'Schließen', exact: true }).click();
   await expect(marketRow).toContainText('12 Kurszeilen aktualisiert');
   await expect(register.getByRole('region', { name: 'VPI', exact: true })).toContainText('2026-08');
-  await expect(payslip.getByRole('link', { name: 'Dokumente prüfen' }).last()).toBeVisible();
+  await expect(payslip.getByRole('link', { name: 'Dokumente prüfen' })).toHaveCount(1);
+  await expect(
+    payslip.locator('.settings-source-head').getByRole('link', { name: 'Dokumente prüfen' }),
+  ).toBeVisible();
+  await expect(payslip.locator('.settings-source-subrow')).toContainText('keine neuen Dateien');
+  await expect(crypto.locator('.settings-source-subrow')).toContainText('keine neuen Bewegungen');
+  await expect(payslip.getByText(/Mit eingerichteter Gehaltsquelle werden/)).toBeHidden();
   await expect(
     register.locator(
       'details details, .settings-source-details details, .settings-source-details [aria-expanded]',
@@ -571,6 +637,11 @@ test('routine commands work without expanding setup and preserve request payload
     0,
   );
   await expect(payslip.getByLabel('PDF-Passwort', { exact: true })).toBeVisible();
+  await expect(
+    payslip
+      .locator('.settings-source-details')
+      .getByText(/Mit eingerichteter Gehaltsquelle werden/),
+  ).toBeVisible();
 });
 
 test('connections reports an unavailable status and retries the read', async ({ page }) => {
@@ -725,6 +796,10 @@ test('optional document setup stays neutral after healthy sources', async ({ pag
   await expect(register.getByRole('list', { name: 'Betroffene Quellen' })).toHaveCount(0);
   await expect(register.locator('.settings-source-name strong').last()).toHaveText('Gehaltszettel');
   await expect(row.getByRole('button', { name: 'PDF hochladen' })).toBeEnabled();
+  await expect(row.getByRole('link', { name: 'Dokumente prüfen' })).toHaveCount(1);
+  await expect(
+    row.locator('.settings-source-head').getByRole('link', { name: 'Dokumente prüfen' }),
+  ).toBeVisible();
 });
 
 for (const mixed of [false, true]) {

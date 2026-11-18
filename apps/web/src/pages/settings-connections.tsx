@@ -16,6 +16,7 @@ import { AppLink } from '../shell/app-link';
 import {
   PayslipUpload,
   PayslipSourceSection,
+  PayslipUploadExplanation,
   type PayslipUploadResult,
 } from '../reports/payslip-intake';
 import { PayslipUploadDialog } from '../reports/payslip-panel';
@@ -324,18 +325,25 @@ export function SettingsConnections({
         >
           {payslip.isFetching ? 'Lädt …' : 'Erneut versuchen'}
         </Button>
-      ) : (
-        documents
-      ),
+      ) : undefined,
+      secondaryAction: documents,
       content: (setupOpen) => (
         <>
           <div className="settings-source-subrow">
             <span>Dokumente</span>
             <span>
-              {payslipStatus?.filesFound ?? '–'} Dateien gefunden · {payslipStatus?.errors ?? '–'}{' '}
-              Fehler / Warnungen
+              {payslipStatus
+                ? [
+                    payslipStatus.filesFound > 0
+                      ? `${payslipStatus.filesFound} Dateien gefunden`
+                      : null,
+                    payslipStatus.errors > 0 ? `${payslipStatus.errors} Fehler / Warnungen` : null,
+                  ]
+                    .filter(Boolean)
+                    .join(' · ') || 'keine neuen Dateien'
+                : 'Wird geladen …'}
             </span>
-            <span>{documents}</span>
+            <span />
             <PayslipUpload
               compact
               setupOpen={setupOpen}
@@ -354,7 +362,12 @@ export function SettingsConnections({
           </p>
         </>
       ),
-      children: <PayslipSourceSection />,
+      children: (
+        <>
+          <PayslipUploadExplanation />
+          <PayslipSourceSection />
+        </>
+      ),
     }),
     sourceReadState(market, {
       id: 'quelle-kurse',
