@@ -134,3 +134,103 @@ it('owner-config projects prints aggregates, limits booking details and returns 
     rmSync(dir, { recursive: true, force: true });
   }
 }, 120000);
+
+it('owner-config CLI continues payee income and explicit booking selectors without exposing data', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'budget-project-selectors-'));
+  const databasePath = join(dir, 'synthetic.sqlite');
+  const file = join(dir, 'config.json');
+  const opened = openDatabase(databasePath);
+  const ctx = { actor: 'tester' };
+  try {
+    migrateDatabase(opened.db);
+    accounts.create(
+      opened.db,
+      {
+        id: 'a',
+        name: 'Synthetic Account',
+        type: 'checking',
+        role: 'budget',
+        onBudget: true,
+        openingDate: '2026-01-01',
+      },
+      ctx,
+    );
+    createEntity(opened.db, schema.payee, { id: 'p', name: 'Synthetic Payer' }, ctx);
+    createEntity(opened.db, schema.incomeType, { id: 'i', name: 'Synthetic Income' }, ctx);
+    const a = createBooking(
+      opened.db,
+      {
+        accountId: 'a',
+        payeeId: 'p',
+        date: '2026-02-10',
+        amountCents: 1201,
+        splits: [{ incomeTypeId: 'i', amountCents: 1201 }],
+      },
+      ctx,
+    );
+    const b = createBooking(
+      opened.db,
+      {
+        accountId: 'a',
+        date: '2026-02-11',
+        amountCents: 307,
+        splits: [{ incomeTypeId: 'i', amountCents: 307 }],
+      },
+      ctx,
+    );
+    writeFileSync(
+      file,
+      JSON.stringify({
+        projects: [
+          {
+            name: 'Synthetic Project',
+            attributePayee: 'SYNTHETIC PAYER',
+            incomeType: 'Synthetic Income',
+            direction: 'inflow',
+          },
+          {
+            name: 'Synthetic Project',
+            attributeBookings: [
+              { account: 'Synthetic Account', date: '2026-02-11', amountCents: 307 },
+            ],
+          },
+        ],
+      }),
+    );
+    const cli = () =>
+      spawnSync(
+        process.execPath,
+        [
+          '--import',
+          'tsx',
+          resolve(import.meta.dirname, 'migrate-cli.ts'),
+          'owner-config',
+          '--file',
+          file,
+          '--max-bookings',
+          '1',
+        ],
+        { encoding: 'utf8', env: { ...process.env, DATABASE_PATH: databasePath }, timeout: 30000 },
+      );
+    const first = cli();
+    expect(first.status, first.stderr).toBe(0);
+    expect(first.stdout).toContain('attributed 1 bookings_unchanged 0');
+    expect(first.stdout).toContain('projects remaining 1');
+    expect(getBooking(opened.db, a)!.projectId).not.toBeNull();
+    expect(getBooking(opened.db, b)!.projectId).toBeNull();
+    const second = cli();
+    expect(second.status, second.stderr).toBe(0);
+    expect(second.stdout).toContain('attributed 1 bookings_unchanged 1');
+    expect(second.stdout).toContain('projects remaining 0');
+    expect(getBooking(opened.db, b)!.projectId).toBe(getBooking(opened.db, a)!.projectId);
+    const again = cli();
+    expect(again.status, again.stderr).toBe(0);
+    expect(again.stdout).toContain('attributed 0 bookings_unchanged 2');
+    for (const output of [first.stdout, second.stdout, again.stdout])
+      for (const value of ['Synthetic', '2026-02-10', ' 1201', ' 307'])
+        expect(output).not.toContain(value);
+  } finally {
+    opened.close();
+    rmSync(dir, { recursive: true, force: true });
+  }
+}, 60000);

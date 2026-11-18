@@ -765,17 +765,35 @@ has a savepoint: a refusal rolls back only that entry. The following examples ar
   Only `name` is required (1-120 characters); optional `note` is 1-500 characters and is stored
   only on creation. Project names are matched case-insensitively after trimming. An existing live,
   unarchived project is reused unchanged; an archived/deleted match is `inactive_project`, never
-  revived. The same project name may appear several times for different category selectors (including
+  revived. The same project name may appear several times for different attribution selectors (including
   different groups for equal category names); one project is reused across those entries. Duplicate
-  name/category/group selectors are input errors, with project names compared case-insensitively
-  and category/group names exactly. Omitted category/group values are part of the selector too.
+  project/selector combinations are input errors, with project and payee names compared
+  case-insensitively and category/group/income-type names exactly. Omitted filters are part of the selector too.
   Multiple live matches are `ambiguous_project`. Creation uses the same `createEntity`
   function as the app route. Categories stay in place for budgeting.
   `attributeCategory` must match exactly one live category by exact name (soft-deleted rows ignored);
   optional `attributeCategoryGroup` narrows it by exact live group name and requires
   `attributeCategory`. Missing/ambiguous categories skip the entry as `unknown_category` /
   `ambiguous_category` before any project is created.
-  Every live booking with a split in that category is considered, regardless of date/status.
+  Choose at most one of `attributeCategory`, `attributePayee`, and `attributeBookings` per entry;
+  omit all three to create/reuse only. For example, project income can use
+  `{ "name": "Synthetic Project", "attributePayee": "Synthetic Payer",
+  "incomeType": "Synthetic Income", "direction": "inflow", "unlock": true }`.
+  `attributePayee` matches one live payee by exact name, ignoring case and surrounding blanks
+  (not a substring). Missing/ambiguous matches skip the entry as `unknown_payee` /
+  `ambiguous_payee`. Optional `incomeType` matches one live income type by exact name and
+  requires at least one matching split; missing/ambiguous types are `unknown_income_type` /
+  `ambiguous_income_type`. Optional `direction` is `inflow` (whole booking amount > 0) or
+  `outflow` (< 0); omitted includes both directions and zero. Both filters require `attributePayee`.
+  These selectors attribute the whole booking, including companion splits, without changing them.
+  For individual bookings without a payee, use e.g.
+  `{ "name": "Synthetic Project", "attributeBookings": [{ "account": "Synthetic Account",
+  "date": "2026-02-10", "amountCents": 1201 }] }`.
+  Each tuple must resolve to one live account by exact name and exactly one live booking by
+  account/date/signed integer-cent amount; otherwise that tuple is skipped as `not_found` or
+  `ambiguous`. No payee or memo is guessed; soft-deleted bookings are ignored. Duplicate tuples
+  select a booking once within the entry. The other tuples continue after a refusal.
+  Every live booking with a split in the selected category is considered, regardless of date/status.
   Attribution is **booking-level**, following the app model: all category splits must be in the
   named category; otherwise `mixed_splits`. Whole and split transfers are `transfer`; a booking
   assigned elsewhere is `other_project`. Already assigned bookings are unchanged. Assignment uses
@@ -791,6 +809,11 @@ has a savepoint: a refusal rolls back only that entry. The following examples ar
   grouped Undo restores the previous project without changing them.
   Project-only attribution retains the local booking/transfer checks and write guards, without
   revalidating the global contact ledger or recomputing balances, envelopes or projections.
+  Selection filters execute in SQLite, reading only booking attribution fields and each
+  candidate's guard split fields; unrelated booking payloads and the whole split table are not
+  loaded into JavaScript. Use the production-built `migrate-cli.js` when measuring memory:
+  `tsx` also loads the TypeScript development toolchain. RSS remains machine/data-dependent;
+  the batch count alone is not a memory reservation for an app sharing a small machine.
   Each invocation attributes at most `--max-bookings <n>` bookings across all project selectors
   (default 25; positive safe integer). Output includes `projects remaining <count>` for candidates
   deferred by that limit; these are not errors. Rerun the same file to continue: attributed bookings
