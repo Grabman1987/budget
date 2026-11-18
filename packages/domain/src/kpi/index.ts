@@ -65,3 +65,8 @@ export {
   type FreeUntilPaydayInput,
   type OpenOutflow,
 } from './free-until-payday';
+export {
+  investableAmount,
+  type InvestableAmount,
+  type InvestableAmountInput,
+} from './investable-amount';

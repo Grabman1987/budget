@@ -53,16 +53,24 @@ Entschieden am 15.11.2026: H-01 (nächstes Sparziel im Block „Ziele finanziere
 Jede neue Funktion und jede Entscheidung des Nutzers bekommt im selben Pull Request ihre Story oder eine Aktualisierung von Status und Kriterien.
 
 
-## Operator project attribution (#1243)
+## Operator project attribution (#1243 / #1245)
 
 As the household operator, I can create a project for a project-like category and attribute
 its eligible existing bookings through `owner-config`, keeping the category for budgeting.
 
 Acceptance: an optional `projects` section creates or reuses live projects, resolves exact live
-category names (optionally narrowed by group), and assigns whole bookings through the app writer.
+category names (optionally narrowed by group), exact case-insensitive payees (optionally narrowed
+by exact income type and inflow/outflow), or individual account/date/integer-cent tuples.
+Each tuple resolves uniquely to a live booking or is skipped as `not_found` / `ambiguous`.
+Several selectors can reuse one project. Whole bookings are assigned through the app writer;
+amounts, splits, accounts, dates and reconciliation status remain unchanged, including with
+explicit `unlock`. Missing/ambiguous payees and income types are counted as skips before creation.
 Mixed category splits, transfers, other projects and reconciled locks are counted as skips.
 A dry run writes nothing; a successful repeat is unchanged; one operator audit group supports
-`undo-group`. Default output is aggregate-only, with booking date/cent amounts on skips only
+`undo-group`. The default 25-booking mutation limit is shared across all selectors; a repeat
+continues deferred candidates without consuming the limit for unchanged bookings. Each
+invocation has its own group, undone in reverse order. Selection avoids loading unrelated
+booking payloads or all splits into JavaScript. Default output is aggregate-only, with booking date/cent amounts on skips only
 under `--details`. Report 1.9 reads the attributed splits through its existing P&L rules.
 Status: implemented for review; owner acceptance pending. See [operator contract](ops.md#126-owner-configuration-operator-task).
 

@@ -56,7 +56,7 @@ import { applyRestructure, parseRestructureFile } from './operator-restructure';
  *   node migrate-cli.js book --file <json> [--dry-run] [--details]
  *   node migrate-cli.js payslips --file <json> [--dry-run] [--details] [--replace]
  *   node migrate-cli.js instrument-facts --file <json> [--dry-run]
- *   node migrate-cli.js owner-config --file <json> [--dry-run] [--details]
+ *   node migrate-cli.js owner-config --file <json> [--dry-run] [--details] [--max-bookings <n>]
  *   node migrate-cli.js contact-allocate --file <json> [--dry-run] [--details] [--unlock]
  *   node migrate-cli.js restructure --file <json> [--dry-run] [--details]
  *   node migrate-cli.js owner-trades --file <json> [--dry-run] [--details]
@@ -619,6 +619,9 @@ try {
     }
     case 'owner-config': {
       const dryRun = args.includes('--dry-run');
+      const maxBookings = args.includes('--max-bookings') ? Number(required('max-bookings')) : 25;
+      if (!Number.isSafeInteger(maxBookings) || maxBookings < 1)
+        throw new Error('--max-bookings must be a positive safe integer');
       const config = parseOwnerConfigFile(
         JSON.parse(readFileSync(required('file'), 'utf8')),
         ctx.today,
@@ -627,7 +630,7 @@ try {
         db,
         config,
         { actor: 'operator' },
-        { dryRun, today: ctx.today },
+        { dryRun, today: ctx.today, maxBookings },
       );
       const projects = outcomes.filter((o) => o.section === 'projects');
       if (projects.length) {
@@ -645,6 +648,7 @@ try {
           count('booking', 'unchanged'),
           dryRun ? '(dry run)' : '',
         );
+        console.log('projects remaining', count('booking', 'remaining'));
         for (const reason of new Set(
           projects.filter((o) => o.status === 'skipped').map((o) => o.reason),
         ))
