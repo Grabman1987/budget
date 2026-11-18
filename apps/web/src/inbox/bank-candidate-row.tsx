@@ -459,6 +459,7 @@ export const BankCandidateRow = memo(function BankCandidateRow({
               label="Kategorie"
               categories={categories.filter((entry) => entry.id !== category?.id)}
               capturePicker
+              overlayAvoid=".konten-inbox-safe-slot:has(.inbox-safe-action), .tabbar, .toast.is-open"
               allowCreate
               selectedName={category?.name ?? ''}
               leading={category ? [{ id: category.id, label: `${category.name} · Vorschlag` }] : []}

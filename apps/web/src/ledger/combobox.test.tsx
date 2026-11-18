@@ -23,12 +23,14 @@ function Harness({
   pickFirst = false,
   captureCategory = false,
   captureOverlay = false,
+  overlayAvoid,
 }: {
   onSelect: (o: ComboOption) => void;
   onParentKey?: () => void;
   pickFirst?: boolean;
   captureCategory?: boolean;
   captureOverlay?: boolean;
+  overlayAvoid?: string;
 }) {
   const [text, setText] = useState('');
   return (
@@ -44,12 +46,51 @@ function Harness({
         pickFirst={pickFirst}
         captureCategory={captureCategory}
         captureOverlay={captureOverlay}
+        overlayAvoid={overlayAvoid}
       />
     </div>
   );
 }
 
 describe('Combobox', () => {
+  it('keeps the focused field and picker above bottom page controls and feedback', async () => {
+    let anchorTop = 650;
+    const scroll = vi.spyOn(window, 'scrollBy').mockImplementation((_x, y) => {
+      anchorTop -= Number(y);
+    });
+    vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockReturnValue(180);
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (
+      this: HTMLElement,
+    ) {
+      if (this.classList.contains('synthetic-footer')) return new DOMRect(0, 700, 390, 64);
+      if (this.classList.contains('synthetic-toast')) return new DOMRect(16, 560, 358, 80);
+      if (this.classList.contains('synthetic-toolbar')) return new DOMRect(16, 40, 358, 44);
+      return new DOMRect(16, anchorTop, 240, 44);
+    });
+    render(
+      <>
+        <div className="synthetic-footer" style={{ position: 'fixed' }} />
+        <div className="synthetic-toast" style={{ position: 'fixed' }} />
+        <div className="synthetic-toolbar" />
+        <Harness
+          onSelect={vi.fn()}
+          captureOverlay
+          overlayAvoid=".synthetic-footer, .synthetic-toast.is-open, .synthetic-toolbar"
+        />
+      </>,
+    );
+    await userEvent.setup().click(screen.getByRole('combobox'));
+    const list = screen.getByRole('listbox').parentElement!;
+    expect(scroll).toHaveBeenCalled();
+    expect(anchorTop).toBeGreaterThanOrEqual(0);
+    expect(anchorTop + 44).toBeLessThan(700);
+    await act(async () => {
+      document.querySelector('.synthetic-toast')!.classList.add('is-open');
+    });
+    expect(anchorTop + 44).toBeLessThan(560);
+    expect(Number.parseFloat(list.style.top) + 180).toBeLessThan(560);
+  });
+
   it.each([false, true])(
     'overlays the card below the field, flips above the keyboard and retains selection (category: %s)',
     async (captureCategory) => {

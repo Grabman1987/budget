@@ -23,10 +23,12 @@ import {
   booking,
   bookingSplit,
   category,
+  incomeType,
   INCOME_TYPES,
   payslip,
   payslipLine,
   payslipIntake,
+  payee,
   project,
   trade,
 } from '../schema';
@@ -269,11 +271,20 @@ export function readProjects(db: Executor, period: SpendingPeriod, today: string
       .map((t) => t.bookingId),
   );
   const rows = db
-    .select({ b: booking, s: bookingSplit, a: account, c: category })
+    .select({
+      b: booking,
+      s: bookingSplit,
+      a: account,
+      c: category,
+      payeeName: payee.name,
+      incomeTypeName: incomeType.name,
+    })
     .from(booking)
     .innerJoin(bookingSplit, eq(bookingSplit.bookingId, booking.id))
     .innerJoin(account, eq(account.id, booking.accountId))
     .leftJoin(category, eq(category.id, bookingSplit.categoryId))
+    .leftJoin(payee, eq(payee.id, booking.payeeId))
+    .leftJoin(incomeType, eq(incomeType.id, bookingSplit.incomeTypeId))
     .where(and(isNull(booking.deletedAt), isNull(account.deletedAt), lte(booking.date, today)))
     .all();
   const first = rows.map((r) => monthOf(r.b.date)).sort()[0] ?? monthOf(today);
@@ -285,11 +296,18 @@ export function readProjects(db: Executor, period: SpendingPeriod, today: string
       ? available.filter((m) => m.startsWith(today.slice(0, 4)))
       : windowMonths(period, available);
   const priorMonths = previousWindow(months, available);
-  const facts: (ProjectFact & { projectId: string | null; side: boolean; onBudget: boolean })[] =
-    [];
+  const facts: (ProjectFact & {
+    projectId: string | null;
+    side: boolean;
+    onBudget: boolean;
+    date: string;
+    payee: string | null;
+    memo: string | null;
+    classification: string | null;
+  })[] = [];
   const unsupported: string[] = [];
   const unavailablePrior = new Set<string | null>();
-  for (const { b, s, a, c } of rows) {
+  for (const { b, s, a, c, payeeName, incomeTypeName } of rows) {
     if (
       b.date < a.openingDate ||
       b.transferId ||
@@ -324,13 +342,49 @@ export function readProjects(db: Executor, period: SpendingPeriod, today: string
       projectId: b.projectId,
       side,
       onBudget: a.onBudget,
+      date: b.date,
+      payee: payeeName,
+      memo: b.memo,
+      classification: income ? (incomeTypeName ?? c?.name ?? null) : (c?.name ?? incomeTypeName),
     });
   }
   const projects = projectsList(db).map((p) => {
     const attributed = facts.filter((f) => f.projectId === p.id);
+    const bookings = new Map<
+      string,
+      {
+        bookingId: string;
+        date: string;
+        payee: string | null;
+        memo: string | null;
+        classifications: Set<string>;
+        amountCents: number;
+      }
+    >();
+    for (const fact of attributed) {
+      if (!months.includes(fact.month)) continue;
+      let row = bookings.get(fact.bookingId);
+      if (!row) {
+        row = {
+          bookingId: fact.bookingId,
+          date: fact.date,
+          payee: fact.payee,
+          memo: fact.memo,
+          classifications: new Set(),
+          amountCents: 0,
+        };
+        bookings.set(fact.bookingId, row);
+      }
+      row.amountCents += fact.amountCents;
+      if (fact.classification) row.classifications.add(fact.classification);
+    }
     return {
       ...p,
       ...projectResult(attributed, months),
+      bookings: Array.from(bookings.values(), (row) => ({
+        ...row,
+        classifications: [...row.classifications].sort(),
+      })),
       previous:
         priorMonths && !unavailablePrior.has(p.id)
           ? projectResult(attributed, priorMonths).resultCents

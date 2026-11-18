@@ -584,6 +584,15 @@ describe('project management and P&L', () => {
     expect(report.total.resultCents).toBe(38000);
     expect(report.sideIncome.incomeCents).toBe(50000);
     expect(report.projects[0].name).toBe('Neuer Projektname');
+    expect(report.projects[0].bookingIds).toContain(incomeBooking);
+    expect(report.projects[0].bookings).toContainEqual({
+      bookingId: incomeBooking,
+      date: '2026-09-02',
+      payee: null,
+      memo: 'Synthetische Änderung',
+      classifications: ['Nebeneinkünfte'],
+      amountCents: 50000,
+    });
     expect((await call('POST', '/undo', { groupId: archived.body.groupId })).status).toBe(200);
     expect((await call('GET', '/lookups')).body.projects).toHaveLength(1);
   });

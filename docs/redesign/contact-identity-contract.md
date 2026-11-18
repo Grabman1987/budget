@@ -1,6 +1,7 @@
-# Contact identity contract (proposal for #869, gates #870 and #871)
+# Contact identity contract (#869, gates #870 and #871)
 
-Status: PROPOSAL. No endpoint, migration or data change is part of this document. All names and
+Status: ACCEPTED by the owner on 2026-11-18 (all 13 decisions of section 11 as recommended; #869).
+Migration approval per step stays a separate owner decision. No endpoint, migration or data change is part of this document. All names and
 amounts are synthetic ("Kontakt A", "Kontakt B"). Amounts are integer cents.
 
 ## 1. Current state (grounded in code)

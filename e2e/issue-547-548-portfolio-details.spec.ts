@@ -7,14 +7,14 @@ import { test } from './isolated-ledger';
 
 test.use({ ledgerToday: '2026-09-17' });
 
-function seed(path: string, savings = false) {
+function seed(path: string, savings = false, accountName = 'Synthetic depot') {
   const opened = openDatabase(path);
   try {
     opened.db
       .insert(schema.account)
       .values({
         id: 'depot',
-        name: 'Synthetic depot',
+        name: accountName,
         type: 'brokerage',
         role: 'investment',
         onBudget: false,
@@ -360,6 +360,65 @@ async function themes(
     else await savingsPrivacy(page, info, theme);
   }
 }
+
+test('position source tooltip contains long rows at desktop and phone widths', async ({
+  page,
+  isolatedLedger,
+}, info) => {
+  seed(isolatedLedger.databasePath, false, 'Synthetisches Depot mit einem langen Kontonamen');
+  await page.goto('/vermoegen/portfolio/instrument/s?zeitraum=Alles');
+  const chart = page.getByTestId('instrument-value-chart');
+  await expect(chart).toBeVisible();
+  const inspect = chart.locator('..');
+  await inspect.focus();
+  await inspect.press('ArrowRight');
+  const tooltip = page.locator('.chart-tooltip');
+  await expect(tooltip).toContainText(
+    'Tagesquelle · Synthetisches Depot mit einem langen Kontonamen',
+  );
+  await expect(tooltip).toContainText(
+    'Gespeicherter Kurs · 11.09.2026 · EUR · EUR ohne Umrechnung',
+  );
+  await expect(tooltip).toContainText('Stichtag-Einstand 17.09.2026');
+  expect(
+    await tooltip.evaluate((element) => {
+      const bounds = element.getBoundingClientRect();
+      return (
+        bounds.left >= 0 &&
+        bounds.right <= innerWidth &&
+        Array.from(
+          element.querySelectorAll('.chart-tooltip-row, .chart-tooltip-label, strong, span'),
+        ).every((row) => {
+          const box = row.getBoundingClientRect();
+          return (
+            box.left >= bounds.left &&
+            box.right <= bounds.right &&
+            box.top >= bounds.top &&
+            box.bottom <= bounds.bottom &&
+            row.scrollWidth <= row.clientWidth
+          );
+        })
+      );
+    }),
+  ).toBe(true);
+  const shortLabel = tooltip.locator('span').filter({ hasText: /^Bewertung$/ });
+  expect(
+    await shortLabel.evaluate(
+      (element) =>
+        element.getBoundingClientRect().height <= parseFloat(getComputedStyle(element).lineHeight),
+    ),
+  ).toBe(true);
+  const longLabel = tooltip.locator('span').filter({ hasText: /^Tagesquelle/ });
+  expect(
+    await longLabel.evaluate(
+      (element) =>
+        getComputedStyle(element).overflowWrap !== 'anywhere' &&
+        element.getBoundingClientRect().height <=
+          3 * parseFloat(getComputedStyle(element).lineHeight),
+    ),
+  ).toBe(true);
+  await page.screenshot({ path: info.outputPath('position-source-tooltip.png') });
+});
 
 // Keep both themes' complete instrument checks, each with its original test budget.
 for (const scheme of ['light', 'dark'] as const) {
