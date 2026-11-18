@@ -6,7 +6,7 @@ import { account, expectedOccurrence, plannedEvent } from '../schema';
 import { createBooking, createTransfer } from './bookings';
 import { accounts, categories } from './entities';
 import { createExpectedPayment, linkOccurrence } from './expected';
-import { heute } from './heute';
+import { heute, investableAmountAsOf } from './heute';
 import { forecastInputs, loadFacts } from './rule-inputs';
 import { scenarioBaseline } from './scenario-baseline';
 import { seedBasics, testCtx } from './test-helpers';
@@ -120,6 +120,77 @@ it('does not count the receipt of an already valued reserve transfer in transit 
   expect(result.withExpectedInflows.household.series.map((d) => d.cents)).toEqual([
     101_234, 101_234, 101_234, 101_234, 101_234,
   ]);
+});
+
+it.each([
+  ['2026-10-09', '2026-10-11'],
+  ['2026-10-11', '2026-10-09'],
+])(
+  'preserves valuation neutrality when a linked receipt is dated before or after its debit (%s / %s)',
+  (debitDate, receiptDate) => {
+    const { db } = opened;
+    accounts.create(
+      db,
+      {
+        id: 'second',
+        name: 'Synthetic second',
+        type: 'checking',
+        role: 'budget',
+        onBudget: true,
+        openingDate: '2026-01-01',
+        openingBalanceCents: 5432,
+      },
+      testCtx,
+    );
+    const linked = payment('internal-receipt', today, 1234, 'second', 'inflow');
+    const transfer = createTransfer(
+      db,
+      { fromAccountId: 'giro', toAccountId: 'second', date: debitDate, amountCents: 1234 },
+      testCtx,
+      {
+        bankLegs: {
+          from: { date: debitDate, status: 'confirmed' },
+          to: { date: receiptDate, status: 'confirmed' },
+        },
+      },
+    );
+    linkOccurrence(db, linked.id, transfer.toBookingId, testCtx);
+    const result = evaluate(scenarioBaseline(db, today), { through }).outcomes[0]!;
+    expect(result.withExpectedInflows.household.series.map((d) => d.cents)).toEqual([
+      105_432, 105_432, 105_432, 105_432, 105_432,
+    ]);
+    expect(result.withExpectedInflows.accounts.map((a) => a.series.at(-1)?.cents)).toEqual([
+      98_766, 6666,
+    ]);
+    expect(heute(db, { today }).lead.balanceCents).toBe(105_432);
+  },
+);
+
+it('requires future inflow FX for the forecast while never adding it to investable cash', () => {
+  const { db } = opened;
+  createExpectedPayment(
+    db,
+    {
+      id: 'fx-future',
+      name: 'Synthetic foreign inflow',
+      kind: 'inflow',
+      accountId: 'giro',
+      rhythm: 'monthly',
+      startDate: '2026-10-11',
+      endDate: '2026-10-11',
+      dueDay: 11,
+      dateWindowDays: 3,
+    },
+    { validFrom: today, amountCents: 123, currency: 'USD' },
+    testCtx,
+    today,
+  );
+  expect(investableAmountAsOf(db, today)).toMatchObject({
+    cashCents: 100_000,
+    obligationsCents: 0,
+    investableCents: 100_000,
+  });
+  expect(() => scenarioBaseline(db, today)).toThrow('Missing USD forecast rate');
 });
 
 it('does not reject an unpriced inflow due today that the forecast omits', () => {
