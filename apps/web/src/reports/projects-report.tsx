@@ -15,6 +15,7 @@ import { shortMonth } from './month-frame';
 import { ReportBodyDisclosure } from './report-body-disclosure';
 import { PayrollProjectChart } from './payroll-project-chart';
 import { projectsReportQuery } from './payroll-projects-api';
+import { ProjectBookings } from './project-bookings';
 import { PERIOD_OPTIONS, useReportPeriod } from './spending-shared';
 import { ReportTable } from './report-table';
 import './payroll-projects.css';
@@ -214,18 +215,7 @@ export function ProjectsReport({
                           </dd>
                         </div>
                       </dl>
-                      <details>
-                        <summary>Buchungen ({p.bookingIds.length})</summary>
-                        <ul>
-                          {p.bookingIds.map((id, n) => (
-                            <li key={id}>
-                              <AppLink to="/konten/buchungen" search={{ buchung: id }}>
-                                Buchung {n + 1} öffnen
-                              </AppLink>
-                            </li>
-                          ))}
-                        </ul>
-                      </details>
+                      <ProjectBookings name={p.name} bookings={p.bookings} />
                     </article>
                   ))}
                 </div>

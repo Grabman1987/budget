@@ -1,0 +1,130 @@
+{
+  "scenario": {
+    "version": 1,
+    "id": "synthetic-replay",
+    "name": "Synthetisches Szenario",
+    "baselineAsOf": "2028-01-30",
+    "baseline": {
+      "asOf": "2028-01-30",
+      "through": "2028-03-31",
+      "accounts": [
+        {
+          "id": "pay",
+          "balanceCents": 10000,
+          "onBudget": true,
+          "role": "budget",
+          "closedAt": null,
+          "openingDate": "2020-01-01",
+          "currency": "EUR"
+        },
+        {
+          "id": "reserve",
+          "balanceCents": 90000,
+          "onBudget": true,
+          "role": "reserve",
+          "closedAt": null,
+          "openingDate": "2020-01-01",
+          "currency": "EUR"
+        }
+      ],
+      "items": [
+        {
+          "id": "income-jan",
+          "accountId": "pay",
+          "day": "2028-01-31",
+          "cents": 20000,
+          "kind": "income",
+          "expected": true,
+          "paymentId": "income"
+        },
+        {
+          "id": "cost",
+          "accountId": "pay",
+          "day": "2028-02-01",
+          "cents": -15000,
+          "kind": "fixed",
+          "expected": false
+        },
+        {
+          "id": "income-feb",
+          "accountId": "pay",
+          "day": "2028-02-29",
+          "cents": 20001,
+          "kind": "income",
+          "expected": true,
+          "paymentId": "income"
+        }
+      ],
+      "loans": [
+        {
+          "id": "loan",
+          "accountId": "pay",
+          "paymentDay": 29,
+          "terms": {
+            "balanceCents": 10000,
+            "startMonth": "2028-02",
+            "rateBp": 1200,
+            "installmentCents": 4000,
+            "monthlyFeeCents": 0,
+            "rateChanges": []
+          },
+          "repayments": []
+        }
+      ],
+      "savingsPlans": [
+        {
+          "id": "saving",
+          "fromAccountId": "pay",
+          "toAccountId": "reserve",
+          "dayOfMonth": 31,
+          "monthlyCents": 1000
+        }
+      ]
+    },
+    "assumptions": [
+      {
+        "id": "delay",
+        "kind": "delayedIncome",
+        "inflowId": "income-jan",
+        "days": {
+          "min": 0,
+          "max": 3
+        }
+      },
+      {
+        "id": "pause",
+        "kind": "incomeInterruption",
+        "paymentId": "income",
+        "from": "2028-02-29",
+        "to": "2028-02-29",
+        "shareBp": 5000
+      },
+      {
+        "id": "purchase",
+        "kind": "largerPurchase",
+        "date": "2028-02-05",
+        "amountCents": 16000,
+        "accountId": "pay"
+      },
+      {
+        "id": "extra",
+        "kind": "specialLoanRepayment",
+        "date": "2028-02-06",
+        "amountCents": 2000,
+        "loanId": "loan"
+      },
+      {
+        "id": "rate",
+        "kind": "changedSavingsRate",
+        "from": "2028-02-01",
+        "deltaMonthlyCents": 500,
+        "savingsPlanId": "saving"
+      }
+    ]
+  },
+  "horizon": {
+    "through": "2028-03-31",
+    "bufferCents": 1000
+  },
+  "expectedHash": "33e5a04556df404f706374e63b0f7893b05c1d0ed4308c1aadb69ba25751f8c4"
+}

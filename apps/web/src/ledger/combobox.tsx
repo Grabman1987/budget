@@ -50,6 +50,8 @@ export interface ComboboxProps {
   captureCategory?: boolean;
   /** Mobile capture suggestions overlay following rows at the card's full width. */
   captureOverlay?: boolean;
+  /** Page controls whose visible boxes must stay below the focused field and fixed list. */
+  overlayAvoid?: string | undefined;
   /** Explicit action outside the selectable suggestions and their keyboard cycle. */
   action?: { label: string; onSelect: () => void } | undefined;
 }
@@ -97,6 +99,7 @@ export function Combobox({
   hintHeading,
   captureCategory = false,
   captureOverlay = false,
+  overlayAvoid,
   action,
 }: ComboboxProps) {
   const [isPhone, setIsPhone] = useState(
@@ -172,10 +175,21 @@ export function Combobox({
         left = Math.max(left, box.left + dialog.clientLeft);
         right = Math.min(right, box.left + dialog.clientLeft + dialog.clientWidth);
       }
-      const anchor = (
-        overlayCapture ? field.querySelector('input') : field
-      )?.getBoundingClientRect();
+      const anchorElement = overlayCapture ? field.querySelector('input') : field;
+      let anchor = anchorElement?.getBoundingClientRect();
       if (!anchor) return;
+      if (overlayAvoid && !dialog) {
+        for (const obstacle of document.querySelectorAll(overlayAvoid)) {
+          if (getComputedStyle(obstacle).position !== 'fixed') continue;
+          const box = obstacle.getBoundingClientRect();
+          if (box.width && box.height && box.left < anchor.right && box.right > anchor.left)
+            bottom = Math.max(top, Math.min(bottom, box.top - 8));
+        }
+        if (anchor.bottom > bottom && field.contains(document.activeElement)) {
+          window.scrollBy(0, anchor.bottom - bottom);
+          anchor = anchorElement!.getBoundingClientRect();
+        }
+      }
       const card =
         (overlayCapture ? field.closest('.bk-cols') : null)?.getBoundingClientRect() ?? anchor;
       const belowOrigin = Math.max(top, Math.min(anchor.bottom + 4, bottom));
@@ -218,18 +232,29 @@ export function Combobox({
       typeof ResizeObserver === 'undefined' ? undefined : new ResizeObserver(refresh);
     // Equal-count filter results can still change height through wrapping or group headings.
     observer?.observe(list);
+    if (overlayAvoid)
+      for (const obstacle of document.querySelectorAll(overlayAvoid)) observer?.observe(obstacle);
     for (let node: HTMLElement | null = field; node; node = node.parentElement)
       observer?.observe(node);
+    // A page toast may appear or disappear without resizing the field's ancestors.
+    const visibilityObserver = overlayAvoid ? new MutationObserver(refresh) : undefined;
+    visibilityObserver?.observe(document.body, {
+      attributes: true,
+      attributeFilter: ['class'],
+      childList: true,
+      subtree: true,
+    });
     return () => {
       window.removeEventListener('resize', refresh);
       window.removeEventListener('scroll', onScroll, true);
       viewport?.removeEventListener('resize', refresh);
       viewport?.removeEventListener('scroll', onScroll);
       observer?.disconnect();
+      visibilityObserver?.disconnect();
       for (const property of ['max-height', 'left', 'right', 'width', 'bottom', 'top'])
         list.style.removeProperty(property);
     };
-  }, [captureCategory, overlayCapture, open, listId, shown.length]);
+  }, [captureCategory, overlayCapture, overlayAvoid, open, listId, shown.length]);
   const optionId = (index: number) => `${listId}-${index}`;
   // Without arrow keys, `pickFirst` highlights the first match once something is typed.
   const activeIndex =

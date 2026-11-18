@@ -73,6 +73,8 @@ test('Konten Prüfen opens a quote cause and tests sources without dismissing th
   );
   await page.goto('/konten/pruefen?teil=aufgaben');
   await page.getByRole('button', { name: 'Prüfen · Weitere Aufgaben', exact: true }).click();
+  await expect(page.locator('main')).toContainText('Die Quelle liefert eine andere Kurswährung');
+  await expect(page.locator('main')).not.toContainText('Fehlerklasse: currency_mismatch');
   await page.getByRole('link', { name: 'Warnung erklären' }).click();
   await expect(page).toHaveURL(/\/konten\/pruefen\/synthetic-quote-warning/);
   const cause = page.getByRole('region', { name: 'Kursursache' });
@@ -82,7 +84,7 @@ test('Konten Prüfen opens a quote cause and tests sources without dismissing th
   await expect(page.getByRole('button', { name: 'Als erledigt markieren' })).toHaveCount(0);
   await cause.getByRole('button', { name: 'Quelle erneut testen (Vorschau)' }).click();
   await expect(cause.getByRole('status')).toContainText(
-    'Die Quelle liefert eine andere Kurswährung.',
+    'Die Quelle liefert USD, das Wertpapier wird in EUR geführt',
   );
   await expect(cause.getByRole('status')).toContainText('Warnung bleibt offen');
   await expect(cause.getByRole('status')).toContainText(

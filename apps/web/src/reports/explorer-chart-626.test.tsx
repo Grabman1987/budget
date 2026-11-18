@@ -152,7 +152,7 @@ describe('626 actual-width original-value line geometry', () => {
       key: 'ArrowRight',
     });
     await waitFor(() => expect(document.querySelector('.chart-tooltip')).not.toBeNull());
-    const names = [...document.querySelectorAll('.chart-tooltip-row > span')].map(
+    const names = [...document.querySelectorAll('.chart-tooltip-label > span')].map(
       (node) => node.textContent,
     );
     expect(names.filter((name) => name === 'Weitere')).toHaveLength(1);

@@ -332,9 +332,8 @@ sampleTest(
     await chart.locator('..').focus();
     await expect(
       page
-        .locator('.chart-tooltip')
-        .getByText('Anteil am Portfolio', { exact: true })
-        .locator('..'),
+        .locator('.chart-tooltip .chart-tooltip-row')
+        .filter({ has: page.getByText('Anteil am Portfolio', { exact: true }) }),
     ).toContainText('65,0');
     // The share comes from the matched R13 base (portfolioShareBp), never from a second ratio.
     await expect(page.locator('.chart-tooltip')).not.toContainText('Ist · Sollvergleich');

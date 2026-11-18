@@ -19,6 +19,7 @@ import {
   monthsBetween,
   occurrences,
   plannedEventOccurrences,
+  PriceUnavailableError,
   targetNeed,
   todayInVienna,
   toEurCents,
@@ -34,6 +35,7 @@ import {
   type DebtLoan,
   overdraftLastResort,
   type ForecastItem,
+  type Snapshot,
   type FreeAccount,
   type MoneyEvent,
   type OpenOutflow,
@@ -64,7 +66,8 @@ import {
 } from '../schema';
 import { allocationMonth, isIncomeCategorySplit } from './allocation';
 import { scheduleVersion, schedulePayment } from './expected';
-import { netWorthAsOf, type NetWorth } from './portfolio';
+import { netWorthAsOf, netWorthValuationAsOf, type NetWorth } from './portfolio';
+import { MissingFxRateError } from './errors';
 import { fxRateOnOrBefore } from './prices';
 import { memoizedShared } from './request-memo';
 import { budgetLedger, budgetOfLedger } from './queries';
@@ -511,11 +514,34 @@ export function referenceMonth(asOf: string): string {
  * start balance, scheduled payments and planned events of the next 365 days, and the planned
  * variable spending per month.
  */
+export function forecastBudgetValues(db: Executor, today: string, budgetIds: string[]) {
+  const valuation = netWorthValuationAsOf(db, today);
+  return Object.fromEntries(
+    budgetIds.map((id) => {
+      const value = valuation.byAccount[id];
+      if (value !== null) return [id, value ?? 0];
+      const currency = valuation.missingFxByAccount[id]?.[0];
+      if (currency) throw new MissingFxRateError(currency, today);
+      throw new PriceUnavailableError(id, valuation.missingPriceByAccount[id]![0]!, today);
+    }),
+  );
+}
+
+type SourcedForecastItem = ForecastItem & {
+  accountId: string | null;
+  source: NonNullable<Snapshot['items'][number]['source']>;
+  expected: boolean;
+  linkedBookingMismatch?: boolean;
+};
+
 export function forecastInputs(
   f: RuleFacts,
   asOf: string,
   nw: Pick<NetWorth, 'byAccount'>,
-): NonNullable<RuleInputs['forecast']> & {
+): Omit<NonNullable<RuleInputs['forecast']>, 'items'> & {
+  items: SourcedForecastItem[];
+  dayZeroItems: SourcedForecastItem[];
+  through: string;
   cashAccounts: FreeAccount[];
   openOutflows: OpenOutflow[];
   missingFx: { paymentId: string; dueDate: string; currency: string }[];
@@ -529,9 +555,22 @@ export function forecastInputs(
     dueDate: string,
     cents: number,
     day = dueDate,
-  ): ForecastItem => {
+  ): SourcedForecastItem => {
     const group = payment.categoryId ? categories.get(payment.categoryId)?.class : undefined;
+    const key = `${payment.id}|${dueDate}`;
+    const row = byKey.get(key);
+    const mark = f.planMarks.get(key);
+    const linked = typeof mark === 'object';
     return {
+      accountId: linked ? mark.accountId : payment.accountId,
+      source: {
+        kind: 'expectedOccurrence',
+        id: row?.id ?? key,
+        dueDay: dueDate,
+        ...(linked && mark.bookingId ? { bookingId: mark.bookingId } : {}),
+      },
+      expected: !linked && cents > 0,
+      ...(linked && mark.cents !== row?.cents ? { linkedBookingMismatch: true } : {}),
       day,
       cents,
       kind: cents >= 0 ? 'income' : 'fixed',
@@ -546,15 +585,13 @@ export function forecastInputs(
   const onCashAccount = (id: string | null) => id === null || cashIds.has(id);
   const missingFx: { paymentId: string; dueDate: string; currency: string }[] = [];
   const recordMissingFx = (payment: PaymentRow, dueDate: string, currency: string) => {
-    if (payment.kind === 'outflow' && onCashAccount(payment.accountId))
+    if (onCashAccount(payment.accountId))
       missingFx.push({ paymentId: payment.id, dueDate, currency });
   };
   const internalTransferCents = new Map<string, number>();
   for (const split of f.ledgerSplits) {
     if (
       split.bookingId &&
-      split.date > asOf &&
-      split.date <= to &&
       split.transferAccountId &&
       cashIds.has(split.accountId) &&
       cashIds.has(split.transferAccountId)
@@ -578,24 +615,93 @@ export function forecastInputs(
     .where(isNull(expectedOccurrence.deletedAt))
     .all();
   const byKey = new Map(stored.map((o) => [`${o.paymentId}|${o.dueDate}`, o]));
+  // Retain proven transfer identities, never pair legs by matching amounts alone.
+  const transferPairs = new Map<
+    string,
+    { bookingId: string; accountId: string; day: string; cents: number; whole: boolean }[]
+  >();
+  for (const leg of f.db
+    .select({
+      bookingId: booking.id,
+      accountId: booking.accountId,
+      day: booking.date,
+      cents: bookingSplit.amountCents,
+      wholeId: booking.transferId,
+      splitId: bookingSplit.transferId,
+    })
+    .from(bookingSplit)
+    .innerJoin(booking, eq(booking.id, bookingSplit.bookingId))
+    .where(isNull(booking.deletedAt))
+    .all()) {
+    const id = leg.wholeId ?? leg.splitId;
+    if (!id) continue;
+    const pair = transferPairs.get(id) ?? [];
+    const existing = pair.find((entry) => entry.bookingId === leg.bookingId);
+    if (existing) existing.cents += leg.cents;
+    else pair.push({ ...leg, whole: leg.wholeId !== null });
+    transferPairs.set(id, pair);
+  }
+  const linkedTransferItems: SourcedForecastItem[] = [];
+  const includedTransfers = new Set<string>();
+  const transitDebitDay = (pair: NonNullable<ReturnType<typeof transferPairs.get>>) => {
+    if (pair.length !== 2 || pair[0]!.cents !== -pair[1]!.cents) return null;
+    const debit = pair.find((leg) => leg.cents < 0);
+    const receipt = pair.find((leg) => leg.cents > 0);
+    if (!debit || !receipt || !pair.every((leg) => leg.whole)) return null;
+    const from = f.accounts.find((a) => a.id === debit.accountId);
+    const to = f.accounts.find((a) => a.id === receipt.accountId);
+    const bank = (a: AccountRow | undefined) => a?.type === 'checking' || a?.type === 'savings';
+    return from &&
+      to &&
+      bank(from) &&
+      bank(to) &&
+      from.currency === to.currency &&
+      debit.day >= from.openingDate &&
+      receipt.day >= to.openingDate &&
+      debit.day >= to.openingDate
+      ? debit.day
+      : null;
+  };
+  const addLinkedTransfers = (payment: PaymentRow, dueDate: string, bookingId: string) => {
+    for (const [id, pair] of transferPairs) {
+      if (includedTransfers.has(id) || !pair.some((leg) => leg.bookingId === bookingId)) continue;
+      if (!pair.every((leg) => cashIds.has(leg.accountId))) continue;
+      if (pair.length !== 2 || pair[0]!.cents !== -pair[1]!.cents)
+        throw new RangeError('Ambiguous linked internal transfer');
+      includedTransfers.add(id);
+      const transitDay = transitDebitDay(pair);
+      for (const leg of pair) {
+        const day = transitDay ?? leg.day;
+        if (day <= asOf || day > to) continue;
+        const item = toItem(payment, dueDate, leg.cents, day);
+        linkedTransferItems.push({
+          ...item,
+          accountId: leg.accountId,
+          expected: false,
+          linkedBookingMismatch: false,
+          source: { ...item.source, id: `${id}|${leg.bookingId}`, bookingId: leg.bookingId },
+        });
+      }
+    }
+  };
   // Stored obligations survive changes to the recurring schedule. A future-dated linked debit
   // uses the actual booking's date, account and amount until it is included in cash.
-  const storedItems = stored.flatMap((o): ForecastItem[] => {
+  const storedItems = stored.flatMap((o): SourcedForecastItem[] => {
     const payment = payments.get(o.paymentId);
     const key = `${o.paymentId}|${o.dueDate}`;
     if (!payment || replaced.has(key)) return [];
     const mark = f.planMarks.get(key);
     if (typeof mark === 'object') {
-      if (mark.settledOn <= asOf || mark.settledOn > to) return [];
-      if (payment.kind === 'inflow') {
-        if (!onCashAccount(payment.accountId)) return [];
-        const amount = forecastOccurrenceCents(f, payment, o.dueDate, o.cents, asOf, true);
-        return amount === null ? [] : [toItem(payment, o.dueDate, amount, mark.settledOn)];
-      }
+      if (mark.bookingId) addLinkedTransfers(payment, o.dueDate, mark.bookingId);
+      const wholePair = [...transferPairs.values()].find((pair) =>
+        pair.some((leg) => leg.whole && leg.bookingId === mark.bookingId),
+      );
+      const cashDay = (wholePair && transitDebitDay(wholePair)) ?? mark.settledOn;
+      if (cashDay <= asOf || cashDay > to) return [];
       if (mark.accountId === null || !cashIds.has(mark.accountId) || mark.cents === null) return [];
       const externalCents =
         mark.cents - (mark.bookingId ? (internalTransferCents.get(mark.bookingId) ?? 0) : 0);
-      return externalCents < 0 ? [toItem(payment, o.dueDate, externalCents, mark.settledOn)] : [];
+      return externalCents !== 0 ? [toItem(payment, o.dueDate, externalCents, cashDay)] : [];
     }
     if (
       payment.kind !== 'outflow' ||
@@ -616,16 +722,17 @@ export function forecastInputs(
   const previews = scheduled(f, asOf, to, asOf, {
     applyIncomePauses: true,
     onMissingFx: (payment, dueDate, currency) => {
+      if (dueDate === asOf && payment.kind === 'inflow') return;
       if (typeof f.planMarks.get(`${payment.id}|${dueDate}`) !== 'object')
         recordMissingFx(payment, dueDate, currency);
     },
-  }).flatMap((o): ForecastItem[] => {
+  }).flatMap((o): SourcedForecastItem[] => {
     const key = `${o.payment.id}|${o.dueDate}`;
     if (!o.onBudget || typeof f.planMarks.get(key) === 'object') return [];
     if (o.dueDate === asOf && (o.payment.kind === 'inflow' || byKey.has(key))) return [];
     return [toItem(o.payment, o.dueDate, o.cents)];
   });
-  const statementItems: { item: ForecastItem; internal: boolean }[] = statementForecastLegs(
+  const statementItems: { item: SourcedForecastItem; internal: boolean }[] = statementForecastLegs(
     f.db,
     null,
     to,
@@ -637,6 +744,14 @@ export function forecastInputs(
     return [
       {
         item: {
+          accountId: leg.accountId,
+          source: {
+            kind: leg.kind === 'settlement' ? 'cardPayment' : 'cardCredit',
+            id: leg.id,
+            dueDay: leg.day,
+            ...(leg.bookingId ? { bookingId: leg.bookingId } : {}),
+          },
+          expected: false,
           day: leg.day,
           cents: leg.cents,
           kind: 'event' as const,
@@ -646,7 +761,7 @@ export function forecastInputs(
       },
     ];
   });
-  const datedItems: ForecastItem[] = [
+  const datedItems: SourcedForecastItem[] = [
     ...previews,
     ...storedItems,
     ...f.plannedEvents
@@ -654,8 +769,17 @@ export function forecastInputs(
         const a = e.accountId ? f.accounts.find((x) => x.id === e.accountId) : undefined;
         return e.enabled && (e.accountId === null || (a && isLiquidityAccount(a, asOf)));
       })
-      .flatMap((e) => plannedEventOccurrences(e, addDays(asOf, 1), to))
-      .map((e) => ({ day: e.date, cents: e.amountCents, kind: 'event' as const, label: e.name })),
+      .flatMap((event) =>
+        plannedEventOccurrences(event, addDays(asOf, 1), to).map((e) => ({
+          accountId: event.accountId,
+          source: { kind: 'plannedEvent' as const, id: e.eventId, dueDay: e.date },
+          expected: e.amountCents > 0,
+          day: e.date,
+          cents: e.amountCents,
+          kind: 'event' as const,
+          label: e.name,
+        })),
+      ),
   ];
   const last3 = monthsBetween(addMonths(ref, -2), ref);
   // The plan: the monthly targets of the variable envelopes; without targets the last 3 months.
@@ -692,11 +816,19 @@ export function forecastInputs(
       ];
     })
     .sort((a, b) => a.day.localeCompare(b.day) || a.label.localeCompare(b.label));
-  const forecastItems = [...statementItems.map(({ item }) => item), ...datedItems];
+  const forecastItems = [
+    ...statementItems.map(({ item }) => item),
+    ...datedItems,
+    ...linkedTransferItems,
+  ];
   return {
     cashAccounts,
     openOutflows,
     missingFx,
+    through: to,
+    dayZeroItems: forecastItems
+      .filter((item) => item.day <= asOf)
+      .map((item) => ({ ...item, day: asOf })),
     startDay: asOf,
     // Projected day zero deducts open obligations already due; the cash balance does not.
     startCents:

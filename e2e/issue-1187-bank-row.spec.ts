@@ -125,6 +125,19 @@ for (const theme of ['light', 'dark']) {
     await a.getByRole('combobox', { name: 'Kategorie', exact: true }).press('Escape');
     await expect(a.locator('.bank-v1-category .bank-suggestion-pill')).not.toHaveClass(/is-safe/);
     await a.getByRole('button', { name: /^Kategorie bearbeiten/ }).click();
+    const categoryChoice = a.getByRole('option', {
+      name: `${category.name} · Vorschlag`,
+      exact: true,
+    });
+    await expect(categoryChoice).toBeVisible();
+    expect(
+      await categoryChoice.evaluate((option) => {
+        const box = option.getBoundingClientRect();
+        return option.contains(
+          document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2),
+        );
+      }),
+    ).toBe(true);
     await a.getByRole('option', { name: `${category.name} · Vorschlag`, exact: true }).click();
     await expect(a.locator('.bank-v1-category .bank-suggestion-pill')).toHaveClass(/is-safe/);
     const bookings = async () =>
@@ -159,6 +172,32 @@ for (const theme of ['light', 'dark']) {
     await toast(page).getByRole('button', { name: 'Rückgängig', exact: true }).click();
     await expect(a).toBeVisible();
     expect(await bookings()).toHaveLength(0);
+    await a.getByRole('button', { name: /^Kategorie bearbeiten/ }).click();
+    const categorySelect = a.getByRole('combobox', { name: 'Kategorie', exact: true });
+    await expect(categorySelect).toBeVisible();
+    await expect(toast(page)).toBeVisible();
+    if (info.project.name === 'mobile') {
+      const pickerBox = await a.locator('.combo-list').boundingBox();
+      const toastBox = await toast(page).boundingBox();
+      expect(pickerBox!.y + pickerBox!.height).toBeLessThan(toastBox!.y);
+    }
+    expect(
+      await categorySelect.evaluate((select) => {
+        const box = select.getBoundingClientRect();
+        return document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2) === select;
+      }),
+    ).toBe(true);
+    const restoredChoice = a.getByRole('option', { name: category.name, exact: true });
+    await expect(restoredChoice).toBeVisible();
+    expect(
+      await restoredChoice.evaluate((option) => {
+        const box = option.getBoundingClientRect();
+        return option.contains(
+          document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2),
+        );
+      }),
+    ).toBe(true);
+    await restoredChoice.click();
     await a.getByRole('button', { name: 'Nicht übernehmen', exact: true }).click();
     await expect(a).toHaveCount(0);
     expect(await bookings()).toHaveLength(0);

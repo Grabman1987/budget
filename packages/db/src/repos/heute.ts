@@ -536,7 +536,11 @@ export function investableAmountAsOf(
       valuation,
     );
     const payday = nextPayday(today).day;
-    const missing = missingFx.find((item) => item.dueDate <= addDays(payday, 30));
+    const missing = missingFx.find(
+      (item) =>
+        item.dueDate <= addDays(payday, 30) &&
+        facts.payments.some((p) => p.id === item.paymentId && p.kind === 'outflow'),
+    );
     if (missing) throw new MissingFxRateError(missing.currency, today);
     const cashIds = new Set(cashAccounts.map((a) => a.id));
     const envelopes = facts.budgetByMonth.get(monthOf(today))?.envelopes ?? {};

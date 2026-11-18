@@ -52,6 +52,21 @@ Entschieden am 15.11.2026: H-01 (nächstes Sparziel im Block „Ziele finanziere
 
 Jede neue Funktion und jede Entscheidung des Nutzers bekommt im selben Pull Request ihre Story oder eine Aktualisierung von Status und Kriterien.
 
+## Position inspection and quote-source repair (#1248)
+
+As the owner, I can read every chart inspection row on desktop and phone, including
+long account names and stored-price provenance. Labels and values share a line when
+they fit; otherwise the value moves below the label. Rows stay inside the viewport-bound
+tooltip, wrap at word boundaries, and keep numeric values right aligned with tabular
+figures. Position source, FX and cost-basis dates use `dd.MM.yyyy`.
+
+When automatic prices fail, the inbox detail and instrument editor explain a missing
+Ariva link, an empty response, an unreachable source or a currency mismatch (including
+both currencies when known). I can save a validated HTTPS Ariva historical-prices link
+through the existing instrument update and test the source with the existing preview.
+The preview does not save prices or close the warning. No schedule or valuation changes.
+Status: implemented for review; owner acceptance pending.
+
 
 ## Operator project attribution (#1243 / #1245)
 
@@ -73,3 +88,18 @@ invocation has its own group, undone in reverse order. Selection avoids loading 
 booking payloads or all splits into JavaScript. Default output is aggregate-only, with booking date/cent amounts on skips only
 under `--details`. Report 1.9 reads the attributed splits through its existing P&L rules.
 Status: implemented for review; owner acceptance pending. See [operator contract](ops.md#126-owner-configuration-operator-task).
+
+
+## Project booking breakdown (#1245)
+
+As a report reader, I can open a project's booking breakdown in report 1.9 to see what
+makes up the result for the selected period.
+
+- The disclosure shows the booking count. Its table shows the most recent booking first,
+  with the date, payee (then memo or a dash), category or income type, and signed amount.
+- Each booking opens in the ledger. For split bookings, the row lists the classifications
+  and sums the splits that contribute to the project result. The rows reconcile to that result.
+- Privacy mode masks amounts. At widths of 430 px or less, each row shows date and payee
+  above classification and amount without horizontal page scrolling.
+
+Status for this change is implemented for review.
