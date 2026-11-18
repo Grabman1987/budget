@@ -57,7 +57,7 @@ test('source dates distinguish a pending payslip scan from an empty scan history
     await expect(time).not.toContainText('Nicht verfügbar');
     await expect(time.locator('time')).toHaveCount(0);
     release();
-    await expect(time).toContainText('Noch kein erfolgreicher Abruf');
+    await expect(time).toContainText('noch kein erfolgreicher Abruf');
     await expect(time).not.toContainText('Wird geladen');
     await payslip.getByRole('button', { name: 'Gehaltszettel: Einrichtung und Details' }).click();
     await expect(payslip.getByText('Letzter Scanversuch: Noch kein Scanversuch')).toBeVisible();

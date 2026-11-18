@@ -22,9 +22,9 @@ import { PayslipUploadDialog } from '../reports/payslip-panel';
 import { useCryptoSource } from './read-source';
 import {
   SourceRegister,
-  sourceDate,
   registerDate,
   sourceReadState,
+  sourceStateLabel,
   type SourceRow,
   type SourceState,
 } from './settings-source-card';
@@ -50,16 +50,10 @@ type MarketStatus = {
   } | null;
   lastSuccess: { finishedAt: string | null } | null;
 };
-const marketRunLabels: Record<string, string> = {
-  ok: 'Abgeschlossen',
-  partial: 'Teilweise abgeschlossen',
-  failed: 'Fehlgeschlagen',
-};
-
 export function SettingsConnections({
   bankConfiguration,
 }: {
-  bankConfiguration: ReactNode | ((open: boolean) => ReactNode);
+  bankConfiguration: ReactNode | ((open: boolean, stateLabel: string) => ReactNode);
 }) {
   useAmountPrivacy();
   const [uploaded, setUploaded] = useState<PayslipUploadResult>();
@@ -222,7 +216,7 @@ export function SettingsConnections({
         : { label: 'Bank neu verbinden', target: connectControl },
     unconfigured: bank.data?.configured
       ? { label: 'Bank verbinden', target: connectControl }
-      : { label: 'Einrichtung ansehen' },
+      : { label: 'Einrichten' },
     connected: fetchAction,
     waiting: fetchAction,
   };
@@ -299,7 +293,9 @@ export function SettingsConnections({
           </Button>
         ) : undefined,
       content:
-        typeof bankConfiguration === 'function' ? bankConfiguration : () => bankConfiguration,
+        typeof bankConfiguration === 'function'
+          ? (open) => bankConfiguration(open, sourceStateLabel(bankState))
+          : () => bankConfiguration,
       children: null,
     }),
     crypto,
@@ -318,6 +314,7 @@ export function SettingsConnections({
           : payslipStatus && !payslipStatus.lastScanAt
             ? null
             : undefined,
+      detailAction: payslipState === 'unconfigured' ? { label: 'Einrichten' } : undefined,
       action: payslipFailed ? (
         <Button
           variant="ghost"
@@ -346,7 +343,7 @@ export function SettingsConnections({
               onBusyChange={setUploadBusy}
             />
           </div>
-          <p>
+          <p hidden={!payslipFailed && payslipStatus?.dropboxConnected}>
             Letzter Scanversuch:{' '}
             {payslip.isPending
               ? 'Wird geladen …'
@@ -383,20 +380,21 @@ export function SettingsConnections({
         <div className="settings-source-subrow">
           <span>Kurslauf</span>
           <p>
-            Letzter Lauf:{' '}
-            {market.isPending ? 'Wird geladen …' : sourceDate(market.data?.lastRun?.finishedAt)} ·
-            Status:{' '}
-            {market.isPending
-              ? 'Wird geladen …'
-              : market.data?.lastRun
-                ? (marketRunLabels[market.data.lastRun.status] ?? 'Unbekannt')
-                : 'Noch kein Lauf'}
+            {[
+              (market.data?.lastRun?.failedCount ?? 0) > 0
+                ? `${market.data!.lastRun!.failedCount} ${market.data!.lastRun!.failedCount === 1 ? 'Kurs fehlgeschlagen' : 'Kurse fehlgeschlagen'}`
+                : null,
+              (market.data?.lastRun?.priceRows ?? 0) > 0
+                ? `${market.data!.lastRun!.priceRows} Kurszeilen aktualisiert`
+                : null,
+              (market.data?.lastRun?.fxRows ?? 0) > 0
+                ? `${market.data!.lastRun!.fxRows} Wechselkurszeilen aktualisiert`
+                : null,
+            ]
+              .filter(Boolean)
+              .join(' · ')}
           </p>
-          <p>
-            {market.data?.lastRun?.priceRows ?? '–'} Kurszeilen aktualisiert ·{' '}
-            {market.data?.lastRun?.fxRows ?? '–'} Wechselkurszeilen ·{' '}
-            {market.data?.lastRun?.failedCount ?? '–'} fehlgeschlagen
-          </p>
+          <span />
           <div>
             {warnings.data?.entries?.flatMap((entry) =>
               entry.type === 'stored' &&
@@ -406,7 +404,6 @@ export function SettingsConnections({
                 ? [
                     <AppLink
                       key={entry.id}
-                      className="btn btn-ghost"
                       to={`/vermoegen/portfolio/instrument/${encodeURIComponent(entry.refId)}`}
                       onClick={(event) => {
                         if (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey)

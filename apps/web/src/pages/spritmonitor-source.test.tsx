@@ -203,8 +203,7 @@ describe('Spritmonitor connection and review UI', () => {
       data.destination = null;
       data.rows = [];
       mount(<SpritmonitorSourceSection compact={compact} />);
-      if (compact)
-        fireEvent.click(await screen.findByRole('button', { name: 'Einrichtung ansehen' }));
+      if (compact) fireEvent.click(await screen.findByRole('button', { name: 'Einrichten' }));
       await screen.findByText(/Die Verbindung wird am Server eingerichtet/);
       if (compact)
         expect(document.activeElement).toBe(

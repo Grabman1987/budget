@@ -9,12 +9,12 @@ const states = {
   unmapped: { label: 'Konto nicht zugeordnet', severity: 3 },
   partial: { label: 'Teilweise abgerufen', severity: 4 },
   pending: { label: 'Freigabe offen', severity: 5 },
-  paused: { label: 'Pausiert', severity: 6 },
-  unconfigured: { label: 'Nicht eingerichtet', severity: 7 },
-  waiting: { label: 'Erster Abruf offen', severity: 7 },
+  paused: { label: 'Pausiert', severity: 0 },
+  unconfigured: { label: 'Nicht eingerichtet', severity: 0 },
+  waiting: { label: 'Erster Abruf offen', severity: 0 },
   loading: { label: 'Wird geladen', severity: 0 },
   running: { label: 'Abruf läuft', severity: 0 },
-  stale: { label: 'Abruf ausständig', severity: 4 },
+  stale: { label: 'Abruf ausständig', severity: 0 },
   connected: { label: 'Verbunden', severity: 0 },
 } as const;
 
@@ -22,6 +22,10 @@ export type SourceState = keyof typeof states;
 
 export function sourceSeverity(state: SourceState) {
   return states[state].severity;
+}
+
+export function sourceStateLabel(state: SourceState) {
+  return states[state].label;
 }
 
 const dateFormat = new Intl.DateTimeFormat('de-AT', {
@@ -35,7 +39,7 @@ const dateFormat = new Intl.DateTimeFormat('de-AT', {
 
 export function sourceDate(value: string | null | undefined) {
   if (value === undefined) return 'Nicht verfügbar';
-  return value ? new Date(value).toLocaleString('de-AT') : 'Noch kein erfolgreicher Abruf';
+  return value ? registerDate(value) : 'noch kein erfolgreicher Abruf';
 }
 
 export function registerDate(value: string) {
@@ -139,8 +143,8 @@ export function SettingsSourceCard({
               <Icon size={20} strokeWidth={1.5} aria-hidden="true" />
               {title}
             </strong>
-            <small>{scope}</small>
           </div>
+          <small className="settings-source-scope">{scope}</small>
           <div className="settings-source-state">
             <span className="sr-only">Zustand</span>
             <span className="settings-source-status" data-state={state}>
@@ -160,7 +164,7 @@ export function SettingsSourceCard({
                 ) : state === 'loading' ? (
                   'Wird geladen …'
                 ) : date === null ? (
-                  'Noch kein erfolgreicher Abruf'
+                  'noch kein erfolgreicher Abruf'
                 ) : (
                   'Nicht verfügbar'
                 )}
@@ -175,8 +179,8 @@ export function SettingsSourceCard({
               </div>
             ) : (
               <div>
-                <dt className="sr-only">Nächster Abruf</dt>
-                <dd>Kein Zeitplan</dd>
+                <dt>Nächster Abruf</dt>
+                <dd className="settings-source-no-schedule">– kein Zeitplan</dd>
               </div>
             )}
           </dl>
@@ -184,6 +188,7 @@ export function SettingsSourceCard({
             <span className="sr-only">Aktion</span>
             {detailAction ? (
               <Button
+                variant={state === 'unconfigured' ? 'ghost' : 'primary'}
                 onClick={() => {
                   const control = detailAction.target
                     ? Array.from(
@@ -246,13 +251,14 @@ export function SourceRegister({ sources }: { sources: SourceRow[] }) {
   const sorted = [...sources].sort((a, b) => {
     // Healthy and in-progress rows follow everything that needs attention.
     return (
-      (sourceSeverity(a.state) || Number.MAX_SAFE_INTEGER) -
-      (sourceSeverity(b.state) || Number.MAX_SAFE_INTEGER)
+      (sourceSeverity(a.state) || (a.state === 'unconfigured' ? 101 : 100)) -
+      (sourceSeverity(b.state) || (b.state === 'unconfigured' ? 101 : 100))
     );
   });
   const problems = sorted.filter((source) => sourceSeverity(source.state));
   const loading = sources.some(({ state }) => state === 'loading');
   const running = sources.some(({ state }) => state === 'running');
+  const allCurrent = sources.every(({ state }) => state === 'connected');
   const latest = sources
     .flatMap(({ date }) => (date ? [date] : []))
     .sort()
@@ -270,7 +276,9 @@ export function SourceRegister({ sources }: { sources: SourceRow[] }) {
               ? `${problems.length} von ${sources.length} Quellen brauchen dich`
               : running
                 ? 'Abruf läuft'
-                : `Alle ${sources.length} Quellen aktuell`}
+                : allCurrent
+                  ? `Alle ${sources.length} Quellen aktuell`
+                  : 'Keine Quelle braucht dich'}
           {!loading && !running && !problems.length && latest && (
             <>
               {' '}

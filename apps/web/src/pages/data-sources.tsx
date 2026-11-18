@@ -15,6 +15,7 @@ import { CryptoReadSourceSection } from './read-source';
 import { PayslipSourceSection } from '../reports/payslip-intake';
 import './data-sources.css';
 import { REDESIGN_ENABLED } from '../shell/redesign-flag';
+import { sourceDate } from './settings-source-card';
 import { SettingsConnections } from './settings-connections';
 import { BankSyncRecap } from '../inbox/bank-sync-recap';
 
@@ -66,7 +67,11 @@ const fold = (value: string) =>
     .toLocaleLowerCase('de');
 const PATH = '/api/bank-sync';
 const stamp = (value: string | null) =>
-  value ? new Date(value).toLocaleString('de-AT') : 'Noch nicht';
+  REDESIGN_ENABLED
+    ? sourceDate(value)
+    : value
+      ? new Date(value).toLocaleString('de-AT')
+      : 'Noch nicht';
 const statuses: Record<string, string> = {
   active: 'Aktiv',
   expired: 'Einwilligung abgelaufen',
@@ -84,7 +89,9 @@ export function DataSourcesPage() {
     >
       {REDESIGN_ENABLED ? (
         <SettingsConnections
-          bankConfiguration={(setupOpen) => <BankSourceSection setupOpen={setupOpen} />}
+          bankConfiguration={(setupOpen, parentState) => (
+            <BankSourceSection setupOpen={setupOpen} parentState={parentState} />
+          )}
         />
       ) : (
         <div className="data-sources">
@@ -98,7 +105,10 @@ export function DataSourcesPage() {
   );
 }
 
-function BankSourceSection({ setupOpen = true }: { setupOpen?: boolean } = {}) {
+function BankSourceSection({
+  setupOpen = true,
+  parentState,
+}: { setupOpen?: boolean; parentState?: string } = {}) {
   const query = useQuery({
     queryKey: ['bank-sync'],
     queryFn: () => request<BankSourceStatus>('GET', PATH),
@@ -302,6 +312,11 @@ function BankSourceSection({ setupOpen = true }: { setupOpen?: boolean } = {}) {
               key={connection.id}
               connection={connection}
               setupOpen={setupOpen}
+              parentState={parentState}
+              parentSuccess={query.data.connections
+                .flatMap(({ lastSuccessAt }) => (lastSuccessAt ? [lastSuccessAt] : []))
+                .sort()
+                .at(-1)}
               reconnect={() => {
                 const toggle = document.getElementById('quelle-bank-details');
                 if (toggle?.getAttribute('aria-expanded') === 'false') toggle.click();
@@ -323,6 +338,8 @@ function BankSourceSection({ setupOpen = true }: { setupOpen?: boolean } = {}) {
 
 function ConnectionCard({
   connection,
+  parentState,
+  parentSuccess,
   setupOpen,
   reconnect,
   updatedAt,
@@ -331,6 +348,8 @@ function ConnectionCard({
   refresh,
 }: {
   connection: Connection;
+  parentState: string | undefined;
+  parentSuccess: string | undefined;
   setupOpen: boolean;
   reconnect: () => void;
   updatedAt: number;
@@ -377,18 +396,34 @@ function ConnectionCard({
     <section className="source-connection" aria-label={connection.label}>
       <div className={REDESIGN_ENABLED ? 'settings-source-subrow' : undefined}>
         <strong>{connection.label}</strong>
-        <span>{status}</span>
-        <span>Letzter Erfolg: {stamp(connection.lastSuccessAt)}</span>
+        <span>
+          {!REDESIGN_ENABLED ||
+          (status !== parentState && !(status === 'Aktiv' && parentState === 'Verbunden'))
+            ? status
+            : null}
+        </span>
+        <span>
+          {(!REDESIGN_ENABLED || connection.lastSuccessAt !== (parentSuccess ?? null)) && (
+            <>Letzter Erfolg: {stamp(connection.lastSuccessAt)}</>
+          )}
+        </span>
         <div className="sources-actions">
           <Button
             data-source-bank-sync={encodeURIComponent(connection.id)}
             variant="ghost"
+            size="sm"
             disabled={busy || Boolean(blocked)}
             onClick={sync}
           >
             Jetzt abrufen
           </Button>
-          <Button data-source-bank-reconnect="" variant="ghost" disabled={busy} onClick={reconnect}>
+          <Button
+            data-source-bank-reconnect=""
+            size="sm"
+            variant="ghost"
+            disabled={busy}
+            onClick={reconnect}
+          >
             Neu verbinden
           </Button>
         </div>
@@ -497,6 +532,7 @@ function ConnectionCard({
         <div key={a.id} className="source-account-row">
           <AccountLink
             row={a}
+            parentSuccess={parentSuccess}
             setupOpen={setupOpen}
             sync={sync}
             syncDisabled={busy || Boolean(blocked)}
@@ -569,6 +605,7 @@ function ConnectionCard({
 
 function AccountLink({
   row,
+  parentSuccess,
   setupOpen,
   sync,
   syncDisabled,
@@ -578,6 +615,7 @@ function AccountLink({
   save,
 }: {
   row: LinkedAccount;
+  parentSuccess: string | undefined;
   setupOpen: boolean;
   sync: () => void;
   syncDisabled: boolean;
@@ -605,14 +643,19 @@ function AccountLink({
       {REDESIGN_ENABLED && (
         <>
           <AppLink
-            className="btn btn-ghost bank-account-review"
+            className="bank-account-review"
+            hidden={row.open === 0 && row.warnings.length === 0}
             to="/konten/pruefen"
             search={{ bankSource: row.id }}
             data-source-bank-review={encodeURIComponent(row.id)}
           >
-            {row.open} zu prüfen
+            {row.open > 0 ? `${row.open} zu prüfen` : 'Konto prüfen'}
           </AppLink>
-          <span className="bank-account-time">Letzter Erfolg: {stamp(row.lastSyncAt)}</span>
+          <span className="bank-account-time">
+            {row.lastSyncAt !== (parentSuccess ?? null) && (
+              <>Letzter Erfolg: {stamp(row.lastSyncAt)}</>
+            )}
+          </span>
         </>
       )}
       {row.currency !== 'EUR' && row.currency !== 'XXX' ? (
@@ -675,17 +718,22 @@ function AccountLink({
             </p>
           </div>
           <div className="bank-account-commands">
-            <Button variant="ghost" type="submit" disabled={disabled || !accountId || !changed}>
+            <Button
+              variant="ghost"
+              size="sm"
+              type="submit"
+              disabled={disabled || !accountId || !changed}
+            >
               {row.accountId ? 'Zuordnung speichern' : 'Konto zuordnen'}
             </Button>
             {REDESIGN_ENABLED &&
               (row.locked ? (
-                <Button variant="ghost" onClick={reconnect}>
+                <Button variant="ghost" size="sm" onClick={reconnect}>
                   Neu verbinden
                 </Button>
               ) : (
                 row.accountId && (
-                  <Button variant="ghost" disabled={syncDisabled} onClick={sync}>
+                  <Button variant="ghost" size="sm" disabled={syncDisabled} onClick={sync}>
                     Jetzt abrufen
                   </Button>
                 )

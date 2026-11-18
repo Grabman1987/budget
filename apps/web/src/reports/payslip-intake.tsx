@@ -1,3 +1,4 @@
+import { sourceDate } from '../pages/settings-source-card';
 import {
   payrollTotals,
   cents,
@@ -305,6 +306,8 @@ export function PayslipUpload({
       {/* One tab stop: the button. The label makes a click anywhere in the dashed area open the picker. */}
       <label className={compact ? 'payslip-compact-upload' : 'payslip-drop'} htmlFor={pickerId}>
         <Button
+          variant={compact ? 'ghost' : 'primary'}
+          size={compact ? 'sm' : 'md'}
           disabled={busy}
           aria-busy={busy}
           aria-label={compact ? 'PDF hochladen' : 'Gehaltszettel: PDF auswählen'}
@@ -1061,11 +1064,7 @@ export function PayslipSourceSection() {
             </div>
             <div>
               <dt>Letzter Scanversuch</dt>
-              <dd>
-                {query.data.lastScanAt
-                  ? new Date(query.data.lastScanAt).toLocaleString('de-AT')
-                  : 'Noch nicht'}
-              </dd>
+              <dd>{sourceDate(query.data.lastScanAt)}</dd>
             </div>
             <div>
               <dt>Beim letzten Scanversuch gefunden</dt>
@@ -1120,7 +1119,7 @@ function ExcludedNonPayslips() {
           <li key={d.id}>
             <span>
               {maskMoneyText(d.originalFilename ?? 'Dateiname nicht verfügbar')}
-              {d.note ? ` · ${d.note}` : ''} · {new Date(d.excludedAt).toLocaleDateString('de-AT')}
+              {d.note ? ` · ${d.note}` : ''} · {sourceDate(d.excludedAt)}
             </span>
             <Button
               size="sm"

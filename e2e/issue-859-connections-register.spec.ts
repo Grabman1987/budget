@@ -19,7 +19,7 @@ const mapping = {
   locked: false,
   requestsToday: 0,
   requestLimit: 4,
-  lastSyncAt: null,
+  lastSyncAt: success,
   lastResult: null,
 };
 const connection = {
@@ -255,7 +255,7 @@ const cases = [
   {
     word: 'Nicht eingerichtet',
     impact: 'Bankkonten werden noch nicht abgerufen.',
-    action: 'Einrichtung ansehen',
+    action: 'Einrichten',
     target: '.settings-source-details',
     status: null,
   },
@@ -293,14 +293,15 @@ for (const state of cases) {
     const time = head.locator('.settings-source-time');
     await expect(time).toContainText('Letzter Erfolg');
     await expect(time).toContainText(
-      state.status === null ? 'Noch kein erfolgreicher Abruf' : displayedSuccess,
+      state.status === null ? 'noch kein erfolgreicher Abruf' : displayedSuccess,
     );
     await expect(time).toContainText(
       (state.status === 'active' || state.status === 'error') &&
         !('change' in state && 'accountId' in state.change)
         ? '18.09.2026 06:15'
-        : 'Kein Zeitplan',
+        : '– kein Zeitplan',
     );
+    await expect(time.locator('dt')).toHaveText(['Letzter Erfolg', 'Nächster Abruf']);
     const action = head.getByRole('button', { name: state.action, exact: true });
     await expect(head.locator('.settings-source-action .btn')).toHaveCount(1);
     if ((state.status === 'active' && !('change' in state)) || state.status === 'error') {
@@ -317,6 +318,10 @@ for (const state of cases) {
       expect((await sent).method()).toBe('GET');
       await expect(row.locator('[data-source-bank-connect]')).toBeVisible();
     } else if ('change' in state && 'open' in state.change) {
+      await expect(row.getByRole('link', { name: '3 zu prüfen' })).toHaveAttribute(
+        'href',
+        /bankSource=00000000-0000-4000-8000-000000000859/,
+      );
       await action.click();
       await expect(page).toHaveURL(/bankSource=00000000-0000-4000-8000-000000000859/);
     } else if (state.status === 'pending') {
@@ -332,6 +337,38 @@ for (const state of cases) {
     }
   });
 }
+
+test('bank warnings retain recovery without a zero-count link', async ({ page }) => {
+  await mockSources(page);
+  await page.route('**/api/bank-sync', (route) =>
+    route.fulfill({
+      json: {
+        ...bank,
+        connections: [
+          {
+            ...connection,
+            accounts: [
+              {
+                ...mapping,
+                warnings: [{ id: 'synthetic-warning', title: 'Testwarnung', detail: null }],
+              },
+            ],
+          },
+        ],
+      },
+    }),
+  );
+  const register = await openRegister(page);
+  if (!register) return;
+  const row = register.getByRole('region', { name: 'Bank', exact: true });
+  await expect(row.getByRole('link', { name: '0 zu prüfen' })).toHaveCount(0);
+  await expect(row.getByRole('link', { name: 'Konto prüfen', exact: true })).toBeVisible();
+  await row
+    .locator('.settings-source-action')
+    .getByRole('button', { name: 'Konten prüfen' })
+    .click();
+  await expect(page).toHaveURL(/bankSource=00000000-0000-4000-8000-000000000859/);
+});
 
 test('connections distinguishes a partly completed bank run and focuses the retry wait', async ({
   page,
@@ -447,16 +484,25 @@ test('routine commands work without expanding setup and preserve request payload
     await expect(control).toBeEnabled();
   }
   await expect(register.locator('.settings-source-toggle[aria-expanded="true"]')).toHaveCount(0);
+  const mappingRow = bankRow.locator('form.settings-source-subrow');
+  if ((await page.viewportSize())!.width === 1440) {
+    expect((await mappingRow.boundingBox())!.height).toBeLessThanOrEqual(44);
+    const selectBox = (await mappingRow.locator('select').boundingBox())!;
+    const saveBox = (await mappingRow
+      .getByRole('button', { name: 'Zuordnung speichern' })
+      .boundingBox())!;
+    expect(selectBox.width).toBeLessThanOrEqual(240);
+    expect(selectBox.y + selectBox.height / 2).toBe(saveBox.y + saveBox.height / 2);
+  }
   await expect(bankRow.locator('.bank-account-name')).toContainText('Budgetkonto A');
-  await expect(bankRow.getByRole('link', { name: '0 zu prüfen' })).toHaveAttribute(
-    'href',
-    /bankSource=00000000-0000-4000-8000-000000000859/,
-  );
-  await expect(crypto.getByRole('link', { name: '0 zu prüfen' })).toBeVisible();
+  await expect(bankRow.getByRole('link', { name: '0 zu prüfen' })).toHaveCount(0);
+  await expect(crypto.getByRole('link', { name: '0 zu prüfen' })).toHaveCount(0);
+  await expect(crypto.getByRole('link', { name: 'Bewegungen prüfen' })).toBeVisible();
+  await expect(bankRow.getByRole('button', { name: 'Zuordnung speichern' })).toBeDisabled();
   const movements = page.waitForRequest(
     (request) => new URL(request.url()).searchParams.get('readSource') === 'crypto',
   );
-  await crypto.getByRole('link', { name: '0 zu prüfen' }).click();
+  await crypto.getByRole('link', { name: 'Bewegungen prüfen' }).click();
   await movements;
   const cryptoReview = page.getByRole('dialog', { name: 'Krypto-Bewegungen prüfen' });
   await expect(cryptoReview.getByLabel('Bewegungen nach Titel')).toBeVisible();
@@ -596,9 +642,9 @@ test('connections aligns columns, orders problem links and reflows down to 320px
     'Kurse',
     'Bank',
     'Krypto',
-    'Spritmonitor',
     'Gehaltszettel',
     'VPI',
+    'Spritmonitor',
   ]);
   await expect(register.getByRole('link', { name: 'Testpapier: Kurs fehlt' })).toHaveAttribute(
     'href',
@@ -613,7 +659,20 @@ test('connections aligns columns, orders problem links and reflows down to 320px
     .evaluateAll((cells) => cells.map((cell) => cell.getBoundingClientRect().x));
   expect(columns).toHaveLength(6);
   expect(new Set(columns).size).toBe(1);
-  await expect(register.getByRole('status').first()).toHaveText('4 von 6 Quellen brauchen dich');
+  await expect(register.getByRole('status').first()).toHaveText('3 von 6 Quellen brauchen dich');
+  const optional = register.getByRole('region', { name: 'Spritmonitor', exact: true });
+  await expect(optional.locator('.settings-source-status')).toHaveText('Nicht eingerichtet');
+  await expect(optional.locator('.settings-source-mark')).toHaveAttribute('data-tone', 'neutral');
+  await expect(
+    optional.locator('.settings-source-action').getByRole('button', { name: 'Einrichten' }),
+  ).toHaveClass(/btn-ghost/);
+  await expect(
+    register.getByRole('list', { name: 'Betroffene Quellen' }).getByRole('link'),
+  ).toHaveText(['Kurse', 'Bank', 'Krypto']);
+  const prices = register.getByRole('region', { name: 'Kurse', exact: true });
+  await expect(prices).toContainText('1 Kurs fehlgeschlagen');
+  await expect(prices).not.toContainText('0 Kurszeilen');
+  await expect(prices).not.toContainText('0 Wechselkurszeilen');
   const bankRow = register.getByRole('region', { name: 'Bank', exact: true });
   await register.getByRole('link', { name: 'Bank', exact: true }).click();
   const toggle = bankRow.getByRole('button', { name: 'Bank: Einrichtung und Details' });
@@ -630,7 +689,42 @@ test('connections aligns columns, orders problem links and reflows down to 320px
     expect((await action.boundingBox())!.width).toBe(
       (await bankRow.locator('.settings-source-action').boundingBox())!.width,
     );
+    const nameBox = (await bankRow.locator('.settings-source-name').boundingBox())!;
+    const stateBox = (await bankRow.locator('.settings-source-state').boundingBox())!;
+    expect(stateBox.y).toBeGreaterThanOrEqual(nameBox.y + nameBox.height);
   }
+});
+
+test('optional document setup stays neutral after healthy sources', async ({ page }) => {
+  await mockSources(page);
+  await page.route('**/api/payslip-intake/status', (route) =>
+    route.fulfill({
+      json: {
+        dropboxConfigured: false,
+        dropboxConnected: false,
+        lastScanAt: null,
+        filesFound: 0,
+        errors: 0,
+        accounts: [],
+        payees: [],
+        config: { salaryAccountId: null, wageTypes: {} },
+      },
+    }),
+  );
+  const register = await openRegister(page);
+  if (!register) return;
+  const row = register.getByRole('region', { name: 'Gehaltszettel', exact: true });
+  await expect(row.locator('.settings-source-status')).toHaveText('Nicht eingerichtet');
+  await expect(row.locator('.settings-source-mark')).toHaveAttribute('data-tone', 'neutral');
+  await expect(
+    row.locator('.settings-source-action').getByRole('button', { name: 'Einrichten' }),
+  ).toHaveClass(/btn-ghost/);
+  await expect(register.getByRole('status').first()).toHaveText(
+    `Keine Quelle braucht dich – letzter Abruf ${displayedSuccess}`,
+  );
+  await expect(register.getByRole('list', { name: 'Betroffene Quellen' })).toHaveCount(0);
+  await expect(register.locator('.settings-source-name strong').last()).toHaveText('Gehaltszettel');
+  await expect(row.getByRole('button', { name: 'PDF hochladen' })).toBeEnabled();
 });
 
 for (const mixed of [false, true]) {
@@ -648,16 +742,16 @@ for (const mixed of [false, true]) {
       if (!register) return;
       await expect(register.getByRole('status').first()).toHaveText(
         mixed
-          ? '4 von 6 Quellen brauchen dich'
+          ? '3 von 6 Quellen brauchen dich'
           : `Alle 6 Quellen aktuell – letzter Abruf ${displayedSuccess}`,
       );
       const auditDir = process.env['CONNECTIONS_AUDIT_DIR'];
-      if (auditDir && scheme === 'light') {
+      if (auditDir && (scheme === 'light' || (mixed && !isMobile))) {
         mkdirSync(auditDir, { recursive: true });
         await page.screenshot({
           path: join(
             auditDir,
-            `${mixed ? 'mixed' : 'healthy'}-${isMobile ? '390x844' : '1440x900'}-light.png`,
+            `${mixed ? 'mixed' : 'healthy'}-${isMobile ? '390x844' : '1440x900'}-${scheme}.png`,
           ),
           fullPage: false,
         });

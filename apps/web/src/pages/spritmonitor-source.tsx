@@ -476,7 +476,7 @@ export function useSpritmonitorSource(compact: boolean) {
         initiallyOpen: window.location.hash === '#spritmonitor-source-title',
         detailAction:
           state === 'unconfigured'
-            ? { label: 'Einrichtung ansehen' }
+            ? { label: 'Einrichten' }
             : state === 'partial'
               ? { label: 'Tankungen prüfen', target: 'a[href*="/konten/pruefen"]' }
               : undefined,

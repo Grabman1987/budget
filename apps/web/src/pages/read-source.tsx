@@ -11,6 +11,7 @@ import type { AccountRow } from '../ledger/types';
 import './read-source.css';
 import {
   SettingsSourceCard,
+  sourceDate,
   sourceReadState,
   type SourceRow,
   type SourceState,
@@ -54,8 +55,7 @@ const labels = {
   partial: 'Weitere Seiten ausständig',
   failed: 'Abruf fehlgeschlagen',
 };
-const stamp = (value: string | null) =>
-  value ? new Date(value).toLocaleString('de-AT') : 'Noch nicht';
+const stamp = (value: string | null) => sourceDate(value);
 
 export function CryptoReadSourceSection({ compact = false }: { compact?: boolean } = {}) {
   const source = useCryptoSource(compact);
@@ -158,7 +158,7 @@ export function useCryptoSource(compact: boolean) {
           state === 'unmapped'
             ? { label: 'Konto zuordnen', target: '[data-source-mapping]:enabled' }
             : state === 'unconfigured'
-              ? { label: 'Einrichtung ansehen' }
+              ? { label: 'Einrichten' }
               : undefined,
         action,
         content: () =>
@@ -173,7 +173,9 @@ export function useCryptoSource(compact: boolean) {
                     setReviewOpen(true);
                   }}
                 >
-                  {data.match.missing + data.match.unmapped} zu prüfen
+                  {data.match.missing + data.match.unmapped > 0
+                    ? `${data.match.missing + data.match.unmapped} zu prüfen`
+                    : 'Bewegungen prüfen'}
                 </a>
                 <span>
                   {data.match.matched} erfasst · {data.match.informational} informativ
@@ -182,6 +184,7 @@ export function useCryptoSource(compact: boolean) {
                   {(state === 'unmapped' || state === 'unconfigured') && action}
                   <Button
                     variant="ghost"
+                    size="sm"
                     disabled={busy || data.running || !data.configured}
                     onClick={() => void refresh(true)}
                   >

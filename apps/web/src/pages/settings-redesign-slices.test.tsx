@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { registerDate, sourceDate, sourceSeverity } from './settings-source-card';
 import { createTestDatabase, ensureDefaultRules, type OpenedDatabase } from '@budget/db';
 import { seedBasics } from '../../../../packages/db/src/repos/test-helpers';
 import { ToastProvider } from '@budget/ui';
@@ -145,11 +146,13 @@ it('E4 ON orders the real sources and makes unavailable-source recovery accessib
     [...document.querySelectorAll('.settings-source-name strong')].map(
       (element) => element.textContent,
     ),
-  ).toEqual(['Bank', 'Krypto', 'Spritmonitor', 'Gehaltszettel', 'Kurse', 'VPI']);
+  ).toEqual(['Kurse', 'VPI', 'Bank', 'Krypto', 'Spritmonitor', 'Gehaltszettel']);
   const fuel = screen.getByRole('region', { name: 'Spritmonitor' });
-  await userEvent.click(screen.getByRole('link', { name: 'Spritmonitor' }));
+  expect(within(fuel).getByText('Nicht eingerichtet')).toBeTruthy();
+  expect(fuel.querySelector('.settings-source-mark')?.getAttribute('data-tone')).toBe('neutral');
+  await userEvent.click(within(fuel).getByRole('button', { name: 'Einrichten' }));
   expect(document.activeElement).toBe(
-    within(fuel).getByRole('button', { name: 'Spritmonitor: Einrichtung und Details' }),
+    within(fuel).getByRole('group', { name: 'Spritmonitor: Einrichtung und Details' }),
   );
   await within(fuel).findByText(/Die Verbindung wird am Server eingerichtet/);
   expect(within(fuel).getByRole('button', { name: 'Jetzt abrufen' }).hasAttribute('disabled')).toBe(
@@ -161,7 +164,7 @@ it('E4 ON orders the real sources and makes unavailable-source recovery accessib
     within(bank).getByRole('button', { name: 'Bank: Einrichtung und Details' }),
   );
   await within(bank).findByText(/Bank-Sync ist noch nicht eingerichtet/);
-  expect(within(bank).getByText(/Noch kein erfolgreicher Abruf/)).toBeTruthy();
+  expect(within(bank).getByText(/noch kein erfolgreicher Abruf/)).toBeTruthy();
   expect(writes).toEqual([]);
 });
 it('shows loading source dates and reads only VPI reference metadata on settings entry', async () => {
@@ -184,8 +187,11 @@ it('shows loading source dates and reads only VPI reference metadata on settings
   const payslip = within(payslipRow);
   expect(payslip.getByText('Letzter Scanversuch: Wird geladen …')).toBeTruthy();
   expect(payslip.queryByText(/Letzter Scanversuch: Nicht verfügbar/)).toBeNull();
-  // The collapsed Kurse body must not report an unavailable run or "no run yet" while pending.
-  expect(screen.getByText(/Letzter Lauf: Wird geladen … · Status: Wird geladen …/)).toBeTruthy();
+  // The parent keeps the loading state; the compact run row must not invent counts.
+  expect(
+    within(screen.getByRole('region', { name: 'Kurse' })).getByText('Wird geladen'),
+  ).toBeTruthy();
+  expect(screen.queryByText(/0 Kurszeilen/)).toBeNull();
   expect(screen.queryByText(/Letzter Lauf: Nicht verfügbar/)).toBeNull();
   await act(async () => release());
   await waitFor(() => expect(view.client.isFetching()).toBe(0));
@@ -193,7 +199,7 @@ it('shows loading source dates and reads only VPI reference metadata on settings
   expect(paths).toContain('/api/sources/spritmonitor');
   expect(paths).not.toContain('/api/reports/spending/inflation');
   expect(payslipRow.querySelector('.settings-source-time dd')?.textContent).toBe(
-    'Noch kein erfolgreicher Abruf',
+    'noch kein erfolgreicher Abruf',
   );
   expect(payslip.queryByText(/Letzter Scanversuch: Wird geladen/)).toBeNull();
   expect(payslip.getByText('Letzter Scanversuch: Noch kein Scanversuch')).toBeTruthy();
@@ -498,4 +504,22 @@ it('E4 ON exposes upload immediately and retains source setup in a single disclo
   }
   expect(document.querySelector('.data-sources > .data-source-section')).toBeNull();
   expect(writes).toEqual([]);
+});
+
+it('formats connection timestamps consistently and keeps optional setup neutral', () => {
+  expect(registerDate('2026-01-02T03:04:59Z')).toBe('02.01.2026 04:04');
+  expect(sourceDate('2026-01-02T03:04:59Z')).toBe('02.01.2026 04:04');
+  expect(sourceDate(null)).toBe('noch kein erfolgreicher Abruf');
+  expect(sourceDate(undefined)).toBe('Nicht verfügbar');
+  expect(sourceSeverity('unconfigured')).toBe(0);
+  expect(sourceSeverity('connected')).toBe(0);
+  for (const state of [
+    'unavailable',
+    'failed',
+    'expired',
+    'unmapped',
+    'partial',
+    'pending',
+  ] as const)
+    expect(sourceSeverity(state)).toBeGreaterThan(0);
 });

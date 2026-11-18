@@ -12,7 +12,7 @@ async function openSourceMovements(page: Page) {
   if ((await page.locator('.app').getAttribute('data-budget-redesign')) !== '1') return;
   await page
     .getByRole('region', { name: 'Krypto', exact: true })
-    .getByRole('link', { name: /zu prüfen$/ })
+    .getByRole('link', { name: /zu prüfen$|^Bewegungen prüfen$/ })
     .click();
   await expect(page.getByRole('dialog', { name: 'Krypto-Bewegungen prüfen' })).toBeVisible();
 }
@@ -28,7 +28,7 @@ test('source status, read-only capture, explicit mapping and responsive themes',
   page,
 }) => {
   const crypto = page.getByRole('region', { name: /^Krypto(-Lesequelle)?$/ });
-  const bank = page.getByRole('region', { name: 'Bank-Sync (PSD2)', exact: true });
+  const bank = page.getByRole('region', { name: /^(Bank|Bank-Sync \(PSD2\))$/ }).first();
   let refreshed = false;
   let refreshes = 0;
   let saved = false;
