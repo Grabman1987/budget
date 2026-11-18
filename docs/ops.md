@@ -761,11 +761,15 @@ has a savepoint: a refusal rolls back only that entry. The following examples ar
 ```
 
 - `projects`: optional list of `{ "name": "Synthetic Project", "note": "Synthetic note",
-  "attributeCategory": "Synthetic Category", "attributeCategoryGroup": "Synthetic Group" }`.
+  "attributeCategory": "Synthetic Category", "attributeCategoryGroup": "Synthetic Group", "unlock": true }`.
   Only `name` is required (1-120 characters); optional `note` is 1-500 characters and is stored
   only on creation. Project names are matched case-insensitively after trimming. An existing live,
   unarchived project is reused unchanged; an archived/deleted match is `inactive_project`, never
-  revived. Multiple live matches are `ambiguous_project`. Creation uses the same `createEntity`
+  revived. The same project name may appear several times for different category selectors (including
+  different groups for equal category names); one project is reused across those entries. Duplicate
+  name/category/group selectors are input errors, with project names compared case-insensitively
+  and category/group names exactly. Omitted category/group values are part of the selector too.
+  Multiple live matches are `ambiguous_project`. Creation uses the same `createEntity`
   function as the app route. Categories stay in place for budgeting.
   `attributeCategory` must match exactly one live category by exact name (soft-deleted rows ignored);
   optional `attributeCategoryGroup` narrows it by exact live group name and requires
@@ -775,9 +779,16 @@ has a savepoint: a refusal rolls back only that entry. The following examples ar
   Attribution is **booking-level**, following the app model: all category splits must be in the
   named category; otherwise `mixed_splits`. Whole and split transfers are `transfer`; a booking
   assigned elsewhere is `other_project`. Already assigned bookings are unchanged. Assignment uses
-  `updateBooking` with no unlock: the app only permits flag/memo changes freely on reconciled
-  bookings, so a new project assignment there is `reconciled_locked`. Other app refusals remain
-  skips. No balance, split amount, category, date or reconciliation status is changed.
+  `updateBooking`: without per-entry `"unlock": true`, a new assignment on a reconciled booking
+  remains `reconciled_locked` (only flag/memo are freely editable). Optional `unlock` must be a
+  boolean; false/omitted grants no permission. True passes `unlockReconciled`, exactly like `book`'s
+  per-entry unlock, with the same operator actor and shared audit group. The app unlock bypasses
+  the lock guard; it does **not** downgrade `reconciled` to `confirmed`. The guarded project-only
+  update branch writes only `project_id` plus the normal `updated_at` audit timestamp, without
+  the general edit path's bank-text backfill or expected-link refresh. All metadata guards and
+  active-project validation still apply. Other app refusals remain skips. Amount, account, date,
+  splits, reconciliation status, account reconciliation records and reconciled balance stay intact;
+  grouped Undo restores the previous project without changing them.
   Each project and each booking has its own savepoint in the run's shared operator audit group;
   `undo-group` restores attribution and removes newly created projects together. `--dry-run`
   rolls everything back. Default project output contains aggregates only: projects created/unchanged,

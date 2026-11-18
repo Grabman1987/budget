@@ -154,6 +154,8 @@ export interface OwnerCreateCategory {
 }
 export interface OwnerProject {
   name: string;
+  /** Explicit permission to attribute reconciled bookings without changing their status. */
+  unlock?: true;
   note?: string;
   attributeCategory?: string;
   attributeCategoryGroup?: string;
@@ -510,8 +512,14 @@ export function parseOwnerConfigFile(
         'note',
         'attributeCategory',
         'attributeCategoryGroup',
+        'unlock',
       ]);
       const out: OwnerProject = { name: text(o['name'], `${at}.name`, 120) };
+      if (o['unlock'] !== undefined && o['unlock'] !== false) {
+        if (o['unlock'] !== true)
+          throw new OperatorInputError(`${at}.unlock must be true or false`);
+        out.unlock = true;
+      }
       if (o['note'] !== undefined) out.note = text(o['note'], `${at}.note`, 500);
       if (o['attributeCategory'] !== undefined)
         out.attributeCategory = text(o['attributeCategory'], `${at}.attributeCategory`, 80);
@@ -526,10 +534,17 @@ export function parseOwnerConfigFile(
       }
       return out;
     });
-    uniqueKeys(
-      config.projects.map((p) => p.name),
-      'projects',
-    );
+    const selectors = new Set<string>();
+    for (const p of config.projects) {
+      const key = JSON.stringify([
+        fold(p.name),
+        p.attributeCategory ?? null,
+        p.attributeCategoryGroup ?? null,
+      ]);
+      if (selectors.has(key))
+        throw new OperatorInputError('projects: project/category selector is listed twice');
+      selectors.add(key);
+    }
   }
   if (root['assetClassTree'] !== undefined)
     config.assetClassTree = parseAssetClassTree(root['assetClassTree']);
@@ -953,7 +968,7 @@ function applyProjects(r: Runner, e: OwnerProject): OwnerConfigOutcome[] {
         throw new EntrySkip('mixed_splits', 'booking has splits in another category');
       if (b.projectId === projectId) return done([]);
       try {
-        updateBooking(tx, b.id, { projectId }, ctx);
+        updateBooking(tx, b.id, { projectId }, ctx, { unlockReconciled: e.unlock === true });
       } catch (error) {
         if (error instanceof ReconciledLockedError)
           throw new EntrySkip(

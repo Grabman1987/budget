@@ -1,12 +1,21 @@
 import { eq } from 'drizzle-orm';
 import { afterEach, beforeEach, expect, it } from 'vitest';
 import { createTestDatabase, type OpenedDatabase } from '../client';
-import { auditLog, booking, category, categoryGroup, project } from '../schema';
+import {
+  account,
+  accountReconciliation,
+  auditLog,
+  booking,
+  category,
+  categoryGroup,
+  project,
+} from '../schema';
 import { createBooking, createTransfer, getBooking, deleteBooking } from './bookings';
 import { accounts, categories, createEntity, softDeleteEntity, updateEntity } from './entities';
 import { applyOwnerConfig, parseOwnerConfigFile } from './operator-owner-config';
 import { undoAuditGroups } from './operator-ops';
 import { readProjects, projectsList } from './payroll-projects';
+import { bookedBalance, reconcileAccount } from './reconciliation';
 import { seedBasics, testCtx } from './test-helpers';
 
 let opened: OpenedDatabase;
@@ -219,4 +228,130 @@ it('allows null-category companion splits because attribution covers all categor
   expect(run().map((o) => o.status)).toEqual(['created', 'updated']);
   expect(getBooking(db, id)!.projectId).toBe(projectsList(db)[0]!.id);
   expect(getBooking(db, id)!.splits.map((s) => s.amountCents)).toEqual([-100, -10]);
+});
+
+it('explicitly unlocks project attribution while preserving reconciled bank rows and grouped undo', () => {
+  const id = expense(-1201, {
+    status: 'confirmed',
+    source: 'bank',
+    memo: 'Synthetic bank memo',
+    splits: [
+      { categoryId: 'essen', amountCents: -701 },
+      { categoryId: 'essen', amountCents: -500 },
+    ],
+  });
+  reconcileAccount(
+    db,
+    {
+      accountId: 'giro',
+      date: '2026-02-28',
+      statementBalanceCents: 98799,
+      today: '2026-03-01',
+    },
+    testCtx,
+  );
+  const before = getBooking(db, id)!;
+  expect(before).toMatchObject({
+    projectId: null,
+    status: 'reconciled',
+    amountCents: -1201,
+    bankRawText: null,
+  });
+  const checks = db.select().from(accountReconciliation).all();
+  expect(checks).toHaveLength(1);
+  expect(checks[0]).toMatchObject({ statementBalanceCents: 98799, clearedBalanceCents: 98799 });
+  const accountsBefore = db.select().from(account).all();
+  const unlocked = {
+    projects: [{ name: 'Synthetic Project', attributeCategory: 'Essen', unlock: true }],
+  };
+  const count = db.select().from(auditLog).all().length;
+  expect(run(unlocked, true).map((o) => o.status)).toEqual(['created', 'updated']);
+  expect(getBooking(db, id)).toEqual(before);
+  expect(db.select().from(auditLog).all()).toHaveLength(count);
+  const out = run(unlocked);
+  expect(out.map((o) => o.status)).toEqual(['created', 'updated']);
+  const projectId = projectsList(db)[0]!.id;
+  const after = getBooking(db, id)!;
+  expect(after).toEqual({ ...before, projectId, updatedAt: after.updatedAt });
+  expect(after.status).toBe('reconciled');
+  expect(db.select().from(accountReconciliation).all()).toEqual(checks);
+  expect(db.select().from(account).all()).toEqual(accountsBefore);
+  expect(bookedBalance(db, 'giro', '2026-02-28')).toBe(98799);
+  const entries = db.select().from(auditLog).all().slice(count);
+  expect(entries.map((e) => [e.entityType, e.action, e.actor, e.groupId])).toEqual([
+    ['project', 'create', 'operator', out[0]!.groupId],
+    ['booking', 'update', 'operator', out[0]!.groupId],
+  ]);
+  const auditBefore = JSON.parse(entries[1]!.beforeJson!);
+  expect(JSON.parse(entries[1]!.afterJson!)).toEqual({
+    ...auditBefore,
+    project_id: projectId,
+    updated_at: after.updatedAt,
+  });
+  expect(run(unlocked).map((o) => o.status)).toEqual(['unchanged', 'unchanged']);
+  expect(db.select().from(auditLog).all()).toHaveLength(count + 2);
+  undoAuditGroups(db, [out[0]!.groupId], operator);
+  const restored = getBooking(db, id)!;
+  expect(restored).toEqual({ ...before, updatedAt: restored.updatedAt });
+  expect(restored).toMatchObject({ projectId: null, status: 'reconciled', amountCents: -1201 });
+  expect(db.select().from(accountReconciliation).all()).toEqual(checks);
+  expect(db.select().from(account).all()).toEqual(accountsBefore);
+  expect(bookedBalance(db, 'giro', '2026-02-28')).toBe(98799);
+});
+
+it('reuses one project across distinct categories, reruns unchanged and undoes the whole group', () => {
+  const a = expense(-101);
+  const b = expense(-203, { splits: [{ categoryId: 'reise', amountCents: -203 }] });
+  const input = {
+    projects: [
+      { name: 'Synthetic Shared', attributeCategory: 'Essen' },
+      { name: 'synthetic shared', attributeCategory: 'Reise' },
+    ],
+  };
+  const out = run(input);
+  expect(out.map((o) => o.status)).toEqual(['created', 'updated', 'unchanged', 'updated']);
+  expect(projectsList(db)).toHaveLength(1);
+  const projectId = projectsList(db)[0]!.id;
+  expect([getBooking(db, a)!.projectId, getBooking(db, b)!.projectId]).toEqual([
+    projectId,
+    projectId,
+  ]);
+  expect(readProjects(db, '2026-02..2026-02', '2026-03-20').projects[0]!.resultCents).toBe(-304);
+  expect(run(input).map((o) => o.status)).toEqual([
+    'unchanged',
+    'unchanged',
+    'unchanged',
+    'unchanged',
+  ]);
+  undoAuditGroups(db, [out[0]!.groupId], operator);
+  expect([getBooking(db, a)!.projectId, getBooking(db, b)!.projectId]).toEqual([null, null]);
+  expect(projectsList(db)).toEqual([]);
+});
+
+it('rejects duplicate project/category selectors and invalid unlock before writing', () => {
+  for (const projects of [
+    [
+      { name: 'A', attributeCategory: 'Essen' },
+      { name: 'a', attributeCategory: 'Essen' },
+    ],
+    [
+      { name: 'A', attributeCategory: 'Essen', attributeCategoryGroup: 'Fixkosten' },
+      { name: 'a', attributeCategory: 'Essen', attributeCategoryGroup: 'Fixkosten' },
+    ],
+    [{ name: 'A', unlock: 'true' }],
+    [{ name: 'A', unlock: 1 }],
+  ])
+    expect(() => run({ projects })).toThrow();
+  expect(projectsList(db)).toEqual([]);
+  expect(parseOwnerConfigFile({ projects: [{ name: 'A', unlock: false }] }).projects).toEqual([
+    { name: 'A' },
+  ]);
+  expect(
+    parseOwnerConfigFile({
+      projects: [
+        { name: 'A', attributeCategory: 'Essen', attributeCategoryGroup: 'Fixkosten' },
+        { name: 'A', attributeCategory: 'Essen', attributeCategoryGroup: 'Synthetic Other' },
+      ],
+    }).projects,
+  ).toHaveLength(2);
 });
