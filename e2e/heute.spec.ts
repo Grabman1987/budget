@@ -1,7 +1,7 @@
 import { captureSaveControl } from './ledger-helpers';
 import { detectHeuteRedesign, heuteReviewUrl } from './heute-visual-fixture';
 import { test as isolatedTest } from './isolated-ledger';
-import { sampleTest as test, expect as baseExpect } from './sample';
+import { test, expect as baseExpect } from './seeded-heute';
 import AxeBuilder from '@axe-core/playwright';
 import { test as ledgerTest, type Page } from '@playwright/test';
 import type { LiquidityReportView } from '../apps/web/src/reports/liquidity-api';
@@ -62,6 +62,9 @@ async function currentForecast(page: Page, month = '2026-09') {
   await expect(chart).toBeVisible();
   return { card, chart, report: source.report };
 }
+
+// These legacy window checks deliberately include the stored overdue emergency payment.
+test.use({ materializedSample: true });
 
 let redesign = false;
 test.beforeAll(async ({ browser }) => {
@@ -176,7 +179,9 @@ test('Heute month forecast ends two days after month end and names payments in t
   expect(salary.items.map((item) => item.label)).toEqual(
     expect.arrayContaining(['Gehalt', 'Kontoführung']),
   );
-  expect(data.balance.actual.at(-1)!.balanceCents).toBe(data.balance.forecast[0]!.balanceCents);
+  // Cash stays 116,700 cents; day zero also reserves the overdue Notgroschen (30,000).
+  expect(data.balance.actual.at(-1)!.balanceCents).toBe(116_700);
+  expect(data.balance.forecast[0]!.balanceCents).toBe(86_700);
   const group = current.chart.locator('..');
   await group.focus();
   const index = current.report.points.findIndex((point) => point.day === '2026-09-30');
@@ -211,7 +216,9 @@ test('Heute payday forecast follows the bracket and last axis label', async ({ p
   expect(data.stand.to).toBe('2026-10-17');
   expect(data.balance.forecast.at(-1)!.day).toBe('2026-10-17');
   expect(data.balance.actual[0]!.day).toBe(addDays(data.stand.today, -14));
-  expect(data.balance.actual.at(-1)!.balanceCents).toBe(data.balance.forecast[0]!.balanceCents);
+  // Cash stays 116,700 cents; day zero also reserves the overdue Notgroschen (30,000).
+  expect(data.balance.actual.at(-1)!.balanceCents).toBe(116_700);
+  expect(data.balance.forecast[0]!.balanceCents).toBe(86_700);
   expect(
     data.balance.forecast
       .flatMap((point) => point.items)
@@ -261,7 +268,9 @@ test('R07 remembers Heute period and retains its API forecast and low point in e
     expect(data.stand.period).toBe(period);
     expect(data.stand.to).toBe(period === 'month' ? '2026-10-02' : '2026-10-17');
     expect(data.balance.forecast.at(-1)!.day).toBe(data.stand.to);
-    expect(data.balance.actual.at(-1)!.balanceCents).toBe(data.balance.forecast[0]!.balanceCents);
+    // Cash stays 116,700 cents; day zero also reserves the overdue Notgroschen (30,000).
+    expect(data.balance.actual.at(-1)!.balanceCents).toBe(116_700);
+    expect(data.balance.forecast[0]!.balanceCents).toBe(86_700);
     expect(data.balance.low!.cents).toBe(
       Math.min(
         ...[...data.balance.actual, ...data.balance.forecast].map((point) => point.balanceCents),
@@ -781,7 +790,7 @@ test('a failed Heute request offers a working retry', async ({ page }) => {
   await expect(page.getByRole('alert')).toBeHidden();
 });
 
-test('settled balance reaches the forecast and the composition measures its parts in both motion modes', async ({
+test('settled balance and overdue forecast reserve remain distinct and the composition measures its parts in both motion modes', async ({
   page,
 }, info) => {
   test.setTimeout(120_000);
@@ -817,11 +826,13 @@ test('settled balance reaches the forecast and the composition measures its part
       );
     });
     // Old report-mode segment join is retained in charts.test.tsx; the real source opening
-    // equality remains exact here. The active card has forecast only, with current markers.
+    // and overdue reserve remain exact here. The active card has forecast only, with current markers.
     const data: Heute = await (
       await page.request.get('/api/heute?month=2026-09&period=payday')
     ).json();
-    expect(data.balance.actual.at(-1)!.balanceCents).toBe(data.balance.forecast[0]!.balanceCents);
+    // Cash stays 116,700 cents; day zero also reserves the overdue Notgroschen (30,000).
+    expect(data.balance.actual.at(-1)!.balanceCents).toBe(116_700);
+    expect(data.balance.forecast[0]!.balanceCents).toBe(86_700);
     expect(data.balance.actual.at(-1)!.day).toBe(data.balance.forecast[0]!.day);
     await expect(
       page.getByTestId('heute-wealth-history').locator('path.l-actual').first(),
@@ -1047,6 +1058,11 @@ test('mobile attention remains reachable above the floating capture button in bo
   await page.goto(heuteReviewUrl(redesign, '/'));
   const attention = page.locator('.heute-attention');
   await expect(attention).toBeVisible();
+  // The attention can precede lazy charts/fonts. Finish their layout before measuring page-end reach.
+  await expect(page.getByTestId('heute-networth-chart')).toBeVisible();
+  await expect(page.getByTestId('heute-wealth-history')).toBeVisible();
+  await expect(page.locator('.heute [aria-busy="true"]')).toHaveCount(0);
+  await page.evaluate(() => document.fonts.ready);
   // The FAB is fixed and hides while scrolling down (#468), so measure its slot once at the top.
   const fab = (await page.locator('.fab').boundingBox())!;
   for (const theme of ['light', 'dark']) {

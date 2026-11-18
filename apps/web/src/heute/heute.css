@@ -1472,6 +1472,10 @@
   min-block-size: 1lh;
 }
 @media (max-width: 767px) {
+  /* Reserve the definition including the separate overdraft sentence while its read is pending. */
+  .heute--redesign .heute-primary-definition {
+    min-block-size: 3lh;
+  }
   /* Keep loading and loaded amounts on the same two rows, regardless of amount width. */
   .heute--redesign .heute-primary-answer {
     flex-direction: column;

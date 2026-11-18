@@ -114,7 +114,7 @@ Bildschirm Prüfen: `/konten/pruefen` (Konten › Prüfen). Zähler: „Umsätze
 
 ### I-04 – Dokument zentral hochladen
 - **Story:** Als Nutzer möchte ich jedes Dokument an einer Stelle hochladen und von der App erkennen lassen, was es ist, damit ich nicht erst überlegen muss, welcher Import für Kontoauszug, Gehaltszettel oder Beleg zuständig ist.
-- **Ausgangslage:** Der Nutzer hat ein PDF oder Foto (Kreditkartenabrechnung, Kontoauszug, Gehaltszettel, Bonus-/Pensionsmitteilung, Wertpapierabrechnung, Beleg). Der Knopf „Neues Dokument hochladen“ steht in der Kopfzeile, „Dokument hochladen“ in Prüfen und Buchung erfassen, am Konto der Upload dieses Kontos.
+- **Ausgangslage:** Der Nutzer hat ein PDF oder Foto (Kreditkartenabrechnung, Kontoauszug, Gehaltszettel, Bonus-/Pensionsmitteilung, Wertpapierabrechnung, Beleg). Der Knopf „Neues Dokument hochladen“ steht in der Kopfzeile, „Dokument hochladen“ in Prüfen, am Konto der Upload dieses Kontos. In „Buchung erfassen“ öffnet ausschließlich die Büroklammer „Datei anhängen“ im Blattkopf die Dateiauswahl; der zusätzliche Upload-Eintrag unten entfällt (#1238).
 - **Ablauf:**
   1. Nutzer klickt „Neues Dokument hochladen“. Der Dialog zeigt „Dokument ablegen“ und „Datei auswählen“ (Foto oder PDF, höchstens 15 MB).
   2. Er legt mehrere Dateien ab oder wählt sie gemeinsam. Jede Datei erhält einen eigenen Eintrag mit Dateinamen, Typ und Prüfstatus. Ein Fehler hält die anderen Dateien nicht auf; „Erneut versuchen“ prüft nur die betroffene Datei.

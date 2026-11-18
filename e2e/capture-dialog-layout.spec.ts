@@ -534,3 +534,103 @@ test('sharing before entering an amount keeps the discard guard', async ({ page 
   await dialog.getByRole('button', { name: 'Verwerfen', exact: true }).click();
   await expect(dialog).toBeHidden();
 });
+
+test('phone capture keeps all fields before actions with a reduced visual viewport and fits Undo', async ({
+  page,
+  request,
+  baseURL,
+}, info) => {
+  test.skip(info.project.name === 'desktop', 'phone layout');
+  await page.setViewportSize({ width: 390, height: 844 });
+  const response = await request.post('/api/accounts', {
+    headers: { origin: baseURL! },
+    data: {
+      name: `Capture phone sample ${info.project.name}`,
+      type: 'cash',
+      openingDate: '2026-01-01',
+    },
+  });
+  expect(response.ok()).toBe(true);
+  const { account } = await response.json();
+  await page.goto(`/?panel=buchung&konto=${account.id}`);
+  const dialog = page.getByRole('dialog', { name: 'Buchung erfassen' });
+  const form = dialog.locator('.bkform-redesign');
+  await expect(form).toBeVisible();
+  const upload = dialog.getByRole('button', { name: 'Datei anhängen', exact: true });
+  await expect(upload).toHaveCount(1);
+  await expect(dialog.getByRole('button', { name: 'Dokument hochladen', exact: true })).toHaveCount(
+    0,
+  );
+  await expect(
+    dialog.locator('.bk-editor-titlebar').getByRole('button', { name: 'Datei anhängen' }),
+  ).toHaveCount(1);
+  const chooser = page.waitForEvent('filechooser');
+  await upload.click();
+  expect((await chooser).isMultiple()).toBe(false);
+
+  await dialog.getByLabel('Betrag', { exact: true }).fill('12,34');
+  const payee = dialog.getByLabel('Empfänger', { exact: true });
+  await payee.fill('Telefon Musterladen');
+  await choose(dialog, 'Kategorie', 'Essen', /^Essen/);
+  await payee.focus();
+  await page.evaluate(() => {
+    Object.defineProperty(visualViewport!, 'height', { configurable: true, value: 590 });
+    visualViewport!.dispatchEvent(new Event('resize'));
+  });
+  await expect(page.locator('.bk-focus-scope')).toHaveAttribute('data-compact-viewport');
+  await expect(form).toHaveCSS('overflow-y', 'auto');
+  await page.evaluate(() => {
+    for (const [key, value] of Object.entries({ height: 390, offsetTop: 40 }))
+      Object.defineProperty(visualViewport!, key, { configurable: true, value });
+    visualViewport!.dispatchEvent(new Event('resize'));
+    visualViewport!.dispatchEvent(new Event('scroll'));
+  });
+  await expect(page.locator('.bk-focus-scope')).toHaveAttribute('data-compact-viewport');
+  await expect(form).toHaveCSS('overflow-y', 'auto');
+  await expect(dialog.locator('.bk-body')).toHaveCSS('overflow-y', 'visible');
+  const note = dialog.getByLabel('Notiz', { exact: true });
+  const actions = dialog.locator('.bk-form-actions');
+  expect((await actions.boundingBox())!.y).toBeGreaterThan((await note.boundingBox())!.y);
+  expect((await actions.boundingBox())!.y).toBeGreaterThan(430);
+  for (const field of [
+    payee,
+    dialog.getByLabel('Bezahlt von'),
+    dialog.getByLabel('Kategorie', { exact: true }),
+    note,
+  ])
+    await expect(field).toBeVisible();
+  await note.focus();
+  await expect
+    .poll(async () => {
+      const box = (await note.boundingBox())!;
+      return box.y >= 40 && box.y + box.height <= 430;
+    })
+    .toBe(true);
+  // The multiline note retains Ctrl+Enter-to-save; bare Enter still inserts a newline.
+  await note.press('Control+Enter');
+  await expect(dialog).toBeHidden();
+  await page.evaluate(() => {
+    for (const key of ['height', 'offsetTop']) Reflect.deleteProperty(visualViewport!, key);
+    visualViewport!.dispatchEvent(new Event('resize'));
+  });
+  const toast = page.locator('.toast.is-open .toast-body');
+  const undo = toast.getByRole('button', { name: 'Rückgängig', exact: true });
+  // Pause expiry while measuring all supported phone widths.
+  await undo.focus();
+  for (const width of [375, 390, 430]) {
+    await page.setViewportSize({ width, height: 844 });
+    await expect(undo).toBeVisible();
+    const outer = (await toast.boundingBox())!;
+    const action = (await undo.boundingBox())!;
+    expect(action.x).toBeGreaterThanOrEqual(outer.x);
+    expect(action.x + action.width).toBeLessThanOrEqual(outer.x + outer.width);
+    expect(action.y).toBeGreaterThanOrEqual(outer.y);
+    expect(action.y + action.height).toBeLessThanOrEqual(outer.y + outer.height);
+    expect(action.x).toBeGreaterThanOrEqual(0);
+    expect(action.x + action.width).toBeLessThanOrEqual(width);
+    expect(await undo.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
+    const fab = await page.locator('.fab').boundingBox();
+    if (fab) expect(outer.y + outer.height).toBeLessThanOrEqual(fab.y);
+  }
+  await undo.click();
+});

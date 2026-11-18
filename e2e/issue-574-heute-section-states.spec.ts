@@ -1,10 +1,13 @@
 import { detectHeuteRedesign, heuteReviewUrl } from './heute-visual-fixture';
 import AxeBuilder from '@axe-core/playwright';
 import type { Locator, Page } from '@playwright/test';
-import { sampleTest as test, expect as baseExpect } from './sample';
+import { test, expect as baseExpect } from './seeded-heute';
 import type { Heute } from '../apps/web/src/heute/api';
 import type { SavingsExecutionProposal } from '../apps/web/src/wealth/savings-api';
 
+// Seed-only forecast: 116,700 cash - Streaming 1,799 - Mobilfunk 2,500
+// - Strom 10,500 - remaining variable budget 82,800 = 19,101 cents on 29 September.
+// Unlike a refreshed fixture, this read-only seed has no overdue 30,000-cent occurrence.
 let redesign = false;
 test.beforeAll(async ({ browser }) => {
   redesign = await detectHeuteRedesign(browser);
@@ -142,9 +145,9 @@ test('initial section placeholders keep above-fold geometry while independent re
         const saved = data.forecast35d;
         if (!saved || !('report' in saved) || !saved.report?.low)
           throw new Error('Synthetic canonical 35-day forecast unavailable');
-        expect(saved.report.low.cents).toBe(-10_899);
+        expect(saved.report.low.cents).toBe(19_101);
         await expect(page.getByTestId('liquidity-chart')).toBeVisible();
-        await expect(page.locator('.heute-forecast-low')).toHaveAttribute('data-cents', '-10899');
+        await expect(page.locator('.heute-forecast-low')).toHaveAttribute('data-cents', '19101');
       }
       const settled = await bounds(page);
       if (JSON.stringify(settled) !== JSON.stringify(pending))
@@ -208,7 +211,7 @@ test('the independent forecast reserves its own initial pending plot before its 
       await expect(page.getByTestId('heute-wealth-history')).toBeVisible();
       if (redesign) {
         // A held unused endpoint cannot delay the successful response-owned path.
-        await expect(page.locator('.heute-forecast-low')).toHaveAttribute('data-cents', '-10899');
+        await expect(page.locator('.heute-forecast-low')).toHaveAttribute('data-cents', '19101');
         expect(independentReads).toBe(0);
         aggregateFails = true;
         await page.reload();
@@ -227,7 +230,7 @@ test('the independent forecast reserves its own initial pending plot before its 
       if (redesign) {
         await expect(forecast.locator('.heute-forecast-low')).toHaveAttribute(
           'data-cents',
-          '-10899',
+          '19101',
         );
         await expect(page.getByTestId('heute-wealth-history')).toHaveCount(0);
       }
@@ -292,7 +295,7 @@ for (const read of ['heute', 'budget', 'liquidity', 'savings'] as const) {
         await expect(page.getByTestId('heute-wealth-history')).toBeVisible();
         await expect(forecast.locator('.heute-forecast-low')).toHaveAttribute(
           'data-cents',
-          '-10899',
+          '19101',
         );
         expect(independentReads).toBe(0);
         forceAggregateFailure = true;
@@ -340,7 +343,7 @@ for (const read of ['heute', 'budget', 'liquidity', 'savings'] as const) {
         if (redesign) {
           await expect(forecast.locator('.heute-forecast-low')).toHaveAttribute(
             'data-cents',
-            '-10899',
+            '19101',
           );
           await expect(page.getByTestId('heute-wealth-history')).toHaveCount(0);
         }

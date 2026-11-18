@@ -54,7 +54,7 @@ export interface SourceMapping {
 }
 export interface SourcePage {
   operations: SourceOperation[];
-  invalidOperations?: Array<{ id: string; reason: 'schema' }>;
+  invalidOperations?: Array<{ id: string; reason: 'schema'; field?: string }>;
   nextCursor: string | null;
 }
 export type SourceFailureCategory = 'schema' | 'http' | 'timeout' | 'parse';
@@ -62,4 +62,48 @@ export interface ReadSource {
   configured(): boolean;
   balances(): Promise<SourceBalance[]>;
   operations(window: { from: string; to: string; cursor: string | null }): Promise<SourcePage>;
+}
+
+/** Only exact provider stake types identify staking legs; rewards remain movements. */
+export const isInternalStakeType = (type: string) => /^(un)?stake$/.test(type);
+
+/** First unreadable amount field; values are never included in the diagnostic. */
+export function sourceOperationUnreadableField(op: SourceOperation): string | null {
+  for (const [i, t] of op.transactions.entries()) {
+    for (const field of ['amount', 'fee', 'tradeFee'] as const) {
+      const amount = t[field];
+      if (!amount) continue;
+      if (sourceInteger(amount.value, amount.assetId ? 8 : 2) === null)
+        return `transactions[${i}].${field}.value`;
+      if (amount.cents !== null && !Number.isSafeInteger(amount.cents))
+        return `transactions[${i}].${field}.cents`;
+    }
+  }
+  return null;
+}
+
+/** Internal moves require readable incoming and outgoing legs of the same key, exactly balanced. */
+export function internalTransferKeys(op: SourceOperation): Set<string> {
+  const groups = new Map<
+    string,
+    { net: bigint; incoming: boolean; outgoing: boolean; readable: boolean }
+  >();
+  for (const t of op.transactions) {
+    if (t.type !== 'transfer' && !isInternalStakeType(t.type)) continue;
+    const key = t.amount.assetId ? 'asset:' + t.amount.assetId : 'currency:' + t.amount.currencyId;
+    const group = groups.get(key) ?? { net: 0n, incoming: false, outgoing: false, readable: true };
+    const units = sourceInteger(t.amount.value, t.amount.assetId ? 8 : 2);
+    if (units === null || (t.flow !== 'INCOMING' && t.flow !== 'OUTGOING')) group.readable = false;
+    else {
+      group.net += BigInt(units) * (t.flow === 'INCOMING' ? 1n : -1n);
+      group.incoming ||= t.flow === 'INCOMING';
+      group.outgoing ||= t.flow === 'OUTGOING';
+    }
+    groups.set(key, group);
+  }
+  return new Set(
+    [...groups]
+      .filter(([, g]) => g.readable && g.incoming && g.outgoing && g.net === 0n)
+      .map(([k]) => k),
+  );
 }

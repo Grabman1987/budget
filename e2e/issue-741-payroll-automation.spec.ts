@@ -297,6 +297,8 @@ for (const profile of ['desktop', 'phone'] as const)
         await page.keyboard.press('Control+Shift+h');
         await expect(parsedPayout).toHaveText(/2\.975,00\s*€/);
         expect(await balances()).toBe(359845);
+        // Measure the rendered toast colors after its entrance fade has completed.
+        await expect(dialog.locator('.toast.is-open .toast-body')).toHaveCSS('opacity', '1');
         expect(
           (await new AxeBuilder({ page }).include('dialog[open]').analyze()).violations,
         ).toEqual([]);

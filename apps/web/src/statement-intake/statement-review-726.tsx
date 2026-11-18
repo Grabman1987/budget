@@ -25,6 +25,7 @@ import { StatementSettlementReview } from './statement-settlement-727';
 import { expectedQuery } from '../expected/api';
 import { StatementBookingLinks } from './statement-booking-links';
 import './statement-review-726.css';
+import { StatementPurchaseReview } from './statement-purchase-check';
 
 const PATH = '/api/statement-intake';
 const KEY = [...LEDGER_KEY, 'statement-intake'] as const;
@@ -569,6 +570,16 @@ function AccountStatements({
                 />
               )}
               {automation && <StatementAutomationResult outcome={automation} />}
+              {current && !current.deletedAt && account?.type === 'credit_card' && (
+                <StatementPurchaseReview
+                  key={current.id}
+                  intakeId={current.id}
+                  source={{ revision: current.revision, sha256: current.sha256, accountId }}
+                  facts={valid && facts?.success ? facts.data : null}
+                  password={password}
+                  disabled={busy || conflict}
+                />
+              )}
               {current && !current.deletedAt && (
                 <StatementBookingLinks
                   key={`${current.id}-${linksEditorKey}`}

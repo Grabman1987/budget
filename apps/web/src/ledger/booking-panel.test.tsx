@@ -120,6 +120,23 @@ it.each(['desktop', 'rollback'] as const)('leaves %s scrolling unchanged', (vari
   expect(body.scrollTop).toBe(0);
 });
 
+it('uses compact layout for a keyboard-reduced viewport on a tall phone', () => {
+  vi.stubGlobal('innerHeight', 932);
+  const { field } = mount();
+  act(() => {
+    viewport.height = 590;
+    viewport.dispatchEvent(new Event('resize'));
+  });
+  flushFrame();
+  expect(field.closest('.bk-focus-scope')?.hasAttribute('data-compact-viewport')).toBe(true);
+  act(() => {
+    viewport.height = 932;
+    viewport.dispatchEvent(new Event('resize'));
+  });
+  flushFrame();
+  expect(field.closest('.bk-focus-scope')?.hasAttribute('data-compact-viewport')).toBe(false);
+});
+
 it('does not move the body when focus is outside it and cancels pending work on unmount', () => {
   const { body, unmount } = mount();
   screen.getByRole('button', { name: 'Speichern' }).focus();

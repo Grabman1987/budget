@@ -65,6 +65,10 @@ async function extractWithCandidates(bytes: Buffer, candidates: (string | undefi
   }
   return result;
 }
+/** Same bounded extraction/password policy for the explicit read-only purchase check. */
+export function extractStatementForReview(db: Db, bytes: Buffer, password?: string) {
+  return extractWithCandidates(bytes, statementPasswordCandidates(db, password));
+}
 /** Server-only retained-source extraction; clients cannot submit trusted parsed rows/proofs. */
 export async function automateRetainedStatement(
   db: Db,
