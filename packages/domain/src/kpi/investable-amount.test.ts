@@ -38,6 +38,44 @@ it('floors the headline while keeping the signed arithmetic', () => {
   });
 });
 
+it('keeps funded obligations and envelope availability as separate conservative deductions', () => {
+  expect(
+    investableAmount({
+      ...base,
+      accounts: [{ balanceCents: 100_000 }],
+      openOutflows: [{ day: '2026-10-15', cents: 10_000 }],
+      reserves: {
+        ...base.reserves,
+        futureEnvelopeAvailableCents: [],
+        emergency: { averageNeedCents: 0, targetMonths: 6 },
+      },
+      needWantEnvelopeAvailableCents: [10_000],
+    }),
+  ).toMatchObject({
+    obligationsCents: 10_000,
+    needWantAvailableCents: 10_000,
+    rawCents: 80_000,
+    investableCents: 80_000,
+  });
+});
+
+it.each([
+  ['2028-01-30', '2028-02-29', '2028-03-01'],
+  ['2028-02-29', '2028-03-30', '2028-03-31'],
+  ['2026-12-31', '2027-01-30', '2027-01-31'],
+])('uses calendar days across month/year boundaries from %s', (payday, through, after) => {
+  expect(
+    investableAmount({
+      ...base,
+      payday,
+      openOutflows: [
+        { day: through, cents: 123 },
+        { day: after, cents: 456 },
+      ],
+    }),
+  ).toMatchObject({ through, obligationsCents: 123, rawCents: 91_936 });
+});
+
 it('nets overlapping reserves and deducts only reserves still charged to cash', () => {
   const reserves = {
     ...base.reserves,

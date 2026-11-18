@@ -8,6 +8,7 @@ import {
   addDays,
   addMonths,
   averageCents,
+  roundDivCents,
   BOOK_RULE_CODES,
   freedomProgressBp,
   freedomTargetCents,
@@ -342,7 +343,8 @@ function allocOf(f: RuleFacts, month: string): AllocMonth | null {
   return alloc;
 }
 
-const netIncomeOf = (a: AllocMonth): number => a.incomeCents + Math.round(a.annualIncomeCents / 12);
+const netIncomeOf = (a: AllocMonth): number =>
+  a.incomeCents + roundDivCents(a.annualIncomeCents, 12);
 
 /** The target of a category valid in `month` (latest `valid_from` not after it). */
 function targetOf(f: RuleFacts, categoryId: string, month: string): CategoryTarget | null {
@@ -419,7 +421,12 @@ export function scheduled(
   from: string,
   to: string,
   asOf: string,
-  options: { applyIncomePauses?: boolean; keepMissed?: boolean; skipSettledBy?: string } = {},
+  options: {
+    applyIncomePauses?: boolean;
+    keepMissed?: boolean;
+    skipSettledBy?: string;
+    onMissingFx?: (payment: PaymentRow, dueDate: string, currency: string) => void;
+  } = {},
 ) {
   const out: {
     payment: PaymentRow;
@@ -450,7 +457,10 @@ export function scheduled(
         asOf,
         options.applyIncomePauses === true,
       );
-      if (cents === null) continue;
+      if (cents === null) {
+        options.onMissingFx?.(p, occ.dueDate, versionOn(versions, occ.dueDate)!.currency);
+        continue;
+      }
       const acct = p.accountId ? accounts.get(p.accountId) : undefined;
       out.push({
         payment: p,
@@ -508,6 +518,7 @@ export function forecastInputs(
 ): NonNullable<RuleInputs['forecast']> & {
   cashAccounts: FreeAccount[];
   openOutflows: OpenOutflow[];
+  missingFx: { paymentId: string; dueDate: string; currency: string }[];
 } {
   const cur = monthOf(asOf);
   const ref = referenceMonth(asOf);
@@ -533,6 +544,11 @@ export function forecastInputs(
   const payments = new Map(f.payments.map((p) => [p.id, p]));
   const cashIds = new Set(budgetAccounts.map((a) => a.id));
   const onCashAccount = (id: string | null) => id === null || cashIds.has(id);
+  const missingFx: { paymentId: string; dueDate: string; currency: string }[] = [];
+  const recordMissingFx = (payment: PaymentRow, dueDate: string, currency: string) => {
+    if (payment.kind === 'outflow' && onCashAccount(payment.accountId))
+      missingFx.push({ paymentId: payment.id, dueDate, currency });
+  };
   const internalTransferCents = new Map<string, number>();
   for (const split of f.ledgerSplits) {
     if (
@@ -589,16 +605,26 @@ export function forecastInputs(
     )
       return [];
     const amount = forecastOccurrenceCents(f, payment, o.dueDate, o.cents, asOf, false);
+    if (amount === null)
+      recordMissingFx(
+        payment,
+        o.dueDate,
+        versionOn(f.versions.get(payment.id) ?? [], o.dueDate)!.currency,
+      );
     return amount === null ? [] : [toItem(payment, o.dueDate, amount)];
   });
-  const previews = scheduled(f, asOf, to, asOf, { applyIncomePauses: true }).flatMap(
-    (o): ForecastItem[] => {
-      const key = `${o.payment.id}|${o.dueDate}`;
-      if (!o.onBudget || typeof f.planMarks.get(key) === 'object') return [];
-      if (o.dueDate === asOf && (o.payment.kind === 'inflow' || byKey.has(key))) return [];
-      return [toItem(o.payment, o.dueDate, o.cents)];
+  const previews = scheduled(f, asOf, to, asOf, {
+    applyIncomePauses: true,
+    onMissingFx: (payment, dueDate, currency) => {
+      if (typeof f.planMarks.get(`${payment.id}|${dueDate}`) !== 'object')
+        recordMissingFx(payment, dueDate, currency);
     },
-  );
+  }).flatMap((o): ForecastItem[] => {
+    const key = `${o.payment.id}|${o.dueDate}`;
+    if (!o.onBudget || typeof f.planMarks.get(key) === 'object') return [];
+    if (o.dueDate === asOf && (o.payment.kind === 'inflow' || byKey.has(key))) return [];
+    return [toItem(o.payment, o.dueDate, o.cents)];
+  });
   const statementItems: { item: ForecastItem; internal: boolean }[] = statementForecastLegs(
     f.db,
     null,
@@ -670,6 +696,7 @@ export function forecastInputs(
   return {
     cashAccounts,
     openOutflows,
+    missingFx,
     startDay: asOf,
     // Projected day zero deducts open obligations already due; the cash balance does not.
     startCents:

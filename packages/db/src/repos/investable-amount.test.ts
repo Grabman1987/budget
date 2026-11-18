@@ -7,7 +7,7 @@ import { assignMany } from './budget';
 import { accounts, categories } from './entities';
 import { createExpectedPayment, linkOccurrence, updateExpectedPayment } from './expected';
 import { heute, investableAmountAsOf } from './heute';
-import { forecastInputs, loadFacts } from './rule-inputs';
+import { forecastInputs, healthBudgetInputs, loadFacts } from './rule-inputs';
 import { seedBasics, testCtx } from './test-helpers';
 
 let opened: OpenedDatabase;
@@ -16,6 +16,40 @@ beforeEach(() => {
   seedBasics(opened.db);
 });
 afterEach(() => opened.close());
+
+it('rounds a negative annual-income half cent through the shared exact policy', () => {
+  const facts = loadFacts(opened.db, '2026-10-14');
+  facts.allocByMonth.set('2026-09', { items: [], incomeCents: 1000, annualIncomeCents: -6 });
+  expect(healthBudgetInputs(facts, '2026-10-14').flows.at(-1)?.incomeCents).toBe(999);
+});
+
+it.each(['2026-08-10', '2026-10-14', '2026-10-15'])(
+  'does not invent free cash when the obligation on %s lacks an exchange rate',
+  (day) => {
+    const { db } = opened;
+    createExpectedPayment(
+      db,
+      {
+        id: 'fx-obligation',
+        name: 'Synthetic foreign obligation',
+        accountId: 'giro',
+        categoryId: 'miete',
+        kind: 'outflow',
+        rhythm: 'monthly',
+        startDate: day,
+        endDate: day,
+        dueDay: Number(day.slice(8)),
+        dateWindowDays: 3,
+      },
+      { validFrom: day, amountCents: 123, currency: 'USD' },
+      testCtx,
+      day,
+    );
+    expect(investableAmountAsOf(db, '2026-10-14')).toMatchObject({
+      unavailable: { reason: 'missing_fx', asOf: '2026-10-14' },
+    });
+  },
+);
 
 it('uses the Heute cash and forecast outflows, extends the window and excludes credit and expected income', () => {
   const { db } = opened;

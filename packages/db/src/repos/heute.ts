@@ -530,7 +530,14 @@ export function investableAmountAsOf(
   return availableSection(() => {
     const facts = loadFacts(db, today);
     const valuation = netWorthValuationAsOf(db, today);
-    const { cashAccounts, openOutflows } = liquidityPlanningInputs(facts, today, valuation);
+    const { cashAccounts, openOutflows, missingFx } = liquidityPlanningInputs(
+      facts,
+      today,
+      valuation,
+    );
+    const payday = nextPayday(today).day;
+    const missing = missingFx.find((item) => item.dueDate <= addDays(payday, 30));
+    if (missing) throw new MissingFxRateError(missing.currency, today);
     const cashIds = new Set(cashAccounts.map((a) => a.id));
     const envelopes = facts.budgetByMonth.get(monthOf(today))?.envelopes ?? {};
     const { refMonth, firstMonth, needSpending } = healthBudgetInputs(facts, today);
@@ -564,7 +571,7 @@ export function investableAmountAsOf(
     return investableAmount({
       accounts: cashAccounts,
       openOutflows,
-      payday: nextPayday(today).day,
+      payday,
       reserves: {
         futureEnvelopeAvailableCents: facts.categories
           .filter((c) => c.class === 'future')
