@@ -10,7 +10,7 @@ import {
 } from '@budget/domain';
 import { randomUUID } from 'node:crypto';
 import { isDeepStrictEqual } from 'node:util';
-import { and, asc, eq, isNull, lt } from 'drizzle-orm';
+import { and, asc, eq, exists, gt, inArray, isNull, lt } from 'drizzle-orm';
 import {
   account,
   appSetting,
@@ -26,6 +26,8 @@ import {
   expectedOccurrence,
   expectedPayment,
   incomeType,
+  project,
+  payee,
   RHYTHMS,
   rule,
   security,
@@ -35,8 +37,8 @@ import { type AuditContext, type GroupedContext } from './audit';
 import { saveBookSettings } from './book-settings';
 import { getBooking, updateBooking } from './bookings';
 import { createCategory, updateCategory } from './categories';
-import { accounts, getEntity } from './entities';
-import { ConflictError, EntityNotFoundError } from './errors';
+import { accounts, createEntity, getEntity } from './entities';
+import { ConflictError, EntityNotFoundError, ReconciledLockedError } from './errors';
 import {
   addExpectedVersion,
   createExpectedPayment,
@@ -151,7 +153,20 @@ export interface OwnerCreateCategory {
   /** Required for spending kinds, forbidden for income / card_payment / advance (as in the app). */
   class?: (typeof CATEGORY_CLASSES)[number];
 }
+export interface OwnerProject {
+  name: string;
+  /** Explicit permission to attribute reconciled bookings without changing their status. */
+  unlock?: true;
+  note?: string;
+  attributeCategory?: string;
+  attributeCategoryGroup?: string;
+  attributePayee?: string;
+  incomeType?: string;
+  direction?: 'inflow' | 'outflow';
+  attributeBookings?: { account: string; date: string; amountCents: number }[];
+}
 export interface OwnerConfig {
+  projects?: OwnerProject[];
   assetClassTree?: OwnerAssetClassTree;
   createCategories?: OwnerCreateCategory[];
   createSecurities?: OwnerCreateSecurity[];
@@ -201,6 +216,7 @@ export interface OwnerSplitCategory {
 export const OWNER_CONFIG_SECTIONS = [
   'assetClassTree',
   'createCategories',
+  'projects',
   'createSecurities',
   'cryptoMappings',
   'splitCategories',
@@ -216,10 +232,13 @@ export const OWNER_CONFIG_SECTIONS = [
 export type OwnerConfigSection = (typeof OWNER_CONFIG_SECTIONS)[number];
 
 export interface OwnerConfigOutcome {
+  projectAction?: 'project' | 'booking';
+  bookingDate?: string;
+  bookingAmountCents?: number;
   section: OwnerConfigSection;
   /** What the entry is about: the rule code, category, payment or account name ... */
   key: string;
-  status: 'created' | 'updated' | 'unchanged' | 'skipped';
+  status: 'created' | 'updated' | 'unchanged' | 'skipped' | 'remaining';
   /** The changes as `field old -> new` (or field names only for private values); the refusal for a skip. */
   detail: string;
   /** Stable reason code of a skip, empty otherwise. */
@@ -490,6 +509,90 @@ export function parseOwnerConfigFile(
 ): OwnerConfig {
   const root = strictObject(json, 'The file', OWNER_CONFIG_SECTIONS);
   const config: OwnerConfig = {};
+  if (root['projects'] !== undefined) {
+    config.projects = list(root['projects'], 'projects').map((raw, i) => {
+      const at = `projects[${i}]`;
+      const o = strictObject(raw, at, [
+        'name',
+        'note',
+        'attributeCategory',
+        'attributeCategoryGroup',
+        'attributePayee',
+        'incomeType',
+        'direction',
+        'attributeBookings',
+        'unlock',
+      ]);
+      const out: OwnerProject = { name: text(o['name'], `${at}.name`, 120) };
+      if (o['unlock'] !== undefined && o['unlock'] !== false) {
+        if (o['unlock'] !== true)
+          throw new OperatorInputError(`${at}.unlock must be true or false`);
+        out.unlock = true;
+      }
+      if (o['note'] !== undefined) out.note = text(o['note'], `${at}.note`, 500);
+      if (o['attributeCategory'] !== undefined)
+        out.attributeCategory = text(o['attributeCategory'], `${at}.attributeCategory`, 80);
+      if (o['attributeCategoryGroup'] !== undefined) {
+        out.attributeCategoryGroup = text(
+          o['attributeCategoryGroup'],
+          `${at}.attributeCategoryGroup`,
+          80,
+        );
+        if (!out.attributeCategory)
+          throw new OperatorInputError(`${at}: attributeCategoryGroup needs attributeCategory`);
+      }
+      if (o['attributePayee'] !== undefined)
+        out.attributePayee = text(o['attributePayee'], `${at}.attributePayee`);
+      if (o['incomeType'] !== undefined)
+        out.incomeType = text(o['incomeType'], `${at}.incomeType`, 80);
+      if (o['direction'] !== undefined) {
+        if (o['direction'] !== 'inflow' && o['direction'] !== 'outflow')
+          throw new OperatorInputError(`${at}.direction must be inflow or outflow`);
+        out.direction = o['direction'];
+      }
+      if ((out.incomeType || out.direction) && !out.attributePayee)
+        throw new OperatorInputError(`${at}: incomeType and direction need attributePayee`);
+      if (o['attributeBookings'] !== undefined)
+        out.attributeBookings = list(o['attributeBookings'], `${at}.attributeBookings`).map(
+          (raw, j) => {
+            const atBooking = `${at}.attributeBookings[${j}]`;
+            const b = strictObject(raw, atBooking, ['account', 'date', 'amountCents']);
+            return {
+              account: text(b['account'], `${atBooking}.account`, 80),
+              date: day(b['date'], `${atBooking}.date`),
+              amountCents: int(
+                b['amountCents'],
+                `${atBooking}.amountCents`,
+                -Number.MAX_SAFE_INTEGER,
+                Number.MAX_SAFE_INTEGER,
+              ),
+            };
+          },
+        );
+      if (
+        [out.attributeCategory, out.attributePayee, out.attributeBookings].filter(
+          (v) => v !== undefined,
+        ).length > 1
+      )
+        throw new OperatorInputError(`${at}: give at most one attribution selector`);
+      return out;
+    });
+    const selectors = new Set<string>();
+    for (const p of config.projects) {
+      const key = JSON.stringify([
+        fold(p.name),
+        p.attributeCategory ?? null,
+        p.attributeCategoryGroup ?? null,
+        p.attributePayee === undefined ? null : fold(p.attributePayee),
+        p.incomeType ?? null,
+        p.direction ?? null,
+        p.attributeBookings ?? null,
+      ]);
+      if (selectors.has(key))
+        throw new OperatorInputError('projects: project selector is listed twice');
+      selectors.add(key);
+    }
+  }
   if (root['assetClassTree'] !== undefined)
     config.assetClassTree = parseAssetClassTree(root['assetClassTree']);
   if (root['createCategories'] !== undefined) {
@@ -758,13 +861,14 @@ export function parseOwnerConfigFile(
 // Applying
 // ---------------------------------------------------------------------------------------------
 
-type Step = { status: 'created' | 'updated' | 'unchanged'; detail: string };
+type Step = { status: 'created' | 'updated' | 'unchanged' | 'remaining'; detail: string };
 
 interface Runner {
   tx: Executor;
   actor: string;
   today: string;
   groupId: string;
+  bookingsLeft: number;
 }
 
 /** Run one entry in its own savepoint, within the run's audit group; refusals become a skip. */
@@ -783,7 +887,7 @@ function entry(
       status: step.status,
       detail: step.detail,
       reason: '',
-      groupId: step.status === 'unchanged' ? '' : ctx.groupId,
+      groupId: step.status === 'unchanged' || step.status === 'remaining' ? '' : ctx.groupId,
     };
   } catch (error) {
     const { reason, message } = refusal(error);
@@ -843,6 +947,207 @@ function oneExpectedPayment(tx: Executor, name: string) {
   if (found.length > 1)
     throw new EntrySkip('ambiguous_payment', `${found.length} expected payments have this name`);
   return found[0] ?? null;
+}
+
+/** The app attributes the whole booking; never pull unrelated splits into a project. */
+function applyProjects(r: Runner, e: OwnerProject): OwnerConfigOutcome[] {
+  let projectId: string | undefined;
+  let categoryId: string | undefined;
+  let payeeId: string | undefined;
+  let incomeTypeId: string | undefined;
+  const result = entry(r, 'projects', e.name, (tx, ctx) => {
+    const matches = tx
+      .select()
+      .from(project)
+      .all()
+      .filter((p) => fold(p.name) === fold(e.name));
+    const live = matches.filter((p) => !p.deletedAt && !p.archivedAt);
+    if (live.length > 1)
+      throw new EntrySkip('ambiguous_project', 'several live projects have this name');
+    if (!live.length && matches.length)
+      throw new EntrySkip('inactive_project', 'project is archived or deleted');
+    if (e.attributeCategory !== undefined) {
+      const found = tx
+        .select({ c: category, g: categoryGroup })
+        .from(category)
+        .innerJoin(categoryGroup, eq(categoryGroup.id, category.groupId))
+        .where(isNull(category.deletedAt))
+        .all()
+        .filter(
+          ({ c, g }) =>
+            c.name === e.attributeCategory &&
+            (e.attributeCategoryGroup === undefined ||
+              (!g.deletedAt && g.name === e.attributeCategoryGroup)),
+        );
+      if (found.length !== 1)
+        throw new EntrySkip(
+          found.length ? 'ambiguous_category' : 'unknown_category',
+          'category must resolve to exactly one live row',
+        );
+      categoryId = found[0]!.c.id;
+    }
+    if (e.attributePayee !== undefined) {
+      const found = tx
+        .select({ id: payee.id, name: payee.name })
+        .from(payee)
+        .where(isNull(payee.deletedAt))
+        .all()
+        .filter((p) => fold(p.name) === fold(e.attributePayee!));
+      if (found.length !== 1)
+        throw new EntrySkip(
+          found.length ? 'ambiguous_payee' : 'unknown_payee',
+          'payee must resolve to exactly one live row',
+        );
+      payeeId = found[0]!.id;
+    }
+    if (e.incomeType !== undefined) {
+      const found = tx
+        .select({ id: incomeType.id })
+        .from(incomeType)
+        .where(and(isNull(incomeType.deletedAt), eq(incomeType.name, e.incomeType)))
+        .all();
+      if (found.length !== 1)
+        throw new EntrySkip(
+          found.length ? 'ambiguous_income_type' : 'unknown_income_type',
+          'income type must resolve to exactly one live row',
+        );
+      incomeTypeId = found[0]!.id;
+    }
+    projectId =
+      live[0]?.id ?? createEntity(tx, project, { name: e.name, note: e.note ?? null }, ctx).id;
+    return live.length ? done([]) : done(['project created'], true);
+  });
+  result.projectAction = 'project';
+  const out = [result];
+  if (result.status === 'skipped' || !projectId) return out;
+  if (!categoryId && !payeeId && !e.attributeBookings) return out;
+  const explicitIds = new Set<string>();
+  for (const [index, match] of (e.attributeBookings ?? []).entries()) {
+    const resolved = entry(r, 'projects', `${e.name}:booking:${index}`, (tx) => {
+      const accounts = tx
+        .select({ id: account.id })
+        .from(account)
+        .where(and(isNull(account.deletedAt), eq(account.name, match.account)))
+        .limit(2)
+        .all();
+      if (accounts.length !== 1)
+        throw new EntrySkip(
+          accounts.length ? 'ambiguous' : 'not_found',
+          'account must resolve to exactly one live row',
+        );
+      const found = tx
+        .select({ id: booking.id })
+        .from(booking)
+        .where(
+          and(
+            isNull(booking.deletedAt),
+            eq(booking.accountId, accounts[0]!.id),
+            eq(booking.date, match.date),
+            eq(booking.amountCents, match.amountCents),
+          ),
+        )
+        .limit(2)
+        .all();
+      if (found.length !== 1)
+        throw new EntrySkip(
+          found.length ? 'ambiguous' : 'not_found',
+          'booking must resolve to exactly one live row',
+        );
+      explicitIds.add(found[0]!.id);
+      return done([]);
+    });
+    if (resolved.status === 'skipped')
+      out.push({
+        ...resolved,
+        projectAction: 'booking',
+        bookingDate: match.date,
+        bookingAmountCents: match.amountCents,
+      });
+  }
+  if (e.attributeBookings && !explicitIds.size) return out;
+  // Filter in SQLite and retain only attribution fields, never bank payloads or the whole split table.
+  const candidates = r.tx
+    .select({
+      id: booking.id,
+      date: booking.date,
+      amountCents: booking.amountCents,
+      projectId: booking.projectId,
+      transferId: booking.transferId,
+    })
+    .from(booking)
+    .where(
+      and(
+        isNull(booking.deletedAt),
+        categoryId
+          ? exists(
+              r.tx
+                .select({ id: bookingSplit.id })
+                .from(bookingSplit)
+                .where(
+                  and(
+                    eq(bookingSplit.bookingId, booking.id),
+                    eq(bookingSplit.categoryId, categoryId),
+                  ),
+                ),
+            )
+          : undefined,
+        payeeId ? eq(booking.payeeId, payeeId) : undefined,
+        incomeTypeId
+          ? exists(
+              r.tx
+                .select({ id: bookingSplit.id })
+                .from(bookingSplit)
+                .where(
+                  and(
+                    eq(bookingSplit.bookingId, booking.id),
+                    eq(bookingSplit.incomeTypeId, incomeTypeId),
+                  ),
+                ),
+            )
+          : undefined,
+        e.direction === 'inflow' ? gt(booking.amountCents, 0) : undefined,
+        e.direction === 'outflow' ? lt(booking.amountCents, 0) : undefined,
+        e.attributeBookings ? inArray(booking.id, [...explicitIds]) : undefined,
+      ),
+    )
+    .orderBy(asc(booking.date), asc(booking.id))
+    .all();
+  for (const b of candidates) {
+    const outcome = entry(r, 'projects', b.id, (tx, ctx) => {
+      const parts = tx
+        .select({ categoryId: bookingSplit.categoryId, transferId: bookingSplit.transferId })
+        .from(bookingSplit)
+        .where(eq(bookingSplit.bookingId, b.id))
+        .all();
+      if (b.transferId || parts.some((s) => s.transferId))
+        throw new EntrySkip('transfer', 'transfers are not attributed');
+      if (b.projectId && b.projectId !== projectId)
+        throw new EntrySkip('other_project', 'booking already belongs to another project');
+      if (categoryId && parts.some((s) => s.categoryId !== null && s.categoryId !== categoryId))
+        throw new EntrySkip('mixed_splits', 'booking has splits in another category');
+      if (b.projectId === projectId) return done([]);
+      if (r.bookingsLeft === 0) return { status: 'remaining', detail: 'booking limit reached' };
+      try {
+        updateBooking(tx, b.id, { projectId }, ctx, { unlockReconciled: e.unlock === true });
+        r.bookingsLeft--;
+      } catch (error) {
+        if (error instanceof ReconciledLockedError)
+          throw new EntrySkip(
+            'reconciled_locked',
+            'project assignment requires an explicit unlock in the app',
+          );
+        throw error;
+      }
+      return done(['project attributed']);
+    });
+    out.push({
+      ...outcome,
+      projectAction: 'booking',
+      bookingDate: b.date,
+      bookingAmountCents: b.amountCents,
+    });
+  }
+  return out;
 }
 
 // --- new categories, securities, source mappings and split categories --------------------------
@@ -1421,13 +1726,20 @@ export function applyOwnerConfig(
   db: Executor,
   config: OwnerConfig,
   ctx: Pick<AuditContext, 'actor'>,
-  options: { dryRun?: boolean; today?: string } = {},
+  options: { dryRun?: boolean; today?: string; maxBookings?: number } = {},
 ): OwnerConfigOutcome[] {
+  const maxBookings = int(options.maxBookings ?? 25, 'maxBookings', 1, Number.MAX_SAFE_INTEGER);
   const today = options.today ?? new Date().toISOString().slice(0, 10);
   const outcomes: OwnerConfigOutcome[] = [];
   try {
     runInTransaction(db, (tx) => {
-      const r: Runner = { tx, actor: ctx.actor, today, groupId: randomUUID() };
+      const r: Runner = {
+        tx,
+        actor: ctx.actor,
+        today,
+        groupId: randomUUID(),
+        bookingsLeft: maxBookings,
+      };
       const add = (o: OwnerConfigOutcome) => outcomes.push(o);
       if (config.assetClassTree) {
         outcomes.push(...applyTree(r, config.assetClassTree));
@@ -1483,6 +1795,7 @@ export function applyOwnerConfig(
             applyCreateCategory(t, e, c),
           ),
         );
+      for (const e of config.projects ?? []) outcomes.push(...applyProjects(r, e));
       for (const e of config.createSecurities ?? [])
         add(entry(r, 'createSecurities', e.isin ?? e.name, (t, c) => applyCreateSecurity(t, e, c)));
       for (const e of config.cryptoMappings ?? [])

@@ -706,7 +706,7 @@ Run it as `fly ssh console -a budget-fg -C "node /app/migrate-cli.js instrument-
 
 The additive `assetClassTree` section manages groups, class assignments, dated targets and explicit account classes, including operator-only P2P defaults. See [configuration, dry-run and owner steps](portfolio-composition.md#operator-configuration).
 
-`owner-config --file <json> [--dry-run] [--details]` loads the owner's private settings from one file
+`owner-config --file <json> [--dry-run] [--details] [--max-bookings <n>]` loads the owner's private settings from one file
 (keep it on `/data/migration/`, never in the repo). Every section is optional; entries share one
 audit group per run (actor `operator`, `undo-group --group <id>` reverts the run) and call the function
 behind the matching app route, so validation and audit are those of the UI. A file is checked as a
@@ -742,7 +742,7 @@ code is 3. Running a file twice is safe: the second run reports everything as `u
 }
 ```
 
-Sections run in this order: `assetClassTree`, `createCategories`, `createSecurities`, `cryptoMappings`, `splitCategories`, then
+Sections run in this order: `assetClassTree`, `createCategories`, `projects`, `createSecurities`, `cryptoMappings`, `splitCategories`, then
 `profile`, `rules`, `categoryStages`, `assetClasses`, `securities`,
 `expectedPayments`, `skipOccurrences`, `clearBookings`. Names are matched exactly (trimmed,
 case-insensitive for existing sections); unknown and ambiguous references are skipped. Each entry
@@ -760,6 +760,77 @@ has a savepoint: a refusal rolls back only that entry. The following examples ar
 }
 ```
 
+- `projects`: optional list of `{ "name": "Synthetic Project", "note": "Synthetic note",
+  "attributeCategory": "Synthetic Category", "attributeCategoryGroup": "Synthetic Group", "unlock": true }`.
+  Only `name` is required (1-120 characters); optional `note` is 1-500 characters and is stored
+  only on creation. Project names are matched case-insensitively after trimming. An existing live,
+  unarchived project is reused unchanged; an archived/deleted match is `inactive_project`, never
+  revived. The same project name may appear several times for different attribution selectors (including
+  different groups for equal category names); one project is reused across those entries. Duplicate
+  project/selector combinations are input errors, with project and payee names compared
+  case-insensitively and category/group/income-type names exactly. Omitted filters are part of the selector too.
+  Multiple live matches are `ambiguous_project`. Creation uses the same `createEntity`
+  function as the app route. Categories stay in place for budgeting.
+  `attributeCategory` must match exactly one live category by exact name (soft-deleted rows ignored);
+  optional `attributeCategoryGroup` narrows it by exact live group name and requires
+  `attributeCategory`. Missing/ambiguous categories skip the entry as `unknown_category` /
+  `ambiguous_category` before any project is created.
+  Choose at most one of `attributeCategory`, `attributePayee`, and `attributeBookings` per entry;
+  omit all three to create/reuse only. For example, project income can use
+  `{ "name": "Synthetic Project", "attributePayee": "Synthetic Payer",
+  "incomeType": "Synthetic Income", "direction": "inflow", "unlock": true }`.
+  `attributePayee` matches one live payee by exact name, ignoring case and surrounding blanks
+  (not a substring). Missing/ambiguous matches skip the entry as `unknown_payee` /
+  `ambiguous_payee`. Optional `incomeType` matches one live income type by exact name and
+  requires at least one matching split; missing/ambiguous types are `unknown_income_type` /
+  `ambiguous_income_type`. Optional `direction` is `inflow` (whole booking amount > 0) or
+  `outflow` (< 0); omitted includes both directions and zero. Both filters require `attributePayee`.
+  These selectors attribute the whole booking, including companion splits, without changing them.
+  For individual bookings without a payee, use e.g.
+  `{ "name": "Synthetic Project", "attributeBookings": [{ "account": "Synthetic Account",
+  "date": "2026-02-10", "amountCents": 1201 }] }`.
+  Each tuple must resolve to one live account by exact name and exactly one live booking by
+  account/date/signed integer-cent amount; otherwise that tuple is skipped as `not_found` or
+  `ambiguous`. No payee or memo is guessed; soft-deleted bookings are ignored. Duplicate tuples
+  select a booking once within the entry. The other tuples continue after a refusal.
+  Every live booking with a split in the selected category is considered, regardless of date/status.
+  Attribution is **booking-level**, following the app model: all category splits must be in the
+  named category; otherwise `mixed_splits`. Whole and split transfers are `transfer`; a booking
+  assigned elsewhere is `other_project`. Already assigned bookings are unchanged. Assignment uses
+  `updateBooking`: without per-entry `"unlock": true`, a new assignment on a reconciled booking
+  remains `reconciled_locked` (only flag/memo are freely editable). Optional `unlock` must be a
+  boolean; false/omitted grants no permission. True passes `unlockReconciled`, exactly like `book`'s
+  per-entry unlock, with the same operator actor and shared audit group. The app unlock bypasses
+  the lock guard; it does **not** downgrade `reconciled` to `confirmed`. The guarded project-only
+  update branch writes only `project_id` plus the normal `updated_at` audit timestamp, without
+  the general edit path's bank-text backfill or expected-link refresh. All metadata guards and
+  active-project validation still apply. Other app refusals remain skips. Amount, account, date,
+  splits, reconciliation status, account reconciliation records and reconciled balance stay intact;
+  grouped Undo restores the previous project without changing them.
+  Project-only attribution retains the local booking/transfer checks and write guards, without
+  revalidating the global contact ledger or recomputing balances, envelopes or projections.
+  Selection filters execute in SQLite, reading only booking attribution fields and each
+  candidate's guard split fields; unrelated booking payloads and the whole split table are not
+  loaded into JavaScript. Use the production-built `migrate-cli.js` when measuring memory:
+  `tsx` also loads the TypeScript development toolchain. RSS remains machine/data-dependent;
+  the batch count alone is not a memory reservation for an app sharing a small machine.
+  Each invocation attributes at most `--max-bookings <n>` bookings across all project selectors
+  (default 25; positive safe integer). Output includes `projects remaining <count>` for candidates
+  deferred by that limit; these are not errors. Rerun the same file to continue: attributed bookings
+  become `bookings_unchanged` and do not consume the limit. Deferred candidates still go through
+  the app guards when attempted, so later runs may report refusals. Dry runs use the same limit.
+  Each invocation remains one transaction and one audit group; undo groups in reverse run order.
+  **Never run while a backup is being written.** Check `/health` between runs and stop if the app
+  is unhealthy. The count bounds mutations, not a guaranteed duration: selection and guard reads
+  still depend on database size and machine load. Other owner-config sections retain their limits;
+  use a projects-only input when bounding this operator task on a small live machine.
+  Each project and each booking has its own savepoint in the run's shared operator audit group;
+  `undo-group` restores attribution and removes newly created projects together. `--dry-run`
+  rolls everything back. Default project output contains aggregates only: projects created/unchanged,
+  attributed/unchanged bookings, skip counts per reason and the undo group ID. `--details` adds
+  booking date and integer-cent amount for each booking skip; no project/category names are printed.
+  Any skip sets exit code 3. Repeating a successful run reports unchanged; persistent refusals
+  are still reported as skips.
 - `createSecurities`: required `name`, `kind` (`etf`, `stock`, `fund`, `bond`, `crypto`, `p2p`,
   `commodity`, `other`); `currency` defaults to `EUR` (three uppercase letters), `pricesEnabled`
   defaults to `false`. Optional `assetClass` is an exact live class name, `isin` a 12-character ISIN,
