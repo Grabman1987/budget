@@ -8,6 +8,7 @@ import {
   booking,
   category,
   categoryGroup,
+  INCOME_TYPES,
   project,
 } from '../schema';
 import { createBooking, createTransfer, getBooking, deleteBooking } from './bookings';
@@ -354,4 +355,67 @@ it('rejects duplicate project/category selectors and invalid unlock before writi
       ],
     }).projects,
   ).toHaveLength(2);
+});
+
+it('reconciles project booking rows to the period result using only attributed P&L splits', () => {
+  const { id: projectId } = createEntity(db, project, { name: 'Synthetic Project' }, testCtx);
+  const incomeId = expense(7201, {
+    projectId,
+    date: '2026-02-01',
+    payeeId: 'p1',
+    splits: [
+      { amountCents: 5201, incomeTypeId: INCOME_TYPES.side.id },
+      { amountCents: 2000, incomeTypeId: INCOME_TYPES.capital.id },
+    ],
+  });
+  const firstCostId = expense(-1303, {
+    projectId,
+    splits: [
+      { categoryId: 'essen', amountCents: -503 },
+      { categoryId: 'reise', amountCents: -800 },
+    ],
+  });
+  const secondCostId = expense(-1107, { projectId, date: '2026-02-13' });
+  const refundId = expense(211, {
+    projectId,
+    date: '2026-02-17',
+    memo: 'Synthetic refund',
+    splits: [{ amountCents: 211, incomeTypeId: INCOME_TYPES.refund.id }],
+  });
+  expense(-999, { projectId, date: '2026-01-20' });
+  expense(-888);
+  const [reported] = readProjects(db, '2026-02..2026-02', '2026-03-20').projects;
+  expect(reported).toMatchObject({ incomeCents: 5201, costCents: 2199, resultCents: 3002 });
+  expect(reported!.bookings).toHaveLength(4);
+  expect(reported!.bookings).toEqual(
+    expect.arrayContaining([
+      {
+        bookingId: incomeId,
+        date: '2026-02-01',
+        payee: 'Vermieter',
+        memo: null,
+        classifications: ['Nebeneinkünfte'],
+        amountCents: 5201,
+      },
+      expect.objectContaining({
+        bookingId: firstCostId,
+        classifications: ['Essen', 'Reise'],
+        amountCents: -1303,
+      }),
+      expect.objectContaining({
+        bookingId: secondCostId,
+        classifications: ['Essen'],
+        amountCents: -1107,
+      }),
+      expect.objectContaining({
+        bookingId: refundId,
+        memo: 'Synthetic refund',
+        classifications: ['Erstattungen'],
+        amountCents: 211,
+      }),
+    ]),
+  );
+  expect(reported!.bookings.reduce((sum, row) => sum + row.amountCents, 0)).toBe(
+    reported!.resultCents,
+  );
 });
