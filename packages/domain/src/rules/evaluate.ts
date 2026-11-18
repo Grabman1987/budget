@@ -237,7 +237,7 @@ const r07: Rule<'R07'> = (p, i) => {
   const conservativeLow = accountLiquidity?.withoutExpectedInflows.household.low;
   const verdictLow = conservativeLow ?? low;
   const status: RuleStatus =
-    low.cents < 0 || verdictLow.cents < 0 || (shortAccounts?.length ?? 0) > 0
+    verdictLow.cents < 0 || (shortAccounts?.length ?? 0) > 0
       ? 'bad'
       : verdictLow.cents >= p.minCents
         ? 'ok'
