@@ -51,3 +51,17 @@ Entschieden am 15.11.2026: H-01 (nächstes Sparziel im Block „Ziele finanziere
 ## Pflege
 
 Jede neue Funktion und jede Entscheidung des Nutzers bekommt im selben Pull Request ihre Story oder eine Aktualisierung von Status und Kriterien.
+
+
+## Operator project attribution (#1243)
+
+As the household operator, I can create a project for a project-like category and attribute
+its eligible existing bookings through `owner-config`, keeping the category for budgeting.
+
+Acceptance: an optional `projects` section creates or reuses live projects, resolves exact live
+category names (optionally narrowed by group), and assigns whole bookings through the app writer.
+Mixed category splits, transfers, other projects and reconciled locks are counted as skips.
+A dry run writes nothing; a successful repeat is unchanged; one operator audit group supports
+`undo-group`. Default output is aggregate-only, with booking date/cent amounts on skips only
+under `--details`. Report 1.9 reads the attributed splits through its existing P&L rules.
+Status: implemented for review; owner acceptance pending. See [operator contract](ops.md#126-owner-configuration-operator-task).

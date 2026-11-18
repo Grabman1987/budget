@@ -26,6 +26,7 @@ import {
   expectedOccurrence,
   expectedPayment,
   incomeType,
+  project,
   RHYTHMS,
   rule,
   security,
@@ -35,8 +36,8 @@ import { type AuditContext, type GroupedContext } from './audit';
 import { saveBookSettings } from './book-settings';
 import { getBooking, updateBooking } from './bookings';
 import { createCategory, updateCategory } from './categories';
-import { accounts, getEntity } from './entities';
-import { ConflictError, EntityNotFoundError } from './errors';
+import { accounts, createEntity, getEntity } from './entities';
+import { ConflictError, EntityNotFoundError, ReconciledLockedError } from './errors';
 import {
   addExpectedVersion,
   createExpectedPayment,
@@ -151,7 +152,16 @@ export interface OwnerCreateCategory {
   /** Required for spending kinds, forbidden for income / card_payment / advance (as in the app). */
   class?: (typeof CATEGORY_CLASSES)[number];
 }
+export interface OwnerProject {
+  name: string;
+  /** Explicit permission to attribute reconciled bookings without changing their status. */
+  unlock?: true;
+  note?: string;
+  attributeCategory?: string;
+  attributeCategoryGroup?: string;
+}
 export interface OwnerConfig {
+  projects?: OwnerProject[];
   assetClassTree?: OwnerAssetClassTree;
   createCategories?: OwnerCreateCategory[];
   createSecurities?: OwnerCreateSecurity[];
@@ -201,6 +211,7 @@ export interface OwnerSplitCategory {
 export const OWNER_CONFIG_SECTIONS = [
   'assetClassTree',
   'createCategories',
+  'projects',
   'createSecurities',
   'cryptoMappings',
   'splitCategories',
@@ -216,6 +227,9 @@ export const OWNER_CONFIG_SECTIONS = [
 export type OwnerConfigSection = (typeof OWNER_CONFIG_SECTIONS)[number];
 
 export interface OwnerConfigOutcome {
+  projectAction?: 'project' | 'booking';
+  bookingDate?: string;
+  bookingAmountCents?: number;
   section: OwnerConfigSection;
   /** What the entry is about: the rule code, category, payment or account name ... */
   key: string;
@@ -490,6 +504,48 @@ export function parseOwnerConfigFile(
 ): OwnerConfig {
   const root = strictObject(json, 'The file', OWNER_CONFIG_SECTIONS);
   const config: OwnerConfig = {};
+  if (root['projects'] !== undefined) {
+    config.projects = list(root['projects'], 'projects').map((raw, i) => {
+      const at = `projects[${i}]`;
+      const o = strictObject(raw, at, [
+        'name',
+        'note',
+        'attributeCategory',
+        'attributeCategoryGroup',
+        'unlock',
+      ]);
+      const out: OwnerProject = { name: text(o['name'], `${at}.name`, 120) };
+      if (o['unlock'] !== undefined && o['unlock'] !== false) {
+        if (o['unlock'] !== true)
+          throw new OperatorInputError(`${at}.unlock must be true or false`);
+        out.unlock = true;
+      }
+      if (o['note'] !== undefined) out.note = text(o['note'], `${at}.note`, 500);
+      if (o['attributeCategory'] !== undefined)
+        out.attributeCategory = text(o['attributeCategory'], `${at}.attributeCategory`, 80);
+      if (o['attributeCategoryGroup'] !== undefined) {
+        out.attributeCategoryGroup = text(
+          o['attributeCategoryGroup'],
+          `${at}.attributeCategoryGroup`,
+          80,
+        );
+        if (!out.attributeCategory)
+          throw new OperatorInputError(`${at}: attributeCategoryGroup needs attributeCategory`);
+      }
+      return out;
+    });
+    const selectors = new Set<string>();
+    for (const p of config.projects) {
+      const key = JSON.stringify([
+        fold(p.name),
+        p.attributeCategory ?? null,
+        p.attributeCategoryGroup ?? null,
+      ]);
+      if (selectors.has(key))
+        throw new OperatorInputError('projects: project/category selector is listed twice');
+      selectors.add(key);
+    }
+  }
   if (root['assetClassTree'] !== undefined)
     config.assetClassTree = parseAssetClassTree(root['assetClassTree']);
   if (root['createCategories'] !== undefined) {
@@ -843,6 +899,94 @@ function oneExpectedPayment(tx: Executor, name: string) {
   if (found.length > 1)
     throw new EntrySkip('ambiguous_payment', `${found.length} expected payments have this name`);
   return found[0] ?? null;
+}
+
+/** The app attributes the whole booking; never pull unrelated splits into a project. */
+function applyProjects(r: Runner, e: OwnerProject): OwnerConfigOutcome[] {
+  let projectId: string | undefined;
+  let categoryId: string | undefined;
+  const result = entry(r, 'projects', e.name, (tx, ctx) => {
+    const matches = tx
+      .select()
+      .from(project)
+      .all()
+      .filter((p) => fold(p.name) === fold(e.name));
+    const live = matches.filter((p) => !p.deletedAt && !p.archivedAt);
+    if (live.length > 1)
+      throw new EntrySkip('ambiguous_project', 'several live projects have this name');
+    if (!live.length && matches.length)
+      throw new EntrySkip('inactive_project', 'project is archived or deleted');
+    if (e.attributeCategory !== undefined) {
+      const found = tx
+        .select({ c: category, g: categoryGroup })
+        .from(category)
+        .innerJoin(categoryGroup, eq(categoryGroup.id, category.groupId))
+        .where(isNull(category.deletedAt))
+        .all()
+        .filter(
+          ({ c, g }) =>
+            c.name === e.attributeCategory &&
+            (e.attributeCategoryGroup === undefined ||
+              (!g.deletedAt && g.name === e.attributeCategoryGroup)),
+        );
+      if (found.length !== 1)
+        throw new EntrySkip(
+          found.length ? 'ambiguous_category' : 'unknown_category',
+          'category must resolve to exactly one live row',
+        );
+      categoryId = found[0]!.c.id;
+    }
+    projectId =
+      live[0]?.id ?? createEntity(tx, project, { name: e.name, note: e.note ?? null }, ctx).id;
+    return live.length ? done([]) : done(['project created'], true);
+  });
+  result.projectAction = 'project';
+  const out = [result];
+  if (result.status === 'skipped' || !categoryId || !projectId) return out;
+  const splits = r.tx.select().from(bookingSplit).all();
+  const byBooking = new Map<string, typeof splits>();
+  for (const split of splits) {
+    const parts = byBooking.get(split.bookingId) ?? [];
+    parts.push(split);
+    byBooking.set(split.bookingId, parts);
+  }
+  const candidates = r.tx
+    .select()
+    .from(booking)
+    .where(isNull(booking.deletedAt))
+    .orderBy(asc(booking.date), asc(booking.id))
+    .all()
+    .filter((b) => byBooking.get(b.id)?.some((s) => s.categoryId === categoryId));
+  for (const b of candidates) {
+    const outcome = entry(r, 'projects', b.id, (tx, ctx) => {
+      const parts = byBooking.get(b.id)!;
+      if (b.transferId || parts.some((s) => s.transferId))
+        throw new EntrySkip('transfer', 'transfers are not attributed');
+      if (b.projectId && b.projectId !== projectId)
+        throw new EntrySkip('other_project', 'booking already belongs to another project');
+      if (parts.some((s) => s.categoryId !== null && s.categoryId !== categoryId))
+        throw new EntrySkip('mixed_splits', 'booking has splits in another category');
+      if (b.projectId === projectId) return done([]);
+      try {
+        updateBooking(tx, b.id, { projectId }, ctx, { unlockReconciled: e.unlock === true });
+      } catch (error) {
+        if (error instanceof ReconciledLockedError)
+          throw new EntrySkip(
+            'reconciled_locked',
+            'project assignment requires an explicit unlock in the app',
+          );
+        throw error;
+      }
+      return done(['project attributed']);
+    });
+    out.push({
+      ...outcome,
+      projectAction: 'booking',
+      bookingDate: b.date,
+      bookingAmountCents: b.amountCents,
+    });
+  }
+  return out;
 }
 
 // --- new categories, securities, source mappings and split categories --------------------------
@@ -1483,6 +1627,7 @@ export function applyOwnerConfig(
             applyCreateCategory(t, e, c),
           ),
         );
+      for (const e of config.projects ?? []) outcomes.push(...applyProjects(r, e));
       for (const e of config.createSecurities ?? [])
         add(entry(r, 'createSecurities', e.isin ?? e.name, (t, c) => applyCreateSecurity(t, e, c)));
       for (const e of config.cryptoMappings ?? [])

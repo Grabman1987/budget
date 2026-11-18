@@ -956,6 +956,18 @@ function updateBookingImpl(
     }
     const fx = normalizeFx({ ...cur, ...patch, amountCents: amount });
 
+    // Project-only attribution keeps every other field and related record intact. In particular,
+    // do not backfill bankRawText or refresh expected links through the general edit path.
+    // The metadata guards, explicit reconciliation unlock and project validation above still apply.
+    if (
+      patch.projectId !== undefined &&
+      Object.entries(patch).every(([key, value]) => value === undefined || key === 'projectId')
+    ) {
+      assertLedgerInvariants(tx, relatedTransferBookings(tx, id));
+      updateTracked(tx, booking, [id], { projectId: patch.projectId }, grouped);
+      return;
+    }
+
     if (cur.transferId) {
       const partner = tx
         .select()

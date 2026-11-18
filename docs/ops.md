@@ -742,7 +742,7 @@ code is 3. Running a file twice is safe: the second run reports everything as `u
 }
 ```
 
-Sections run in this order: `assetClassTree`, `createCategories`, `createSecurities`, `cryptoMappings`, `splitCategories`, then
+Sections run in this order: `assetClassTree`, `createCategories`, `projects`, `createSecurities`, `cryptoMappings`, `splitCategories`, then
 `profile`, `rules`, `categoryStages`, `assetClasses`, `securities`,
 `expectedPayments`, `skipOccurrences`, `clearBookings`. Names are matched exactly (trimmed,
 case-insensitive for existing sections); unknown and ambiguous references are skipped. Each entry
@@ -760,6 +760,42 @@ has a savepoint: a refusal rolls back only that entry. The following examples ar
 }
 ```
 
+- `projects`: optional list of `{ "name": "Synthetic Project", "note": "Synthetic note",
+  "attributeCategory": "Synthetic Category", "attributeCategoryGroup": "Synthetic Group", "unlock": true }`.
+  Only `name` is required (1-120 characters); optional `note` is 1-500 characters and is stored
+  only on creation. Project names are matched case-insensitively after trimming. An existing live,
+  unarchived project is reused unchanged; an archived/deleted match is `inactive_project`, never
+  revived. The same project name may appear several times for different category selectors (including
+  different groups for equal category names); one project is reused across those entries. Duplicate
+  name/category/group selectors are input errors, with project names compared case-insensitively
+  and category/group names exactly. Omitted category/group values are part of the selector too.
+  Multiple live matches are `ambiguous_project`. Creation uses the same `createEntity`
+  function as the app route. Categories stay in place for budgeting.
+  `attributeCategory` must match exactly one live category by exact name (soft-deleted rows ignored);
+  optional `attributeCategoryGroup` narrows it by exact live group name and requires
+  `attributeCategory`. Missing/ambiguous categories skip the entry as `unknown_category` /
+  `ambiguous_category` before any project is created.
+  Every live booking with a split in that category is considered, regardless of date/status.
+  Attribution is **booking-level**, following the app model: all category splits must be in the
+  named category; otherwise `mixed_splits`. Whole and split transfers are `transfer`; a booking
+  assigned elsewhere is `other_project`. Already assigned bookings are unchanged. Assignment uses
+  `updateBooking`: without per-entry `"unlock": true`, a new assignment on a reconciled booking
+  remains `reconciled_locked` (only flag/memo are freely editable). Optional `unlock` must be a
+  boolean; false/omitted grants no permission. True passes `unlockReconciled`, exactly like `book`'s
+  per-entry unlock, with the same operator actor and shared audit group. The app unlock bypasses
+  the lock guard; it does **not** downgrade `reconciled` to `confirmed`. The guarded project-only
+  update branch writes only `project_id` plus the normal `updated_at` audit timestamp, without
+  the general edit path's bank-text backfill or expected-link refresh. All metadata guards and
+  active-project validation still apply. Other app refusals remain skips. Amount, account, date,
+  splits, reconciliation status, account reconciliation records and reconciled balance stay intact;
+  grouped Undo restores the previous project without changing them.
+  Each project and each booking has its own savepoint in the run's shared operator audit group;
+  `undo-group` restores attribution and removes newly created projects together. `--dry-run`
+  rolls everything back. Default project output contains aggregates only: projects created/unchanged,
+  attributed/unchanged bookings, skip counts per reason and the undo group ID. `--details` adds
+  booking date and integer-cent amount for each booking skip; no project/category names are printed.
+  Any skip sets exit code 3. Repeating a successful run reports unchanged; persistent refusals
+  are still reported as skips.
 - `createSecurities`: required `name`, `kind` (`etf`, `stock`, `fund`, `bond`, `crypto`, `p2p`,
   `commodity`, `other`); `currency` defaults to `EUR` (three uppercase letters), `pricesEnabled`
   defaults to `false`. Optional `assetClass` is an exact live class name, `isin` a 12-character ISIN,

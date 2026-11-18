@@ -629,7 +629,43 @@ try {
         { actor: 'operator' },
         { dryRun, today: ctx.today },
       );
-      for (const o of outcomes) {
+      const projects = outcomes.filter((o) => o.section === 'projects');
+      if (projects.length) {
+        const count = (action: 'project' | 'booking', status: string) =>
+          projects.filter((o) => o.projectAction === action && o.status === status).length;
+        console.log(
+          'projects',
+          'created',
+          count('project', 'created'),
+          'unchanged',
+          count('project', 'unchanged'),
+          'attributed',
+          count('booking', 'updated'),
+          'bookings_unchanged',
+          count('booking', 'unchanged'),
+          dryRun ? '(dry run)' : '',
+        );
+        for (const reason of new Set(
+          projects.filter((o) => o.status === 'skipped').map((o) => o.reason),
+        ))
+          console.log(
+            'projects skipped',
+            reason,
+            projects.filter((o) => o.reason === reason).length,
+          );
+        const groupId = projects.find((o) => o.groupId)?.groupId;
+        if (groupId) console.log('projects group', groupId);
+        if (args.includes('--details'))
+          for (const o of projects.filter((o) => o.status === 'skipped'))
+            console.log(
+              'projects skipped',
+              o.reason,
+              o.bookingDate ?? '',
+              o.bookingAmountCents ?? '',
+              o.detail,
+            );
+      }
+      for (const o of outcomes.filter((o) => o.section !== 'projects')) {
         if (o.status === 'skipped') {
           console.log('skipped       ', o.section, o.key, o.reason);
           if (args.includes('--details')) console.log('              ', o.detail);
@@ -642,7 +678,7 @@ try {
             o.groupId || (o.status === 'unchanged' ? '' : '(dry run)'),
           );
       }
-      for (const s of summarizeOwnerConfig(outcomes))
+      for (const s of summarizeOwnerConfig(outcomes.filter((o) => o.section !== 'projects')))
         console.log(
           s.section.padEnd(16),
           'created',
