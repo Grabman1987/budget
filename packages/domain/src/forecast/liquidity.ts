@@ -246,7 +246,10 @@ export function evenDaily(monthlyCents: (month: string) => number): (day: string
     const total = Math.max(0, monthlyCents(month));
     const dim = Number(lastDayOfMonth(month).slice(8));
     const n = Number(day.slice(8));
-    return roundDivCents(total * n, dim) - roundDivCents(total * (n - 1), dim);
+    return (
+      roundDivCents(BigInt(total) * BigInt(n), dim) -
+      roundDivCents(BigInt(total) * BigInt(n - 1), dim)
+    );
   };
 }
 
