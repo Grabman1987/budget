@@ -2,6 +2,8 @@ import {
   plannedEventOccurrences,
   type PlannedEventOccurrence,
   addDays,
+  daysBetween,
+  accountLiquidityForecast,
   addMonths,
   changeBp,
   freeUntilPayday,
@@ -168,6 +170,7 @@ export function availableSection<T>(read: () => T): T | HeuteUnavailable {
 }
 
 export interface Heute {
+  accountLiquidity: ReturnType<typeof accountLiquidityForecast>;
   monthResult: ReturnType<typeof monthResultRead>;
   budgetAnswer: {
     spentCents: number;
@@ -800,6 +803,10 @@ export function heute(db: Executor, query: HeuteQuery): Heute {
   const goal = listGoals(db, monthOf(today)).find((g) => g.remainingCents > 0);
   return {
     monthResult: monthResultRead(db, today, monthOf(today)),
+    accountLiquidity: accountLiquidityForecast(
+      inputs.accountLiquidity,
+      daysBetween(today, addDays(payday.day, 30)),
+    ),
     budgetAnswer: {
       spentCents: currentPace.figures.spentCents,
       plannedCents: currentPace.figures.limitCents,

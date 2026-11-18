@@ -69,6 +69,7 @@ const itemSchema = z
       .object({
         kind: z.enum([
           'expectedOccurrence',
+          'booking',
           'plannedEvent',
           'loanInstalment',
           'cardPayment',

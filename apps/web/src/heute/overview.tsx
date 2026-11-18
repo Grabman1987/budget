@@ -25,6 +25,7 @@ import { HeutePaceChart, HeuteWealthChart } from './charts';
 import { CompactForecastCard } from './compact-forecast-card';
 import { attentionModel } from './attention-model';
 import './overview.css';
+import { AccountLiquidityAlerts } from '../reports/account-liquidity';
 
 const time = new Intl.DateTimeFormat('de-AT', {
   hour: '2-digit',
@@ -300,6 +301,7 @@ export function HeuteOverview({
           {longDay(data.stand.today)}
         </p>
       )}
+      {data && <AccountLiquidityAlerts result={data.accountLiquidity} today={data.stand.today} />}
       <div className="hv-top">
         <section
           className="hv-lead"

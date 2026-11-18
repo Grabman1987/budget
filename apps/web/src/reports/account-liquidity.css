@@ -1,0 +1,115 @@
+.account-liquidity {
+  padding: 20px;
+  min-width: 0;
+}
+.account-liquidity h2,
+.account-liquidity h3 {
+  margin-block: 0 12px;
+}
+.account-liquidity h3 {
+  margin-top: 20px;
+}
+.account-liquidity p {
+  color: var(--ink-2);
+}
+.account-liquidity table {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+.account-liquidity th,
+.account-liquidity td {
+  text-align: left;
+  padding: 10px 8px;
+  border-bottom: 1px solid var(--rule);
+  overflow-wrap: anywhere;
+}
+.account-liquidity button {
+  min-height: 44px;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.account-liquidity button:focus-visible {
+  outline: 2px solid var(--line);
+  outline-offset: 2px;
+}
+.account-liquidity li {
+  padding-block: 6px;
+  overflow-wrap: anywhere;
+}
+.account-liquidity-unassigned li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+}
+.account-liquidity-unassigned a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+}
+.account-liquidity-alerts {
+  display: grid;
+  gap: 12px;
+  background: var(--surface);
+  padding: 16px;
+  border: 1px solid var(--rule);
+}
+.account-liquidity-alert {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  min-width: 0;
+}
+.account-liquidity-alert p {
+  flex: 1 1 260px;
+  margin: 0;
+  color: var(--red);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.account-liquidity-alert small {
+  flex-basis: 100%;
+}
+@media (max-width: 767px) {
+  .account-liquidity {
+    padding: 16px;
+  }
+  .account-liquidity thead {
+    display: none;
+  }
+  .account-liquidity tbody,
+  .account-liquidity tr,
+  .account-liquidity td {
+    display: block;
+  }
+  .account-liquidity tr {
+    padding-block: 8px;
+    border-bottom: 1px solid var(--rule);
+  }
+  .account-liquidity tr[hidden] {
+    display: none;
+  }
+  .account-liquidity td {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    border: 0;
+    padding: 4px 0;
+  }
+  .account-liquidity td::before {
+    content: attr(data-label);
+    color: var(--ink-2);
+  }
+  .account-liquidity .account-liquidity-detail td {
+    display: block;
+  }
+  .account-liquidity .account-liquidity-detail td::before {
+    content: none;
+  }
+}

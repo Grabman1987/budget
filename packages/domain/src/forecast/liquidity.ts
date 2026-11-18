@@ -1,4 +1,4 @@
-import { addDays, addMonths, lastDayOfMonth, monthOf } from '../date';
+import { addDays, addMonths, daysBetween, lastDayOfMonth, monthOf } from '../date';
 import { roundDivCents } from '../wealth/int';
 
 /**
@@ -98,6 +98,139 @@ export interface LowPoint {
   day: string;
   index: number;
   cents: number;
+}
+
+/** Cash provenance is explicit: null never means the main payment account. */
+export interface ForecastAccountItem extends ForecastItem {
+  accountId: string | null;
+  expected: boolean;
+}
+
+export interface AccountLiquidityInput {
+  startDay: string;
+  /** Inclusive account horizon (next payday plus 30 days), independent of legacy chart windows. */
+  through?: string;
+  accounts: ReadonlyArray<{
+    id: string;
+    name: string;
+    /** Actual balance, before open day-zero obligations. No credit limit. */
+    balanceCents: number;
+    bufferCents?: number | null;
+    /** Proven external cash only; expected income is never a safe inflow. */
+    nextSafeInflowDay?: string | null;
+  }>;
+  items: ReadonlyArray<ForecastAccountItem>;
+  dayZeroItems?: ReadonlyArray<ForecastAccountItem>;
+  /** An aggregate estimate remains unassigned rather than inventing an account. */
+  variableMonthlyCents: number;
+  /** Missing rates cannot silently turn an incomplete cash path into an all-clear. */
+  missingFx?: ReadonlyArray<{ paymentId: string; dueDate: string; currency: string }>;
+}
+
+export type AccountLiquidityResult = ReturnType<typeof accountLiquidityForecast>;
+
+/**
+ * One attributed cash path for Heute, the liquidity report and R07. Both views use
+ * the existing forecast engine. Account paths plus the explicit unassigned path
+ * equal the household on every day, including overdue open payments on day zero.
+ */
+export function accountLiquidityForecast(input: AccountLiquidityInput, days: number) {
+  if (!Number.isSafeInteger(days) || days < 0) throw new RangeError('Invalid liquidity horizon');
+  const ids = new Set(input.accounts.map((a) => a.id));
+  if (ids.size !== input.accounts.length) throw new RangeError('Duplicate liquidity account');
+  const all = [...(input.dayZeroItems ?? []), ...input.items];
+  const missingFx = (input.missingFx ?? []).filter(
+    (item) => item.dueDate <= addDays(input.startDay, days),
+  );
+  const cents = [
+    input.variableMonthlyCents,
+    ...input.accounts.flatMap((account) => [account.balanceCents, account.bufferCents ?? 0]),
+    ...all.map((item) => item.cents),
+  ];
+  if (cents.some((amount) => !Number.isSafeInteger(amount)))
+    throw new RangeError('Invalid liquidity cents');
+  // Bound intermediate additions too: a safe closing balance can hide unsafe cancellation.
+  const arithmeticBudget =
+    input.accounts.reduce((sum, account) => sum + BigInt(Math.abs(account.balanceCents)), 0n) +
+    all.reduce((sum, item) => sum + BigInt(Math.abs(item.cents)), 0n) +
+    BigInt(Math.abs(input.variableMonthlyCents)) * BigInt(Math.ceil(days / 28) + 1);
+  if (arithmeticBudget > BigInt(Number.MAX_SAFE_INTEGER))
+    throw new RangeError('Unsafe liquidity cent arithmetic');
+  if (all.some((item) => item.accountId !== null && !ids.has(item.accountId)))
+    throw new RangeError('Unknown liquidity account');
+  const project = (withoutExpected: boolean) => {
+    const items = all.filter((item) => !(withoutExpected && item.expected && item.cents > 0));
+    const run = (
+      balanceCents: number,
+      legs: ReadonlyArray<ForecastAccountItem>,
+      variable: number,
+    ) => {
+      const forecast = liquidityForecast({
+        startDay: input.startDay,
+        startCents:
+          balanceCents +
+          legs
+            .filter((item) => item.day <= input.startDay)
+            .reduce((sum, item) => sum + item.cents, 0),
+        days,
+        items: legs,
+        variablePerDay: evenDaily(() => variable),
+      });
+      if (forecast.days.some((day) => !Number.isSafeInteger(day.balanceCents)))
+        throw new RangeError('Unsafe liquidity balance');
+      return { days: forecast.days, low: lowPoint(forecast.days, days)! };
+    };
+    const accounts = input.accounts.map((account) => {
+      const legs = items.filter((item) => item.accountId === account.id);
+      const forecast = run(account.balanceCents, legs, 0);
+      const firstBelow = (limit: number) => {
+        const day = forecast.days.find((day) => day.balanceCents < limit);
+        return day ? { day: day.day, index: day.index, cents: day.balanceCents } : null;
+      };
+      const nextSafeInflowDay = account.nextSafeInflowDay ?? null;
+      const beforeSafe = forecast.days.filter(
+        (day) => nextSafeInflowDay === null || day.day < nextSafeInflowDay || day.index === 0,
+      );
+      return {
+        accountId: account.id,
+        name: account.name,
+        balanceTodayCents: account.balanceCents,
+        bufferCents: account.bufferCents ?? null,
+        nextSafeInflowDay,
+        ...forecast,
+        firstBelowZero: firstBelow(0),
+        firstBelowBuffer:
+          account.bufferCents === undefined || account.bufferCents === null
+            ? null
+            : firstBelow(account.bufferCents),
+        lowBeforeSafeInflow: lowPoint(beforeSafe, days)!,
+        payments: legs.filter((item) => item.cents < 0 && item.day <= forecast.low.day),
+      };
+    });
+    return {
+      accounts,
+      household: run(
+        input.accounts.reduce((sum, account) => sum + account.balanceCents, 0),
+        items,
+        input.variableMonthlyCents,
+      ),
+      unassigned: run(
+        0,
+        items.filter((item) => item.accountId === null),
+        input.variableMonthlyCents,
+      ),
+    };
+  };
+  return {
+    withExpectedInflows: project(false),
+    withoutExpectedInflows: project(true),
+    unassignedPayments: all.filter(
+      (item) => item.accountId === null && item.day <= addDays(input.startDay, days),
+    ),
+    variableSpendingUnassigned: input.variableMonthlyCents > 0,
+    incomplete: missingFx.length > 0,
+    missingFx,
+  };
 }
 
 /**
@@ -204,6 +337,7 @@ export function budgetLiquidityForecast(
     startCents: number;
     items: ReadonlyArray<ForecastItem>;
     variableMonthlyCents: number;
+    accountLiquidity?: AccountLiquidityInput;
   },
   days: number,
 ) {
@@ -212,5 +346,18 @@ export function budgetLiquidityForecast(
     days,
     variablePerDay: evenDaily(() => input.variableMonthlyCents),
   });
-  return { ...forecast, low: lowPoint(forecast.days, days) };
+  return {
+    ...forecast,
+    low: lowPoint(forecast.days, days),
+    ...(input.accountLiquidity === undefined
+      ? {}
+      : {
+          accountLiquidity: accountLiquidityForecast(
+            input.accountLiquidity,
+            input.accountLiquidity.through === undefined
+              ? days
+              : daysBetween(input.accountLiquidity.startDay, input.accountLiquidity.through),
+          ),
+        }),
+  };
 }

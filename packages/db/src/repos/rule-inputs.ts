@@ -16,6 +16,7 @@ import {
   lastDayOfMonth,
   monthlyEquivalent,
   monthOf,
+  nextPayday,
   monthsBetween,
   occurrences,
   plannedEventOccurrences,
@@ -28,6 +29,7 @@ import {
   versionOn,
   yearlyEquivalent,
   type AllocMonth,
+  type AccountLiquidityInput,
   type AssignmentEvent,
   type BudgetMonth,
   type CardBalance,
@@ -539,6 +541,7 @@ export function forecastInputs(
   asOf: string,
   nw: Pick<NetWorth, 'byAccount'>,
 ): Omit<NonNullable<RuleInputs['forecast']>, 'items'> & {
+  accountLiquidity: AccountLiquidityInput;
   items: SourcedForecastItem[];
   dayZeroItems: SourcedForecastItem[];
   through: string;
@@ -761,9 +764,41 @@ export function forecastInputs(
       },
     ];
   });
+  // Future cash already recorded in the ledger is a payment too. Linked expectations,
+  // statement settlements and paired transfers below already represent their booking IDs.
+  const representedBookingIds = new Set(
+    [...storedItems, ...linkedTransferItems, ...statementItems.map(({ item }) => item)].flatMap(
+      (item) => (item.source.bookingId ? [item.source.bookingId] : []),
+    ),
+  );
+  const futureBookings = f.db
+    .select()
+    .from(booking)
+    .where(isNull(booking.deletedAt))
+    .all()
+    .flatMap((row): SourcedForecastItem[] => {
+      if (!cashIds.has(row.accountId) || representedBookingIds.has(row.id)) return [];
+      const pair = [...transferPairs.values()].find((legs) =>
+        legs.some((leg) => leg.bookingId === row.id),
+      );
+      const day = (pair && transitDebitDay(pair)) ?? row.date;
+      if (day <= asOf || day > to || row.amountCents === 0) return [];
+      return [
+        {
+          accountId: row.accountId,
+          source: { kind: 'booking', id: row.id, dueDay: row.date, bookingId: row.id },
+          expected: false,
+          day,
+          cents: row.amountCents,
+          kind: row.amountCents > 0 ? 'income' : 'fixed',
+          label: row.memo ?? 'Buchung',
+        },
+      ];
+    });
   const datedItems: SourcedForecastItem[] = [
     ...previews,
     ...storedItems,
+    ...futureBookings,
     ...f.plannedEvents
       .filter((e) => {
         const a = e.accountId ? f.accounts.find((x) => x.id === e.accountId) : undefined;
@@ -800,7 +835,9 @@ export function forecastInputs(
     overdraftLimitCents: a.overdraftLimitCents,
   }));
   const openOutflows = [
-    ...datedItems,
+    // Preserve the lead's existing expected/linked-obligation contract. Raw future
+    // ledger cash is additive forecast evidence, never an inferred expectation link.
+    ...datedItems.filter((item) => item.source.kind !== 'booking'),
     ...statementItems.filter(({ internal }) => !internal).map(({ item }) => item),
   ]
     .flatMap((item, index): OpenOutflow[] => {
@@ -821,20 +858,53 @@ export function forecastInputs(
     ...datedItems,
     ...linkedTransferItems,
   ];
+  const dayZeroItems = forecastItems
+    .filter((item) => item.day <= asOf)
+    .map((item) => ({ ...item, day: asOf }));
+  const items = forecastItems.filter((item) => item.day > asOf);
   return {
+    accountLiquidity: {
+      startDay: asOf,
+      through: addDays(nextPayday(asOf).day, 30),
+      missingFx,
+      accounts: cashAccounts.map(({ id, name, balanceCents }) => {
+        // Expected salary and represented internal receipts are never a safe external inflow.
+        const nextSafeInflowDay = items
+          .filter(
+            (item) =>
+              item.accountId === id &&
+              item.cents > 0 &&
+              !item.expected &&
+              !linkedTransferItems.includes(item) &&
+              !statementItems.some((entry) => entry.internal && entry.item === item) &&
+              ![...transferPairs.values()].some((pair) =>
+                pair.some((leg) => leg.bookingId === item.source.bookingId),
+              ),
+          )
+          .map((item) => item.day)
+          .sort()[0];
+        return {
+          id,
+          name,
+          balanceCents,
+          ...(nextSafeInflowDay ? { nextSafeInflowDay } : {}),
+        };
+      }),
+      items,
+      dayZeroItems,
+      variableMonthlyCents,
+    },
     cashAccounts,
     openOutflows,
     missingFx,
     through: to,
-    dayZeroItems: forecastItems
-      .filter((item) => item.day <= asOf)
-      .map((item) => ({ ...item, day: asOf })),
+    dayZeroItems,
     startDay: asOf,
     // Projected day zero deducts open obligations already due; the cash balance does not.
     startCents:
       cashAccounts.reduce((sum, a) => sum + a.balanceCents, 0) +
       forecastItems.filter((item) => item.day <= asOf).reduce((sum, item) => sum + item.cents, 0),
-    items: forecastItems.filter((item) => item.day > asOf),
+    items,
     variableMonthlyCents,
     lastResortCents: overdraftLastResort(cashAccounts),
   };

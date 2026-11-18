@@ -52,6 +52,22 @@ Entschieden am 15.11.2026: H-01 (nächstes Sparziel im Block „Ziele finanziere
 
 Jede neue Funktion und jede Entscheidung des Nutzers bekommt im selben Pull Request ihre Story oder eine Aktualisierung von Status und Kriterien.
 
+## Per-account liquidity (#1228, #1225)
+
+As the owner, I can see whether each payment account can cover its dated payments,
+even when household cash is positive. Heute names the account, first shortfall date
+and signed balance. Expected income and unused overdraft never suppress the alert.
+Preparing a transfer opens the existing capture with source, destination and missing
+cents for review; nothing is booked until I explicitly save.
+
+The liquidity report shows current cash, the lowest projected balance and date,
+and the first shortfall for each account through next payday plus 30 days. Expanding
+an account shows its contributing payments. Expected income is a separate forecast
+variant. Payments without an account stay in their own editable list and affect
+only the household path. Unallocated variable spending is explicitly identified.
+Privacy mode masks financial amounts, including amounts embedded in labels; phone rows stack.
+Status: implementation for review; owner acceptance and production proof pending.
+
 ## Position inspection and quote-source repair (#1248)
 
 As the owner, I can read every chart inspection row on desktop and phone, including

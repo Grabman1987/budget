@@ -6,6 +6,99 @@ import { expect } from '@playwright/test';
 import { test } from './isolated-ledger';
 
 test.use({ ledgerToday: '2026-03-18' });
+
+test('account shortfall stays visible with positive household cash and prepares an unbooked transfer', async ({
+  page,
+  baseURL,
+}, info) => {
+  const post = async (path: string, data: unknown) => {
+    const response = await page.request.post(`/api${path}`, {
+      headers: { origin: baseURL! },
+      data,
+    });
+    expect(response.ok(), await response.text()).toBe(true);
+    return response.json();
+  };
+  const { account: bills } = await post('/accounts', {
+    name: 'Testkonto Rechnungen',
+    type: 'checking',
+    onBudget: true,
+    openingDate: '2026-01-01',
+    openingBalanceCents: 10_000,
+  });
+  const { account: spare } = await post('/accounts', {
+    name: 'Testkonto Frei',
+    type: 'checking',
+    onBudget: true,
+    openingDate: '2026-01-01',
+    openingBalanceCents: 100_000,
+  });
+  await post('/expected', {
+    name: 'Testrechnung',
+    accountId: bills.id,
+    kind: 'outflow',
+    rhythm: 'monthly',
+    dueDay: 20,
+    startDate: '2026-03-20',
+    endDate: '2026-03-20',
+    validFrom: '2026-03-20',
+    amountCents: 15_001,
+  });
+  await post('/expected', {
+    name: 'Testeingang',
+    accountId: bills.id,
+    kind: 'inflow',
+    rhythm: 'monthly',
+    dueDay: 19,
+    startDate: '2026-03-19',
+    endDate: '2026-03-19',
+    validFrom: '2026-03-19',
+    amountCents: 20_000,
+  });
+  await post('/expected', {
+    name: 'Testzahlung ohne Konto',
+    kind: 'outflow',
+    rhythm: 'monthly',
+    dueDay: 21,
+    startDate: '2026-03-21',
+    endDate: '2026-03-21',
+    validFrom: '2026-03-21',
+    amountCents: 2_001,
+  });
+  await page.goto('/');
+  if (await redesignEnabled(page)) {
+    const alert = page.getByRole('region', { name: 'Konten mit Engpass' });
+    await expect(alert).toContainText('Konto Testkonto Rechnungen rutscht am 20.03. auf −50,01 €');
+    await alert.getByRole('button', { name: 'Umbuchung vorbereiten' }).click();
+    const dialog = page.getByRole('dialog', { name: 'Buchung erfassen' });
+    await expect(dialog).toBeVisible();
+    await expect(dialog.getByLabel('Betrag', { exact: true })).toHaveValue('50,01');
+    await expect(dialog.getByLabel('Von Konto', { exact: true })).toHaveValue(spare.id);
+    await expect(dialog.getByLabel('Nach Konto', { exact: true })).toHaveValue(bills.id);
+    // Opening the existing capture only prepares fields; no financial write is sent.
+    const data = await (await page.request.get('/api/heute')).json();
+    expect(
+      data.accountLiquidity.withoutExpectedInflows.accounts.find(
+        (row: { accountId: string }) => row.accountId === bills.id,
+      ).low.cents,
+    ).toBe(-5_001);
+    expect(
+      data.accountLiquidity.withoutExpectedInflows.accounts.find(
+        (row: { accountId: string }) => row.accountId === spare.id,
+      ).balanceTodayCents,
+    ).toBe(100_000);
+  }
+  await page.goto('/plan/prognose');
+  const table = page.getByRole('region', { name: 'Liquidität je Konto' });
+  await expect(table).toBeVisible();
+  await table.getByRole('button', { name: 'Testkonto Rechnungen' }).click();
+  await expect(table).toContainText('Testrechnung');
+  await expect(table).toContainText('Testzahlung ohne Konto');
+  await expect(table.getByRole('link', { name: 'Zahlung bearbeiten' })).toHaveCount(1);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await table.screenshot({ path: info.outputPath('account-liquidity.png') });
+});
+
 test('Plan reaches liquidity and a payment keeps its account, due date and chosen forecast', async ({
   page,
   baseURL,

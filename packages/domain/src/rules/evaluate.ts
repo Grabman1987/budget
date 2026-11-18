@@ -224,14 +224,50 @@ const r06: Rule<'R06'> = (_p, i) => {
 const r07: Rule<'R07'> = (p, i) => {
   const f = i.forecast;
   if (!f) return null;
-  const { low } = budgetLiquidityForecast(f, p.horizonDays);
+  const { low, accountLiquidity } = budgetLiquidityForecast(f, p.horizonDays);
+  if (accountLiquidity?.incomplete) return null;
   if (!low) return null;
-  const status: RuleStatus = low.cents < 0 ? 'bad' : low.cents >= p.minCents ? 'ok' : 'warn';
+  const shortAccounts = accountLiquidity?.withoutExpectedInflows.accounts.filter(
+    (account) =>
+      account.firstBelowZero !== null &&
+      (account.nextSafeInflowDay === null ||
+        account.firstBelowZero.day < account.nextSafeInflowDay),
+  );
+  const conservativeLow = accountLiquidity?.withoutExpectedInflows.household.low;
+  const verdictLow = conservativeLow ?? low;
+  const status: RuleStatus =
+    low.cents < 0 || verdictLow.cents < 0 || (shortAccounts?.length ?? 0) > 0
+      ? 'bad'
+      : verdictLow.cents >= p.minCents
+        ? 'ok'
+        : 'warn';
+  const shortAccount = shortAccounts?.[0];
   return result(
     status,
-    `Tiefpunkt ${eur(low.cents)}`,
-    `Zahlungen verschieben oder bis zum ${low.day.slice(8)}.${low.day.slice(5, 7)}. ${eur(p.minCents - low.cents)} auf das Budget-Konto übertragen.`,
-    { lowDay: low.day, lowCents: low.cents, lastResortCents: f.lastResortCents },
+    shortAccount
+      ? `Konto ${shortAccount.name}: Tiefpunkt ${eur(shortAccount.lowBeforeSafeInflow.cents)}`
+      : `Tiefpunkt ${eur(verdictLow.cents)}`,
+    shortAccount
+      ? `Umbuchung auf ${shortAccount.name} vor dem ${shortAccount.firstBelowZero!.day.slice(8)}.${shortAccount.firstBelowZero!.day.slice(5, 7)}. vorbereiten.`
+      : `Zahlungen verschieben oder bis zum ${verdictLow.day.slice(8)}.${verdictLow.day.slice(5, 7)}. ${eur(p.minCents - verdictLow.cents)} auf das Budget-Konto übertragen.`,
+    {
+      lowDay: low.day,
+      lowCents: low.cents,
+      lastResortCents: f.lastResortCents,
+      ...(conservativeLow === undefined
+        ? {}
+        : { conservativeLowDay: conservativeLow.day, conservativeLowCents: conservativeLow.cents }),
+      ...(shortAccounts === undefined
+        ? {}
+        : {
+            shortAccounts: shortAccounts.map((account) => ({
+              accountId: account.accountId,
+              name: account.name,
+              firstBelowZero: account.firstBelowZero,
+              low: account.lowBeforeSafeInflow,
+            })),
+          }),
+    },
   );
 };
 
