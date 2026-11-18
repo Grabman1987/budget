@@ -1,4 +1,10 @@
-import { accountLiquidityForecast, evaluateRule, evaluate, daysBetween } from '@budget/domain';
+import {
+  accountLiquidityForecast,
+  evaluateRule,
+  evaluate,
+  daysBetween,
+  addDays,
+} from '@budget/domain';
 import { eq } from 'drizzle-orm';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { createTestDatabase, type OpenedDatabase } from '../client';
@@ -288,6 +294,7 @@ it('shares literal daily cents between Heute, report, R07 and scenario baseline'
 it('retains unassigned cash separately on every day and excludes ineligible source accounts', () => {
   payment('Unassigned', '2026-10-12', 123, null);
   accounts.update(opened.db, 'second', { closedAt: today }, testCtx);
+  accounts.update(opened.db, 'spar', { openingBalanceCents: 50000 }, testCtx);
   accounts.create(
     opened.db,
     {
@@ -323,6 +330,48 @@ it('retains unassigned cash separately on every day and excludes ineligible sour
       path.accounts[0]!.days[index]!.balanceCents + path.unassigned.days[index]!.balanceCents,
     ).toBe(row.balanceCents);
   }
+});
+
+it('charges the bank only on the card settlement day and keeps the transfer neutral in total', () => {
+  accounts.create(
+    opened.db,
+    {
+      id: 'card',
+      name: 'Testkarte',
+      type: 'credit_card',
+      role: 'budget',
+      onBudget: true,
+      openingDate: '2026-01-01',
+    },
+    testCtx,
+  );
+  createBooking(
+    opened.db,
+    {
+      accountId: 'card',
+      date: '2026-10-11',
+      amountCents: -1234,
+      splits: [{ categoryId: 'miete', amountCents: -1234 }],
+    },
+    testCtx,
+  );
+  createTransfer(
+    opened.db,
+    { fromAccountId: 'giro', toAccountId: 'card', date: '2026-10-13', amountCents: 1234 },
+    testCtx,
+  );
+  const path = heute(opened.db, { today }).accountLiquidity.withoutExpectedInflows;
+  // Card purchase leaves bank at 1,000; settlement debits 1,234 on the 13th, leaving -234.
+  expect(
+    path.accounts
+      .find((a) => a.accountId === 'giro')!
+      .days.slice(0, 5)
+      .map((d) => d.balanceCents),
+  ).toEqual([1000, 1000, 1000, -234, -234]);
+  // Household loses only the purchase: 11,000 - 1,234 = 9,766; settlement nets to zero.
+  expect(path.household.days.slice(0, 5).map((d) => d.balanceCents)).toEqual([
+    11000, 9766, 9766, 9766, 9766,
+  ]);
 });
 
 it('loads ten account paths in a bounded statement count and performs no per-day reads', () => {
@@ -362,9 +411,15 @@ it.each([
   ['2026-10-14', '2026-11-14'], // Payday tomorrow (October 15) plus 30 calendar days.
   ['2026-10-15', '2026-11-14'], // Payday today keeps the same inclusive horizon.
   ['2026-10-31', '2026-12-13'], // Month end: November 15 shifts back to Friday 13.
+  ['2028-02-14', '2028-03-16'], // Leap February: 30 calendar days after February 15.
+  ['2028-02-29', '2028-04-14'], // Leap day: next payday March 15 plus 30 days.
 ])('uses the literal payday-plus-30 horizon from %s', (asOf, through) => {
+  payment('Boundary', through, 100, 'giro');
+  payment('Outside boundary', addDays(through!, 1), 200, 'giro');
   const result = heute(opened.db, { today: asOf }).accountLiquidity;
   expect(result.withoutExpectedInflows.household.days[0]?.day).toBe(asOf);
   expect(result.withoutExpectedInflows.household.days.at(-1)?.day).toBe(through);
   expect(result.withExpectedInflows.household.days.at(-1)?.day).toBe(through);
+  // Inclusive last-day debit 100 counts; the next-day debit 200 does not: 11,000 - 100 = 10,900.
+  expect(result.withoutExpectedInflows.household.days.at(-1)?.balanceCents).toBe(10900);
 });
