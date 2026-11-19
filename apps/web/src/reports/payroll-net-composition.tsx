@@ -8,7 +8,7 @@ import { shortMonth } from './month-frame';
 type Row = ReturnType<typeof payrollNetComposition>;
 
 /**
- * Monthly pay: running slips solid, separately captured special payments hatched on top of the same month.
+ * Monthly pay: regular/combined slips solid, separate special slips hatched in the same month.
  * Amounts come from `payrollNetComposition`; tax is never re-allocated between the parts.
  */
 export function PayrollNetComposition({ rows, height = 220 }: { rows: Row[]; height?: number }) {
@@ -33,9 +33,9 @@ export function PayrollNetComposition({ rows, height = 220 }: { rows: Row[]; hei
           rows.map((r) => r.month),
           x,
           [
-            { name: 'Laufend', values: rows.map((r) => r.runningCents) },
+            { name: 'Regulär / kombiniert', values: rows.map((r) => r.runningCents) },
             {
-              name: 'Sonderzahlung',
+              name: 'Sonderzahlung · Bonus',
               values: rows.map((r) => (r.recorded ? r.specialCents : null)),
             },
             { name: 'Summe', values: rows.map((r) => r.totalCents), color: 'var(--ink-2)' },
@@ -90,9 +90,10 @@ export function PayrollNetComposition({ rows, height = 220 }: { rows: Row[]; hei
         )}
       </ChartSvg>
       <p className="r9-meta" data-testid="payroll-net-legend">
-        Jeder Monat zeigt sein volles Netto inklusive Sonderzahlungen (Summe). Säule voll: laufender
-        Zettel · schraffiert: eigener Sonderzahlungs-Zettel desselben Monats. Telearbeit und
-        Fahrgeld zählen als Gehalt, Reisespesen sind ausgenommen.
+        Jeder Monat zeigt sein volles Netto inklusive Sonderzahlungen (Summe). Säule voll: regulärer
+        oder kombinierter Zettel · schraffiert: eigener Sonderzahlungs-Zettel desselben Monats.
+        Kombinierte Zettel bleiben ungeteilt; ihr Netto ist kein vergleichbares laufendes
+        Monatsnetto. Telearbeit und Fahrgeld zählen als Gehalt, Reisespesen sind ausgenommen.
       </p>
       <div
         className="rscroll pp-scroll"
@@ -102,11 +103,13 @@ export function PayrollNetComposition({ rows, height = 220 }: { rows: Row[]; hei
         tabIndex={0}
       >
         <table className="rtable" data-testid="payroll-net-table">
-          <caption className="sr-only">Netto je Monat: laufend, Sonderzahlung und Summe</caption>
+          <caption className="sr-only">
+            Netto je Monat: regulär / kombiniert, Sonderzahlung und Summe
+          </caption>
           <thead>
             <tr>
               <th>Monat</th>
-              <th className="n">Laufend</th>
+              <th className="n">Regulär / kombiniert</th>
               <th className="n">Sonderzahlung · Bonus</th>
               <th className="n">Summe</th>
             </tr>
