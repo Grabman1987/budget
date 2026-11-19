@@ -296,8 +296,8 @@ export function PayrollReport({
                   <div className="tbd-head">
                     <h2 id="r9-salary-title">
                       {recent.length
-                        ? `Netto der letzten ${recent.length} Monate`
-                        : 'Netto im Verlauf'}
+                        ? `Netto der letzten ${recent.length} Monate inkl. Sonderzahlungen`
+                        : 'Netto im Verlauf inkl. Sonderzahlungen'}
                     </h2>
                   </div>
                   {recent.some((row) => row.composition.recorded) ? (
@@ -309,8 +309,8 @@ export function PayrollReport({
                     <EmptyNote>Noch keine Gehaltszettel erfasst.</EmptyNote>
                   )}
                   <p className="r9-meta">
-                    Netto laufend plus Sonderzahlungen je Monat, ohne Reisespesen. Fehlende Zettel
-                    bleiben Lücken.
+                    Volles Netto je Auszahlungsmonat, ohne Reisespesen. Fehlende Zettel bleiben
+                    Lücken.
                   </p>
                 </section>
               )}

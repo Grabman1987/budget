@@ -5,6 +5,7 @@ import { payrollTotals } from '@budget/domain';
 import { setAmountsHidden } from '@budget/ui';
 import { payrollCalculation } from './payroll-presentation';
 import { PayrollProjectChart } from './payroll-project-chart';
+import { PayrollNetComposition } from './payroll-net-composition';
 vi.mock('../charts/use-element-width', () => ({ useElementWidth: () => [vi.fn(), 360] }));
 const flags = vi.hoisted(() => ({ REDESIGN_ENABLED: true }));
 vi.mock('../shell/redesign-flag', () => flags);
@@ -12,6 +13,28 @@ afterEach(() => {
   cleanup();
   flags.REDESIGN_ENABLED = true;
   act(() => setAmountsHidden(false));
+});
+it('labels whole regular or combined documents without claiming a comparable running net', () => {
+  render(
+    <PayrollNetComposition
+      rows={[
+        {
+          month: '2026-06',
+          recorded: true,
+          runningCents: 340000,
+          specialCents: 0,
+          totalCents: 340000,
+          specialSlipIds: [],
+        },
+      ]}
+    />,
+  );
+  expect(screen.getByRole('columnheader', { name: 'Regulär / kombiniert' })).toBeTruthy();
+  expect(screen.queryByRole('columnheader', { name: /^Laufend$/ })).toBeNull();
+  expect(screen.getByTestId('payroll-net-legend').textContent).toContain(
+    'kein vergleichbares laufendes Monatsnetto',
+  );
+  expect(screen.getByTestId('payroll-net-table').textContent).toContain('3.400,00 €');
 });
 it('ON calculation keeps earnings, signed corrections, deductions and reimbursements in recorded cents', () => {
   const totals = payrollTotals([

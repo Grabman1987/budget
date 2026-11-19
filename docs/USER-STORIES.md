@@ -79,6 +79,13 @@ Entschieden am 15.11.2026: H-01 (nächstes Sparziel im Block „Ziele finanziere
 
 Jede neue Funktion und jede Entscheidung des Nutzers bekommt im selben Pull Request ihre Story oder eine Aktualisierung von Status und Kriterien.
 
+RP-02 continuation (#1207, connected #1066 proof): the monthly salary curve labels whole
+regular/combined documents explicitly and keeps all special payments in their payout
+month. Literal synthetic browser cases cover separate specials, an unsplit combined slip
+without wage reading, allowances/travel, missing slips, shared frame/inspection and privacy.
+See [the salary story](user-stories/06-reports.md#rp-02--gehaltsreport-mit-bruttonetto-und-jahresvergleich).
+The remaining development UI under RP-03 and owner live acceptance stay open.
+
 ## Per-account liquidity (#1228, #1225)
 
 As the owner, I can see whether each payment account can cover its dated payments,

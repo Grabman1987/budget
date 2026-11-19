@@ -96,6 +96,18 @@ Historical references follow `docs/FEATURES.md` (positions 1.1–5.6). The hub r
 - **Status:** live · **Verweis:** 1.2
   Fehlt noch: PDF-Ablage, kollektivvertragliche und Stufenerhöhungen (siehe RP-03).
 
+**RP-02 continuation (#1207; connected proof for #1066):** Monthly net includes special
+payments in their payout month. The solid series/table column is “Regulär / kombiniert”,
+describing whole documents rather than comparable running net. A combined document stays
+whole; no split, estimated statutory allocation or split-review task is introduced.
+Separate special slips remain hatched in the same month. Telearbeit/Fahrgeld count as pay;
+travel expenses stay outside the salary curves. Missing slips remain inspection gaps and
+are absent from the recorded-month table. Synthetic browser acceptance covers literal
+regular, separate-special, combined-without-wage-read and missing-slip cases, shared frame,
+keyboard/touch inspection, privacy and both themes at 1440/390. Read-only inspection retains
+captured slips and annual totals unchanged. Full development views remain under RP-03;
+owner live acceptance is pending.
+
 ### RP-03 – Echte Gehaltsentwicklung (geplant)
 - **Story:** Als Nutzer möchte ich Grundgehalt, Sonderzahlungen und Bonus getrennt und real gegen Inflation sehen, damit ich erkenne, ob ich wirklich mehr verdiene oder nur die Preise gestiegen sind.
 - **Ausgangslage:** Mehrere Gehaltszettel liegen vor; jede Lohnart ist einer von fünf Komponenten zugeordnet.
