@@ -159,9 +159,11 @@ test('a transfer between accounts; to a tracking account it needs a category', a
   await expect(balance(page)).toHaveText('700,00 €');
 });
 
-test('discard question, Speichern und neu keeps the context, the payee brings its category', async ({
+test('discard question, save-and-new keeps only register and date, selecting a payee learns its category', async ({
   page,
 }, testInfo) => {
+  // Keep the literal retained booking date on the account's opening day.
+  await page.clock.setFixedTime(new Date('2026-10-01T12:00:00+02:00'));
   const tag = testInfo.project.name;
   const account = `Bar ${tag}${again(testInfo)}`;
   const category = `Cap D ${tag}`;
@@ -181,18 +183,25 @@ test('discard question, Speichern und neu keeps the context, the payee brings it
   await panel.getByRole('button', { name: 'Verwerfen' }).click();
   await expect(page.getByRole('dialog', { name: 'Buchung erfassen' })).toBeHidden();
 
-  // Speichern und neu (Ctrl+Umschalt+Enter): the panel stays with payee, category and date.
+  // Speichern und neu (Ctrl+Umschalt+Enter): only register context and date survive.
   panel = await openCapture(page, testInfo);
+  const registerAccountId = await panel.getByLabel('Bezahlt von', { exact: true }).inputValue();
   await panel.getByLabel('Betrag', { exact: true }).fill('5,00');
   await panel.getByLabel('Empfänger').fill(payee);
   await pickCategory(panel, category);
-  const date = await panel.getByLabel('Datum', { exact: true }).inputValue();
+  await panel.getByLabel('Datum', { exact: true }).fill('1.10.2026');
+  await panel.getByLabel('Datum', { exact: true }).press('Tab');
   await page.keyboard.press('Control+Shift+Enter');
   await expect(panel.getByLabel('Betrag', { exact: true })).toHaveValue('');
   await expect(panel.getByLabel('Betrag', { exact: true })).toBeFocused();
-  await expect(panel.getByLabel('Empfänger')).toHaveValue(payee);
+  await expect(panel.getByLabel('Empfänger')).toHaveValue('');
+  await expect(panel.getByLabel('Kategorie', { exact: true })).toHaveValue('');
+  await expect(panel.getByLabel('Datum', { exact: true })).toHaveValue('01.10.2026');
+  await expect(panel.getByLabel('Bezahlt von', { exact: true })).toHaveValue(registerAccountId);
+  await panel.getByLabel('Empfänger').fill(payee);
+  await expect(panel.getByRole('option', { name: payee })).toBeVisible();
+  await panel.getByLabel('Empfänger', { exact: true }).press('Enter');
   await expect(panel.getByLabel('Kategorie', { exact: true })).toHaveValue(category);
-  await expect(panel.getByLabel('Datum', { exact: true })).toHaveValue(date);
   await panel.getByLabel('Betrag', { exact: true }).fill('3,00');
   await page.keyboard.press('Control+Enter');
   await expect(page.getByRole('row', { name: new RegExp(payee) })).toHaveCount(2);

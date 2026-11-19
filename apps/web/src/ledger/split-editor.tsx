@@ -428,6 +428,7 @@ export function SplitEditor({
                 capturePicker
                 selectedName={selectedName}
                 error={!multiple ? error : undefined}
+                onSearchChange={() => choose(line, '')}
                 onSelect={(id) => choose(line, id)}
               />
               {line.type === 'category' && !contactHost && (
@@ -508,6 +509,10 @@ export function SplitEditor({
                   capturePicker
                   categories={categories}
                   selectedName={category?.name ?? ''}
+                  onSearchChange={() => {
+                    onCategoryChoose?.();
+                    change(line.key, { categoryId: '' });
+                  }}
                   onSelect={(categoryId) => {
                     onCategoryChoose?.();
                     change(line.key, { categoryId });

@@ -405,8 +405,6 @@ export function CaptureForm({
   const appliedByPayee = useRef<string | null>(null);
   const categoryRequest = useRef(0);
   const categoryChosen = useRef(Boolean(draft.categoryId || draft.contactId || draft.splitOn));
-  // The payee "Speichern und neu" carried over: context, so it does not make the form dirty.
-  const [keptPayee, setKeptPayee] = useState('');
   const set = <K extends keyof BookingDraft>(key: K, value: BookingDraft[K]) => {
     if ((key === 'accountId' || key === 'toAccountId') && value !== draft[key]) setBankIntent(null);
     setDraft((d) => ({ ...d, [key]: value }));
@@ -557,7 +555,7 @@ export function CaptureForm({
     ? JSON.stringify(strip(draft)) !== JSON.stringify(strip(queued.draft))
     : editing
       ? JSON.stringify(strip(draft)) !== JSON.stringify(strip(editDraft!))
-      : captureDirty(draft, keptPayee) ||
+      : captureDirty(draft, '') ||
         Boolean(draft.repeat || draft.lines?.some((line) => line.shares.length));
   // A refused queued edit still needs an explicit discard, even after reverting its fields.
   const [refusedEdit, setRefusedEdit] = useState(false);
@@ -641,16 +639,13 @@ export function CaptureForm({
     const accountVersion = suggestAccount ? ++accountRequest.current : accountRequest.current;
     if (suggestAccount) accountPayee.current = key;
     const applyAccount = (last: string | undefined) => {
-      if (
-        !suggestAccount ||
-        accountVersion !== accountRequest.current ||
-        accountChosen.current ||
-        !open.some((account) => account.id === last)
-      )
+      if (!suggestAccount || accountVersion !== accountRequest.current || accountChosen.current)
         return;
       setAllowDefaultAccount(false);
-      set('accountId', last!);
+      set('accountId', open.some((account) => account.id === last) ? last! : '');
     };
+    // Clear automatic values together while the changed payee's history is unresolved.
+    applyAccount(undefined);
     if (!payee) return;
     const readHistory = async () => {
       const page = await fetchBookings({ payeeId: payee.id, to: today }, undefined, 1);
@@ -815,27 +810,23 @@ export function CaptureForm({
       await linkAttached(result?.bookings[0]?.id);
       remember(accountId, draft.categoryId || null);
       if (!andNew) return onDone();
-      // The next booking keeps the context (kind, account, date, payee and its category).
+      // Only the register account, date and booking mode belong to the next form.
       draftScopeRef.current++;
       setDraftScope(draftScopeRef.current);
       setStatusChosen(false);
       setBankIntent(null);
       accountRequest.current++;
-      accountChosen.current = true;
-      appliedPayee.current = draft.payee.trim().toLowerCase();
+      accountChosen.current = false;
+      accountPayee.current = '';
+      appliedPayee.current = null;
+      setAllowDefaultAccount(false);
       setSaveAttempted(false);
       categoryRequest.current++;
-      categoryChosen.current = !draft.splitOn && Boolean(draft.categoryId);
-      appliedByPayee.current = draft.splitOn ? null : draft.categoryId;
-      setKeptPayee(draft.payee);
+      categoryChosen.current = false;
+      appliedByPayee.current = null;
       setDraft((d) => ({
-        ...emptyDraft(accountId, d.date),
+        ...emptyDraft(hasAccountContext ? explicitAccountId! : '', d.date),
         kind: d.kind,
-        toAccountId: d.toAccountId,
-        payee: d.payee,
-        categoryId: d.splitOn ? '' : d.categoryId,
-        incomeTypeId: d.incomeTypeId,
-        projectId: d.projectId,
       }));
       setErrors({});
       // Save and new keeps the form body's scroll position (#1146).
@@ -1544,6 +1535,7 @@ export function CaptureForm({
                   leading={leading}
                   selectedName={categoryName}
                   error={errors.category}
+                  onSearchChange={() => pickCategory('')}
                   onSelect={pickCategory}
                 />
               )}

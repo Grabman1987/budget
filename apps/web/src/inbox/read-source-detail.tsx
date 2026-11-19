@@ -1,4 +1,4 @@
-import type { SourceOperation } from '@budget/domain';
+import { summarizeOperation, type SourceOperation, type OperationVerdict } from '@budget/domain';
 import { maskMoneyText, privateAmount, useAmountPrivacy } from '@budget/ui';
 
 export const SOURCE_REASONS: Record<string, string> = {
@@ -19,6 +19,114 @@ export const SOURCE_FAILURES: Record<string, string> = {
 };
 
 type SnapshotScale = 2 | 8;
+
+const HOLDING_CAUSES: Record<string, string> = {
+  mapping_problem: 'Zuordnung von Konto oder Instrument fehlt oder ist ungültig.',
+  source_unreadable: 'Der Quellbestand ist nicht verlässlich lesbar.',
+  missing_movement: 'Offene Bewegungen erklären die gesamte Bestandsdifferenz.',
+  partly_missing_movement: 'Offene Bewegungen erklären einen Teil der Bestandsdifferenz.',
+  real_difference: 'Die Bestandsdifferenz ist durch offene Bewegungen nicht erklärt.',
+};
+const OPERATION_CLASSES: Record<string, string> = {
+  purchase: 'Kauf',
+  sale: 'Verkauf',
+  swap: 'Tausch',
+  reward: 'Prämie / Staking-Ertrag',
+  staking_transfer: 'Interne Staking-Umbuchung',
+  fiat_transfer: 'Geldbewegung',
+  token_transfer: 'Token-Übertrag',
+  fee_only: 'Gebühr',
+  other: 'Sonstiger Vorgang',
+};
+const unitsText = (value: unknown, scale: SnapshotScale = 8) => {
+  const parsed = parseSnapshotInteger(value);
+  return parsed === null ? 'Nicht verfügbar' : privateAmount(formatScaledInteger(parsed, scale));
+};
+
+function OperationTrace({ op }: { op: SourceOperation & { reconciliation?: OperationVerdict } }) {
+  const summary = summarizeOperation(op);
+  const verdict = op.reconciliation;
+  return (
+    <section aria-label="Vorgang und Bestandswirkung">
+      <p>
+        Vorgang: {maskMoneyText(op.id)} · {OPERATION_CLASSES[summary.class]}
+      </p>
+      {summary.assets.map((a) => (
+        <p key={a.assetId}>
+          Quellinstrument: {maskMoneyText(a.assetId)} · Brutto: {unitsText(a.grossE8)} · Gebühr:{' '}
+          {unitsText(a.feeE8)} · Netto-Bestandswirkung: {unitsText(a.netE8)} Einheiten
+        </p>
+      ))}
+      {!summary.assets.length && <p>Keine Token-Bestandswirkung aus diesem Vorgang.</p>}
+      <p>
+        Summe der Fiatbewegungen laut Quelle (absolut): {unitsText(summary.fiatCents, 2)}
+        {summary.fiatCents !== null && ' (2 Nachkommastellen)'}
+      </p>
+      <p>
+        Abgleich:{' '}
+        {verdict
+          ? {
+              matched: 'Erfasst',
+              missing: 'Gegenbuchung fehlt oder ist nicht eindeutig',
+              unmapped: 'Zuordnung fehlt',
+              unreadable: 'Quelldaten nicht lesbar',
+              informational: 'Informativ',
+            }[verdict.status]
+          : 'Beim gespeicherten Abgleich nicht verfügbar'}
+      </p>
+      {verdict?.status === 'missing' && (
+        <>
+          {verdict.ambiguous && (
+            <p>Gleich passende Gegenbuchungen: {verdict.ambiguous}. Keine eindeutige Zuordnung.</p>
+          )}
+          {verdict.missingLegs?.map((leg, i) => (
+            <p key={i}>
+              {leg.key.startsWith('currency:') && leg.incoming
+                ? 'Einzahlung / Finanzierung fehlt im Abgleich'
+                : 'Gegenbewegung fehlt im Abgleich'}
+              : {maskMoneyText(leg.key)} · {leg.day ?? 'Datum nicht verfügbar'} ·{' '}
+              {unitsText(leg.cents, 2)} (2 Nachkommastellen)
+            </p>
+          ))}
+          {!verdict.missingLegs?.length && (
+            <p>
+              Welche Gegenbewegung fehlt, wurde nicht gespeichert. Finanzierung nicht nachgewiesen.
+            </p>
+          )}
+          <p>Es wird keine Einzahlung oder Korrekturbuchung erzeugt.</p>
+        </>
+      )}
+      {verdict &&
+        'refs' in verdict &&
+        verdict.refs?.map((ref) => (
+          <p key={ref.type + ref.id}>
+            Erfasste Gegenbewegung: {ref.type === 'trade' ? 'Handel' : 'Buchung'} · {ref.date} ·{' '}
+            {maskMoneyText(ref.id)}
+          </p>
+        ))}
+      <ul>
+        {op.transactions.map((tx) => (
+          <li key={tx.id}>
+            {new Date(tx.creditedAt).toLocaleDateString('de-AT', { timeZone: 'Europe/Vienna' })} ·{' '}
+            {tx.type === 'fee' ? 'Gebühr' : tx.type === 'tax' ? 'Steuer' : 'Bewegung'} ·{' '}
+            {tx.flow === 'INCOMING'
+              ? 'Zugang'
+              : tx.flow === 'OUTGOING'
+                ? 'Abgang'
+                : 'Richtung unbekannt'}
+            : {privateAmount(tx.amount.value.replace('.', ','))} ·{' '}
+            {maskMoneyText(
+              tx.amount.assetId ?? tx.amount.currencyId ?? 'Instrument nicht angegeben',
+            )}{' '}
+            · Bewegungsreferenz: {maskMoneyText(tx.id)}
+            {tx.tradeId && <> · Handelsreferenz: {maskMoneyText(tx.tradeId)}</>}
+            {tx.fee && <> · Gebühr: {privateAmount(tx.fee.value.replace('.', ','))}</>}
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -76,7 +184,14 @@ function SourceBalanceComparison({ value }: { value: Record<string, unknown> }) 
 
   return (
     <div className="source-balance-comparison">
-      <p>{SOURCE_REASONS.difference}</p>
+      <p>
+        {HOLDING_CAUSES[String(value['cause'])] ??
+          SOURCE_REASONS[String(value['reason'])] ??
+          SOURCE_REASONS.difference}
+      </p>
+      {value['cause'] !== undefined && (
+        <p>Ursache beim gespeicherten Abgleich; keine bestätigte Bestandskorrektur.</p>
+      )}
       <p>
         Quelle beim Abgleich: {snapshotValue(value['source'], sourceUnits, 'Quelle')}
         {validScale && ` ${quantityLabel}`}
@@ -92,6 +207,41 @@ function SourceBalanceComparison({ value }: { value: Record<string, unknown> }) 
       {!validScale && <p>Die gespeicherte Genauigkeit erlaubt keinen verlässlichen Vergleich.</p>}
       {scale === 2 && <p>Keine Währung beim Abgleich angegeben.</p>}
       <p>Gleiche neue Bewegungen mit dem Hauptbuch ab und führe danach den Abgleich erneut aus.</p>
+      <p>
+        „Als erledigt markieren“ bestätigt nur deine Entscheidung und repariert die Datenquelle
+        nicht.
+      </p>
+      {value['cause'] !== undefined && (
+        <>
+          <p>
+            Offene Bestandswirkung: {unitsText(value['openMovementsE8'])} Einheiten · Vorgänge:{' '}
+            {Number.isSafeInteger(value['openMovementCount'])
+              ? String(value['openMovementCount'])
+              : 'Nicht verfügbar'}
+          </p>
+          <p>
+            Quelle: Krypto-Lesequelle · Quellinstrument:{' '}
+            {maskMoneyText(String(value['key'] ?? 'Nicht verfügbar'))} · App-Instrument:{' '}
+            {maskMoneyText(String(value['securityId'] ?? 'Nicht verfügbar'))}
+          </p>
+          <p>
+            Quellsaldo abgerufen: {String(value['fetchedAt'] ?? 'Nicht gespeichert')} ·
+            App-Stichtag: {String(value['comparedOn'] ?? 'Nicht gespeichert')}
+          </p>
+          {Array.isArray(value['operations']) ? (
+            value['operations']
+              .filter(isRecord)
+              .map(
+                (op) =>
+                  Array.isArray(op['transactions']) && (
+                    <OperationTrace key={String(op['id'])} op={op as unknown as SourceOperation} />
+                  ),
+              )
+          ) : (
+            <p>Vorgangsreferenzen beim Abgleich nicht gespeichert. Abgleich neu ausführen.</p>
+          )}
+        </>
+      )}
     </div>
   );
 }
@@ -108,22 +258,16 @@ export function ReadSourceDetail({ detail }: { detail: string | null }) {
   }
   if (!isRecord(value)) return <span>{maskMoneyText(detail)}</span>;
   const op = Array.isArray(value['transactions']) ? (value as unknown as SourceOperation) : null;
-  const isBalanceDifference = value['reason'] === 'difference';
+  const isBalanceDifference =
+    value['reason'] === 'difference' ||
+    value['cause'] !== undefined ||
+    isSnapshotScale(value['scale']);
   return (
     <div className="source-inbox-detail">
       {isBalanceDifference ? (
         <SourceBalanceComparison value={value} />
       ) : op ? (
-        <ul>
-          {op.transactions.map((tx) => (
-            <li key={tx.id}>
-              {new Date(tx.creditedAt).toLocaleDateString('de-AT')} · {tx.type} ·{' '}
-              {tx.flow === 'INCOMING' ? 'Zugang' : tx.flow === 'OUTGOING' ? 'Abgang' : tx.flow}:{' '}
-              {privateAmount(tx.amount.value.replace('.', ','))}
-              {tx.fee && <> · Gebühr: {privateAmount(tx.fee.value.replace('.', ','))}</>}
-            </li>
-          ))}
-        </ul>
+        <OperationTrace op={op} />
       ) : (
         <p>
           {value['category']

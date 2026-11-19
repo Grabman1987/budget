@@ -3,6 +3,7 @@ import { createMemoryHistory, createRouter } from '@tanstack/react-router';
 import { beforeEach, expect, it } from 'vitest';
 import { AUTH_STATUS_KEY, queryClient } from '../auth/status-query';
 import { router as appRouter } from '../router';
+import { REDESIGN_ENABLED } from '../shell/redesign-flag';
 
 // Owner mapping #487: literals deliberately independent of the production alias table.
 const reportLandings = [
@@ -22,7 +23,11 @@ const reportLandings = [
   ['abos', '/reports/abos', {}],
   ['inflation', '/reports/inflation', {}],
   ['empfaenger', '/reports/ausgaben', { darstellung: 'empfaenger' }],
-  ['kosten', '/reports/abos', { darstellung: 'bankkosten' }],
+  [
+    'kosten',
+    REDESIGN_ENABLED ? '/reports/psteuern' : '/reports/abos',
+    { darstellung: 'bankkosten' },
+  ],
   ['liquiditaet', '/plan/prognose', {}],
   ['cashflow', '/reports/einnahmen-ausgaben', { darstellung: 'cashflow' }],
   ['vermoegen', '/reports/vermoegen-schulden', { darstellung: 'verlauf' }],
@@ -35,9 +40,13 @@ const reportLandings = [
   ['prendite', '/reports/pallocation', { darstellung: 'rendite' }],
   ['psteuern', '/reports/psteuern', {}],
   ['jahresreport', '/reports/jahresreport', {}],
-  ['finanzcheck', '/', {}],
+  [
+    'finanzcheck',
+    REDESIGN_ENABLED ? '/reports/onepager' : '/',
+    REDESIGN_ENABLED ? { darstellung: 'finanzcheck' } : {},
+  ],
   ['explorer', '/reports/explorer', {}],
-  ['kontakte', '/konten/kontakte', {}],
+  ['kontakte', REDESIGN_ENABLED ? '/reports/kontakte' : '/konten/kontakte', {}],
   ['vergleich', '/reports/vergleich', {}],
   ['gesamtuebersicht', '/reports/vermoegen-schulden', { darstellung: 'gesamt' }],
 ] as const;
@@ -179,7 +188,10 @@ it('retains recipient and contact identity and supports return to a Heute/Plan e
   await router.load();
   expect(router.state.location.pathname).toBe('/plan/monat');
   await router.navigate({ to: '/reports/finanzcheck' });
-  expect(router.state.location.pathname).toBe('/');
+  expect(router.state.location.pathname).toBe(REDESIGN_ENABLED ? '/reports/onepager' : '/');
+  expect(router.state.matches.at(-1)?.search.darstellung).toBe(
+    REDESIGN_ENABLED ? 'finanzcheck' : undefined,
+  );
 });
 
 it.each([

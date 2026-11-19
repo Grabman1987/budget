@@ -11,7 +11,7 @@ import {
 } from '@tanstack/react-router';
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import type { ReactNode } from 'react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { PageMeta } from '../nav/pages';
 import type { ReportEntry } from '../nav/reports-catalog';
 import { ExplorerReportPage } from './explorer-report';
@@ -30,9 +30,21 @@ vi.mock('./use-explorer-views', () => ({
 const CSV =
   '\uFEFF"record_type";"report_key";"period";"dimension";"class";"measure";"unit";"truncated_count";"row_key";"Kategorie";"Q1 24"\r\n' +
   '"data";"explorer";"3J";"kategorie";"want";"summe";"cents";0;"food";"Synthetic";1234\r\n';
+// Exercise the retained readers with desktop media and the editor disclosure open.
+beforeEach(() => {
+  vi.stubGlobal('matchMedia', (media: string) => ({
+    media,
+    matches: false,
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+  }));
+  vi.stubGlobal('scrollTo', vi.fn());
+  localStorage.setItem('budget-report-r8-explorer-editor', '1');
+});
 const clients: QueryClient[] = [];
 afterEach(() => {
   cleanup();
+  localStorage.removeItem('budget-report-r8-explorer-editor');
   for (const client of clients.splice(0)) client.clear();
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
@@ -87,7 +99,7 @@ function mount() {
   });
   const router = createRouter({
     routeTree: root.addChildren([route]),
-    history: createMemoryHistory({ initialEntries: ['/reports/explorer'] }),
+    history: createMemoryHistory({ initialEntries: ['/reports/explorer?darstellung=eigene'] }),
   });
   render(
     <QueryClientProvider client={client}>

@@ -59,7 +59,17 @@ export interface SourceMatchRef {
 export type OperationVerdict =
   | { status: 'matched'; refs: SourceMatchRef[]; by?: 'id' }
   | { status: 'informational'; reason: 'internal' | 'no_movement' }
-  | { status: 'missing'; ambiguous?: number }
+  | {
+      status: 'missing';
+      ambiguous?: number;
+      refs?: SourceMatchRef[];
+      missingLegs?: Array<{
+        key: string;
+        incoming: boolean;
+        day: string | null;
+        cents: number | null;
+      }>;
+    }
   | { status: 'unmapped'; keys: string[] }
   | { status: 'unreadable'; field: string };
 
@@ -577,13 +587,24 @@ export function matchSourceOperations(
       0,
       ...legs.map((_, i) => ambiguous.get(index - legs.length + i) ?? 0),
     );
+    const missing = {
+      refs: refs.filter((r): r is SourceMatchRef => r !== undefined),
+      missingLegs: legs
+        .filter((_, i) => refs[i] === undefined)
+        .map((l) => ({
+          key: l.key,
+          incoming: l.incoming,
+          day: l.day,
+          cents: l.cents,
+        })),
+    };
     verdicts.set(
       op.id,
       refs.every((r): r is SourceMatchRef => r !== undefined)
         ? { status: 'matched', refs }
         : candidates > 0
-          ? { status: 'missing', ambiguous: candidates }
-          : { status: 'missing' },
+          ? { status: 'missing', ambiguous: candidates, ...missing }
+          : { status: 'missing', ...missing },
     );
   }
   return verdicts;

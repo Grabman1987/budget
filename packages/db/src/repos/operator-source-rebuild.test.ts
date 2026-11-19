@@ -267,8 +267,16 @@ it('rebuilds exact month ends, openings, monthly rewards, swap, fees/tax, preser
     'matched_by_sum',
   ]);
   expect(result.fiatMovements.map((r) => r.verdict)).toEqual([
-    { status: 'missing' },
-    { status: 'missing' },
+    {
+      status: 'missing',
+      refs: [],
+      missingLegs: [{ key: 'currency:eur', incoming: true, day: '2026-03-01', cents: 10000 }],
+    },
+    {
+      status: 'missing',
+      refs: [],
+      missingLegs: [{ key: 'currency:eur', incoming: true, day: '2026-03-02', cents: 20000 }],
+    },
   ]);
   expect(result.unmapped).toEqual([{ key: 'asset:x', legs: 1, fiatEffectCents: -2000 }]);
   expect(result.removedRows).toEqual({ trades: 1, bookings: 4 });

@@ -365,7 +365,12 @@ function BankCandidateForm({
     typeof candidate.accountId === 'string' &&
     typeof candidate.date === 'string' &&
     Number.isSafeInteger(candidate.amountCents)
-      ? { accountId: candidate.accountId, date: candidate.date, amountCents: candidate.amountCents }
+      ? {
+          accountId: candidate.accountId,
+          date: candidate.date,
+          amountCents: candidate.amountCents,
+          currency: candidate.currency,
+        }
       : undefined;
   const extras = line
     ? bankConfirmExtras(

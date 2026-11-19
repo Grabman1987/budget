@@ -55,9 +55,8 @@ test('capture keeps visible categories and payee defaults consistent across cons
   for (const index of [0, 1]) {
     await payee.fill(payees[index].name);
     await dialog.getByRole('option', { name: payees[index].name, exact: true }).click();
-    // Saving and keeping the category makes it authoritative for the next booking.
-    await expect(category).toHaveValue(categories[0].name);
-    await expect(account).toHaveValue(accounts[0].id);
+    await expect(category).toHaveValue(categories[index].name);
+    await expect(account).toHaveValue(accounts[index].id);
     await amount.fill('10,00');
     const saved = page.waitForResponse(
       (response) =>
@@ -68,17 +67,22 @@ test('capture keeps visible categories and payee defaults consistent across cons
     const response = await saved;
     expect(response.status()).toBe(201);
     const sent = response.request().postDataJSON();
-    expect(sent.accountId).toBe(accounts[0].id);
-    expect(sent.splits[0].categoryId).toBe(categories[0].id);
+    expect(sent.accountId).toBe(accounts[index].id);
+    expect(sent.splits[0].categoryId).toBe(categories[index].id);
     const result = await response.json();
-    expect(result.bookings[0].splits[0].categoryId).toBe(categories[0].id);
+    expect(result.bookings[0].accountId).toBe(accounts[index].id);
+    expect(result.bookings[0].splits[0].categoryId).toBe(categories[index].id);
     await expect(amount).toHaveValue('');
+    await expect(payee).toHaveValue('');
+    await expect(category).toHaveValue('');
+    await expect(account).toHaveValue('');
   }
   await payee.fill('Neuer Musterladen');
   await amount.focus();
-  await expect(category).toHaveValue(categories[0].name);
-  await expect(account).toHaveValue(accounts[0].id);
+  await expect(category).toHaveValue('');
+  await expect(account).toHaveValue('');
   for (const method of ['typed', 'clicked', 'keyboard']) {
+    await account.selectOption(accounts[0].id);
     await amount.fill('10,00');
     await category.fill('');
     await category.fill(categories[0].name);
@@ -90,7 +94,16 @@ test('capture keeps visible categories and payee defaults consistent across cons
     if (method === 'typed') {
       await category.fill('Suchtext ohne Treffer');
       await amount.focus();
-      await expect(category).toHaveValue(categories[0].name);
+      await expect(category).toHaveValue('Suchtext ohne Treffer');
+      await expect(category).toHaveAttribute('aria-invalid', 'true');
+      await expect(dialog.getByText('Bitte eine Kategorie aus der Liste wählen.')).toBeVisible();
+      await category.press('Control+Enter');
+      await expect(amount).toHaveValue('10,00');
+      await expect(dialog).toBeVisible();
+      const bookings = await request.get(`/api/bookings?accountId=${accounts[0].id}`);
+      expect((await bookings.json()).items).toHaveLength(2);
+      await category.fill(categories[0].name);
+      await amount.focus();
     }
     const saved = page.waitForResponse(
       (response) =>
@@ -105,10 +118,11 @@ test('capture keeps visible categories and payee defaults consistent across cons
     expect(result.bookings[0].splits[0].categoryId).toBe(categories[0].id);
     await expect(amount).toHaveValue('');
   }
+  await account.selectOption(accounts[0].id);
   await category.fill('Suchtext ohne Treffer');
   await amount.focus();
-  await expect(category).toHaveValue(categories[0].name);
-  await expect(category).toHaveAttribute('aria-invalid', 'false');
+  await expect(category).toHaveValue('Suchtext ohne Treffer');
+  await expect(category).toHaveAttribute('aria-invalid', 'true');
   await amount.fill('10,00');
   await category.fill(categories[1].name.toLocaleLowerCase('de-AT'));
   const saved = page.waitForResponse(

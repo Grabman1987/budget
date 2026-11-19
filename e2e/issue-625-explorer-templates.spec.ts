@@ -434,6 +434,96 @@ for (const [id, label] of templates) {
   });
 }
 
+for (const value of ['light', 'dark'] as const) {
+  test(`1156 total disclosure: exact CSV, privacy and closed reader lifetime in ${value}`, async ({
+    page,
+    isolatedLedger,
+  }, info) => {
+    seed(isolatedLedger.databasePath);
+    const opened = openDatabase(isolatedLedger.databasePath);
+    try {
+      opened.sqlite.exec("UPDATE account SET opening_date = '2026-07-01' WHERE id = 'budget'");
+    } finally {
+      opened.close();
+    }
+    const before = financialFingerprint(isolatedLedger.databasePath);
+    await retainExplorerReaders(page);
+    await page.addInitScript((theme) => localStorage.setItem('budget-theme', theme), value);
+    const reads: string[] = [];
+    page.on('request', (request) => {
+      if (request.url().includes('/api/report-tables/months?netWorth=1')) reads.push(request.url());
+    });
+    await page.goto('/reports/gesamttabelle?zeitraum=1M#details');
+    await expect(page).toHaveURL(/\/reports\/explorer\?.*vorlage=total.*#details$/);
+    await expect(page.getByTestId('template-total')).toBeVisible();
+    const disclosure = page.locator('.ex-total-history');
+    const summary = disclosure.locator(':scope > summary');
+    await expect(disclosure).not.toHaveAttribute('open');
+    await expect(page.getByTestId('csv-download')).toHaveCount(0);
+    expect(reads).toHaveLength(0);
+    await summary.click();
+    const csv = page.getByTestId('csv-download');
+    await expect(csv).toBeVisible();
+    expect(reads).toHaveLength(1);
+    await expect(disclosure.getByText('Datenbasis: Jul 26 bis Sep 26')).toBeVisible();
+    await expect(disclosure.locator('table.rg-all tbody tr').last()).toContainText('506');
+    const pending = page.waitForEvent('download');
+    await csv.click();
+    const download = await pending;
+    expect(download.suggestedFilename()).toBe('gesamttabelle-2026-07-2026-09.csv');
+    expect(await readFile((await download.path())!)).toEqual(
+      Buffer.from(
+        '\uFEFF"Position";"Jul 26";"Aug 26";"Sep 26*"\r\n' +
+          '"Einnahmen";100,01;200,02;300,03\r\n' +
+          '"Gehalt";100,01;200,02;300,03\r\n' +
+          '"Bedarf";10,01;20,01;7,00\r\n' +
+          '"Synthetic group";10,01;20,01;7,00\r\n' +
+          '"Wunsch";5,01;10,00;0,00\r\n' +
+          '"Synthetic group";5,01;10,00;0,00\r\n' +
+          '"Zukunft";20,00;30,00;0,00\r\n' +
+          '"Synthetic group";20,00;30,00;0,00\r\n' +
+          '"Konsumausgaben";15,02;30,01;7,00\r\n' +
+          '"Übrig nach Zukunft";64,99;140,01;293,03\r\n' +
+          '"Sparquote";85,0;85,0;97,7\r\n' +
+          '"Kapitalerträge (nicht in Einnahmen)";7,77;0,00;0,00\r\n' +
+          '"Nettovermögen am Monatsende";72,76;212,77;505,80',
+        'utf8',
+      ),
+    );
+    await withShellControls(page, async ({ privacy }) => {
+      await privacy.click();
+    });
+    await expect(disclosure.locator('table.rg-all')).not.toContainText('506');
+    await expect(disclosure.locator('table.rg-all')).toContainText('•••');
+    await page.screenshot({
+      path: info.outputPath(`total-history-private-${value}.png`),
+      fullPage: true,
+      animations: 'disabled',
+    });
+    await withShellControls(page, async ({ privacy }) => {
+      await privacy.click();
+    });
+    await page.getByRole('button', { name: 'Jahresansicht', exact: true }).click();
+    await expect(page.getByTestId('template-year')).toBeVisible();
+    await page.getByRole('button', { name: 'Gesamttabelle', exact: true }).click();
+    await expect(disclosure).not.toHaveAttribute('open');
+    await expect(csv).toHaveCount(0);
+    expect(reads).toHaveLength(1);
+    await summary.click();
+    await expect(csv).toBeVisible();
+    const readsBeforeReload = reads.length;
+    await page.reload();
+    await expect(page.getByTestId('template-total')).toBeVisible();
+    await expect(disclosure).not.toHaveAttribute('open');
+    await expect(csv).toHaveCount(0);
+    expect(reads).toHaveLength(readsBeforeReload);
+    await summary.click();
+    await expect(csv).toBeVisible();
+    expect(reads).toHaveLength(readsBeforeReload + 1);
+    expect(financialFingerprint(isolatedLedger.databasePath)).toBe(before);
+  });
+}
+
 test('saved custom view and exact627 CSV survive fixed-template use with grouped undo', async ({
   page,
   isolatedLedger,

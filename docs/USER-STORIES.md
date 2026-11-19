@@ -32,11 +32,32 @@ Die Status stammen aus `docs/FEATURES.md`, `docs/STATUS.md`, dem Code und dem Is
 
 Eine Analyse aller Abläufe nach Aufwand für den Nutzer steht in [EFFIZIENZ.md](user-stories/EFFIZIENZ.md).
 
+I-03 (#1048): the bank confirmation's collapsed “Alle Felder” section retains native
+bank currency and read-only facts. Browser coverage uses a complete synthetic
+candidate, note, project, manual cent splits replacing a rule, file/photo uploads
+and one grouped Undo returning both candidate and receipts to Prüfen. Desktop and
+390 px checks cover keyboard operation and both themes; owner acceptance remains
+separate. See [the review story](user-stories/07-pruefen-upload.md#i-03--bankzeile-mit-alle-felder-in-einem-schritt-vervollständigen).
+
 ## Connections register (E-03 and E-04, #859)
 
 In the redesign, open **Einstellungen › Verbindungen** to see all six data sources, with sources needing attention first in severity order. Indented source parts remain visible without expanding setup: bank connections and account mappings, account-specific review counts and fetch commands, crypto movements and full-history checks, document scan counts and upload, quote run counts and instrument links, and the latest available inflation month. Routine commands reuse the existing handlers. A new PDF upload immediately opens its existing result/review dialog; the crypto review link opens its source-specific movement list.
 
 Each source has at most one **Einrichtung** disclosure for credentials, consent setup, policy and other rare settings. Changing an account mapping exposes its start date so validation cannot block an invisible control. Acceptance covers unchanged request payloads, consent and booking policy, a neutral loading state, light and dark layouts, 44 px controls and reflow down to 320 px. Source dates remain distinct from attempts and missing values. Owner acceptance is pending.
+
+## Crypto warning evidence (#1081, read-only part of #1205)
+
+Under **Konten › Prüfen**, each crypto balance warning shows its stored cause,
+source and app units, open net effect, source fetch date and app comparison day.
+Related operations expose source movement/trade references and gross, fee and net
+units through the existing shared calculation. Missing funding names the unmatched
+cash leg and any known ledger counterparts; absent historic diagnostics remain
+explicitly unavailable. Amount privacy also hides the trace amounts and raw JSON.
+Correct the mapping/source evidence through the existing data-source controls and
+run **Abgleich neu ausführen**; an unsuccessful retry retains the warning and a
+successful balance check resolves it. Manual acknowledgement is not source repair.
+This slice creates no bookings, valuations, cost basis or tax values. Owner-approved
+local-copy analysis and money acceptance for #1205 remain pending.
 
 ## Offene Fragen an den Nutzer
 
@@ -128,3 +149,21 @@ makes up the result for the selected period.
   above classification and amount without horizontal page scrolling.
 
 Status for this change is implemented for review.
+
+## Consecutive capture (K-04, #1145)
+
+Save and new retains only the date, booking mode and explicit register account context;
+all booking details are cleared, including the account outside a register. A chosen payee
+fills account/category together from its latest booking or leaves them empty without history.
+The register account and choices made in the current form remain authoritative;
+late history cannot overwrite them. Typed category text clears the stored selection.
+Only a unique full label or a clicked/keyboard option selects an ID; other text
+stays visible, becomes invalid on blur and blocks saving. Fresh forms remain free
+of premature validation. See [K-04](user-stories/03-konten-buchungen.md).
+Status: implementation for review; owner acceptance and production proof pending.
+## Reports: retained total-template proof (#1156)
+
+RP-09 now explicitly covers the full-history disclosure lifetime: closed on entry,
+only read on opening, reset after template changes/source refresh/reload, and no
+stale export. The existing Explorer spec checks exact CSV bytes and privacy in
+light/dark at the configured desktop/390 widths. See [RP-09](user-stories/06-reports.md#rp-09--gesamttabelle-explorer-template); CI and owner acceptance remain open.

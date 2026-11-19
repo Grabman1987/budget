@@ -220,6 +220,9 @@ export function Combobox({
       if (activeId) revealOption(list, document.getElementById(activeId));
     };
     updateBounds();
+    // Focus-dependent sibling rows can move the anchor without resizing its ancestors (WebKit).
+    // Recheck after layout so a newly opened popup does not retain the previous field position.
+    const frame = requestAnimationFrame(updateBounds);
     const refresh = updateBounds;
     const onScroll = (event: Event) => {
       if (event.target !== list) refresh();
@@ -245,6 +248,7 @@ export function Combobox({
       subtree: true,
     });
     return () => {
+      cancelAnimationFrame(frame);
       window.removeEventListener('resize', refresh);
       window.removeEventListener('scroll', onScroll, true);
       viewport?.removeEventListener('resize', refresh);

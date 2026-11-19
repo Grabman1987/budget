@@ -167,6 +167,9 @@ test('capture rows, native calendar and dropdowns keep the draft on desktop and 
   await expect(amount).toHaveValue('19,99');
   await expect(receiver).toBeFocused();
   await expect(discard).toHaveCount(0);
+  // Leave learned payee suggestions before interacting below the phone overlay.
+  await receiver.press('Tab');
+  await expect(receiver).not.toBeFocused();
   // The flag is retired in the capture dialog on every viewport.
   await expect(dialog.getByRole('button', { name: /^Markierung/ })).toHaveCount(0);
   await expect(dialog.getByLabel('Markierung', { exact: true })).toHaveCount(0);
@@ -272,7 +275,7 @@ for (const scenario of ['category', 'outlay', 'percent', 'amount', 'several'] as
     });
     const { contact } = await post('/contacts', { name: `Kontakt Muster ${tag}` });
     const { contact: secondContact } = await post('/contacts', { name: `Kontakt Beispiel ${tag}` });
-    await page.goto(`/?panel=buchung&konto=${account.id}`);
+    await page.goto(`/konten/${account.id}?panel=buchung`);
     const dialog = page.getByRole('dialog', { name: 'Buchung erfassen' });
     const amount = dialog.getByLabel('Betrag', { exact: true });
     const category = dialog.getByLabel('Kategorie', { exact: true });
@@ -385,6 +388,7 @@ for (const scenario of ['category', 'outlay', 'percent', 'amount', 'several'] as
       await dialog.getByLabel('Anteil 1.2 (%)').fill('10');
       await expect(dialog.getByText('Kategorie trägt 100,00 € bis zur Rückzahlung')).toBeVisible();
     }
+    await expect(dialog.getByLabel('Bezahlt von')).toHaveValue(account.id);
     await expect(save).toBeEnabled();
     await dialog.getByLabel('Bezahlt von').selectOption(account.id);
     await dialog.getByLabel('Datum', { exact: true }).fill('1.10.2026');
@@ -552,9 +556,10 @@ test('phone capture keeps all fields before actions with a reduced visual viewpo
   });
   expect(response.ok()).toBe(true);
   const { account } = await response.json();
-  await page.goto(`/?panel=buchung&konto=${account.id}`);
+  await page.goto(`/konten/${account.id}?panel=buchung`);
   const dialog = page.getByRole('dialog', { name: 'Buchung erfassen' });
   const form = dialog.locator('.bkform-redesign');
+  const focusScope = page.locator('.bk-focus-scope').filter({ has: dialog });
   await expect(form).toBeVisible();
   const upload = dialog.getByRole('button', { name: 'Datei anhängen', exact: true });
   await expect(upload).toHaveCount(1);
@@ -572,12 +577,13 @@ test('phone capture keeps all fields before actions with a reduced visual viewpo
   const payee = dialog.getByLabel('Empfänger', { exact: true });
   await payee.fill('Telefon Musterladen');
   await choose(dialog, 'Kategorie', 'Essen', /^Essen/);
+  await expect(dialog.getByLabel('Bezahlt von')).toHaveValue(account.id);
   await payee.focus();
   await page.evaluate(() => {
     Object.defineProperty(visualViewport!, 'height', { configurable: true, value: 590 });
     visualViewport!.dispatchEvent(new Event('resize'));
   });
-  await expect(page.locator('.bk-focus-scope')).toHaveAttribute('data-compact-viewport');
+  await expect(focusScope).toHaveAttribute('data-compact-viewport');
   await expect(form).toHaveCSS('overflow-y', 'auto');
   await page.evaluate(() => {
     for (const [key, value] of Object.entries({ height: 390, offsetTop: 40 }))
@@ -585,7 +591,7 @@ test('phone capture keeps all fields before actions with a reduced visual viewpo
     visualViewport!.dispatchEvent(new Event('resize'));
     visualViewport!.dispatchEvent(new Event('scroll'));
   });
-  await expect(page.locator('.bk-focus-scope')).toHaveAttribute('data-compact-viewport');
+  await expect(focusScope).toHaveAttribute('data-compact-viewport');
   await expect(form).toHaveCSS('overflow-y', 'auto');
   await expect(dialog.locator('.bk-body')).toHaveCSS('overflow-y', 'visible');
   const note = dialog.getByLabel('Notiz', { exact: true });
