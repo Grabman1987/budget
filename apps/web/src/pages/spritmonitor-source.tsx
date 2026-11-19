@@ -22,7 +22,13 @@ import { LEDGER_KEY } from '../ledger/queries';
 import { ErrorNote, LoadingNote } from '../ledger/states';
 import type { ListedBooking } from '../ledger/types';
 import { AppLink } from '../shell/app-link';
-import { SettingsSourceCard, sourceDate } from './settings-source-card';
+import {
+  SettingsSourceCard,
+  sourceDate,
+  sourceReadState,
+  type SourceRow,
+  type SourceState,
+} from './settings-source-card';
 import {
   refreshFuel,
   resolveFuel,
@@ -312,6 +318,19 @@ function FuelReviewForm({
 }
 
 export function SpritmonitorSourceSection({ compact = false }: { compact?: boolean } = {}) {
+  const source = useSpritmonitorSource(compact);
+  return source.row ? (
+    <ul>
+      <SettingsSourceCard {...source.row} />
+    </ul>
+  ) : (
+    source.legacy
+  );
+}
+
+export function useSpritmonitorSource(compact: true): { row: SourceRow };
+export function useSpritmonitorSource(compact: boolean): { row?: SourceRow; legacy?: ReactNode };
+export function useSpritmonitorSource(compact: boolean) {
   useAmountPrivacy();
   const query = useQuery(spritmonitorQuery());
   const [busy, setBusy] = useState(false);
@@ -364,11 +383,16 @@ export function SpritmonitorSourceSection({ compact = false }: { compact?: boole
   }
   const action = (
     <Button
-      variant="ghost"
+      variant={compact ? 'primary' : 'ghost'}
+      aria-busy={compact ? busy || data?.running : undefined}
       disabled={busy || !data?.configured || data.running || query.isError}
       onClick={() => void refresh()}
     >
-      {busy || data?.running ? 'Ruft ab …' : 'Jetzt abrufen'}
+      {busy || data?.running
+        ? 'Ruft ab …'
+        : compact && data?.lastResult?.failed
+          ? 'Erneut versuchen'
+          : 'Jetzt abrufen'}
     </Button>
   );
   const content: ReactNode = (
@@ -419,23 +443,54 @@ export function SpritmonitorSourceSection({ compact = false }: { compact?: boole
       {error && <p role="alert">{maskMoneyText(error)}</p>}
     </>
   );
-  return compact ? (
-    <SettingsSourceCard
-      title="Spritmonitor"
-      icon={Fuel}
-      status={status}
-      attention={!data?.configured || !!open || !!data?.lastResult?.failed}
-      detail={`Tankungen · ${open} offen`}
-      date={data?.lastResult?.lastSuccess ?? data?.state?.lastSuccess}
-      loading={query.isPending}
-      error={query.isError}
-      onRetry={() => void query.refetch()}
-      initiallyOpen={window.location.hash === '#spritmonitor-source-title'}
-      action={action}
-    >
-      {content}
-    </SettingsSourceCard>
-  ) : (
+  if (compact) {
+    const state: SourceState = !data?.configured
+      ? 'unconfigured'
+      : data.lastResult?.failed
+        ? 'failed'
+        : open
+          ? 'partial'
+          : busy || data.running
+            ? 'running'
+            : lastSuccess
+              ? todayInVienna(new Date(lastSuccess)) === todayInVienna()
+                ? 'connected'
+                : 'stale'
+              : 'waiting';
+    const impacts: Partial<Record<SourceState, string>> = {
+      unconfigured: 'Für Tankungen fehlt die Verbindung.',
+      failed: 'Neue Tankungen konnten nicht abgerufen werden.',
+      partial: open === 1 ? '1 Tankung ist zu prüfen.' : `${open} Tankungen sind zu prüfen.`,
+      waiting: 'Tankungen wurden noch nicht abgerufen.',
+      stale: 'Der Stand der Tankungen kann veraltet sein.',
+    };
+    return {
+      row: sourceReadState(query, {
+        id: 'quelle-spritmonitor',
+        title: 'Spritmonitor',
+        icon: Fuel,
+        scope: 'Tankungen',
+        state,
+        impact: impacts[state],
+        date: data ? (lastSuccess ?? null) : undefined,
+        initiallyOpen: window.location.hash === '#spritmonitor-source-title',
+        detailAction:
+          state === 'unconfigured'
+            ? { label: 'Einrichten' }
+            : state === 'partial'
+              ? { label: 'Tankungen prüfen', target: 'a[href*="/konten/pruefen"]' }
+              : undefined,
+        action,
+        children: (
+          <>
+            {(state === 'partial' || state === 'unconfigured') && action}
+            {content}
+          </>
+        ),
+      }),
+    };
+  }
+  const legacy = (
     <section aria-labelledby="spritmonitor-section-title" className="data-source-section">
       <SectionHead title="Spritmonitor" id="spritmonitor-section-title" />
       {query.isPending && <LoadingNote what="Spritmonitor" />}
@@ -452,6 +507,7 @@ export function SpritmonitorSourceSection({ compact = false }: { compact?: boole
       {content}
     </section>
   );
+  return { legacy };
 }
 function FuelDisclosure({ row }: { row: FuelRow }) {
   const [open, setOpen] = useState(false);

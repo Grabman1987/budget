@@ -405,12 +405,14 @@ export function PayslipPanel({
 export function PayslipUploadDialog({
   onClose,
   handoff,
+  initialResult,
 }: {
   onClose: () => void;
   handoff?: PayslipHandoff | undefined;
+  initialResult?: PayslipUploadResult | undefined;
 }) {
   const [busy, setBusy] = useState(false);
-  const [uploaded, setUploaded] = useState<PayslipUploadResult>();
+  const [uploaded, setUploaded] = useState<PayslipUploadResult | undefined>(initialResult);
   const [reviewMonth, setReviewMonth] = useState<string | null>(null);
   const blocker = useBlocker({
     shouldBlockFn: () => busy,

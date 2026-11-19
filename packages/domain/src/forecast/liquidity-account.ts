@@ -17,3 +17,11 @@ export function isLiquidityAccount(
     a.currency === 'EUR'
   );
 }
+
+/** Accounts that can fund payments; retain the wider legacy household scope separately. */
+export function isPaymentAccount(
+  a: Parameters<typeof isLiquidityAccount>[0] & { type: string },
+  today: string,
+): boolean {
+  return isLiquidityAccount(a, today) && ['checking', 'cash', 'savings'].includes(a.type);
+}

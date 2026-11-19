@@ -8,12 +8,32 @@ const state = vi.hoisted(() => ({
   code: 'dropbox_path' as string | null,
   date: '2026-11-05T13:10:00Z' as string | null,
 }));
-vi.mock('../reports/payslip-intake', () => ({ PayslipSourceSection: () => null }));
-vi.mock('./read-source', () => ({ CryptoReadSourceSection: () => null }));
+vi.mock('../reports/payslip-intake', () => ({
+  PayslipSourceSection: () => null,
+  PayslipUploadExplanation: () => null,
+  PayslipUpload: () => null,
+}));
+vi.mock('@tanstack/react-router', async (importOriginal) => ({
+  ...(await importOriginal<Record<string, unknown>>()),
+  useBlocker: () => ({ status: 'idle' }),
+}));
+vi.mock('./read-source', async () => ({
+  useCryptoSource: () => ({
+    row: {
+      id: 'test-crypto',
+      title: 'Krypto',
+      icon: () => null,
+      scope: 'Bewegungen und Bestände',
+      state: 'unconfigured',
+      children: null,
+    },
+  }),
+}));
 vi.mock('../shell/app-link', () => ({
   AppLink: ({ children }: { children: React.ReactNode }) => <span>{children}</span>,
 }));
-vi.mock('../api/http', () => ({
+vi.mock('../api/http', async () => ({
+  ...(await vi.importActual('../api/http')),
   request: async (_method: string, path: string) =>
     path === '/api/payslip-intake/status'
       ? {
@@ -45,13 +65,17 @@ it('calls a failed payslip scan an attempt and does not label its timestamp as s
       </ToastProvider>
     </QueryClientProvider>,
   );
-  const card = within(screen.getByRole('region', { name: 'Gehaltszettel' }));
+  const row = screen.getByRole('region', { name: 'Gehaltszettel' });
+  const card = within(row);
   expect(await card.findByText('Abruf fehlgeschlagen')).toBeTruthy();
   expect(card.getByText(/Letzter Scanversuch:/)).toBeTruthy();
   expect(card.getByText(/0 Dateien bis zum Fehler/)).toBeTruthy();
-  expect(card.queryByText(/Letzter Erfolg:/)).toBeNull();
+  expect(card.getByText('1 Fehler / Warnungen')).toBeTruthy();
+  expect(card.queryByText(/0 Dateien gefunden/)).toBeNull();
+  expect(row.querySelector('.settings-source-time dd')?.textContent).toBe('Nicht verfügbar');
+  expect(row.querySelector('.settings-source-time time')).toBeNull();
   expect(
-    within(screen.getByRole('region', { name: 'Bank' })).getByText(/Letzter Erfolg:/),
+    within(screen.getByRole('region', { name: 'Bank' })).getByText('Letzter Erfolg'),
   ).toBeTruthy();
 });
 it('distinguishes no scan from no successful scan', async () => {

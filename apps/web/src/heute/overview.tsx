@@ -25,6 +25,7 @@ import { HeutePaceChart, HeuteWealthChart } from './charts';
 import { CompactForecastCard } from './compact-forecast-card';
 import { attentionModel } from './attention-model';
 import './overview.css';
+import { AccountLiquidityAlerts } from '../reports/account-liquidity';
 
 const time = new Intl.DateTimeFormat('de-AT', {
   hour: '2-digit',
@@ -377,6 +378,7 @@ export function HeuteOverview({
                 </DetailLink>
               </div>
               <div className="hv-lead-foot">
+                <AccountLiquidityAlerts result={data.accountLiquidity} today={data.stand.today} />
                 <span>
                   {data.dailyBudget.perDayCents === null
                     ? 'Kein Spielraum bis Gehalt'

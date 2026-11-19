@@ -1,5 +1,5 @@
 import type { RuleParams } from './params';
-import type { ForecastItem } from '../forecast';
+import type { AccountLiquidityInput, ForecastItem } from '../forecast';
 import type { AllocMonth } from '../ledger/alloc';
 import type {
   AssignmentEvent,
@@ -67,6 +67,7 @@ export interface RuleInputs {
     variableMonthlyCents: number;
     /** Unused overdraft limit (`overdraftLastResort`): shown, never part of the verdict. */
     lastResortCents: number;
+    accountLiquidity?: AccountLiquidityInput;
   } | null;
   /** R08, R10: monthly net income. */
   netIncomeMonthlyCents: number | null;

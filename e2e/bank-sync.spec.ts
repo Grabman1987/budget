@@ -69,10 +69,10 @@ test('bank source callback, mapping, queue action and responsive review', async 
   });
   await page.getByLabel('Konto in Budget').selectOption('synthetic-account');
   await page.getByLabel('Umsätze ab').fill('2026-09-01');
-  await page.getByRole('button', { name: 'Konto zuordnen' }).click();
+  await bank.getByRole('button', { name: 'Konto zuordnen' }).click();
   await expect(page.getByText('Kontozuordnung gespeichert.')).toBeVisible();
   expect(calls[1]?.body).toEqual({ accountId: 'synthetic-account', fromDate: '2026-09-01' });
-  await bank.getByRole('button', { name: 'Jetzt abrufen' }).click();
+  await bank.locator('[data-source-bank-sync]').click();
   await expect(page.getByText('Abruf vorgemerkt.', { exact: false })).toBeVisible();
   expect(calls[2]?.path).toContain('/sync');
   await page.getByLabel('Gebuchte Umsätze').selectOption('false');
@@ -220,14 +220,14 @@ test('connection cards explain limits and results, scope messages and deep-link 
   if (await redesignLoaded(page)) {
     await page
       .getByRole('region', { name: 'Bank', exact: true })
-      .getByRole('button', { name: 'Prüfen', exact: true })
+      .getByRole('button', { name: 'Bank: Einrichtung und Details', exact: true })
       .click();
   }
-  await expect(second.getByRole('button', { name: 'Jetzt abrufen' })).toBeDisabled();
+  await expect(second.locator('[data-source-bank-sync]')).toBeDisabled();
   await expect(second.getByText('Konto B: 4/4')).toBeVisible();
   await expect(second.getByText('Tageslimit erreicht.', { exact: false })).toBeVisible();
   await expect(second.getByText('Pause bis', { exact: false })).toBeVisible();
-  await expect(third.getByRole('button', { name: 'Jetzt abrufen' })).toBeDisabled();
+  await expect(third.locator('[data-source-bank-sync]')).toBeDisabled();
   await expect(first.getByText('Bankstand ohne Stichtag', { exact: false })).toBeVisible();
   await expect(first.getByRole('button', { name: 'Zuordnung speichern' })).toBeDisabled();
   await expect(
@@ -247,7 +247,7 @@ test('connection cards explain limits and results, scope messages and deep-link 
         .locator('dd'),
     ).toHaveText(value!);
   }
-  await first.getByRole('button', { name: 'Jetzt abrufen' }).click();
+  await first.locator('[data-source-bank-sync]').click();
   await expect(first.getByRole('status')).toContainText('Abruf vorgemerkt');
   await expect(second.getByText('Abruf vorgemerkt', { exact: false })).toHaveCount(0);
   for (const theme of ['light', 'dark']) {
@@ -278,7 +278,7 @@ test('connection cards explain limits and results, scope messages and deep-link 
       new URL(request.url()).pathname === '/api/inbox' &&
       new URL(request.url()).searchParams.get('bankSource') === sourceId,
   );
-  await first.getByRole('link', { name: 'Aufgaben prüfen' }).click();
+  await first.locator('[data-source-bank-review]').click();
   await sourceRequest;
   await expect(page).toHaveURL(new RegExp('bankSource=' + sourceId));
   await expect(page.getByText('Aufgabe von Bank A')).toBeVisible();

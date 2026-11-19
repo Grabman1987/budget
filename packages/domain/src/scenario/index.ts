@@ -69,6 +69,7 @@ const itemSchema = z
       .object({
         kind: z.enum([
           'expectedOccurrence',
+          'booking',
           'plannedEvent',
           'loanInstalment',
           'cardPayment',
@@ -126,6 +127,7 @@ export const snapshotSchema = z
             openingDate: date,
             currency: z.literal('EUR'),
             variableMonthlyCents: cents.refine((n) => n >= 0).optional(),
+            paymentAccount: z.boolean().optional(),
           })
           .strict(),
       )
@@ -454,7 +456,7 @@ function project(input: Snapshot, horizon: Horizon, withoutExpected: boolean) {
       throw new RangeError('Unsafe account balance');
     return {
       accountId: a.id,
-      paymentAccount: isLiquidityAccount(a, input.asOf),
+      paymentAccount: isLiquidityAccount(a, input.asOf) && (a.paymentAccount ?? true),
       series,
       lowest: lowPoint(forecast.days, days)!,
     };

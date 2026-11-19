@@ -1,6 +1,9 @@
 import { isLiquidityAccount } from './liquidity-account';
 import {
   addDays,
+  daysBetween,
+  nextPayday,
+  accountLiquidityForecast,
   horizonDays,
   liquidityReport,
   PriceUnavailableError,
@@ -52,6 +55,7 @@ export interface PlannedEventView {
 }
 
 export interface LiquidityReportView {
+  accountLiquidity: ReturnType<typeof accountLiquidityForecast> | null;
   asOf: string;
   /** False without a budget account: there is nothing to forecast. */
   available: boolean;
@@ -271,6 +275,7 @@ export function liquidityReportView(
     return {
       asOf,
       available: false,
+      accountLiquidity: null,
       report: null,
       events,
       incomePauses: incomePausesView(db, facts, asOf, hDays, asOf),
@@ -305,6 +310,12 @@ export function liquidityReportView(
   return {
     asOf,
     available: true,
+    accountLiquidity: inputs.accountLiquidity.accounts.some((a) => a.paymentAccount)
+      ? accountLiquidityForecast(
+          inputs.accountLiquidity,
+          daysBetween(asOf, addDays(nextPayday(asOf).day, 30)),
+        )
+      : null,
     report,
     events,
     incomePauses: incomePausesView(db, facts, asOf, hDays, report.verdictEnd),

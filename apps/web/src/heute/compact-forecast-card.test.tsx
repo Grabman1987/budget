@@ -38,6 +38,7 @@ beforeEach(() => {
   const report = forecast35dFixture().report;
   const wrongLow = { day: '2026-03-18', index: 0, cents: 777_777 };
   const oldQuery: LiquidityReportView = {
+    accountLiquidity: null,
     asOf: '2026-03-18',
     available: true,
     report: {

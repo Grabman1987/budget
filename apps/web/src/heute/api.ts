@@ -1,4 +1,9 @@
-import type { AccountReviewStatus, PlannedEventOccurrence, LiquidityReport } from '@budget/domain';
+import type {
+  AccountLiquidityResult,
+  AccountReviewStatus,
+  PlannedEventOccurrence,
+  LiquidityReport,
+} from '@budget/domain';
 import type { freedomInvestmentBasis } from '@budget/db';
 import { queryOptions } from '@tanstack/react-query';
 import { request } from '../api/http';
@@ -58,6 +63,8 @@ export type HeuteForecast35d = {
 } & ({ available: boolean; report: HeuteForecastReport | null } | HeuteUnavailable);
 
 export interface Heute extends WithValuationNotes {
+  /** Optional for previously saved responses; live reads include per-account paths. */
+  accountLiquidity?: AccountLiquidityResult | null;
   /** Selected signed basis; separate from the positive investment assets in netWorth. */
   investmentBasis?: { asOf: string } & (
     ReturnType<typeof freedomInvestmentBasis> | HeuteUnavailable

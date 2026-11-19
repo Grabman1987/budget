@@ -54,6 +54,7 @@ import { expectedQuery, skipOccurrence, type ExpectedPayment } from '../expected
 import './reports-future.css';
 import { salaryDay, upcomingEvents, useLiquiditySelection } from './liquidity-selection';
 import { ForecastRedesign } from './forecast-redesign';
+import { AccountLiquidityTable } from './account-liquidity';
 import { ReportTable } from './report-table';
 import { PlanPageFrame } from '../budget/plan-page-frame';
 import type { PageFrameProps } from '../pages/placeholder-page';
@@ -152,6 +153,7 @@ export function LiquidityReportPage({ report, meta }: { report: ReportEntry; met
               levers={levers}
               stale={query.isFetching}
             />
+            <AccountLiquidityTable result={view.accountLiquidity} />
             <details
               className="card rf-tools rf-wide"
               open={toolsOpen}

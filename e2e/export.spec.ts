@@ -48,20 +48,32 @@ test('legacy import entry points cannot open the removed wizard or report', asyn
   await expect(page.getByRole('heading', { name: 'CSV-Export', exact: true })).toBeVisible();
 
   await page.goto('/einstellungen/datenquellen?lauf=legacy&schritt=konten');
-  if ((await page.locator('.app').getAttribute('data-budget-redesign')) === '1') {
+  const redesign = (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
+  if (redesign) {
     await page
       .getByRole('region', { name: 'Bank', exact: true })
-      .getByRole('button', { name: 'Prüfen' })
+      .getByRole('button', { name: 'Bank: Einrichtung und Details' })
       .click();
     await page
       .getByRole('region', { name: 'Krypto', exact: true })
-      .getByRole('button', { name: 'Prüfen' })
+      .getByRole('button', { name: 'Krypto: Einrichtung und Details' })
       .click();
   }
   await expect(page.getByRole('heading', { name: 'Bank-Sync (PSD2)', exact: true })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Krypto-Lesequelle' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'YNAB-Import' })).toHaveCount(0);
-  await expect(page.locator('input[type=file]')).toHaveCount(0);
+  // The source register retains the PDF upload, never the removed ledger import.
+  if (redesign) {
+    const upload = page
+      .getByRole('region', { name: 'Gehaltszettel', exact: true })
+      .locator('input[type=file]');
+    await expect(upload).toHaveCount(1);
+    await expect(upload).toHaveAttribute('accept', 'application/pdf,.pdf');
+    await expect(page.locator('input[type=file]:not([accept="application/pdf,.pdf"])')).toHaveCount(
+      0,
+    );
+    await expect(page.locator('input[type=file]')).toHaveCount(1);
+  } else await expect(page.locator('input[type=file]')).toHaveCount(0);
 
   await page.goto('/einstellungen/datenquellen/abgleich?lauf=legacy');
   await expect(page.getByText('Seite nicht gefunden')).toBeVisible();

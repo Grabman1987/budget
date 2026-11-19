@@ -1,3 +1,4 @@
+import { sourceDate } from '../pages/settings-source-card';
 import {
   payrollTotals,
   cents,
@@ -130,7 +131,11 @@ export function PayslipUpload({
   onBusyChange,
   onUploaded,
   handoff,
+  compact = false,
+  setupOpen = false,
 }: {
+  compact?: boolean;
+  setupOpen?: boolean;
   onBusyChange?: (busy: boolean) => void;
   onUploaded?: (result: PayslipUploadResult) => void;
   /** Central document upload: the same File goes through this normal upload. */
@@ -273,38 +278,56 @@ export function PayslipUpload({
           e.target.value = '';
         }}
       />
-      <details className="payslip-password-details">
-        <summary>PDF-Passwort eingeben (optional)</summary>
-        <PasswordFields
-          legend="PDF-Passwort"
-          password={password}
-          remember={remember}
-          disabled={busy}
-          onPassword={setPassword}
-          onRemember={setRemember}
-        />
-      </details>
+      {compact ? (
+        <div hidden={!setupOpen} className="payslip-password-group">
+          <h3>PDF-Passwort eingeben (optional)</h3>
+          <PasswordFields
+            legend="PDF-Passwort"
+            password={password}
+            remember={remember}
+            disabled={busy}
+            onPassword={setPassword}
+            onRemember={setRemember}
+          />
+        </div>
+      ) : (
+        <details className="payslip-password-details">
+          <summary>PDF-Passwort eingeben (optional)</summary>
+          <PasswordFields
+            legend="PDF-Passwort"
+            password={password}
+            remember={remember}
+            disabled={busy}
+            onPassword={setPassword}
+            onRemember={setRemember}
+          />
+        </details>
+      )}
       {/* One tab stop: the button. The label makes a click anywhere in the dashed area open the picker. */}
-      <label className="payslip-drop" htmlFor={pickerId}>
+      <label className={compact ? 'payslip-compact-upload' : 'payslip-drop'} htmlFor={pickerId}>
         <Button
+          variant={compact ? 'ghost' : 'primary'}
+          size={compact ? 'sm' : 'md'}
           disabled={busy}
           aria-busy={busy}
-          aria-label="Gehaltszettel: PDF auswählen"
+          aria-label={compact ? 'PDF hochladen' : 'Gehaltszettel: PDF auswählen'}
           onClick={() => picker.current?.click()}
         >
-          {busy ? 'Wird ausgewertet …' : 'PDF auswählen'}
+          {busy ? 'Wird ausgewertet …' : compact ? 'PDF hochladen' : 'PDF auswählen'}
         </Button>
-        <span>PDF · höchstens 15 MB{busy ? ' · Wird ausgewertet …' : ''}</span>
-        <span className="payslip-drop-hint">PDF hier ablegen oder über den Button auswählen.</span>
-        <span className="payslip-drop-hint-order">
-          Passwort zuerst eingeben, dann PDF auswählen – der Upload startet sofort.
-        </span>
+        {!compact && (
+          <>
+            <span>PDF · höchstens 15 MB{busy ? ' · Wird ausgewertet …' : ''}</span>
+            <span className="payslip-drop-hint">
+              PDF hier ablegen oder über den Button auswählen.
+            </span>
+            <span className="payslip-drop-hint-order">
+              Passwort zuerst eingeben, dann PDF auswählen – der Upload startet sofort.
+            </span>
+          </>
+        )}
       </label>
-      <p>
-        Mit eingerichteter Gehaltsquelle werden eindeutige neue Gehaltszettel automatisch
-        gespeichert und passende Auszahlungen verknüpft. Neue Auszahlungen werden vorgemerkt
-        (Bargeld bestätigt). Unklare Angaben bleiben unter Prüfen.
-      </p>
+      {!compact && <PayslipUploadExplanation />}
       {message && <p role="status">{message}</p>}
       {message && dropbox === 'saved' && <p role="status">In Dropbox abgelegt</p>}
       {message && dropbox === 'failed' && (
@@ -990,6 +1013,16 @@ type SourceStatus = {
   config: PayslipSourceConfig;
   payees?: { id: string; name: string }[];
 };
+export function PayslipUploadExplanation() {
+  return (
+    <p>
+      Mit eingerichteter Gehaltsquelle werden eindeutige neue Gehaltszettel automatisch gespeichert
+      und passende Auszahlungen verknüpft. Neue Auszahlungen werden vorgemerkt (Bargeld bestätigt).
+      Unklare Angaben bleiben unter Prüfen.
+    </p>
+  );
+}
+
 export function PayslipSourceSection() {
   const query = useQuery({
     queryKey: ['payslip-source'],
@@ -1037,11 +1070,7 @@ export function PayslipSourceSection() {
             </div>
             <div>
               <dt>Letzter Scanversuch</dt>
-              <dd>
-                {query.data.lastScanAt
-                  ? new Date(query.data.lastScanAt).toLocaleString('de-AT')
-                  : 'Noch nicht'}
-              </dd>
+              <dd>{sourceDate(query.data.lastScanAt)}</dd>
             </div>
             <div>
               <dt>Beim letzten Scanversuch gefunden</dt>
@@ -1096,7 +1125,7 @@ function ExcludedNonPayslips() {
           <li key={d.id}>
             <span>
               {maskMoneyText(d.originalFilename ?? 'Dateiname nicht verfügbar')}
-              {d.note ? ` · ${d.note}` : ''} · {new Date(d.excludedAt).toLocaleDateString('de-AT')}
+              {d.note ? ` · ${d.note}` : ''} · {sourceDate(d.excludedAt)}
             </span>
             <Button
               size="sm"

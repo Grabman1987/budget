@@ -271,10 +271,27 @@ Invariants (binding):
 
 ### Financial terms (owner decisions 2026-11-17, epic #1225)
 
+Per-account liquidity (#1228) warns when any payment account falls strictly below
+zero before its next safe inflow, even when household cash remains positive.
+The alert excludes expected inflows and ends before the next open recurring receipt
+into that account (including a receipt due today). One-off expected receipts do not
+end the window. Without a recurring receipt, use next household payday plus 30 days.
+An overdraft limit never suppresses this alert. R07 retains its existing household
+forecast including expected inflows and is independent of this signal.
+The transfer action prepares the existing capture for explicit review and never
+books automatically. Account lows and the household path use the same daily
+projection. All category classes count; linked cash legs are counted once.
+Standalone future ledger bookings join only the new account forecast paths. The existing
+`freeUntilPayday` obligation selection remains expected/linked/statement payments;
+this additive forecast does not silently change that lead figure or infer a link
+for ambiguous booking/expectation pairs.
+
 Every figure below has exactly one definition and one exported domain function; pages and rules read that function and never recompute it locally. `scripts/verify-product-docs.ts` and the unit test `scripts/ci/financial-terms.test.mjs` fail when a row names a function that is not exported from its module. Rows marked "planned" are not yet implemented and name `-` as module.
 
 | Term (UI) | Definition | Function | Module |
 | --- | --- | --- | --- |
+| Liquidität je Konto | Daily closing cash path of each payment account from today through next payday plus 30 calendar days, its earliest low and first date strictly below zero or its configured buffer. Evaluate with and without expected positive inflows; the latter supplies the separate bounded Kontoengpass signal. Unassigned payments affect only the household path and remain explicitly listed. An aggregate variable-spending estimate stays unassigned rather than being guessed onto an account. | `accountLiquidityForecast` | `packages/domain/src/forecast/liquidity.ts` |
+| Kontoengpass | A payment account falls strictly below zero on its path without expected inflows, from today through the day before its next open expected inflow from a recurring payment into that account. An expected payment with only one scheduled occurrence is one-off and does not end the window. With no recurring receipt, the window ends inclusively at next household payday + 30 days. Payday today gives an empty window; payday tomorrow includes today. Later lows belong only to the full-horizon forecast table. Overdraft is excluded and shown separately as Letzte Reserve. | `accountLiquidityForecast` | `packages/domain/src/forecast/liquidity.ts` |
 | Kontostand (as of a day, incl. vorgemerkt) | Opening balance + every booking dated from the opening date to the day, pending bookings included. A transfer dated before either account opening is not net-worth-neutral under this rule; the app must refuse or warn (documented requirement only). The balance shown on Heute and the account page. | `balanceOn` | `packages/domain/src/ledger/balances.ts` |
 | Kontostand (nur gebucht) | Same, booked (confirmed) bookings only; used for Kontostand prüfen against a bank statement. | `bookedBalance` | `packages/db/src/repos/reconciliation.ts` |
 | Kontostand (Bewertung mit Unterwegs) | Pending-inclusive valuation corrected by whole bank transfers in transit (debited, not yet received); never a booking. | `bankTransferTransitCents` | `packages/domain/src/ledger/bank-transfer-transit.ts` |

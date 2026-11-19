@@ -5,8 +5,16 @@ async function openSourceDetails(page: Page) {
   if ((await page.locator('.app').getAttribute('data-budget-redesign')) !== '1') return;
   for (const title of ['Bank', 'Krypto']) {
     const card = page.getByRole('region', { name: title, exact: true });
-    await card.getByRole('button', { name: /^(Prüfen|Verwalten)$/ }).click();
+    await card.getByRole('button', { name: `${title}: Einrichtung und Details` }).click();
   }
+}
+async function openSourceMovements(page: Page) {
+  if ((await page.locator('.app').getAttribute('data-budget-redesign')) !== '1') return;
+  await page
+    .getByRole('region', { name: 'Krypto', exact: true })
+    .getByRole('link', { name: /zu prüfen$|^Bewegungen prüfen$/ })
+    .click();
+  await expect(page.getByRole('dialog', { name: 'Krypto-Bewegungen prüfen' })).toBeVisible();
 }
 test.beforeEach(async ({ page }) => {
   await page.route('**/api/bank-sync', (route) =>
@@ -20,7 +28,7 @@ test('source status, read-only capture, explicit mapping and responsive themes',
   page,
 }) => {
   const crypto = page.getByRole('region', { name: /^Krypto(-Lesequelle)?$/ });
-  const bank = page.getByRole('region', { name: 'Bank-Sync (PSD2)', exact: true });
+  const bank = page.getByRole('region', { name: /^(Bank|Bank-Sync \(PSD2\))$/ }).first();
   let refreshed = false;
   let refreshes = 0;
   let saved = false;
@@ -265,7 +273,7 @@ test('source operations remain readable in data sources without posting', async 
     },
   );
   await page.goto('/einstellungen/datenquellen');
-  await openSourceDetails(page);
+  await openSourceMovements(page);
   await page
     .getByRole('button', { name: /Quellbewegung: Umbuchung abgleichen.*Einzelpunkte anzeigen/ })
     .click();
@@ -334,7 +342,7 @@ test('invalid movements and categorized failures are readable without raw payloa
     },
   );
   await page.goto('/einstellungen/datenquellen');
-  await openSourceDetails(page);
+  await openSourceMovements(page);
   await page
     .getByRole('button', { name: /Quellbewegung: Datenformat prüfen.*Einzelpunkte anzeigen/ })
     .click();

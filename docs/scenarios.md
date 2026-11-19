@@ -55,10 +55,18 @@ transfers use the same transit-aware valuation as the opening cash: their receip
 value becomes available on the debit date, without inventing a ledger booking.
 
 Loan instalments already modelled as expected payments keep their occurrence
-identity. Heute does not independently expand loan terms, savings schedules or
-unrelated future-dated bookings. The adapter therefore leaves the standalone
+identity. Future-dated ledger bookings retain explicit `booking` provenance and
+join the same forecast once, excluding booking IDs already represented by linked
+expectations or statement settlements. Internal transfer legs use the same transit
+date as opening cash and remain household-neutral. Heute does not independently
+expand loan terms or savings schedules. The adapter leaves the standalone
 loan and savings assumption targets empty. Explicit terms and coverage would
 be needed to enable those assumptions from a DB snapshot.
+
+The live per-account forecast includes standalone future ledger cash; the existing
+Frei bis Gehalt obligation list retains its expected/linked/statement selection.
+An ambiguous unlinked booking and expectation remain separate forecast evidence
+until the owner establishes the link. No amount/date similarity silently merges them.
 
 ## Applying assumptions
 

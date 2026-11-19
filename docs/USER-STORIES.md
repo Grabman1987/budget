@@ -32,6 +32,12 @@ Die Status stammen aus `docs/FEATURES.md`, `docs/STATUS.md`, dem Code und dem Is
 
 Eine Analyse aller Abläufe nach Aufwand für den Nutzer steht in [EFFIZIENZ.md](user-stories/EFFIZIENZ.md).
 
+## Connections register (E-03 and E-04, #859)
+
+In the redesign, open **Einstellungen › Verbindungen** to see all six data sources, with sources needing attention first in severity order. Indented source parts remain visible without expanding setup: bank connections and account mappings, account-specific review counts and fetch commands, crypto movements and full-history checks, document scan counts and upload, quote run counts and instrument links, and the latest available inflation month. Routine commands reuse the existing handlers. A new PDF upload immediately opens its existing result/review dialog; the crypto review link opens its source-specific movement list.
+
+Each source has at most one **Einrichtung** disclosure for credentials, consent setup, policy and other rare settings. Changing an account mapping exposes its start date so validation cannot block an invisible control. Acceptance covers unchanged request payloads, consent and booking policy, a neutral loading state, light and dark layouts, 44 px controls and reflow down to 320 px. Source dates remain distinct from attempts and missing values. Owner acceptance is pending.
+
 ## Offene Fragen an den Nutzer
 
 Stand nach den Entscheidungen vom 15.11.2026. Bei diesen Stories ist noch etwas offen:
@@ -51,6 +57,25 @@ Entschieden am 15.11.2026: H-01 (nächstes Sparziel im Block „Ziele finanziere
 ## Pflege
 
 Jede neue Funktion und jede Entscheidung des Nutzers bekommt im selben Pull Request ihre Story oder eine Aktualisierung von Status und Kriterien.
+
+## Per-account liquidity (#1228, #1225)
+
+As the owner, I can see whether each payment account can cover its dated payments,
+even when household cash is positive. Heute names the account, first shortfall date
+and signed balance. The path excludes expected income and unused overdraft. The
+alert window ends the day before the next open recurring expected receipt into
+that account; without one, it ends at next household payday plus 30 days. One-off
+expected receipts do not end the window. Later shortfalls remain forecast only.
+Preparing a transfer opens the existing capture with source, destination and missing
+cents for review; nothing is booked until I explicitly save.
+
+The liquidity report shows current cash, the lowest projected balance and date,
+and the first shortfall for each account through next payday plus 30 days. Expanding
+an account shows its contributing payments. Expected income is a separate forecast
+variant. Payments without an account stay in their own editable list and affect
+only the household path. Unallocated variable spending is explicitly identified.
+Privacy mode masks financial amounts, including amounts embedded in labels; phone rows stack.
+Status: implementation for review; owner acceptance and production proof pending.
 
 ## Position inspection and quote-source repair (#1248)
 

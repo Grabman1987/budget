@@ -76,6 +76,31 @@ const cash = (assumptions: Assumption[], day: string, input = baseline(), accoun
     .series.find((d) => d.day === day)!.cents;
 
 describe('verifiable scenario', () => {
+  it('retains explicit future-booking provenance through serialization and conservative evaluation', () => {
+    const input = baseline();
+    input.items = [
+      {
+        id: 'synthetic-booking',
+        accountId: 'pay',
+        day: '2028-02-01',
+        cents: -1_001,
+        kind: 'fixed',
+        expected: false,
+        source: {
+          kind: 'booking',
+          id: 'synthetic-booking',
+          bookingId: 'synthetic-booking',
+          dueDay: '2028-02-01',
+        },
+      },
+    ];
+    const saved = deserializeScenario(serializeScenario({ ...scenario(), baseline: input }));
+    expect(saved.baseline.items[0]?.source).toEqual(input.items[0]?.source);
+    // Actual future booking: 10,000 - 1,001 = 8,999 in both views; it is never expected income.
+    const outcome = evaluate(saved.baseline, horizon).outcomes[0]!;
+    expect(outcome.withExpectedInflows.accounts[0]?.lowest.cents).toBe(8_999);
+    expect(outcome.withoutExpectedInflows.accounts[0]?.lowest.cents).toBe(8_999);
+  });
   it('derives payment eligibility from the same dated account facts as Heute', () => {
     const input = baseline();
     Object.assign(input.accounts[0]!, {
