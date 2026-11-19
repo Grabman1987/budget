@@ -16,7 +16,7 @@ import {
 import { ToastProvider, setAmountsHidden } from '@budget/ui';
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import type { ReactNode } from 'react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ReportEntry } from '../nav/reports-catalog';
 import type { PageMeta } from '../nav/pages';
 import { ExplorerReportPage } from './explorer-report';
@@ -25,6 +25,10 @@ import { explorerQuery } from './overview-api';
 import { validateReportSearch } from './report-search';
 import { reportTablesQuery, type ReportTables } from './table-reports-api';
 import { VerdictLine } from './verdict-line';
+import { REDESIGN_ENABLED } from '../shell/redesign-flag';
+
+const sectionsKey = () =>
+  `budget.report-sections.${REDESIGN_ENABLED ? 'v2.' : ''}${location.pathname}`;
 
 vi.mock('../pages/placeholder-page', () => ({
   PageFrame: ({
@@ -126,19 +130,31 @@ const facts: ExplorerTemplateFacts = {
     },
   ],
 };
+// Exercise the retained readers with desktop media and the editor disclosure open.
+beforeEach(() => {
+  vi.stubGlobal('matchMedia', (media: string) => ({
+    media,
+    matches: false,
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+  }));
+  vi.stubGlobal('scrollTo', vi.fn());
+  localStorage.setItem('budget-report-r8-explorer-editor', '1');
+});
 const clients: QueryClient[] = [];
 afterEach(() => {
   cleanup();
+  localStorage.removeItem('budget-report-r8-explorer-editor');
   for (const client of clients.splice(0)) client.clear();
   saved.views = [];
   saved.write.mockReset();
   setAmountsHidden(false);
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
-  localStorage.removeItem(`budget.report-sections.${location.pathname}`);
+  localStorage.removeItem(sectionsKey());
 });
 
-function mount(search = '', templateFacts = facts) {
+function mount(search = '?darstellung=eigene', templateFacts = facts) {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false, staleTime: Infinity, gcTime: Infinity } },
   });
@@ -240,9 +256,7 @@ describe('625 fixed templates beside retained custom views', () => {
     const section = toggle.closest('section')!;
     fireEvent.click(toggle);
     expect(section.dataset['collapsed']).toBe('true');
-    expect(localStorage.getItem(`budget.report-sections.${location.pathname}`)).toContain(
-      'explorer-template-year-basis',
-    );
+    expect(localStorage.getItem(sectionsKey())).toContain('explorer-template-year-basis');
     first.unmount();
     mount('?vorlage=year');
     const second = await screen.findByTestId('template-year');
@@ -251,7 +265,7 @@ describe('625 fixed templates beside retained custom views', () => {
     });
     expect(restored.getAttribute('aria-expanded')).toBe('false');
     expect(second.querySelectorAll('table.rtable thead th')).toHaveLength(15);
-    localStorage.removeItem(`budget.report-sections.${location.pathname}`);
+    localStorage.removeItem(sectionsKey());
   });
   it('remounts the all-history disclosure closed after a template switch or source refresh without a hidden read', async () => {
     const legacy: ReportTables = {
@@ -364,12 +378,27 @@ describe('625 fixed templates beside retained custom views', () => {
     });
     fireEvent.click(csv);
     expect(filename).toBe('gesamttabelle-2024-01-2024-03.csv');
-    const text = await new Promise<string>((done) => {
+    const bytes = await new Promise<ArrayBuffer>((done) => {
       const reader = new FileReader();
-      reader.onload = () => done(String(reader.result));
-      reader.readAsText(blob);
+      reader.onload = () => done(reader.result as ArrayBuffer);
+      reader.readAsArrayBuffer(blob);
     });
-    expect(text).toContain('"Nettovermögen am Monatsende";1234,56;2345,67;84730,00');
+    // Independent complete export oracle: BOM, row order, cent precision and CRLF.
+    expect([...new Uint8Array(bytes)]).toEqual([
+      ...new TextEncoder().encode(
+        '\uFEFF"Position";"Jän 24";"Feb 24";"Mär 24*"\r\n' +
+          '"Einnahmen";100,01;200,02;200,02\r\n' +
+          '"Gehalt";100,01;200,02;200,02\r\n' +
+          '"Bedarf";10,01;20,01;20,01\r\n' +
+          '"Haushalt";10,01;20,01;20,01\r\n' +
+          '"Wunsch";0,00;0,00;0,00\r\n' +
+          '"Zukunft";0,00;0,00;0,00\r\n' +
+          '"Konsumausgaben";10,01;20,01;20,01\r\n' +
+          '"Übrig nach Zukunft";90,00;180,01;180,01\r\n' +
+          '"Sparquote";90,0;90,0;90,0\r\n' +
+          '"Nettovermögen am Monatsende";1234,56;2345,67;84730,00',
+      ),
+    ]);
     act(() => setAmountsHidden(true));
     expect(document.querySelector('table.rg-all')?.textContent).not.toContain('84.730');
     act(() => {

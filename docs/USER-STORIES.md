@@ -128,3 +128,10 @@ makes up the result for the selected period.
   above classification and amount without horizontal page scrolling.
 
 Status for this change is implemented for review.
+
+## Reports: retained total-template proof (#1156)
+
+RP-09 now explicitly covers the full-history disclosure lifetime: closed on entry,
+only read on opening, reset after template changes/source refresh/reload, and no
+stale export. The existing Explorer spec checks exact CSV bytes and privacy in
+light/dark at the configured desktop/390 widths. See [RP-09](user-stories/06-reports.md#rp-09--gesamttabelle-explorer-template); CI and owner acceptance remain open.
