@@ -59,6 +59,25 @@ successful balance check resolves it. Manual acknowledgement is not source repai
 This slice creates no bookings, valuations, cost basis or tax values. Owner-approved
 local-copy analysis and money acceptance for #1205 remain pending.
 
+## Disabled quote warnings (#1259)
+
+Switching automatic prices off in the instrument form or operator configuration
+closes that instrument's open fetch-failure warnings with “Kursabruf abgeschaltet”.
+The setting and warning decisions share one audit/Undo group. Other instruments,
+holdings differences and stored financial rows remain unchanged. The nightly market
+run also closes legacy fetch warnings for disabled instruments; successful fetches
+retain their existing source/date resolution. Synthetic route, operator and market
+regressions cover these paths. Delivery and owner acceptance remain separate.
+
+## Payslip review geometry (#1068)
+
+The existing grouped lines, single confirmation summary, sticky document preview
+and full-width action bar are retained. The review keeps 44 px controls even under
+desktop density rules, and selected account, expectation, sender and booking values
+have complete titles. Browser checks exercise the scrolled review at 1440/1024 and
+390 px in both themes. Parsing, booking and automation retain their existing paths;
+owner acceptance remains pending.
+
 ## Offene Fragen an den Nutzer
 
 Stand nach den Entscheidungen vom 15.11.2026. Bei diesen Stories ist noch etwas offen:

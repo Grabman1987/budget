@@ -666,6 +666,7 @@ export function PayslipIntakeDetail({
                   <Select
                     id={fieldId}
                     value={data.payoutAccountId ?? ''}
+                    title={payoutAccount?.name ?? 'Konto auswählen'}
                     disabled={busy}
                     onChange={(e) => {
                       setAccountId(e.target.value);
@@ -699,6 +700,11 @@ export function PayslipIntakeDetail({
                     <Select
                       id={fieldId}
                       value={effectiveExpectedId ?? ''}
+                      title={
+                        selectedExpectation
+                          ? `${selectedExpectation.name} · ${longDay(selectedExpectation.dueDate)} · ${eur(selectedExpectation.amountCents)}`
+                          : 'Keine auswählen'
+                      }
                       disabled={busy}
                       onChange={(e) => {
                         setExpectedOccurrenceId(e.target.value || null);
@@ -720,6 +726,10 @@ export function PayslipIntakeDetail({
                     <Select
                       id={fieldId}
                       value={effectivePayeeId ?? ''}
+                      title={
+                        data.payees.find((payee) => payee.id === effectivePayeeId)?.name ??
+                        'Kein Zahlungspartner'
+                      }
                       disabled={busy}
                       onChange={(e) => setPayeeId(e.target.value || null)}
                     >
@@ -795,6 +805,13 @@ export function PayslipIntakeDetail({
                   <Select
                     id={fieldId}
                     value={match}
+                    title={
+                      selectedMatch
+                        ? `${longDay(selectedMatch.date)} · ${eur(selectedMatch.amountCents)} · Differenz ${eur(selectedMatch.differenceCents)}`
+                        : payoutAccount?.type === 'cash'
+                          ? 'Neue Auszahlung bestätigen'
+                          : 'Neue Auszahlung vormerken'
+                    }
                     disabled={busy}
                     onChange={(e) => setBookingId(e.target.value)}
                   >

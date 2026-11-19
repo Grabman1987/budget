@@ -49,7 +49,6 @@ export function decideQuoteSource(
       throw new ConflictError(
         'Der automatische Abruf kann nur für Instrumente ohne aktuellen Bestand abgeschaltet werden.',
       );
-    if (sec.pricesEnabled) updateSecurity(tx, securityId, { pricesEnabled: false }, grouped);
     const open = tx
       .select({ id: inboxItem.id })
       .from(inboxItem)
@@ -71,6 +70,7 @@ export function decideQuoteSource(
         { resolvedAt: nowIso(), resolution: `${label}: ${reason.slice(0, 200)}` },
         grouped,
       );
+    if (sec.pricesEnabled) updateSecurity(tx, securityId, { pricesEnabled: false }, grouped);
     return { resolved: open.length, groupId: grouped.groupId };
   });
 }

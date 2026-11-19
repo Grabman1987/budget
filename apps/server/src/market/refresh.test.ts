@@ -485,6 +485,39 @@ describe('refreshPrices', () => {
     expect(source.calls).toHaveLength(0);
   });
 
+  it('cleans legacy disabled fetch warnings without touching differences or prices (#1259)', async () => {
+    addSecurity({ pricesEnabled: false });
+    for (const [id, detail] of [
+      ['fetch', 'Fehlerklasse: http'],
+      ['difference', 'Bestand weicht ab'],
+    ] as const)
+      db.insert(schema.inboxItem)
+        .values({
+          id,
+          kind: 'stale_value',
+          title: 'Synthetic warning',
+          detail,
+          refType: 'security',
+          refId: 's1',
+        })
+        .run();
+    const source = scripted('yfinance', () => []);
+    const before = db.select().from(schema.price).all();
+    const result = await refreshPrices(db, sourcesOf(source), { today: '2026-09-30' });
+    expect(result.tracked).toBe(0);
+    expect(result.failed).toEqual([]);
+    expect(source.calls).toEqual([]);
+    expect(inbox().find((w) => w.id === 'fetch')).toMatchObject({
+      resolution: 'Automatisch geschlossen: Kursabruf abgeschaltet',
+      resolvedAt: expect.any(String),
+    });
+    expect(inbox().find((w) => w.id === 'difference')).toMatchObject({
+      resolution: null,
+      resolvedAt: null,
+    });
+    expect(db.select().from(schema.price).all()).toEqual(before);
+  });
+
   it('passes the per-security adjusted option and the quote currency to the source', async () => {
     addSecurity({ quoteAdjusted: true, currency: 'USD' });
     const seen: SecurityRef[] = [];

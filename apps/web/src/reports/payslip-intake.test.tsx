@@ -546,6 +546,10 @@ it('lays the review out as grouped lines, one summary block and one action bar',
   ).toBe('Synthetic Aufrollung−30,20 €');
   expect(screen.queryByText(/· steuerfreie Erstattung/)).toBeNull();
   const summary = within(screen.getByRole('region', { name: 'Zusammenfassung' }));
+  expect(screen.getByLabelText('Auszahlungskonto').getAttribute('title')).toBe('Giro A');
+  expect(screen.getByLabelText('Gehalts-Erwartung').getAttribute('title')).toBe(
+    'Gehalt · 30.09.2026 · 2.850,00 €',
+  );
   expect(summary.getByText('Erwarteter Bezug')).toBeTruthy();
   expect(summary.getByText('Auszahlung laut Gehaltszettel').nextElementSibling?.textContent).toBe(
     '2.800,00 €',

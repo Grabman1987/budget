@@ -23,7 +23,7 @@ import {
   type Executor,
   type SecurityRow,
 } from '@budget/db';
-import { and, eq } from 'drizzle-orm';
+import { and, eq, isNull } from 'drizzle-orm';
 import { addDays, COICOP_CLASSES } from '@budget/domain';
 import { randomUUID } from 'node:crypto';
 import {
@@ -191,6 +191,13 @@ export async function refreshPrices(
     conflicts: 0,
   };
   const signalActive = signalCaptureActive(db);
+  // Repair warnings left by older setting writes, including instruments with no quote identifier.
+  for (const row of db
+    .select({ id: schema.security.id })
+    .from(schema.security)
+    .where(and(eq(schema.security.pricesEnabled, false), isNull(schema.security.deletedAt)))
+    .all())
+    resolveStaleValueItems(db, 'security', row.id, 'Kursabruf abgeschaltet');
   for (const row of trackedSecurities(db)) {
     // The strategy's signal series is fetched only while the strategy is explicitly enabled.
     if (isSignalInstrument(row.id) && !signalActive) continue;
