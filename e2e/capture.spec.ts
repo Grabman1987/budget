@@ -194,6 +194,7 @@ test('discard question, Speichern und neu keeps the context, the payee brings it
   await expect(panel.getByLabel('Kategorie', { exact: true })).toHaveValue('');
   await expect(panel.getByLabel('Datum', { exact: true })).toHaveValue(date);
   await panel.getByLabel('Empfänger').fill(payee);
+  await expect(panel.getByRole('option', { name: payee })).toBeVisible();
   await panel.getByLabel('Empfänger').press('Enter');
   await expect(panel.getByLabel('Kategorie', { exact: true })).toHaveValue(category);
   await panel.getByLabel('Betrag', { exact: true }).fill('3,00');
