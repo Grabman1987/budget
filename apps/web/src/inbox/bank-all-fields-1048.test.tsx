@@ -161,6 +161,17 @@ const confirm = () => screen.getByRole('button', { name: 'Als Buchung bestätige
 const confirmBody = () => sent.find((s) => s.path.endsWith('/confirm'))?.body;
 
 describe('Alle Felder in the bank confirmation', () => {
+  it('shows native bank cents and split remainder without relabelling them as EUR', async () => {
+    candidate = { ...line, currency: 'USD', memo: 'Shop A' };
+    const { client, details } = await openDialog();
+    details.open = true;
+    expect(within(details).getByText('−USD 12,01')).toBeTruthy();
+    fireEvent.click(within(details).getByRole('button', { name: 'Aufteilen' }));
+    fireEvent.change(within(details).getByLabelText('Betrag 1'), { target: { value: '10' } });
+    expect(within(details).getByRole('status').textContent).toMatch(/Rest: USD\s2,01/);
+    client.clear();
+  });
+
   it('is collapsed by default inside the same dialog and shows the bank facts read-only', async () => {
     const { client, details } = await openDialog();
     expect(details.open).toBe(false);

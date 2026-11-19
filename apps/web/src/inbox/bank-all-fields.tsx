@@ -2,7 +2,7 @@ import { AmountInput, Button, Field, Select, useAmountPrivacy } from '@budget/ui
 import { Plus, X } from 'lucide-react';
 import { useId, type ReactNode } from 'react';
 import { newSplit } from '../ledger/booking-model';
-import { eur, longDay } from '../ledger/format';
+import { nativeCurrency, longDay } from '../ledger/format';
 import { ProjectField } from '../ledger/project-field';
 import type { Lookups } from '../ledger/types';
 import {
@@ -40,7 +40,7 @@ export function BankAllFieldsSection({
   onUploadBusy,
   busy,
 }: {
-  line: BankLine;
+  line: BankLine & { currency: string };
   value: BankAllFields;
   onChange: (next: BankAllFields) => void;
   /** `<option>`/`<optgroup>` list shared with the single Kategorie field. */
@@ -72,7 +72,7 @@ export function BankAllFieldsSection({
         <dl className="bank-all-fields-facts">
           <div>
             <dt>Betrag laut Bank</dt>
-            <dd>{eur(line.amountCents, { sign: true })}</dd>
+            <dd>{nativeCurrency(line.amountCents, line.currency, true)}</dd>
           </div>
           <div>
             <dt>Datum laut Bank</dt>
@@ -141,6 +141,7 @@ export function BankAllFieldsSection({
                   </Field>
                   <AmountInput
                     label={`Betrag ${n}`}
+                    currency={line.currency}
                     showOperators={false}
                     value={split.amount}
                     onChange={(amount) => setLine(split.key, { amount })}
@@ -171,7 +172,7 @@ export function BankAllFieldsSection({
               );
             })}
             <p id={restId} className="bank-split-rest" role="status">
-              Rest: {eur(rest)}
+              Rest: {nativeCurrency(rest, line.currency)}
               {splitError ? ` · ${splitError}` : ''}
             </p>
             {value.splits.length >= MAX_BANK_SPLIT_LINES && (
