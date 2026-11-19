@@ -261,7 +261,14 @@ ledgerTest(
       await rulePanel.getByRole('button', { name: 'Speichern', exact: true }).click();
       ruleGroup = (await (await patched).json()).groupId;
       await expect(rulePanel.getByLabel('Jahresausgaben mal')).toHaveValue(String(multiple));
+      // The typed draft already has this value; wait for refreshed stored parameters before closing.
+      await expect(
+        page
+          .locator('.rw-now')
+          .getByText(`Schwelle: Investiert ÷ ${multiple} Jahresausgaben`, { exact: true }),
+      ).toHaveCount(1);
       await page.keyboard.press('Escape');
+      await expect(rulePanel).toBeHidden();
       await page.getByRole('link', { name: 'Vermögen', exact: true }).click();
       await page
         .getByRole('link', {
