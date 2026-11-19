@@ -209,6 +209,14 @@ consistent totals, desktop/mobile checks and printing where required.
 
 Issue #1149, second slice: the redesign contact report lists every contact with an open amount one under the other, each with its own account sheet; settled contacts appear only in the collapsed shared history. Figures unchanged (same contact statement queries). No migration.
 
+Contacts rest slice (#1149 / #1161): open and historical booking tables share
+`ReportTable` (sticky header, keyboard/phone scroll, aligned numeric columns).
+Including settled contacts never adds them to the open list; their navigation and
+sheets stay in collapsed history. The owner-corrected four columns, gross claims,
+separate credit, source dialog, copy and pagination retain their existing figures.
+Both directions use quiet ink; no plus prefixes. Other bespoke report tables and
+chart-generated tables under #1161 remain outside this contacts-only slice.
+
 Issue #1160, total view: `darstellung=gesamt` in the cost report adds one annual "Kosten gesamt" figure (`combinedCosts` in the domain: bank and interest costs + TER + broker taxes, trading fees counted once, ratio against the portfolio value). No new calculation of the parts; windows of the two readers stay named. No migration.
 
 Issue #1158, first consolidation slice (review pending): the redesign spending report

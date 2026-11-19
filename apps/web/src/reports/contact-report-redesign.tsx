@@ -142,7 +142,7 @@ export function ContactReportRedesign({
   const sheetView = view ?? retained;
   const blockedError = unsupported ? detailError : nextBlocked[blockedIds[0]!];
   const current = view?.contacts.find((contact) => contact.id === forgiving?.id);
-  const visible = view?.contacts.filter((contact) => history || hasOpenAmount(contact)) ?? [];
+  const visible = view?.contacts.filter(hasOpenAmount) ?? [];
   const sheet = (id: string) => (
     <ContactSheetCard
       key={id}
@@ -313,6 +313,23 @@ export function ContactReportRedesign({
                     onToggle={(event) => setSettledOpen(event.currentTarget.open)}
                   >
                     <summary>Ausgeglichene Kontakte ({settledContacts.length})</summary>
+                    <ul className="r4-contact-sheet">
+                      {settledContacts.map((contact) => (
+                        <li key={contact.id}>
+                          <AppLink
+                            to="/reports/kontakte"
+                            search={{
+                              kontakt: contact.id,
+                              kontakteansicht: search.kontakteansicht,
+                              verlauf: 1,
+                            }}
+                            aria-current={selected === contact.id ? 'true' : undefined}
+                          >
+                            {contact.name}
+                          </AppLink>
+                        </li>
+                      ))}
+                    </ul>
                     {settledShown && settledContacts.map((contact) => sheet(contact.id))}
                   </details>
                 )}

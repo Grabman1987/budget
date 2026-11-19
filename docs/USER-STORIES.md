@@ -187,3 +187,11 @@ hold follow-up reads until after checking that each dialog has closed; writes ar
 confirmed first. Production write latency and physical-device acceptance remain
 owner checks. Booking amounts, balances, allocations and trade data are unchanged.
 Status: implementation and regression coverage for review; publication is pending.
+Reports continuation (#1149, contacts slice of #1161): RP-21b's open and historical
+booking tables use the shared report register shell. Enabling settled history keeps
+fully settled contacts inside its closed disclosure, outside the open-contact list.
+Four columns, gross open shares, separate credit, unchanged domain balances and
+20-row history pages remain. Category purchases carry the gross expense until
+repayment returns it to the original category; no extra advance or net-worth charge.
+See [RP-21b](user-stories/06-reports.md#rp-21b--kontakte-abrechnung).
+Status: implemented for review; owner acceptance pending. No other report is migrated.

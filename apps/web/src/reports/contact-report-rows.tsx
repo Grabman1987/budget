@@ -10,7 +10,6 @@ import { AppLink } from '../shell/app-link';
 import { eur } from '../ledger/format';
 import type { ContactReportStatement } from './contact-api';
 import { ContactBalanceChart } from './contact-chart';
-import '../ledger/register-redesign.css';
 
 const PAGE_SIZE = 20;
 

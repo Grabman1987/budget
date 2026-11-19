@@ -45,7 +45,8 @@ export function ContactReportPage() {
   const history = REDESIGN_ENABLED ? search.verlauf === 1 : legacyHistory;
   const visible =
     baseView?.contacts.filter(
-      (contact) => history || contact.balanceCents !== 0 || contact.creditCents > 0,
+      (contact) =>
+        (!REDESIGN_ENABLED && history) || contact.balanceCents !== 0 || contact.creditCents > 0,
     ) ?? [];
   const selected = search.kontakt ?? visible[0]?.id ?? '';
   const statement = useQuery(contactReportQuery(selected, baseView?.asOf ?? '', !!baseView));

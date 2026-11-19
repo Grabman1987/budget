@@ -2,6 +2,7 @@ import { Button, maskMoneyText, useAmountPrivacy } from '@budget/ui';
 import type { ContactMovement, OpenContactOutlay } from '@budget/domain';
 import { useQuery } from '@tanstack/react-query';
 import { useId, useState } from 'react';
+import { ReportTable } from '../reports/report-table';
 import { request } from '../api/http';
 import { BookingPanel } from '../ledger/booking-panel';
 import { eur, longDay } from '../ledger/format';
@@ -78,6 +79,136 @@ export function ContactMovementTable({
       setCopyState('manual');
     }
   };
+  // Receivables are positive; repayments/credit have the opposite direction.
+  // Report amounts stay in quiet ink: neither direction signals action or success.
+  const rows = (
+    <>
+      <thead>
+        <tr>
+          {register && <th scope="col">Datum</th>}
+          <th scope="col">{register ? 'Empfänger' : 'Datum / Buchung'}</th>
+          <th scope="col" className={register ? 'n' : undefined}>
+            Betrag
+          </th>
+          <th scope="col" className={register ? 'n' : undefined}>
+            Offen
+          </th>
+        </tr>
+      </thead>
+      <tbody>
+        {movements.map((movement) => {
+          const outlay = statement.outlays.find((row) => row.splitId === movement.splitId);
+          const repayment = statement.receipts.find(
+            (row) => row.receiptSplitId === movement.splitId,
+          );
+          const bookingNote =
+            movement.bookingMemo?.trim() && movement.bookingMemo.trim() !== movement.memo?.trim()
+              ? movement.bookingMemo
+              : undefined;
+          const sourceLabel = [
+            `${description(movement)} ${longDay(movement.date)} · ${movementKind(movement)}`,
+            movement.payeeName && maskMoneyText(movement.payeeName),
+            bookingNote && maskMoneyText(bookingNote),
+            movement.categoryName && `Kategorie: ${maskMoneyText(movement.categoryName)}`,
+          ]
+            .filter(Boolean)
+            .join(' ');
+          return (
+            <tr key={movement.splitId}>
+              {register && <td>{longDay(movement.date)}</td>}
+              <td>
+                <button
+                  type="button"
+                  className="contact-source"
+                  data-contact-source={movement.splitId}
+                  aria-label={`Ursprungsbuchung öffnen · ${sourceLabel} · Kontaktanteil ${eur(receivableDelta(movement.amountCents), { sign: !register })}`}
+                  onClick={() => onOpen(movement)}
+                >
+                  <span className="contact-movement-note" title={description(movement)}>
+                    {description(movement)}
+                  </span>{' '}
+                  <span className="contact-movement-meta">
+                    {longDay(movement.date)} · {movementKind(movement)}
+                  </span>
+                  {movement.payeeName && (
+                    <span className="contact-movement-context">
+                      {' '}
+                      {maskMoneyText(movement.payeeName)}
+                    </span>
+                  )}
+                  {bookingNote && (
+                    <span className="contact-movement-note" title={maskMoneyText(bookingNote)}>
+                      {' '}
+                      {maskMoneyText(bookingNote)}
+                    </span>
+                  )}
+                  {!register && movement.categoryName && (
+                    <span className="contact-movement-context">
+                      {' '}
+                      Kategorie: {maskMoneyText(movement.categoryName)}
+                    </span>
+                  )}
+                </button>
+                {onGift && outlay && outlay.remainingCents > 0 && (
+                  <Button
+                    variant="ghost"
+                    onClick={() => onGift(outlay)}
+                    aria-label={`${description(movement)} als Geschenk übernehmen`}
+                  >
+                    Als Geschenk übernehmen
+                  </Button>
+                )}
+                {repayment && (
+                  <details className="contact-allocation-details">
+                    <summary>Zuordnung</summary>
+                    <p>
+                      {repayment.recorded ? (
+                        <>
+                          {repayment.allocations
+                            .map((allocation) => {
+                              const source = statement.outlays.find(
+                                (row) => row.splitId === allocation.outlaySplitId,
+                              );
+                              return `${source ? longDay(source.date) : 'Auslage'} · ${source?.categoryName ?? 'Kategorie unbekannt'}: ${eur(allocation.amountCents)}`;
+                            })
+                            .join(' · ')}
+                          {repayment.creditCents > 0 &&
+                            ` · Guthaben: ${eur(repayment.creditCents)}`}
+                        </>
+                      ) : (
+                        'Zuordnung nicht protokolliert'
+                      )}
+                    </p>
+                    {repayment.allocatable !== false && onAllocate && (
+                      <Button variant="ghost" onClick={() => onAllocate(movement.splitId)}>
+                        Zuordnung ändern
+                      </Button>
+                    )}
+                  </details>
+                )}
+              </td>
+              <td className={register ? 'n' : 'num'}>
+                {eur(receivableDelta(movement.amountCents), { sign: !register })}
+              </td>
+              <td className={register ? 'n' : 'contact-open-amount'}>
+                {outlay ? eur(outlay.remainingCents) : '—'}
+              </td>
+            </tr>
+          );
+        })}
+      </tbody>
+      {totalCents !== undefined && (
+        <tfoot>
+          <tr>
+            <th scope="row" colSpan={3}>
+              Offen von {maskMoneyText(statement.contact.name)}
+            </th>
+            <td className={register ? 'n' : 'contact-open-amount'}>{eur(totalCents)}</td>
+          </tr>
+        </tfoot>
+      )}
+    </>
+  );
   return (
     <div className="contact-statement-section">
       <div className="contact-section-tools">
@@ -112,129 +243,16 @@ export function ContactMovementTable({
           />
         </div>
       )}
-      <table
-        className={`contacts-table contact-movements${register ? ' ktx ktx-redesign contact-report-register' : ''}`}
-      >
-        <caption className="sr-only">{caption}</caption>
-        <thead>
-          <tr>
-            {register && <th scope="col">Datum</th>}
-            <th scope="col">{register ? 'Empfänger' : 'Datum / Buchung'}</th>
-            <th scope="col">Betrag</th>
-            <th scope="col">Offen</th>
-          </tr>
-        </thead>
-        <tbody>
-          {movements.map((movement) => {
-            const outlay = statement.outlays.find((row) => row.splitId === movement.splitId);
-            const repayment = statement.receipts.find(
-              (row) => row.receiptSplitId === movement.splitId,
-            );
-            const bookingNote =
-              movement.bookingMemo?.trim() && movement.bookingMemo.trim() !== movement.memo?.trim()
-                ? movement.bookingMemo
-                : undefined;
-            const sourceLabel = [
-              `${description(movement)} ${longDay(movement.date)} · ${movementKind(movement)}`,
-              movement.payeeName && maskMoneyText(movement.payeeName),
-              bookingNote && maskMoneyText(bookingNote),
-              movement.categoryName && `Kategorie: ${maskMoneyText(movement.categoryName)}`,
-            ]
-              .filter(Boolean)
-              .join(' ');
-            return (
-              <tr key={movement.splitId}>
-                {register && <td>{longDay(movement.date)}</td>}
-                <td>
-                  <button
-                    type="button"
-                    className="contact-source"
-                    data-contact-source={movement.splitId}
-                    aria-label={`Ursprungsbuchung öffnen · ${sourceLabel} · Kontaktanteil ${eur(receivableDelta(movement.amountCents), { sign: !register })}`}
-                    onClick={() => onOpen(movement)}
-                  >
-                    <span className="contact-movement-note" title={description(movement)}>
-                      {description(movement)}
-                    </span>{' '}
-                    <span className="contact-movement-meta">
-                      {longDay(movement.date)} · {movementKind(movement)}
-                    </span>
-                    {movement.payeeName && (
-                      <span className="contact-movement-context">
-                        {' '}
-                        {maskMoneyText(movement.payeeName)}
-                      </span>
-                    )}
-                    {bookingNote && (
-                      <span className="contact-movement-note" title={maskMoneyText(bookingNote)}>
-                        {' '}
-                        {maskMoneyText(bookingNote)}
-                      </span>
-                    )}
-                    {!register && movement.categoryName && (
-                      <span className="contact-movement-context">
-                        {' '}
-                        Kategorie: {maskMoneyText(movement.categoryName)}
-                      </span>
-                    )}
-                  </button>
-                  {onGift && outlay && outlay.remainingCents > 0 && (
-                    <Button
-                      variant="ghost"
-                      onClick={() => onGift(outlay)}
-                      aria-label={`${description(movement)} als Geschenk übernehmen`}
-                    >
-                      Als Geschenk übernehmen
-                    </Button>
-                  )}
-                  {repayment && (
-                    <details className="contact-allocation-details">
-                      <summary>Zuordnung</summary>
-                      <p>
-                        {repayment.recorded ? (
-                          <>
-                            {repayment.allocations
-                              .map((allocation) => {
-                                const source = statement.outlays.find(
-                                  (row) => row.splitId === allocation.outlaySplitId,
-                                );
-                                return `${source ? longDay(source.date) : 'Auslage'} · ${source?.categoryName ?? 'Kategorie unbekannt'}: ${eur(allocation.amountCents)}`;
-                              })
-                              .join(' · ')}
-                            {repayment.creditCents > 0 &&
-                              ` · Guthaben: ${eur(repayment.creditCents)}`}
-                          </>
-                        ) : (
-                          'Zuordnung nicht protokolliert'
-                        )}
-                      </p>
-                      {repayment.allocatable !== false && onAllocate && (
-                        <Button variant="ghost" onClick={() => onAllocate(movement.splitId)}>
-                          Zuordnung ändern
-                        </Button>
-                      )}
-                    </details>
-                  )}
-                </td>
-                <td className="num">
-                  {eur(receivableDelta(movement.amountCents), { sign: !register })}
-                </td>
-                <td className="contact-open-amount">{outlay ? eur(outlay.remainingCents) : '—'}</td>
-              </tr>
-            );
-          })}
-        </tbody>
-        {totalCents !== undefined && (
-          <tfoot>
-            <tr>
-              <th scope="row" colSpan={3}>
-                Offen von {maskMoneyText(statement.contact.name)}
-              </th>
-              <td className="contact-open-amount">{eur(totalCents)}</td>
-            </tr>
-          </tfoot>
-        )}
-      </table>
+      {register ? (
+        <ReportTable caption={caption} regionLabel={caption} className="contact-report-register">
+          {rows}
+        </ReportTable>
+      ) : (
+        <table className="contacts-table contact-movements">
+          <caption className="sr-only">{caption}</caption>
+          {rows}
+        </table>
+      )}
     </div>
   );
 }
