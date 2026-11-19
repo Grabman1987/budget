@@ -136,6 +136,8 @@ describe('source sync persistence and financial isolation', () => {
     });
     await refreshReadSource(opened.db, adapter, at);
     expect(inbox().find((i) => i.kind === 'import')?.title).toBe('Quellbewegung: Zuordnung fehlt');
+    const warning = inbox().find((i) => i.detail?.includes('mapping_problem'))!;
+    expect(JSON.parse(warning.detail!)).toMatchObject({ fetchedAt: '2026-10-02T12:00:00.000Z' });
   });
 
   it('stages once by provider id, preserves acknowledgement and never writes ledger rows', async () => {
@@ -1092,9 +1094,32 @@ describe('ledger matching (Abgleich)', () => {
       reason: 'difference',
       cause: 'missing_movement',
       openMovementCount: 1,
+      source: '0.00000008',
+      local: 3,
+      openMovementsE8: 5,
+      operations: [
+        {
+          id: 'r1',
+          summary: {
+            class: 'reward',
+            fiatCents: null,
+            assets: [{ assetId: 'coin', grossE8: 5, feeE8: 0, netE8: 5 }],
+          },
+          reconciliation: { status: 'missing' },
+        },
+      ],
     });
+    const beforeRetry = warning()!.detail;
+    expect(reconcileReadSource(opened.db, ctx).groupId).toBeNull();
+    expect(warning()!.detail).toBe(beforeRetry);
     // Recording the reward (matched by id) removes the open movement and the difference.
     appTrade('2026-03-10', 5, 0);
+    const checked = reconcileReadSource(opened.db, ctx);
+    expect(warning()).toBeUndefined();
+    expect(ledgerCounts()).toEqual([0, 1]);
+    expect(reconcileReadSource(opened.db, ctx).groupId).toBeNull();
+    undo(opened.db, { groupId: checked.groupId! }, ctx);
+    expect(warning()!.detail).toBe(beforeRetry);
     reconcileReadSource(opened.db, ctx);
     expect(warning()).toBeUndefined();
   });
@@ -1128,6 +1153,43 @@ describe('ledger matching (Abgleich)', () => {
       reason: 'duplicate_rows',
       cause: 'source_unreadable',
     });
+  });
+  it('persists the exact missing savings funding leg beside an already matched trade and retries without writes', () => {
+    mapAll();
+    const trade = appTrade('2026-03-10', 50_000_000, 50);
+    const purchase = buy('synthetic-funded-plan', '2026-03-10');
+    const plan: SourceOperation = {
+      ...purchase,
+      type: 'savings_plan',
+      transactions: [
+        ...deposit('funding', '2026-03-04', 50).transactions,
+        ...purchase.transactions,
+      ],
+    };
+    stage([plan]);
+    expect(JSON.parse(row(plan.id).detail!).reconciliation).toEqual({
+      status: 'missing',
+      refs: [{ type: 'trade', id: trade.trade.id, kind: 'buy', date: '2026-03-10' }],
+      missingLegs: [{ key: 'currency:eur', incoming: true, day: '2026-03-04', cents: 5000 }],
+    });
+    expect(row(plan.id).resolvedAt).toBeNull();
+    reconcileReadSource(opened.db, ctx);
+    expect(reconcileReadSource(opened.db, ctx).groupId).toBeNull();
+    expect(ledgerCounts()).toEqual([1, 1]);
+    createBooking(
+      opened.db,
+      { accountId: 'cash', date: '2026-03-01', amountCents: 5000, splits: [{ amountCents: 5000 }] },
+      ctx,
+    );
+    const checked = reconcileReadSource(opened.db, ctx);
+    expect(row(plan.id).resolvedAt).toBeTruthy();
+    expect(JSON.parse(row(plan.id).detail!).reconciliation.status).toBe('matched');
+    expect(ledgerCounts()).toEqual([2, 1]);
+    undo(opened.db, { groupId: checked.groupId! }, ctx);
+    expect(row(plan.id).resolvedAt).toBeNull();
+    expect(JSON.parse(row(plan.id).detail!).reconciliation.missingLegs).toEqual([
+      { key: 'currency:eur', incoming: true, day: '2026-03-04', cents: 5000 },
+    ]);
   });
   it('states the fetch time when a recomputation closes a balance warning', () => {
     mapAll();
