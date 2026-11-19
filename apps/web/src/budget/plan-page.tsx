@@ -726,7 +726,7 @@ function PlanBody({
       () => assign(month, [{ categoryId: r.id, assignedCents: value }]),
       () => `${r.name}: ${eur(r.assignedCents)} → ${eur(value)} zugewiesen`,
     );
-  const take = (ids: string[]) => {
+  const take = (ids: string[], awaitRefresh = true) => {
     const list = ids.filter((id) => sug[id]);
     const sum = list.reduce((a, id) => a + (sug[id] ?? 0), 0);
     if (!list.length) return Promise.resolve(undefined);
@@ -739,6 +739,7 @@ function PlanBody({
           })),
         ),
       () => `${eur(sum)} verteilt`,
+      { awaitRefresh },
     ).then((done) => {
       if (done && sum >= tba) setDistribute(false);
       return done;
@@ -749,7 +750,7 @@ function PlanBody({
     targetPreviewBusy.current = true;
     setApplyingTargets(true);
     setTargetPreviewError(false);
-    void take(Object.keys(sug))
+    void take(Object.keys(sug), false)
       .then((done) => {
         if (done) closeTargetPreview();
         else setTargetPreviewError(true);

@@ -167,3 +167,23 @@ RP-09 now explicitly covers the full-history disclosure lifetime: closed on entr
 only read on opening, reset after template changes/source refresh/reload, and no
 stale export. The existing Explorer spec checks exact CSV bytes and privacy in
 light/dark at the configured desktop/390 widths. See [RP-09](user-stories/06-reports.md#rp-09--gesamttabelle-explorer-template); CI and owner acceptance remain open.
+
+## Queue rejection and dialog completion (#1144, #1201)
+
+A server-rejected capture stays on the device as a draft with its safe error message
+and error ID. A rejected middle item does not stop its neighbours. Before editing
+or discarding an uncertain HTTP 500, use **Jetzt senden** to check whether the
+server committed it. A proven absent delivery can be corrected with the original
+idempotency key or discarded; a committed delivery is acknowledged without another write.
+Unknown technical error text remains redacted. The browser regression exercises
+three offline captures, ordered delivery of the first and third, copying details,
+correction/resend and discard without duplicate bookings.
+
+After a successful write, capture/transfer closes locally while its URL navigation
+and session reads finish. Plan's **Alle Ziele füllen** and envelope **Decken**
+dialogs also close without awaiting refreshed reads. Inline Plan actions retain
+their awaited refresh. A refused edit keeps the draft and error visible. Tests
+hold follow-up reads until after checking that each dialog has closed; writes are
+confirmed first. Production write latency and physical-device acceptance remain
+owner checks. Booking amounts, balances, allocations and trade data are unchanged.
+Status: implementation and regression coverage for review; publication is pending.

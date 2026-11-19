@@ -43,7 +43,10 @@ export function queueReason(error: unknown): string {
       return error.detail ?? 'Konto oder Kategorie nicht mehr verfügbar.';
     if (isRejection(error))
       return error.status === 500
-        ? 'Der Server konnte diese Buchung nicht verarbeiten.'
+        ? // Only the API's fixed, data-free fallback is safe to retain from an unhandled error.
+          error.detail === 'Die Anfrage konnte nicht verarbeitet werden.'
+          ? error.detail
+          : 'Der Server konnte diese Buchung nicht verarbeiten.'
         : (error.detail ??
             'Die Buchung wurde abgelehnt. Prüfe Konto, Kategorie und weitere Felder.');
     if (error.status >= 500)

@@ -17,6 +17,9 @@ export function PanelHost() {
   // Keep the last panel while it animates out.
   const [shown, setShown] = useState<PanelId>('buchung');
   if (panel && panel !== shown) setShown(panel);
+  // Closing a confirmed form must not wait for the navigation's session/read guards.
+  const [closing, setClosing] = useState<PanelId>();
+  if (closing && panel !== closing) setClosing(undefined);
   // Looking at an account: a new booking starts on it.
   const { id } = useParams({ strict: false }) as { id?: string };
   const pathname = useLocation({ select: (location) => location.pathname });
@@ -27,7 +30,8 @@ export function PanelHost() {
   });
 
   const close = () => {
-    if (panel === undefined) return; // already closed (e.g. by the back button)
+    if (panel === undefined || closing === panel) return; // already closing or closed
+    setClosing(panel);
     if (openedInApp) {
       router.history.back();
     } else {
@@ -43,7 +47,7 @@ export function PanelHost() {
   if (shown === 'buchung') {
     return (
       <BookingPanel
-        state={panel === 'buchung' ? { mode: 'create', accountId } : null}
+        state={panel === 'buchung' && closing !== panel ? { mode: 'create', accountId } : null}
         onClose={close}
       />
     );

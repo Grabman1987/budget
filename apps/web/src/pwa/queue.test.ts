@@ -184,6 +184,7 @@ describe('durable booking delivery', () => {
     const sent = vi.fn();
     await sendQueue(sent);
     expect(sent).toHaveBeenCalledTimes(2);
+    expect(post.mock.calls.map((call) => call[1])).toEqual(ids);
     expect(memory.rows).toHaveLength(1);
     expect(memory.rows[0]).toMatchObject({
       id: ids[1],
@@ -192,6 +193,7 @@ describe('durable booking delivery', () => {
       errorId: 'abc123def456',
     });
     expect(memory.rows[0]?.reason).not.toContain('intern');
+    expect(memory.rows[0]?.reason).toBe('Der Server konnte diese Buchung nicht verarbeiten.');
     // The rejected draft is not retried automatically.
     await sendQueue(vi.fn());
     expect(post).toHaveBeenCalledTimes(3);
@@ -256,5 +258,10 @@ describe('durable booking delivery', () => {
     expect(queueReason(new ApiError(500, 'server_error', 'sensitive internals'))).not.toContain(
       'sensitive',
     );
+    expect(
+      queueReason(
+        new ApiError(500, 'server_error', 'Die Anfrage konnte nicht verarbeitet werden.'),
+      ),
+    ).toBe('Die Anfrage konnte nicht verarbeitet werden.');
   });
 });
