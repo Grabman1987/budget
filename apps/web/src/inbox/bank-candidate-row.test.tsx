@@ -79,7 +79,12 @@ beforeEach(() => {
         ? { merge: matches, link: [], transfers }
         : path.includes('/assignment-rules/candidates/')
           ? {
-              candidate: { accountId: 'account', amountCents: -1201, date: '2026-09-17' },
+              candidate: {
+                accountId: 'account',
+                amountCents: -1201,
+                date: '2026-09-17',
+                currency: 'EUR',
+              },
               candidateRevision: 'synthetic-revision',
               cleanup: { payeeId: 'payee', payeeName: 'Synthetic recipient' },
               suggestions,
