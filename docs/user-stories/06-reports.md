@@ -630,6 +630,19 @@ Historical references follow `docs/FEATURES.md` (positions 1.1–5.6). The hub r
   - Plan-Prüfung (#1149, ohne Verhaltensänderung): Neue Kategorie-Einkäufe mit Kontaktanteilen belasten die ursprüngliche Einkaufskategorie brutto bis zur Rückzahlung. Zugeordnete Rückzahlungen fließen in diese Kategorie zurück. Der Anteil wird nicht zusätzlich als eigene Auslagen-Kategorie belastet und nicht zusätzlich im Nettovermögen gezählt. Historische/alleinstehende Auslagen ohne belegte Ursprungskategorie behalten ihre gespeicherte Kategorie. Grundlage: `docs/shared-expenses.md`, `SPEC.md` (#963/#978); keine Neuberechnung oder Datenänderung in diesem Teil.
 - **Status:** teilweise · **Verweis:** 5.4, #1149. Erster Teil: offene Tabelle, gesamter Saldoverlauf und geschlossene, paginierte Vergangenheit für den gewählten Kontakt. Zweiter Teil (Redesign): alle Kontakte mit offenem Betrag stehen untereinander mit je einem Kontoblatt (jede Liste lädt ihr eigenes Blatt; ein Link der linken Liste markiert und fokussiert das gewählte Blatt); ausgeglichene Kontakte erscheinen nur nach „Auch ausgeglichene Kontakte“ und eingeklappt unter „Ausgeglichene Kontakte (n)“, ein gewählter ausgeglichener Kontakt klappt sie auf. Offen: vollständige Wiederverwendung des Buchungsregister-Bauteils. Private Abnahme ausständig.
 
+RP-21b continuation (#1149, contacts slice of #1161), superseding the open shared-table
+item in the previous status: both open and historical booking
+tables now use `ReportTable`, including its sticky header, keyboard/phone scrolling,
+register density and right-aligned tabular amounts. Receivables are positive and
+repayments negative, without plus prefixes; both use quiet ink. Fully settled contacts
+remain exclusively inside the closed “Ausgeglichene Kontakte” history even when
+“Auch ausgeglichene Kontakte” is enabled; selecting a historical contact opens it.
+The four columns remain Datum, Empfänger, Betrag, Offen (owner correction, no category).
+The existing statement, gross claims, separate credit, source dialog, copy and 20-row
+history pagination remain authoritative. No booking, allocation or valuation changes.
+Status: implemented for review; CI and owner acceptance pending. Other reports in
+#1161 remain outside this slice.
+
 ### RP-22 – Explorer
 - **Story:** Als Nutzer möchte ich eigene Fragen als Pivot über Buchungen stellen, damit ich Auswertungen bekomme, die kein fester Bericht bietet.
 - **Ausgangslage:** Buchungen mit Kategorien; eine konkrete Frage (zum Beispiel Ausgaben je Empfänger je Quartal).

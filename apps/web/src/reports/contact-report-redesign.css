@@ -150,12 +150,7 @@
 }
 [data-budget-redesign='1'] .contact-report-register {
   table-layout: fixed;
-}
-[data-budget-redesign='1'] .contact-report-register thead {
-  display: table-header-group;
-}
-[data-budget-redesign='1'] .r4-contact-rows .contact-statement-section {
-  overflow-x: auto;
+  min-width: 520px;
 }
 [data-budget-redesign='1'] .contact-report-register :is(thead, tbody) :is(th, td):first-child {
   width: 22%;
@@ -192,11 +187,6 @@
   align-items: center;
   min-height: 44px;
 }
-@media (max-width: 767px) {
-  [data-budget-redesign='1'] .contact-report-register :is(td, th) {
-    padding-inline: 4px;
-  }
-}
 [data-budget-redesign='1'] .r4-contact-detail {
   display: grid;
   gap: 12px;
@@ -209,4 +199,9 @@
 [data-budget-redesign='1'] .r4-contact-settled > summary {
   cursor: pointer;
   font-weight: 600;
+}
+[data-budget-redesign='1'] .r4-contact-settled a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
 }
