@@ -10,6 +10,7 @@ import type * as Http from '../api/http';
 import * as ledgerHttp from '../api/http';
 import type * as ReceiptModule from '../receipts/receipt-section';
 import type { ListedBooking } from './types';
+import type { BookingDraft } from './booking-model';
 
 // jsdom has no native media query implementation.
 Object.defineProperty(window, 'matchMedia', {
@@ -945,7 +946,11 @@ it('treats contact-sharing input as dirty before the gross amount is entered', a
   await waitFor(() => expect(dirty.current).toBe(true));
 });
 
-function renderPayeeSuggestions(phone: boolean, accountContext = true) {
+function renderPayeeSuggestions(
+  phone: boolean,
+  accountContext = true,
+  prefill?: Partial<BookingDraft>,
+) {
   flags.REDESIGN_ENABLED = true;
   flags.phone = phone;
   const client = new QueryClient({
@@ -971,7 +976,11 @@ function renderPayeeSuggestions(phone: boolean, accountContext = true) {
     <QueryClientProvider client={client}>
       <ToastProvider>
         <CaptureForm
-          state={{ mode: 'create', ...(accountContext ? { accountId: 'wallet' } : {}) }}
+          state={{
+            mode: 'create',
+            ...(accountContext ? { accountId: 'wallet' } : {}),
+            ...(prefill ? { prefill } : {}),
+          }}
           onDone={vi.fn()}
           dirtyRef={{ current: false }}
           discard={{ asking: false, keep: vi.fn(), discard: vi.fn() }}
@@ -1161,7 +1170,7 @@ it.each([false, true])(
     }
   },
 );
-it.each(['manual category', 'different payee', 'kind'])(
+it.each(['manual category', 'typed category', 'different payee', 'kind'])(
   'ignores delayed category history after %s changes',
   async (change) => {
     let resolve!: (page: typeof payeeHistory) => void;
@@ -1191,6 +1200,8 @@ it.each(['manual category', 'different payee', 'kind'])(
       if (change === 'manual category') {
         await user.click(category);
         await user.click(screen.getByRole('option', { name: 'Freizeit Muster' }));
+      } else if (change === 'typed category') {
+        await user.type(category, 'Freizeit Muster');
       } else if (change === 'different payee') {
         await user.clear(payee);
         await user.type(payee, 'Anderer{Enter}');
@@ -1200,6 +1211,15 @@ it.each(['manual category', 'different payee', 'kind'])(
       await act(async () => resolve(payeeHistory));
       expect(category.value).toBe(change === 'kind' ? 'Zu verteilen' : 'Freizeit Muster');
       expect(create).not.toHaveBeenCalled();
+      if (change === 'typed category') {
+        await user.tab();
+        await user.type(screen.getByLabelText('Betrag', { exact: true }), '7,03');
+        await user.click(screen.getByRole('button', { name: 'Speichern' }));
+        await waitFor(() => expect(create).toHaveBeenCalledTimes(1));
+        expect(create.mock.lastCall?.[0].input.splits).toEqual([
+          { categoryId: 'other', amountCents: -703 },
+        ]);
+      }
     } finally {
       lookup.mockRestore();
     }
@@ -1461,7 +1481,7 @@ it('holds Save back while an upload runs and ignores a result from the previous 
 });
 
 it.each([false, true])(
-  'replaces carried category defaults while respecting register context after save-and-new (context: %s)',
+  'starts empty and applies the next payee history while respecting register context (context: %s)',
   async (context) => {
     const lookup = vi.spyOn(ledgerApi, 'fetchBookings').mockResolvedValue(payeeHistory);
     try {
@@ -1475,7 +1495,9 @@ it.each([false, true])(
       await user.type(screen.getByLabelText('Betrag', { exact: true }), '10,00');
       await user.click(screen.getByRole('button', { name: 'Speichern und neu' }));
       await waitFor(() => expect(create).toHaveBeenCalledTimes(1));
-      expect(account.value).toBe('wallet');
+      expect(account.value).toBe(context ? 'wallet' : '');
+      expect(screen.getByLabelText<HTMLInputElement>('Empfänger').value).toBe('');
+      expect(screen.getByRole<HTMLInputElement>('combobox', { name: 'Kategorie' }).value).toBe('');
       await waitFor(() =>
         expect(document.activeElement).toBe(screen.getByLabelText('Betrag', { exact: true })),
       );
@@ -1552,12 +1574,115 @@ it('ignores both defaults from a history response belonging to the saved form', 
       splits: [{ categoryId: 'other', amountCents: -1000 }],
     });
     await act(async () => resolve(payeeHistory));
-    expect(account.value).toBe('wallet');
-    expect(screen.getByRole<HTMLInputElement>('combobox', { name: 'Kategorie' }).value).toBe(
-      'Freizeit Muster',
-    );
+    expect(account.value).toBe('');
+    expect(screen.getByRole<HTMLInputElement>('combobox', { name: 'Kategorie' }).value).toBe('');
     expect(create).toHaveBeenCalledTimes(1);
   } finally {
     lookup.mockRestore();
   }
 });
+
+it.each(['expense', 'income', 'transfer', 'split'] as const)(
+  'clears booking details immediately after save-and-new for %s, including a queued save',
+  async (mode) => {
+    // A queued create returns no server result, but receives exactly the same displayed draft.
+    create.mockResolvedValue(undefined);
+    renderPayeeSuggestions(false, true, {
+      kind: mode === 'split' ? 'expense' : mode,
+      date: '2026-10-09',
+      amount: '10,01',
+      payee: 'Laden Beispiel',
+      categoryId: mode === 'transfer' ? '' : 'food',
+      projectId: 'synthetic-project',
+      incomeTypeId: mode === 'income' ? 'synthetic-income' : '',
+      memo: 'Synthetic note',
+      flag: 'blue',
+      toAccountId: mode === 'transfer' ? 'giro' : '',
+      splitOn: mode === 'split',
+      splits:
+        mode === 'split'
+          ? [
+              {
+                key: 'a',
+                type: 'category',
+                categoryId: 'food',
+                amount: '6,67',
+                memo: '',
+                toAccountId: '',
+                contactId: null,
+                incomeTypeId: null,
+              },
+              {
+                key: 'b',
+                type: 'category',
+                categoryId: 'other',
+                amount: '3,34',
+                memo: '',
+                toAccountId: '',
+                contactId: null,
+                incomeTypeId: null,
+              },
+            ]
+          : [],
+    });
+    await screen.findByRole('option', { name: 'Bargeld Muster' });
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: 'Speichern und neu' }));
+    await waitFor(() => expect(create).toHaveBeenCalledTimes(1));
+    const first = create.mock.lastCall?.[0];
+    expect(first.draft).toMatchObject({
+      date: '2026-10-09',
+      amount: '10,01',
+      projectId: 'synthetic-project',
+    });
+    expect(first.input).toMatchObject(
+      mode === 'transfer'
+        ? { type: 'transfer', fromAccountId: 'wallet', toAccountId: 'giro', amountCents: 1001 }
+        : { type: 'booking', accountId: 'wallet', amountCents: mode === 'income' ? 1001 : -1001 },
+    );
+    if (mode === 'split')
+      expect(first.input.splits).toEqual([
+        { categoryId: 'food', amountCents: -667 },
+        { categoryId: 'other', amountCents: -334 },
+      ]);
+    expect(screen.getByLabelText<HTMLInputElement>('Betrag', { exact: true }).value).toBe('');
+    if (mode === 'transfer') {
+      expect(screen.getByLabelText<HTMLSelectElement>('Nach Konto').value).toBe('');
+      await user.selectOptions(screen.getByLabelText('Nach Konto'), 'giro');
+    } else {
+      expect(
+        screen.getByLabelText<HTMLInputElement>(mode === 'income' ? 'Von (Zahler)' : 'Empfänger')
+          .value,
+      ).toBe('');
+      expect(screen.getByRole<HTMLInputElement>('combobox', { name: 'Kategorie' }).value).toBe(
+        mode === 'income' ? 'Zu verteilen' : '',
+      );
+      if (mode !== 'income') {
+        await user.click(screen.getByRole('combobox', { name: 'Kategorie' }));
+        await user.click(screen.getByRole('option', { name: 'Freizeit Muster' }));
+      }
+    }
+    await user.type(screen.getByLabelText('Betrag', { exact: true }), '2,03');
+    await user.click(screen.getByRole('button', { name: 'Speichern' }));
+    await waitFor(() => expect(create).toHaveBeenCalledTimes(2));
+    expect(create.mock.lastCall?.[0].draft).toMatchObject({
+      accountId: 'wallet',
+      date: '2026-10-09',
+      amount: '2,03',
+      payee: '',
+      categoryId: mode === 'expense' || mode === 'split' ? 'other' : '',
+      projectId: '',
+      incomeTypeId: '',
+      memo: '',
+      flag: '',
+      contactId: '',
+      splitOn: false,
+      splits: [],
+    });
+    expect(create.mock.lastCall?.[0].input).toMatchObject(
+      mode === 'transfer'
+        ? { type: 'transfer', amountCents: 203 }
+        : { type: 'booking', amountCents: mode === 'income' ? 203 : -203, payeeId: null },
+    );
+  },
+);

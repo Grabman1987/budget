@@ -181,7 +181,7 @@ test('discard question, Speichern und neu keeps the context, the payee brings it
   await panel.getByRole('button', { name: 'Verwerfen' }).click();
   await expect(page.getByRole('dialog', { name: 'Buchung erfassen' })).toBeHidden();
 
-  // Speichern und neu (Ctrl+Umschalt+Enter): the panel stays with payee, category and date.
+  // Speichern und neu (Ctrl+Umschalt+Enter): only register context and date survive.
   panel = await openCapture(page, testInfo);
   await panel.getByLabel('Betrag', { exact: true }).fill('5,00');
   await panel.getByLabel('Empfänger').fill(payee);
@@ -190,9 +190,12 @@ test('discard question, Speichern und neu keeps the context, the payee brings it
   await page.keyboard.press('Control+Shift+Enter');
   await expect(panel.getByLabel('Betrag', { exact: true })).toHaveValue('');
   await expect(panel.getByLabel('Betrag', { exact: true })).toBeFocused();
-  await expect(panel.getByLabel('Empfänger')).toHaveValue(payee);
-  await expect(panel.getByLabel('Kategorie', { exact: true })).toHaveValue(category);
+  await expect(panel.getByLabel('Empfänger')).toHaveValue('');
+  await expect(panel.getByLabel('Kategorie', { exact: true })).toHaveValue('');
   await expect(panel.getByLabel('Datum', { exact: true })).toHaveValue(date);
+  await panel.getByLabel('Empfänger').fill(payee);
+  await panel.getByLabel('Empfänger').press('Enter');
+  await expect(panel.getByLabel('Kategorie', { exact: true })).toHaveValue(category);
   await panel.getByLabel('Betrag', { exact: true }).fill('3,00');
   await page.keyboard.press('Control+Enter');
   await expect(page.getByRole('row', { name: new RegExp(payee) })).toHaveCount(2);

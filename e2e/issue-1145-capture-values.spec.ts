@@ -73,13 +73,16 @@ test('capture keeps visible categories and payee defaults consistent across cons
     expect(result.bookings[0].accountId).toBe(accounts[index].id);
     expect(result.bookings[0].splits[0].categoryId).toBe(categories[index].id);
     await expect(amount).toHaveValue('');
+    await expect(payee).toHaveValue('');
+    await expect(category).toHaveValue('');
+    await expect(account).toHaveValue('');
   }
   await payee.fill('Neuer Musterladen');
   await amount.focus();
   await expect(category).toHaveValue('');
   await expect(account).toHaveValue('');
-  await account.selectOption(accounts[0].id);
   for (const method of ['typed', 'clicked', 'keyboard']) {
+    await account.selectOption(accounts[0].id);
     await amount.fill('10,00');
     await category.fill('');
     await category.fill(categories[0].name);
@@ -115,6 +118,7 @@ test('capture keeps visible categories and payee defaults consistent across cons
     expect(result.bookings[0].splits[0].categoryId).toBe(categories[0].id);
     await expect(amount).toHaveValue('');
   }
+  await account.selectOption(accounts[0].id);
   await category.fill('Suchtext ohne Treffer');
   await amount.focus();
   await expect(category).toHaveValue('Suchtext ohne Treffer');

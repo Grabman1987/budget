@@ -152,8 +152,9 @@ Status for this change is implemented for review.
 
 ## Consecutive capture (K-04, #1145)
 
-Save and new carries account/category as defaults for the new form. A changed payee
-replaces these together from its latest booking or clears them without history.
+Save and new retains only the date, booking mode and explicit register account context;
+all booking details are cleared, including the account outside a register. A chosen payee
+fills account/category together from its latest booking or leaves them empty without history.
 The register account and choices made in the current form remain authoritative;
 late history cannot overwrite them. Typed category text clears the stored selection.
 Only a unique full label or a clicked/keyboard option selects an ID; other text

@@ -405,8 +405,6 @@ export function CaptureForm({
   const appliedByPayee = useRef<string | null>(null);
   const categoryRequest = useRef(0);
   const categoryChosen = useRef(Boolean(draft.categoryId || draft.contactId || draft.splitOn));
-  // The payee "Speichern und neu" carried over: context, so it does not make the form dirty.
-  const [keptPayee, setKeptPayee] = useState('');
   const set = <K extends keyof BookingDraft>(key: K, value: BookingDraft[K]) => {
     if ((key === 'accountId' || key === 'toAccountId') && value !== draft[key]) setBankIntent(null);
     setDraft((d) => ({ ...d, [key]: value }));
@@ -557,7 +555,7 @@ export function CaptureForm({
     ? JSON.stringify(strip(draft)) !== JSON.stringify(strip(queued.draft))
     : editing
       ? JSON.stringify(strip(draft)) !== JSON.stringify(strip(editDraft!))
-      : captureDirty(draft, keptPayee) ||
+      : captureDirty(draft, '') ||
         Boolean(draft.repeat || draft.lines?.some((line) => line.shares.length));
   // A refused queued edit still needs an explicit discard, even after reverting its fields.
   const [refusedEdit, setRefusedEdit] = useState(false);
@@ -812,28 +810,23 @@ export function CaptureForm({
       await linkAttached(result?.bookings[0]?.id);
       remember(accountId, draft.categoryId || null);
       if (!andNew) return onDone();
-      // Carry context, but only choices made in the new form protect defaults from payee history.
+      // Only the register account, date and booking mode belong to the next form.
       draftScopeRef.current++;
       setDraftScope(draftScopeRef.current);
       setStatusChosen(false);
       setBankIntent(null);
       accountRequest.current++;
       accountChosen.current = false;
-      accountPayee.current = draft.payee.trim().toLowerCase();
-      appliedPayee.current = draft.payee.trim().toLowerCase();
+      accountPayee.current = '';
+      appliedPayee.current = null;
+      setAllowDefaultAccount(false);
       setSaveAttempted(false);
       categoryRequest.current++;
       categoryChosen.current = false;
-      appliedByPayee.current = draft.splitOn ? null : draft.categoryId;
-      setKeptPayee(draft.payee);
+      appliedByPayee.current = null;
       setDraft((d) => ({
-        ...emptyDraft(accountId, d.date),
+        ...emptyDraft(hasAccountContext ? explicitAccountId! : '', d.date),
         kind: d.kind,
-        toAccountId: d.toAccountId,
-        payee: d.payee,
-        categoryId: d.splitOn ? '' : d.categoryId,
-        incomeTypeId: d.incomeTypeId,
-        projectId: d.projectId,
       }));
       setErrors({});
       // Save and new keeps the form body's scroll position (#1146).

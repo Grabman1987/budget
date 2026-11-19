@@ -222,6 +222,28 @@ it('clears the stored category while searching and retains invalid text on blur'
   expect(JSON.parse(screen.getByTestId('payload').textContent ?? '')).toMatchObject({ ok: false });
 });
 
+it('leaves an ambiguous category prefix invalid until a full label is entered', async () => {
+  const user = mount([
+    category('cat-a', 'Freizeit Alltag', 'Gruppe A'),
+    category('cat-b', 'Freizeit Reise', 'Gruppe A'),
+  ]);
+  const field = screen.getByRole<HTMLInputElement>('combobox', { name: 'Kategorie' });
+  await user.type(field, 'Freizeit');
+  await user.tab();
+  expect(field.value).toBe('Freizeit');
+  expect(field.getAttribute('aria-invalid')).toBe('true');
+  expect(screen.getByText('Bitte eine Kategorie aus der Liste wählen.')).toBeTruthy();
+  expect(JSON.parse(screen.getByTestId('payload').textContent ?? '')).toMatchObject({ ok: false });
+  await user.clear(field);
+  await user.type(field, 'Freizeit Reise');
+  await user.tab();
+  expect(field.value).toBe('Freizeit Reise');
+  expect(JSON.parse(screen.getByTestId('payload').textContent ?? '')).toMatchObject({
+    ok: true,
+    value: { amountCents: -1000, splits: [{ categoryId: 'cat-b', amountCents: -1000 }] },
+  });
+});
+
 it('does not commit a category choice while typing in an inline picker', async () => {
   const onSelect = vi.fn();
   render(
