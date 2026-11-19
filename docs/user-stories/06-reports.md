@@ -250,6 +250,7 @@ Historical references follow `docs/FEATURES.md` (positions 1.1–5.6). The hub r
 - **Story:** Export the displayed monthly overview, including month-end net worth, for external checks.
 - **Flow:** Open Reports > Auswertung, select “Gesamttabelle”, choose detail depth, inspect the horizontally scrollable table and export CSV. The retained “Alle Monate: Nettovermögen und CSV” disclosure provides the existing full table.
 - **Acceptance:** No standalone report entry or alias link appears in the hub. `/reports/gesamttabelle` still opens the total Explorer template, preserving explicit period, month, filters and hash. CSV contains exactly its displayed rows and columns; monthly net worth still uses the existing valuation. The running month remains identifiable, mobile tables remain scrollable and privacy masks amounts.
+- **Reader lifetime (#1156):** The full-history disclosure starts closed, reads valuation facts only when opened, and closes again after a template switch, source refresh or reload. Stale/error facts never leave an export button or old valuation visible. Privacy masks the table; the deliberate CSV download retains the exact unmasked export, including UTF-8 BOM, CRLF, cent precision and the running-month marker.
 - **Status:** implemented for review (#1156); CI and owner acceptance pending. **Verweis:** 1.8
 
 ### RP-10 – Projekte und Nebeneinkünfte

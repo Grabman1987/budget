@@ -139,3 +139,9 @@ Only a unique full label or a clicked/keyboard option selects an ID; other text
 stays visible, becomes invalid on blur and blocks saving. Fresh forms remain free
 of premature validation. See [K-04](user-stories/03-konten-buchungen.md).
 Status: implementation for review; owner acceptance and production proof pending.
+## Reports: retained total-template proof (#1156)
+
+RP-09 now explicitly covers the full-history disclosure lifetime: closed on entry,
+only read on opening, reset after template changes/source refresh/reload, and no
+stale export. The existing Explorer spec checks exact CSV bytes and privacy in
+light/dark at the configured desktop/390 widths. See [RP-09](user-stories/06-reports.md#rp-09--gesamttabelle-explorer-template); CI and owner acceptance remain open.
