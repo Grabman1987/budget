@@ -3,6 +3,7 @@ import { cleanup, render, screen } from '@testing-library/react';
 import { afterEach, expect, it } from 'vitest';
 import { setAmountsHidden } from '@budget/ui';
 import { ReadSourceDetail } from './read-source-detail';
+import type { SourceOperation } from '@budget/domain';
 
 afterEach(() => {
   cleanup();
@@ -97,4 +98,106 @@ it('masks amounts in legacy free-text details', () => {
   render(<ReadSourceDetail detail="Quellsaldo 12,34 EUR stimmt nicht überein." />);
 
   expect(screen.getByText('Quellsaldo ••• EUR stimmt nicht überein.')).toBeTruthy();
+});
+
+const reward: SourceOperation = {
+  id: 'synthetic-reward',
+  type: 'reward',
+  transactions: [
+    {
+      id: 'synthetic-reward-leg',
+      type: 'reward',
+      walletId: 'synthetic-wallet',
+      flow: 'INCOMING',
+      creditedAt: '2026-10-01T12:00:00Z',
+      tradeId: 'synthetic-trade',
+      amount: { assetId: 'synthetic-coin', currencyId: null, value: '0.00000005', cents: null },
+      fee: { assetId: 'synthetic-coin', currencyId: null, value: '0.00000001', cents: null },
+      balanceAfter: null,
+      tradeFee: null,
+      compensates: null,
+    },
+  ],
+};
+
+it.each([
+  ['mapping_problem', 'Zuordnung von Konto oder Instrument fehlt oder ist ungültig.'],
+  ['source_unreadable', 'Der Quellbestand ist nicht verlässlich lesbar.'],
+  ['missing_movement', 'Offene Bewegungen erklären die gesamte Bestandsdifferenz.'],
+  ['partly_missing_movement', 'Offene Bewegungen erklären einen Teil der Bestandsdifferenz.'],
+  ['real_difference', 'Die Bestandsdifferenz ist durch offene Bewegungen nicht erklärt.'],
+])('renders the stored cause %s and the exact gross, fee and net trace', (cause, text) => {
+  render(
+    <ReadSourceDetail
+      detail={JSON.stringify({
+        reason: 'difference',
+        cause,
+        source: '0.00000007',
+        local: 3,
+        scale: 8,
+        key: 'asset:synthetic-coin',
+        securityId: 'synthetic-security',
+        fetchedAt: '2026-10-01T12:00:00Z',
+        comparedOn: '2026-10-02',
+        openMovementsE8: 4,
+        openMovementCount: 1,
+        operations: [reward],
+      })}
+    />,
+  );
+  expect(screen.getByText(text)).toBeTruthy();
+  const trace = screen.getByRole('region', { name: 'Vorgang und Bestandswirkung' });
+  expect(trace.textContent).toContain(
+    'Brutto: 0,00000005 · Gebühr: 0,00000001 · Netto-Bestandswirkung: 0,00000004',
+  );
+  expect(trace.textContent).toContain('Handelsreferenz: synthetic-trade');
+  expect(trace.textContent).toContain(
+    'Summe der Fiatbewegungen laut Quelle (absolut): Nicht verfügbar',
+  );
+  expect(screen.getByText(/App-Stichtag: 2026-10-02/)).toBeTruthy();
+});
+
+it('names the missing funding leg and retains known ledger references without inventing a deposit', () => {
+  render(
+    <ReadSourceDetail
+      detail={JSON.stringify({
+        ...reward,
+        reconciliation: {
+          status: 'missing',
+          refs: [{ type: 'trade', id: 'synthetic-known', date: '2026-10-01', kind: 'buy' }],
+          missingLegs: [
+            { key: 'currency:synthetic-eur', incoming: true, day: '2026-09-28', cents: 1234 },
+          ],
+        },
+      })}
+    />,
+  );
+  expect(
+    screen.getByText(
+      /Einzahlung \/ Finanzierung fehlt im Abgleich: currency:synthetic-eur · 2026-09-28 · 12,34/,
+    ),
+  ).toBeTruthy();
+  expect(
+    screen.getByText(/Erfasste Gegenbewegung: Handel · 2026-10-01 · synthetic-known/),
+  ).toBeTruthy();
+  expect(screen.getByText('Es wird keine Einzahlung oder Korrekturbuchung erzeugt.')).toBeTruthy();
+});
+
+it('hides all new trace amounts and raw evidence with privacy enabled', () => {
+  setAmountsHidden(true);
+  const { container } = render(
+    <ReadSourceDetail
+      detail={JSON.stringify({
+        ...reward,
+        reconciliation: {
+          status: 'missing',
+          missingLegs: [
+            { key: 'currency:synthetic-eur', incoming: true, day: '2026-09-28', cents: 1234 },
+          ],
+        },
+      })}
+    />,
+  );
+  expect(container.textContent).not.toMatch(/0[,.]0000000[145]|12[,.]34|1234/);
+  expect(container.querySelector('pre')).toBeNull();
 });

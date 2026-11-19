@@ -100,7 +100,12 @@ describe('ambiguity is never guessed', () => {
     op(id, type, { type: 'deposit', flow: 'INCOMING', amount: cash(2500), at });
   it('one movement and two equal bookings at the same distance stays open and counts candidates', () => {
     const l = ledger([], [booking('2026-03-09', 2500), booking('2026-03-11', 2500)]);
-    const expected = { status: 'missing', ambiguous: 2 };
+    const expected = {
+      status: 'missing',
+      ambiguous: 2,
+      refs: [],
+      missingLegs: [{ key: 'currency:cur-eur', incoming: true, day: '2026-03-10', cents: 2500 }],
+    };
     expect(verdictOf(credit('d', 'deposit', '2026-03-10T10:00:00.000Z'), l)).toEqual(expected);
     expect(verdictOf(credit('p', 'savings_plan', '2026-03-10T10:00:00.000Z'), l)).toEqual(expected);
   });
@@ -109,6 +114,8 @@ describe('ambiguity is never guessed', () => {
     expect(verdictOf(credit('p', 'savings_plan', '2026-03-10T10:00:00.000Z'), l)).toEqual({
       status: 'missing',
       ambiguous: 2,
+      refs: [],
+      missingLegs: [{ key: 'currency:cur-eur', incoming: true, day: '2026-03-10', cents: 2500 }],
     });
   });
   it('two movements and two bookings match one-to-one', () => {
@@ -149,8 +156,14 @@ describe('ambiguity is never guessed', () => {
         [booking('2026-03-10', 2500), booking('2026-03-10', 2500), booking('2026-03-10', 2500)],
       ),
     );
-    expect(v.get('d1')).toEqual({ status: 'missing', ambiguous: 3 });
-    expect(v.get('d2')).toEqual({ status: 'missing', ambiguous: 3 });
+    const expected = {
+      status: 'missing',
+      ambiguous: 3,
+      refs: [],
+      missingLegs: [{ key: 'currency:cur-eur', incoming: true, day: '2026-03-10', cents: 2500 }],
+    };
+    expect(v.get('d1')).toEqual(expected);
+    expect(v.get('d2')).toEqual(expected);
   });
 });
 

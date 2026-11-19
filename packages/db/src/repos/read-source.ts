@@ -8,6 +8,7 @@ import {
   isAutomaticResolution,
   matchedResolution,
   explainHoldingDifference,
+  summarizeOperation,
   type OperationVerdict,
   type SourceBalance,
   type SourceMapping,
@@ -158,6 +159,7 @@ const itemId = (key: string) =>
 function operationFields(detail: string) {
   const fields = JSON.parse(detail) as Record<string, unknown>;
   delete fields['mappings'];
+  delete fields['reconciliation'];
   return JSON.stringify(fields);
 }
 /** Mappings are current display data, independent of the acknowledged source facts. */
@@ -296,7 +298,7 @@ function applyVerdict(
   ctx: GroupedContext,
 ) {
   const { title, closed } = verdictCopy(op, verdict);
-  const detail = JSON.stringify(op);
+  const detail = JSON.stringify({ ...op, reconciliation: verdict ?? null });
   const detailChanged = old.detail !== detail;
   if (closed !== null) {
     const same = old.resolvedAt !== null && old.resolution === closed;
@@ -343,7 +345,7 @@ export function stageSourcePage(
     for (const op of operations) {
       const day = since === null ? null : operationDay(op);
       const key = 'operation:' + op.id;
-      const detail = JSON.stringify(op);
+      const detail = JSON.stringify({ ...op, reconciliation: verdicts.get(op.id) ?? null });
       if (day !== null && since !== null && day < since) {
         const base = `Quellbewegung: ${kindLabel(op)}`;
         item(tx, key, base, detail, 'import', grouped, false, operationFields, SINCE_RESOLUTION);
@@ -475,7 +477,7 @@ function compareSourceBalances(
   now: string,
   grouped: GroupedContext,
   /** When the balances were fetched, if that was not `now` (a recomputation after matching). */
-  fetchedAt: string | null = null,
+  fetchedAt?: string | null,
 ) {
   const matchText = fetchedAt
     ? `Quellsaldo stimmte beim Abruf vom ${fetchedAt.slice(8, 10)}.${fetchedAt.slice(5, 7)}.${fetchedAt.slice(0, 4)} überein.`
@@ -492,6 +494,7 @@ function compareSourceBalances(
   const openOperations = stagedOperations(tx)
     .filter(({ row }) => !row.resolvedAt)
     .map(({ op }) => op);
+  const verdicts = evaluateReadSource(tx, mappings, readSourceSince(tx));
   const causeOf = (
     key: string,
     mapped: boolean,
@@ -625,6 +628,19 @@ function compareSourceBalances(
                 cause: cause.cause,
                 openMovementsE8: cause.openMovementsE8,
                 openMovementCount: cause.openMovementCount,
+                fetchedAt: fetchedAt === undefined ? now : fetchedAt,
+                comparedOn: day,
+                securityId: mapping?.securityId ?? null,
+                operations: openOperations.flatMap((op) => {
+                  const summary = summarizeOperation(op);
+                  if (
+                    !summary.assets.some(
+                      (a) => 'asset:' + a.assetId === balance.key && a.netE8 !== 0,
+                    )
+                  )
+                    return [];
+                  return [{ ...op, summary, reconciliation: verdicts.get(op.id) ?? null }];
+                }),
               }
             : {}),
         }),

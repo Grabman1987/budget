@@ -38,6 +38,20 @@ In the redesign, open **Einstellungen › Verbindungen** to see all six data sou
 
 Each source has at most one **Einrichtung** disclosure for credentials, consent setup, policy and other rare settings. Changing an account mapping exposes its start date so validation cannot block an invisible control. Acceptance covers unchanged request payloads, consent and booking policy, a neutral loading state, light and dark layouts, 44 px controls and reflow down to 320 px. Source dates remain distinct from attempts and missing values. Owner acceptance is pending.
 
+## Crypto warning evidence (#1081, read-only part of #1205)
+
+Under **Konten › Prüfen**, each crypto balance warning shows its stored cause,
+source and app units, open net effect, source fetch date and app comparison day.
+Related operations expose source movement/trade references and gross, fee and net
+units through the existing shared calculation. Missing funding names the unmatched
+cash leg and any known ledger counterparts; absent historic diagnostics remain
+explicitly unavailable. Amount privacy also hides the trace amounts and raw JSON.
+Correct the mapping/source evidence through the existing data-source controls and
+run **Abgleich neu ausführen**; an unsuccessful retry retains the warning and a
+successful balance check resolves it. Manual acknowledgement is not source repair.
+This slice creates no bookings, valuations, cost basis or tax values. Owner-approved
+local-copy analysis and money acceptance for #1205 remain pending.
+
 ## Offene Fragen an den Nutzer
 
 Stand nach den Entscheidungen vom 15.11.2026. Bei diesen Stories ist noch etwas offen:
