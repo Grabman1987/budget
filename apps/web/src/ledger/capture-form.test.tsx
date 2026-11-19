@@ -950,6 +950,7 @@ function renderPayeeSuggestions(
   phone: boolean,
   accountContext = true,
   prefill?: Partial<BookingDraft>,
+  booking?: ListedBooking,
 ) {
   flags.REDESIGN_ENABLED = true;
   flags.phone = phone;
@@ -976,11 +977,15 @@ function renderPayeeSuggestions(
     <QueryClientProvider client={client}>
       <ToastProvider>
         <CaptureForm
-          state={{
-            mode: 'create',
-            ...(accountContext ? { accountId: 'wallet' } : {}),
-            ...(prefill ? { prefill } : {}),
-          }}
+          state={
+            booking
+              ? { mode: 'edit', booking }
+              : {
+                  mode: 'create',
+                  ...(accountContext ? { accountId: 'wallet' } : {}),
+                  ...(prefill ? { prefill } : {}),
+                }
+          }
           onDone={vi.fn()}
           dirtyRef={{ current: false }}
           discard={{ asking: false, keep: vi.fn(), discard: vi.fn() }}
@@ -1030,6 +1035,47 @@ const payeeHistory: Awaited<ReturnType<typeof ledgerApi.fetchBookings>> = {
   nextCursor: null,
   sumCents: -100,
 };
+it.each([false, true])(
+  'keeps stored edit fields when a payee is reselected (phone: %s)',
+  async (phone) => {
+    const lookup = vi.spyOn(ledgerApi, 'fetchBookings').mockResolvedValue(payeeHistory);
+    const booking: ListedBooking = {
+      ...payeeHistory.items[0]!,
+      accountId: 'wallet',
+      accountName: 'Bargeld Muster',
+      splits: [
+        {
+          ...payeeHistory.items[0]!.splits[0]!,
+          categoryId: 'other',
+          categoryName: 'Freizeit Muster',
+        },
+      ],
+    };
+    try {
+      renderPayeeSuggestions(phone, true, undefined, booking);
+      const user = userEvent.setup();
+      await screen.findByRole('option', { name: 'Bargeld Muster' });
+      const payee = screen.getByRole('combobox', { name: 'Empfänger' });
+      await user.clear(payee);
+      await user.type(payee, 'Laden Bei{Enter}');
+      await user.click(screen.getByLabelText('Notiz'));
+      expect(screen.getByLabelText<HTMLSelectElement>('Bezahlt von').value).toBe('wallet');
+      expect(screen.getByRole<HTMLInputElement>('combobox', { name: 'Kategorie' }).value).toBe(
+        'Freizeit Muster',
+      );
+      expect(screen.getByLabelText<HTMLInputElement>('Betrag', { exact: true }).value).toBe('1,00');
+      await user.type(screen.getByLabelText('Notiz'), 'Synthetic edit note');
+      await user.click(screen.getByRole('button', { name: 'Speichern' }));
+      await waitFor(() => expect(patch).toHaveBeenCalledTimes(1));
+      expect(patch.mock.calls[0]![0].patch).toMatchObject({ memo: 'Synthetic edit note' });
+      expect(patch.mock.calls[0]![0].patch.splits).toBeUndefined();
+      expect(patch.mock.calls[0]![0].patch.accountId).toBeUndefined();
+      expect(lookup).not.toHaveBeenCalled();
+    } finally {
+      lookup.mockRestore();
+    }
+  },
+);
 it.each([false, true])(
   'keeps typed, clicked and keyboard category labels equal to saved categories after save-and-new (phone: %s)',
   async (phone) => {

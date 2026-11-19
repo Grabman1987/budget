@@ -111,3 +111,93 @@ The reset fix affects `e2e/capture.spec.ts` and
 `e2e/issue-1048-bank-all-fields.spec.ts` and
 `e2e/issue-1081-crypto-cause.spec.ts`. Report, bank and crypto screenshots are
 review artifacts in those specs. No PNG baseline was changed or regenerated.
+
+## First-run browser repairs (2026-11-19)
+
+The local CLI builder reproduced the reported mobile and WebKit failures with
+redesign ON before changing them. A separate Codex agent reviewed the repair diff
+and the impact of each test adaptation; no blocking findings were reported.
+
+| Failure | Cause | Correction |
+| --- | --- | --- |
+| `capture.spec.ts:162`, desktop/mobile | After the learned suggestion opens, the non-exact Empfänger label also matches its labelled listbox. | Target the exact input label for keyboard reselection. Rename the test around the reset contract; assert the literal retained date `01.10.2026` and register account ID, empty amount/payee/category, then the learned category. Preserve both saved rows and the 9,200-cent balance. |
+| `capture-dialog-layout.spec.ts:255`, all five booking-line scenarios | `/?panel=buchung&konto=…` supplies no register context to the global panel. An unknown payee correctly clears its implicit account under #1145, so Save is disabled. | Open the actual `/konten/:id?panel=buchung` register entry and assert its account ID before Save. Preserve all literal cent splits, contact shares, disabled incomplete states and exact stored-split equality after editing. |
+| `capture-dialog-layout.spec.ts:538`, phone viewport/Undo | The same global-entry setup leaves the account empty after choosing an unknown payee; keyboard save is correctly blocked before the layout/Undo assertions. | Use the real register entry and assert its account ID; scope compact-viewport assertions to the open sheet because the register also mounts inactive editor scopes. Keep field/action geometry, keyboard submission and all toast/Undo bounds unchanged. |
+| `issue-1048-bank-all-fields.spec.ts:84`, WebKit light/dark | Native IndexedDB `add` rejects the receipt Blob with `UnknownError: Error preparing Blob/File data to be stored in object store`; copying into a memory-backed Blob also fails in the actual flow. | Persist plain `ArrayBuffer` bytes plus MIME in the existing v1 stores, restoring a Blob for list/delivery reads. Existing Blob records remain readable. Synthetic WebKit probes also reproduce Blob failure and successful byte storage. The existing browser spec is unchanged. |
+
+No reset or edit-data regression was found: the edit path does not request
+payee history. New desktop/phone units reselect an existing payee whose learned
+account/category differ from the edited booking, change only its note, and assert
+that stored amount/account/category remain and the patch contains no account or
+split replacement. Existing browser edit round trips still assert exact splits.
+
+Additional unit impact: `receipt-store.test.ts` exercises add/list/mark against an
+IndexedDB stand-in rejecting Blob serialization. Its literal bytes/MIME/name/target
+regression fails before the app fix and passes after it. It also checks legacy
+Blob reads/marks without rewriting the payload and a logout fence changing while
+bytes are read. Queue, receipt-section and bank browser tests remain unchanged.
+
+This changes the raw-file record encoding only: no IndexedDB version, store,
+keypath, database migration or ledger data changes. New code reads old Blob rows.
+An already-open older app version needs a refresh to deliver newly encoded rows;
+its old sender rejects the bytes before POST/cleanup and retains the intent. That
+mixed-version tab scenario was reviewed in code, not exercised in a browser.
+
+The combined viewport run exposed one further fixture interaction in the existing
+layout test at line 48: the first viewport saves the shortcut-typed payee `ns?s`;
+subsequent viewports then open its learned suggestion over the category actions.
+The trace shows that option intercepting the click. After retaining the original
+shortcut/focus/discard assertions, the test now leaves the field with Tab and
+asserts it is no longer focused before interacting below the overlay. This is a
+normal keyboard transition, with no force click or added wait.
+
+The reset test pins browser time to 2026-10-01 before creating its account so the
+literal retained booking date does not precede the fixture's opening balance.
+The original two-row and 9,200-cent balance expectations remain unchanged.
+
+The additional WebKit #1145 run exposed a stale popup position while focus changes
+the phone form layout: the option was obstructed by the action bar. The combobox
+now remeasures once on the next layout frame, cancelling the frame on cleanup.
+The literal positioning regression (`418px` to `302px`) fails without this change;
+all 13 combobox units pass with it. No CSS, tokens or settled popup geometry change.
+
+Native Windows WebKit verification became memory-bound: the 8 GB host had only
+about 100-260 MB free, ordinary native actions took over a second, and a calendar
+test used 29 seconds before even reaching its payee picker. A later split scenario
+also exhausted its existing 90-second limit. These are not passing full runs.
+The original #1145 spec and all timeouts remain unchanged. An exploratory
+partitioned run exercised every #1145 assertion successfully on all three profiles
+(15 passes including setup); those runtime-only partitions were removed to retain
+the original single-flow contract. The original full native WebKit run still
+times out during later category input under memory pressure.
+
+A temporary local config removes only the three unused auth/sample servers and
+the unused sample setup dependency, preserving the requested browser projects,
+main ledger setup, test cases and timeouts. This is alternate local verification,
+not the exact standard-config invocation. The temporary config is not committed.
+
+Final repair verification (one local heavy job at a time, `VITEST_MAX_WORKERS=1`,
+Playwright `--workers=1`, port 4769, redesign ON):
+
+- Workspace typecheck, changed-file ESLint/Prettier and diff whitespace checks pass.
+- All 10 affected unit files pass: 145 tests, including capture, combobox and
+  receipt storage/section coverage. OFF and ON `build:e2e` both pass.
+- Standard-config `capture.spec.ts`: 35 passes including setup, desktop/mobile.
+  This file is outside the existing native WebKit project's match list.
+- Standard-config `issue-1048-bank-all-fields.spec.ts`: 12 passes including setup,
+  all three profiles, with both native receipt inputs and grouped Undo unchanged.
+- The full standard-config layout run passes every desktop/mobile case (the
+  existing desktop phone-only skip remains). All five native WebKit split/edit
+  modes passed in an earlier bounded run; later memory-bound full reruns are not
+  reported green. The final focused native WebKit phone viewport/Undo run passes
+  unchanged assertions using the alternate local config: 3 passes including setup.
+- Original #1145 desktop/mobile flows pass; the exploratory 15-pass run above
+  covers every native WebKit acceptance assertion. The restored original full
+  native WebKit spec remains locally limited by its unchanged 30-second timeout.
+- No full local e2e suite, merge or release was performed. Exact-head Linux CI is
+  still required; local memory timeouts are a verification limit, not CI success.
+
+There are no Linux screenshot baselines to regenerate for these repairs: the four
+requested specs contain no `toHaveScreenshot` assertions. Their screenshots are
+review artifacts. No screenshot assertion, timeout, tolerance, financial oracle
+or Undo assertion was weakened.

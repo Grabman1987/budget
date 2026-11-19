@@ -11,6 +11,16 @@ export interface ReceiptIntent {
     'network' | 'login_required' | 'rejected' | 'server_unavailable' | 'conflict' | undefined;
 }
 
+type StoredReceiptIntent = Omit<ReceiptIntent, 'file'> & {
+  file: Blob | ArrayBuffer;
+  mime?: string;
+};
+const restoreFile = ({ file, mime, ...item }: StoredReceiptIntent): ReceiptIntent => ({
+  ...item,
+  // Existing v1 Blob records remain readable; new records avoid WebKit's IndexedDB Blob errors.
+  file: file instanceof Blob ? file : new Blob([file], { type: mime ?? '' }),
+});
+
 const DATABASE = 'budget-receipt-intents';
 const EPOCH_KEY = 'budget-receipt-wipe-epoch';
 const PROBE_KEY = 'budget-receipt-storage-probe';
@@ -161,9 +171,9 @@ export const listReceiptIntents = (epoch = receiptEpoch()) =>
   access<ReceiptIntent[]>(epoch, 'readonly', (store, result, guard) => {
     const read = store.getAll();
     read.onsuccess = guard(() => {
-      const rows = (read.result as ReceiptIntent[]).sort(
-        (a, b) => a.createdAt - b.createdAt || a.id.localeCompare(b.id),
-      );
+      const rows = (read.result as StoredReceiptIntent[])
+        .map(restoreFile)
+        .sort((a, b) => a.createdAt - b.createdAt || a.id.localeCompare(b.id));
       let remaining = rows.length;
       if (!remaining) return result(rows);
       rows.forEach((row, index) => {
@@ -179,23 +189,26 @@ export const listReceiptIntents = (epoch = receiptEpoch()) =>
     });
   });
 
-export const addReceiptIntent = (item: ReceiptIntent) =>
-  access<ReceiptIntent>(item.epoch, 'readwrite', (store, result) => {
-    store.add(item).onsuccess = () => result(item);
+export const addReceiptIntent = async (item: ReceiptIntent) => {
+  // Persist plain bytes: WebKit can reject even memory-backed Blobs during IndexedDB serialization.
+  // access() rechecks the logout fence after this asynchronous read. Store version/keypaths stay v1.
+  const file = await item.file.arrayBuffer();
+  return access<ReceiptIntent>(item.epoch, 'readwrite', (store, result) => {
+    store.add({ ...item, file, mime: item.file.type }).onsuccess = () => result(item);
   });
+};
 
 /** Update only an existing intent; a delayed failure must never recreate a removed file. */
 export const markReceiptIntent = (id: string, epoch: string, reason?: ReceiptIntent['reason']) =>
   access<ReceiptIntent | undefined>(epoch, 'readwrite', (store, result, guard) => {
     const read = store.get(id);
     read.onsuccess = guard(() => {
-      const item = read.result as ReceiptIntent | undefined;
+      const item = read.result as StoredReceiptIntent | undefined;
       if (!item) return result(undefined);
-      // The physical Blob is written exactly once. Re-putting an IndexedDB Blob onto its own
-      // key can invalidate its backing file in WebKit; mutable delivery state lives separately.
+      // The file payload is written exactly once; mutable delivery state lives separately.
       const state = { uncertain: true, reason };
       store.transaction.objectStore('meta').put(state, id).onsuccess = () =>
-        result({ ...item, ...state });
+        result({ ...restoreFile(item), ...state });
     });
   });
 

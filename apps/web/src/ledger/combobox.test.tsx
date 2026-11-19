@@ -53,6 +53,29 @@ function Harness({
 }
 
 describe('Combobox', () => {
+  it('realigns a capture popup after the focused form finishes its next layout', async () => {
+    let anchorTop = 370;
+    const frames: FrameRequestCallback[] = [];
+    vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => {
+      frames.push(callback);
+      return frames.length;
+    });
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+    vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockReturnValue(46);
+    vi.spyOn(HTMLElement.prototype, 'scrollHeight', 'get').mockReturnValue(46);
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(
+      () => new DOMRect(16, anchorTop, 358, 44),
+    );
+    render(<Harness onSelect={vi.fn()} captureOverlay />);
+    await userEvent.setup().click(screen.getByRole('combobox'));
+    const list = screen.getByRole('listbox').parentElement!;
+    expect(list.style.top).toBe('418px');
+    // A focus-dependent sibling can move the field without resizing its ancestors.
+    anchorTop = 254;
+    act(() => frames.forEach((callback) => callback(0)));
+    expect(list.style.top).toBe('302px');
+  });
+
   it('keeps the focused field and picker above bottom page controls and feedback', async () => {
     let anchorTop = 650;
     const scroll = vi.spyOn(window, 'scrollBy').mockImplementation((_x, y) => {
