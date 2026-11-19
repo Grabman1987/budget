@@ -128,3 +128,14 @@ makes up the result for the selected period.
   above classification and amount without horizontal page scrolling.
 
 Status for this change is implemented for review.
+
+## Consecutive capture (K-04, #1145)
+
+Save and new carries account/category as defaults for the new form. A changed payee
+replaces these together from its latest booking or clears them without history.
+The register account and choices made in the current form remain authoritative;
+late history cannot overwrite them. Typed category text clears the stored selection.
+Only a unique full label or a clicked/keyboard option selects an ID; other text
+stays visible, becomes invalid on blur and blocks saving. Fresh forms remain free
+of premature validation. See [K-04](user-stories/03-konten-buchungen.md).
+Status: implementation for review; owner acceptance and production proof pending.

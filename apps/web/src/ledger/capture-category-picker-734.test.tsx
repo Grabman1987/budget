@@ -8,6 +8,7 @@ import { afterEach, expect, it, vi } from 'vitest';
 import { SplitEditor, captureLines } from './split-editor';
 import { buildCreate, emptyDraft, type BookingDraft } from './booking-model';
 import { Combobox } from './combobox';
+import { CategoryCombobox } from './category-picker';
 import type { PickCategory } from './capture-model';
 
 const clients: QueryClient[] = [];
@@ -199,7 +200,7 @@ it('keeps a focused category picker visible when the root document is scrolled b
   }
 });
 
-it('keeps the valid category while searching and restores its label on blur', async () => {
+it('clears the stored category while searching and retains invalid text on blur', async () => {
   const user = mount([category('cat-a', 'Kategorie A', 'Gruppe A')]);
   const field = screen.getByRole<HTMLInputElement>('combobox', { name: 'Kategorie' });
   await user.click(field);
@@ -208,16 +209,43 @@ it('keeps the valid category while searching and restores its label on blur', as
   await user.clear(field);
   await user.paste('Suchtext ohne Treffer');
   expect(JSON.parse(screen.getByTestId('payload').textContent ?? '')).toMatchObject({
-    ok: true,
-    value: { splits: [{ categoryId: 'cat-a' }] },
+    ok: false,
   });
   await user.tab();
   await user.tab();
-  expect(field.value).toBe('Kategorie A');
-  expect(field.getAttribute('aria-invalid')).toBe('false');
+  expect(field.value).toBe('Suchtext ohne Treffer');
+  expect(field.getAttribute('aria-invalid')).toBe('true');
   await user.click(field);
   await user.clear(field);
   await user.tab();
   expect(field.value).toBe('');
   expect(JSON.parse(screen.getByTestId('payload').textContent ?? '')).toMatchObject({ ok: false });
+});
+
+it('does not commit a category choice while typing in an inline picker', async () => {
+  const onSelect = vi.fn();
+  render(
+    <CategoryCombobox
+      label="Kategorie"
+      capturePicker
+      categories={[category('cat-a', 'Kategorie A', 'Gruppe A')]}
+      selectedName="Kategorie A"
+      onSelect={onSelect}
+    />,
+  );
+  const user = userEvent.setup();
+  const field = screen.getByRole<HTMLInputElement>('combobox', { name: 'Kategorie' });
+  await user.clear(field);
+  await user.type(field, 'Kategorie');
+  expect(field.value).toBe('Kategorie');
+  expect(onSelect).not.toHaveBeenCalled();
+  await user.clear(field);
+  await user.type(field, 'Suchtext ohne Treffer');
+  await user.tab();
+  expect(field.value).toBe('Kategorie A');
+  expect(field.getAttribute('aria-invalid')).toBe('false');
+  expect(onSelect).not.toHaveBeenCalled();
+  await user.click(field);
+  await user.click(screen.getByRole('option', { name: 'Kategorie A' }));
+  expect(onSelect).toHaveBeenCalledExactlyOnceWith('cat-a');
 });

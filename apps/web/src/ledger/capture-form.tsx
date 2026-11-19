@@ -641,16 +641,13 @@ export function CaptureForm({
     const accountVersion = suggestAccount ? ++accountRequest.current : accountRequest.current;
     if (suggestAccount) accountPayee.current = key;
     const applyAccount = (last: string | undefined) => {
-      if (
-        !suggestAccount ||
-        accountVersion !== accountRequest.current ||
-        accountChosen.current ||
-        !open.some((account) => account.id === last)
-      )
+      if (!suggestAccount || accountVersion !== accountRequest.current || accountChosen.current)
         return;
       setAllowDefaultAccount(false);
-      set('accountId', last!);
+      set('accountId', open.some((account) => account.id === last) ? last! : '');
     };
+    // Clear automatic values together while the changed payee's history is unresolved.
+    applyAccount(undefined);
     if (!payee) return;
     const readHistory = async () => {
       const page = await fetchBookings({ payeeId: payee.id, to: today }, undefined, 1);
@@ -815,17 +812,18 @@ export function CaptureForm({
       await linkAttached(result?.bookings[0]?.id);
       remember(accountId, draft.categoryId || null);
       if (!andNew) return onDone();
-      // The next booking keeps the context (kind, account, date, payee and its category).
+      // Carry context, but only choices made in the new form protect defaults from payee history.
       draftScopeRef.current++;
       setDraftScope(draftScopeRef.current);
       setStatusChosen(false);
       setBankIntent(null);
       accountRequest.current++;
-      accountChosen.current = true;
+      accountChosen.current = false;
+      accountPayee.current = draft.payee.trim().toLowerCase();
       appliedPayee.current = draft.payee.trim().toLowerCase();
       setSaveAttempted(false);
       categoryRequest.current++;
-      categoryChosen.current = !draft.splitOn && Boolean(draft.categoryId);
+      categoryChosen.current = false;
       appliedByPayee.current = draft.splitOn ? null : draft.categoryId;
       setKeptPayee(draft.payee);
       setDraft((d) => ({
@@ -1544,6 +1542,7 @@ export function CaptureForm({
                   leading={leading}
                   selectedName={categoryName}
                   error={errors.category}
+                  onSearchChange={() => pickCategory('')}
                   onSelect={pickCategory}
                 />
               )}

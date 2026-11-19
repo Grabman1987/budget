@@ -40,6 +40,7 @@ export function CategoryCombobox({
   overlayAvoid,
   selectedName,
   onSelect,
+  onSearchChange,
   error,
   placeholder = 'Kategorie suchen',
   pickFirst = true,
@@ -56,6 +57,8 @@ export function CategoryCombobox({
   /** Text shown while nothing is being typed. */
   selectedName: string;
   onSelect: (id: string) => void;
+  /** Capture drafts invalidate their stored ID while typing; inline pickers commit on selection. */
+  onSearchChange?: () => void;
   error?: string | undefined;
   placeholder?: string;
   pickFirst?: boolean;
@@ -118,6 +121,7 @@ export function CategoryCombobox({
         {...(showsAvailable ? { hintHeading: 'Verfügbar' } : {})}
         onChange={(text) => {
           setTyping(text);
+          onSearchChange?.();
         }}
         onFocusChange={(focused) => {
           if (focused) return;
@@ -130,10 +134,11 @@ export function CategoryCombobox({
               onSelect(typedOption[0]!.id);
               setTyping(null);
               setInvalid(false);
-            } else if (selectedName) {
+            } else if (selectedName && !onSearchChange) {
+              // Inline pickers commit on selection and retain their existing blur contract.
               setTyping(null);
               setInvalid(false);
-            } else setInvalid(typing.trim() !== '');
+            } else setInvalid(true);
           } else setTyping(null);
         }}
         onSelect={(o) => {
