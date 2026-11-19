@@ -10,7 +10,7 @@ Bildschirm Prüfen: `/konten/pruefen` (Konten › Prüfen). Zähler: „Umsätze
   1. Nutzer öffnet Konten › Prüfen und wählt den Teil „Umsätze“.
   2. Die App zeigt je Bankkandidat Empfänger, Konto · Quelle, Vorschlag, Kategorie (bei Umbuchungen Gegenkonto), Betrag und Aktionen. Detailprüfungen laden beim Fokussieren oder Berühren der Zeile.
   3. Nutzer wählt Empfänger, Regelvorschlag oder Kategorie direkt in der Zeile. Vorschläge stehen zuerst und sind gestrichelt; die ausdrückliche Auswahl macht sie durchgezogen. Eine gültige letzte Einzelkategorie des Empfängers dient als Vorschlag, wenn kein gespeicherter Standard besteht. Kategorien lassen sich getrennt neu anlegen.
-  4. Erst das Hakerl „Übernehmen“ bucht. Doppelklick auf die Zeile, Enter auf der fokussierten Zeile oder der Stift „Prüfen“ öffnen weiterhin „Buchung übernehmen“ für Aufteilung, Anteile, Notiz und Datum. Am Handy bleibt zusätzlich „Auswählen“ im Menü.
+  4. Erst das Hakerl „Übernehmen“ bucht. Doppelklick auf die Zeile, Enter auf der fokussierten Zeile oder der Stift „Prüfen“ öffnen weiterhin „Buchung übernehmen“ für Aufteilung, Notiz, Projekt und Beleg; Bankbetrag und Bankdatum bleiben nur lesbar. Am Handy bleibt zusätzlich „Auswählen“ im Menü.
   4a. Der geöffnete Dialog „Buchung übernehmen“ bleibt offen, auch wenn die Liste im Hintergrund neu geladen wird und die Zeile dabei neu aufgebaut wird (#1215).
   5. Die App legt die Buchung an, löst den Eintrag auf und senkt den Zähler um 1. Ein Hinweis bietet „Rückgängig“ an.
   6. Alternativ klickt der Nutzer das X „Nicht übernehmen“. Dann entsteht keine Buchung. Pfeil auf/ab wechseln die Zeile; Enter öffnet die fokussierte Zelle, Escape verlässt die Zellbearbeitung ohne Änderung.
@@ -95,8 +95,8 @@ Bildschirm Prüfen: `/konten/pruefen` (Konten › Prüfen). Zähler: „Umsätze
 
 ### I-03 – Bankzeile mit „Alle Felder“ in einem Schritt vervollständigen
 - **Story:** Als Nutzer möchte ich beim Übernehmen einer Bankzeile Notiz, Projekt, Aufteilung und Beleg gleich mitgeben, damit ich die Buchung nicht danach ein zweites Mal öffnen muss.
-- **Ausgangslage:** Der Dialog „Buchung übernehmen“ bietet nur Empfänger, Kategorie, Regelvorschlag und Verknüpfung. Der Nutzer braucht aber eine Notiz, ein Projekt, eine Aufteilung oder einen Beleg.
-- **Ablauf:** (Dialog nach Issue #1048; im Code ist der Bereich „Alle Felder“ im Dialog bereits eingebaut)
+- **Ausgangslage:** A complete bank candidate is open in “Buchung übernehmen”; the owner needs a note, project, split or receipt before confirming.
+- **Ablauf:**
   1. Nutzer öffnet in Konten › Prüfen bei einer Bankzeile „Prüfen“ und damit „Buchung übernehmen“.
   2. Er klappt die zugeklappte Einheit „Alle Felder“ auf; sie zeigt Betrag und Datum laut Bank nur lesend.
   3. Er trägt Notiz und Projekt ein, wählt „Aufteilen“ (bei aktiver Regel „Selbst aufteilen“) und hängt einen „Beleg“ an.
@@ -109,8 +109,9 @@ Bildschirm Prüfen: `/konten/pruefen` (Konten › Prüfen). Zähler: „Umsätze
   3. Eine Regel und eine eigene Aufteilung schließen sich aus; „Selbst aufteilen“ verwirft die Regel.
   4. Ein „Rückgängig“ stellt Eintrag und Beleg gemeinsam wieder her.
   5. Am Handy bleibt der aufgeklappte Bereich ohne seitliches Scrollen bedienbar.
+- **Evidence:** `e2e/issue-1048-bank-all-fields.spec.ts` exercises real candidate reads, file/photo uploads, note/project persistence, the rule-to-manual switch, a one-cent remainder blocking confirmation, confirmed read-only bank facts and one grouped Undo restoring candidate and receipts. Keyboard operation and 390 px layout run in both themes; a synthetic USD candidate retains its native unit in facts, split fields and remainder. Server invariants remain covered by `bank-confirm-all-fields-1048.test.ts`.
 - **Status:** offen — **Verweis:** #1048
-  Fehlt noch: Issue offen; zu klären ist, ob die erweiterte Bestätigung auf dem Server (Notiz, Projekt, cent-genaue Aufteilung, Beleg in einem Schritt) und die Abnahme durch den Nutzer fertig sind.
+  Remaining: independent review, exact-head CI and owner acceptance. Physical camera capture is an owner device check; browser evidence uploads a synthetic image through the camera input. #516 matching policy remains outside this story's implementation.
 
 ### I-04 – Dokument zentral hochladen
 - **Story:** Als Nutzer möchte ich jedes Dokument an einer Stelle hochladen und von der App erkennen lassen, was es ist, damit ich nicht erst überlegen muss, welcher Import für Kontoauszug, Gehaltszettel oder Beleg zuständig ist.

@@ -32,6 +32,13 @@ Die Status stammen aus `docs/FEATURES.md`, `docs/STATUS.md`, dem Code und dem Is
 
 Eine Analyse aller Abläufe nach Aufwand für den Nutzer steht in [EFFIZIENZ.md](user-stories/EFFIZIENZ.md).
 
+I-03 (#1048): the bank confirmation's collapsed “Alle Felder” section retains native
+bank currency and read-only facts. Browser coverage uses a complete synthetic
+candidate, note, project, manual cent splits replacing a rule, file/photo uploads
+and one grouped Undo returning both candidate and receipts to Prüfen. Desktop and
+390 px checks cover keyboard operation and both themes; owner acceptance remains
+separate. See [the review story](user-stories/07-pruefen-upload.md#i-03--bankzeile-mit-alle-felder-in-einem-schritt-vervollständigen).
+
 ## Connections register (E-03 and E-04, #859)
 
 In the redesign, open **Einstellungen › Verbindungen** to see all six data sources, with sources needing attention first in severity order. Indented source parts remain visible without expanding setup: bank connections and account mappings, account-specific review counts and fetch commands, crypto movements and full-history checks, document scan counts and upload, quote run counts and instrument links, and the latest available inflation month. Routine commands reuse the existing handlers. A new PDF upload immediately opens its existing result/review dialog; the crypto review link opens its source-specific movement list.
