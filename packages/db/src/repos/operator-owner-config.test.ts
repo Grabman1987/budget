@@ -11,6 +11,7 @@ import {
   rule,
   securityExposureVersion,
   securityAssetExposure,
+  inboxItem,
 } from '../schema';
 import { getBookSettings } from './book-settings';
 import { createBooking, createTransfer, getBooking } from './bookings';
@@ -421,6 +422,38 @@ describe('assetClasses', () => {
 });
 
 describe('securities', () => {
+  it('closes fetch warnings in the operator setting group, preserves dry runs and undoes both (#1259)', () => {
+    db.insert(inboxItem)
+      .values({
+        id: 'fetch',
+        kind: 'stale_value',
+        title: 'Synthetic warning',
+        detail: 'Fehlerklasse: http',
+        refType: 'security',
+        refId: 's1',
+      })
+      .run();
+    const before = db.select().from(inboxItem).all();
+    const input = { securities: [{ isin: 'XX0000000001', pricesEnabled: false }] };
+    run(input, true);
+    expect(db.select().from(inboxItem).all()).toEqual(before);
+    expect(getSecurity(db, 's1')!.pricesEnabled).toBe(true);
+    const result = run(input);
+    expect(db.select().from(inboxItem).all()[0]).toMatchObject({
+      resolution: 'Kursabruf abgeschaltet',
+      resolvedAt: expect.any(String),
+    });
+    expect(
+      db
+        .select()
+        .from(auditLog)
+        .all()
+        .find((a) => a.entityType === 'inbox_item')?.groupId,
+    ).toBe(result[0]!.groupId);
+    undoAuditGroups(db, [result[0]!.groupId], operator);
+    expect(db.select().from(inboxItem).all()).toEqual(before);
+    expect(getSecurity(db, 's1')!.pricesEnabled).toBe(true);
+  });
   const sec = () => getSecurity(db, 's1')!;
 
   it('sets the quote configuration by ISIN or name and is idempotent', () => {

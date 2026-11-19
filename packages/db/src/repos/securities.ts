@@ -25,6 +25,7 @@ import { deleteTracked, insertTracked, updateTracked, withGroup, type AuditConte
 import { entityRepo, updateEntity, type NewRow, type RowPatch } from './entities';
 import { BookingInvariantError, ConflictError, EntityNotFoundError } from './errors';
 import { runInTransaction, type Executor } from './types';
+import { resolveStaleValueItems } from './market';
 
 export type SecurityRecord = typeof security.$inferSelect;
 export type AssetClassRow = typeof assetClass.$inferSelect;
@@ -116,6 +117,8 @@ export function updateSecurity(
     const grouped = withGroup(ctx);
     const { exposureValidFrom, ...metadata } = patch;
     const row = securityRepo.update(tx, id, metadata, grouped);
+    if (patch.pricesEnabled === false)
+      resolveStaleValueItems(tx, 'security', id, 'Kursabruf abgeschaltet', grouped);
     if (patch.assetClassId !== undefined)
       replaceExposureVersion(
         tx,
