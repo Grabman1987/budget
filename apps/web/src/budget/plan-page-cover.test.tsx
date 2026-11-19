@@ -129,15 +129,17 @@ function renderPlan(data = view()) {
     routeTree: root,
     history: createMemoryHistory({ initialEntries: ['/plan/monat?monat=2026-09'] }),
   });
-  return render(
-    <QueryClientProvider
-      client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
-    >
-      <ToastProvider>
-        <RouterProvider router={router} />
-      </ToastProvider>
-    </QueryClientProvider>,
-  );
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return {
+    client,
+    ...render(
+      <QueryClientProvider client={client}>
+        <ToastProvider>
+          <RouterProvider router={router} />
+        </ToastProvider>
+      </QueryClientProvider>,
+    ),
+  };
 }
 
 beforeEach(() => {
@@ -154,6 +156,36 @@ beforeEach(() => {
     removeEventListener: () => {},
   }));
   vi.stubGlobal('requestAnimationFrame', (fn: FrameRequestCallback) => setTimeout(fn, 0));
+});
+
+it('marks retained monthly figures pending until the background refresh finishes', async () => {
+  const data = view();
+  const { client } = renderPlan(data);
+  expect((await screen.findByTestId('to-be-assigned')).textContent).toBe('−30,00 €');
+  let release!: () => void;
+  const held = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const fetchBeforeRefresh = globalThis.fetch;
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async (...args: Parameters<typeof fetch>) => {
+      await held;
+      return fetchBeforeRefresh(...args);
+    }),
+  );
+  const refreshing = client.invalidateQueries({ queryKey: ['budget'] });
+  try {
+    await screen.findByText('Monatswerte werden geladen …');
+    expect(screen.getByTestId('to-be-assigned').closest('[aria-busy="true"]')).not.toBeNull();
+    expect(screen.getByTestId('to-be-assigned').textContent).toBe('−30,00 €');
+    data.summary.toBeAssignedCents = -4000;
+  } finally {
+    release();
+    await refreshing;
+  }
+  await waitFor(() => expect(screen.queryByText('Monatswerte werden geladen …')).toBeNull());
+  expect(screen.getByTestId('to-be-assigned').textContent).toBe('−40,00 €');
 });
 
 it('closes the all-target preview on write success without waiting for refreshed reads', async () => {

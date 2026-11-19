@@ -173,8 +173,12 @@ export function PlanMonthPage() {
     incomeCents !== undefined ? <IncomeButton value={eur(incomeCents)} onOpen={openIncome} /> : '–';
   return (
     <MonthFrame month={month} income={income}>
-      <div className={cx('plan plan-month', REDESIGN_ENABLED && 'plan-month-v2')}>
+      <div
+        className={cx('plan plan-month', REDESIGN_ENABLED && 'plan-month-v2')}
+        aria-busy={budget.isFetching}
+      >
         {budget.isPending && <LoadingNote what="Envelopes" />}
+        {data && budget.isFetching && <LoadingNote what="Monatswerte" />}
         {budget.isError && (
           <ErrorNote what="Envelopes" error={budget.error} onRetry={() => void budget.refetch()} />
         )}

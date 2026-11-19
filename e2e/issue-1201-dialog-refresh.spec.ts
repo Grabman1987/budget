@@ -87,6 +87,13 @@ async function closesBeforeReads(
     expect(acknowledged).toBe(true);
     await expect.poll(() => reads).toBeGreaterThan(0);
     expect(finishedReads).toBe(0);
+    // Retained figures must visibly remain provisional until the held reads finish.
+    const pending = page.locator('.kacct[aria-busy="true"], .plan[aria-busy="true"]');
+    await expect(pending).toBeVisible();
+    await expect(
+      pending.getByRole('status').filter({ hasText: 'werden geladen' }).first(),
+    ).toBeVisible();
+    await page.screenshot({ path: info.outputPath('pending-refresh.png'), fullPage: true });
     await info.attach('synthetic-write-close-timing', {
       contentType: 'application/json',
       body: JSON.stringify({
@@ -158,6 +165,7 @@ for (const mode of ['capture', 'edit', 'transfer'] as const) {
       bookingId ? `/api/bookings/${bookingId}` : '/api/bookings',
       info,
     );
+    await expect(page.getByTestId('account-balance')).toHaveText('98,00 €');
   });
 }
 

@@ -232,6 +232,122 @@ describe('durable booking delivery', () => {
     expect(memory.rows.map((x) => x.rejected)).toEqual([undefined, undefined]);
     expect(memory.rows[0]?.reason).toContain('nicht verfügbar');
   });
+  it('recovers a committed HTTP 500 through its original receipt without a duplicate POST', async () => {
+    post.mockRejectedValueOnce(
+      new ApiError(500, 'server_error', undefined, [], [], 'abc123def456'),
+    );
+    expect(await submitCapture(input, draft)).toBeNull();
+    const original = memory.rows[0]!;
+    expect(original).toMatchObject({ rejected: true, uncertain: true });
+    check.mockResolvedValueOnce({ result });
+    const sent = vi.fn();
+    await sendQueue(sent, () => undefined, true);
+    expect(check).toHaveBeenCalledExactlyOnceWith(original.id, { type: 'create', input });
+    expect(post).toHaveBeenCalledExactlyOnceWith(input, original.id);
+    expect(sent).toHaveBeenCalledExactlyOnceWith(result);
+    expect(memory.rows).toEqual([]);
+  });
+  it('keeps the original key when an HTTP 500 is confirmed undelivered and explicitly retried', async () => {
+    post.mockRejectedValueOnce(new ApiError(500, 'server_error'));
+    await submitCapture(input, draft);
+    const original = memory.rows[0]!;
+    const sent = vi.fn();
+    await sendQueue(sent, () => undefined, true);
+    expect(check).toHaveBeenCalledExactlyOnceWith(original.id, { type: 'create', input });
+    expect(post).toHaveBeenCalledTimes(1);
+    expect(memory.rows[0]).toMatchObject({
+      id: original.id,
+      input: { amountCents: -1250, splits: [{ categoryId: 'c', amountCents: -1250 }] },
+      rejected: true,
+      uncertain: false,
+    });
+    post.mockResolvedValueOnce(result);
+    await sendQueue(sent, () => undefined, true);
+    expect(post.mock.calls).toEqual([
+      [input, original.id],
+      [input, original.id],
+    ]);
+    expect(check).toHaveBeenCalledTimes(1);
+    expect(sent).toHaveBeenCalledExactlyOnceWith(result);
+    expect(memory.rows).toEqual([]);
+  });
+  it('parks validation errors as correctable drafts while later bookings arrive', async () => {
+    online(false);
+    await submitCapture(input, draft);
+    await submitCapture(input, draft);
+    await submitCapture(input, draft);
+    const ids = memory.rows.map((row) => row.id);
+    online(true);
+    post
+      .mockResolvedValueOnce(result)
+      .mockRejectedValueOnce(new ApiError(422, 'invalid_booking', 'Bitte das Datum prüfen.'))
+      .mockResolvedValueOnce(result);
+    const sent = vi.fn();
+    await sendQueue(sent);
+    expect(post.mock.calls.map((call) => call[1])).toEqual(ids);
+    expect(sent).toHaveBeenCalledTimes(2);
+    expect(check).not.toHaveBeenCalled();
+    expect(memory.rows).toHaveLength(1);
+    expect(memory.rows[0]).toMatchObject({
+      id: ids[1],
+      input: { amountCents: -1250, date: '2026-10-02' },
+      draft: { amount: '12,50' },
+      reason: 'Bitte das Datum prüfen.',
+      rejected: true,
+      uncertain: false,
+      sending: false,
+    });
+    memory.rows[0]!.input = { ...input, date: '2026-10-03' };
+    memory.rows[0]!.draft = { ...draft, date: '2026-10-03' };
+    post.mockResolvedValueOnce(result);
+    await sendQueue(sent, () => undefined, true);
+    expect(post.mock.calls[3]).toEqual([{ ...input, date: '2026-10-03' }, ids[1]]);
+    expect(memory.rows).toEqual([]);
+  });
+  it('pauses the whole queue on connection loss and resumes in the original order', async () => {
+    online(false);
+    await submitCapture(input, draft);
+    await submitCapture(input, draft);
+    await submitCapture(input, draft);
+    const ids = memory.rows.map((row) => row.id);
+    online(true);
+    post.mockRejectedValueOnce(new ApiError(0, 'network'));
+    const sent = vi.fn();
+    await sendQueue(sent);
+    expect(post.mock.calls).toEqual([[input, ids[0]]]);
+    expect(sent).not.toHaveBeenCalled();
+    expect(memory.rows.map((row) => row.id)).toEqual(ids);
+    expect(memory.rows[0]).toMatchObject({ uncertain: true, sending: false });
+    expect(memory.rows.every((row) => !row.rejected)).toBe(true);
+    post.mockResolvedValue(result);
+    await sendQueue(sent);
+    expect(check).toHaveBeenCalledExactlyOnceWith(ids[0], { type: 'create', input });
+    expect(post.mock.calls.slice(1).map((call) => call[1])).toEqual(ids);
+    expect(sent).toHaveBeenCalledTimes(3);
+    expect(memory.rows).toEqual([]);
+  });
+  it('checks a persisted in-flight booking after reload before sending later entries', async () => {
+    memory.rows = [
+      { id: 'in-flight', createdAt: 1, input, draft, uncertain: true, sending: true },
+      { id: 'later', createdAt: 2, input, draft, uncertain: false },
+    ];
+    const order: string[] = [];
+    check.mockImplementationOnce(async () => {
+      order.push('receipt:in-flight');
+      return { result };
+    });
+    post.mockImplementationOnce(async (_input, key) => {
+      order.push(`post:${key}`);
+      return result;
+    });
+    const sent = vi.fn();
+    await sendQueue(sent);
+    expect(order).toEqual(['receipt:in-flight', 'post:later']);
+    expect(check).toHaveBeenCalledExactlyOnceWith('in-flight', { type: 'create', input });
+    expect(post).toHaveBeenCalledExactlyOnceWith(input, 'later');
+    expect(sent).toHaveBeenCalledTimes(2);
+    expect(memory.rows).toEqual([]);
+  });
   it('a new capture is sent although a rejected draft sits at the head', async () => {
     memory.rows = [
       { id: 'draft', createdAt: 1, input, draft, uncertain: false, reason: 'x', rejected: true },

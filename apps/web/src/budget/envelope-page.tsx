@@ -71,9 +71,10 @@ export function EnvelopePage() {
   }, [row?.id]);
   return (
     <PageFrame meta={PLAN_MONAT}>
-      <div className="plan plan-detail">
+      <div className="plan plan-detail" aria-busy={budget.isFetching}>
         <PlanDetailBack month={month} />
         {budget.isPending && <LoadingNote what="Envelope" />}
+        {budget.data && budget.isFetching && <LoadingNote what="Envelope-Werte" />}
         {budget.isError && (
           <ErrorNote what="Envelope" error={budget.error} onRetry={() => void budget.refetch()} />
         )}

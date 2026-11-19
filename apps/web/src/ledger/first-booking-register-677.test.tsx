@@ -25,6 +25,7 @@ vi.mock('./booking-table', () => ({
         {items.map((item) => (
           <tr key={item.id}>
             <td>{item.payeeName}</td>
+            <td>{item.balanceAfterCents}</td>
           </tr>
         ))}
       </tbody>
@@ -66,6 +67,51 @@ const empty: BookingPage = { items: [], total: 0, sumCents: 0, nextCursor: null 
 afterEach(() => {
   vi.unstubAllGlobals();
   toast.show.mockClear();
+});
+
+it('marks retained booking rows pending until their independent refresh finishes', async () => {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  let release!: (response: Response) => void;
+  const pending = new Promise<Response>((resolve) => {
+    release = resolve;
+  });
+  const fresh = { ...booking, amountCents: -3_000, balanceAfterCents: 47_000 };
+  const page = (row: ListedBooking): BookingPage => ({
+    items: [row],
+    total: 1,
+    sumCents: row.amountCents,
+    nextCursor: null,
+  });
+  vi.stubGlobal(
+    'fetch',
+    vi
+      .fn()
+      .mockResolvedValueOnce(Response.json(page(booking)))
+      .mockReturnValueOnce(pending),
+  );
+  const register = render(
+    <QueryClientProvider client={client}>
+      <AccountRegister account={{ id: booking.accountId } as AccountRow} />
+    </QueryClientProvider>,
+  );
+  try {
+    expect(await screen.findByText('48000')).toBeTruthy();
+    act(() => {
+      void client.invalidateQueries({ queryKey: ['ledger', 'bookings'] });
+    });
+    await screen.findByText('Buchungen werden geladen …');
+    expect(screen.getByText('48000').closest('[aria-busy="true"]')).not.toBeNull();
+    expect(screen.queryByText('47000')).toBeNull();
+    await act(async () => release(Response.json(page(fresh))));
+    await waitFor(() => expect(screen.queryByText('Buchungen werden geladen …')).toBeNull());
+    expect(screen.getByText('47000')).toBeTruthy();
+    expect(screen.queryByText('48000')).toBeNull();
+    expect(screen.getByRole('table').closest('[aria-busy="true"]')).toBeNull();
+  } finally {
+    release(Response.json(page(fresh)));
+    register.unmount();
+    client.clear();
+  }
 });
 
 it('replaces a pending pre-save empty register read after the first booking, without reload', async () => {

@@ -143,9 +143,11 @@ export function useUpcomingRegister(
   const error = future.error ?? filtered.error ?? schedules.error ?? accounts.error;
   const pending =
     future.isPending || filtered.isPending || schedules.isPending || accounts.isPending;
+  const refreshing =
+    future.isFetching || filtered.isFetching || schedules.isFetching || accounts.isFetching;
   const notes = (
     <>
-      {pending && <LoadingNote what="Kommende Buchungen" />}
+      {(pending || refreshing) && <LoadingNote what="Kommende Buchungen" />}
       {error && (
         <ErrorNote
           what="Kommende Buchungen"

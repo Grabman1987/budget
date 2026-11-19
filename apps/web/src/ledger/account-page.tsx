@@ -102,6 +102,7 @@ export function AccountPage({ id }: { id: string }) {
       <section
         className={cx('kacct', REDESIGN_ENABLED && 'account-detail-redesign')}
         data-redesign={REDESIGN_ENABLED ? 'account-detail' : undefined}
+        aria-busy={accounts.isFetching}
       >
         <Link className="kback" to="/konten">
           <ChevronLeft className="icon icon-sm" size={16} strokeWidth={1.75} aria-hidden="true" />
@@ -112,6 +113,7 @@ export function AccountPage({ id }: { id: string }) {
           <AccountStatementIntake key={account.id} accountId={account.id} />
         )}
         {accounts.isPending && <LoadingNote what="Konto" />}
+        {account && accounts.isFetching && <LoadingNote what="Kontostände" />}
         {accounts.isError && (
           <ErrorNote what="Konto" error={accounts.error} onRetry={() => void accounts.refetch()} />
         )}
