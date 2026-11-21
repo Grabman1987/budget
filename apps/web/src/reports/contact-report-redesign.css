@@ -194,6 +194,9 @@
 }
 [data-budget-redesign='1'] .r4-contact-settled {
   display: grid;
+  /* An implicit auto column grows with the booking table and widens the page on iOS WebKit. */
+  grid-template-columns: minmax(0, 1fr);
+  min-width: 0;
   gap: 12px;
 }
 [data-budget-redesign='1'] .r4-contact-settled > summary {
