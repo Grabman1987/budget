@@ -467,7 +467,10 @@ export function readAssignmentCandidate(db: Executor, id: string) {
           cleanup,
           existingTransfer,
           recurringTransferAccountId,
-          suggestions.map(({ id, revision, unavailable }) => [id, revision, unavailable]),
+          // Non-transfer previews track the selected category rule's revision separately.
+          suggestions
+            .filter(({ actions }) => recurringTransferAccountId || actions.transferAccountId)
+            .map(({ id, revision, unavailable }) => [id, revision, unavailable]),
         ]),
       )
       .digest('hex'),

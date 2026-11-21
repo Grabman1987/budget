@@ -948,6 +948,29 @@ describe('assignment API and owner confirmation', () => {
     expect(result.status).toBe(200);
     expect(getBooking(opened.db, result.body.bookingId)?.splits[0]?.categoryId).toBe('reise');
   });
+  it('revises a bank candidate when transfer choices change while retaining category-only revisions', async () => {
+    const id = candidate();
+    const rule = { ...input, automatic: true };
+    const first = await call('POST', '/assignment-rules', rule);
+    const before = readAssignmentCandidate(opened.db, id);
+    expect(before.suggestions.map(({ id }) => id)).toEqual([first.body.id]);
+
+    await call('POST', '/assignment-rules', { ...rule, name: 'Synthetic second category' });
+    const categoryReview = readAssignmentCandidate(opened.db, id);
+    expect(categoryReview.suggestions).toHaveLength(2);
+    expect(categoryReview.candidateRevision).toBe(before.candidateRevision);
+
+    const transfer = await call('POST', '/assignment-rules', {
+      ...rule,
+      name: 'Synthetic transfer rule',
+      actions: { transferAccountId: 'spar' },
+    });
+    const withTransfer = readAssignmentCandidate(opened.db, id);
+    expect(withTransfer.suggestions).toContainEqual(
+      expect.objectContaining({ id: transfer.body.id, actions: { transferAccountId: 'spar' } }),
+    );
+    expect(withTransfer.candidateRevision).not.toBe(categoryReview.candidateRevision);
+  });
   it('confirms both staged transfer legs once, restores them after undo and attaches later bank evidence', async () => {
     const transfer = await call('POST', '/assignment-rules', {
       ...input,
