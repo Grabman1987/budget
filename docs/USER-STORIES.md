@@ -271,3 +271,6 @@ In Reports › Portfolio › Kosten und Steuern › Kosten gesamt, select a cale
 
 The Investments section displays the same annualised XIRR as the securities performance report for the included months. If the dated cash flows do not yield a rate, the report explains why the figure is unavailable. The existing amount privacy toggle hides the rate.
 The trading section shows realised gains and signed losses from the shared sale results, including fees and taxes. A position counts as closed when its account position returns to zero through a sale. The hit rate is the share of those closed positions that produced a positive result, including earlier partial sales. Results compare the same calendar months of the previous year. Figures without a documented basis are marked unavailable.
+## Heute: direct guided distribution (#1055)
+
+When „Zu verteilen“ is positive or over-assigned, „Verteilen“ under „Als Nächstes“ opens the same guided flow as Plan for the selected month. At zero the action is absent. The link opens the flow without writing an assignment.
