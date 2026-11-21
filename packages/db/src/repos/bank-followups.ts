@@ -7,9 +7,10 @@ import {
   todayInVienna,
   type MatchBooking,
 } from '@budget/domain';
-import { and, desc, eq, isNull, lte, gte, notLike, or } from 'drizzle-orm';
+import { and, desc, eq, inArray, isNull, lte, gte, notLike, or, sql } from 'drizzle-orm';
 import {
   account,
+  auditLog,
   bankSyncAccount,
   bankSyncCandidate,
   booking,
@@ -59,7 +60,13 @@ function mergeable(db: Executor, id: string) {
   if (!row) throw new EntityNotFoundError('booking', id);
   openAccount(db, row.accountId);
   if (row.status === 'reconciled') throw new ReconciledLockedError([id]);
-  if (row.source !== 'manual' || row.importKey || row.originalCurrency)
+  if (
+    row.source !== 'manual' ||
+    row.importKey ||
+    row.bankSourceId ||
+    row.bankRawText !== null ||
+    row.originalCurrency
+  )
     throw new ConflictError('Diese Buchung ist bereits mit einer Quelle verbunden.');
   assertContactBookingWrite(db, id, 'update', ['date', 'source', 'importKey']);
   assertTradeSettlementBookingWrite(db, id, 'update', ['date', 'source', 'importKey']);
@@ -94,6 +101,7 @@ export function unlinkedBankTargets(db: Executor, accountId: string, from: strin
         isNull(booking.deletedAt),
         eq(booking.accountId, accountId),
         isNull(booking.bankSourceId),
+        isNull(booking.bankRawText),
         or(isNull(booking.importKey), notLike(booking.importKey, BANK_KEY_PREFIX + '%')),
         gte(booking.date, from),
         lte(booking.date, to),
@@ -203,18 +211,49 @@ export function candidateMatches(db: Executor, id: string) {
     .map((b) => ({ ...b, accountName: openAccount(db, b.accountId).name }));
   const merge = mergeTargets(db, row);
   const taken = new Set(merge.map((b) => b.id));
+  /** Bookings that cannot take over the bank date (migrated, locked) can still be linked. */
+  const link = bankMatches(
+    row,
+    unlinkedBankTargets(db, row.accountId, addDays(row.date, -5), addDays(row.date, 5))
+      .filter(
+        (b) => !taken.has(b.id) && b.currency === row.currency && b.amountCents === row.amountCents,
+      )
+      .map((b) => ({ ...b, accountName: openAccount(db, b.accountId).name })),
+  );
+  const matching = [...merge, ...link];
+  const confirmed = new Map<string, string>();
+  if (matching.length > 1) {
+    const eligibleIds = matching
+      .filter((b) => b.status === 'confirmed' || b.status === 'reconciled')
+      .map(({ id }) => id);
+    for (const entry of db
+      .select({ id: auditLog.entityId, ts: auditLog.ts })
+      .from(auditLog)
+      .where(
+        and(
+          eq(auditLog.entityType, 'booking'),
+          inArray(auditLog.entityId, eligibleIds),
+          sql`json_extract(${auditLog.afterJson}, '$.status') in ('confirmed', 'reconciled')`,
+          sql`coalesce(json_extract(${auditLog.beforeJson}, '$.status'), '') not in ('confirmed', 'reconciled')`,
+        ),
+      )
+      .orderBy(desc(auditLog.ts))
+      .all()) {
+      if (!confirmed.has(entry.id)) confirmed.set(entry.id, entry.ts);
+    }
+    const gap = (date: string) => Math.abs(Date.parse(date) - Date.parse(row.date));
+    matching.sort(
+      (a, b) =>
+        (confirmed.get(b.id) ?? '').localeCompare(confirmed.get(a.id) ?? '') ||
+        gap(a.date) - gap(b.date) ||
+        a.id.localeCompare(b.id),
+    );
+  }
   return {
     merge,
-    /** Bookings that cannot take over the bank date (migrated, locked) but can be tied to the line. */
-    link: bankMatches(
-      row,
-      unlinkedBankTargets(db, row.accountId, addDays(row.date, -5), addDays(row.date, 5))
-        .filter(
-          (b) =>
-            !taken.has(b.id) && b.currency === row.currency && b.amountCents === row.amountCents,
-        )
-        .map((b) => ({ ...b, accountName: openAccount(db, b.accountId).name })),
-    ),
+    link,
+    preferredBookingId: matching[0]?.id ?? null,
+    alternativeCount: Math.max(0, matching.length - 1),
     transfers: bankMatches(row, rows, true),
   };
 }
@@ -226,12 +265,18 @@ function adoptBankReference(
   date: string,
   importKey: string,
   grouped: AuditContext,
+  bankFacts?: { memo: string; rawPayee: string | null; sourceId: string | null },
 ) {
   const patch = {
     date,
     source: 'bank' as const,
     ...(bankKeyTaken(tx, target.accountId, importKey) ? {} : { importKey }),
     status: 'confirmed' as const,
+    ...(bankFacts && {
+      bankRawText: bankFacts.memo,
+      bankRawPayee: bankFacts.rawPayee,
+      bankSourceId: bankFacts.sourceId,
+    }),
   };
   if (target.transferId || target.splits.some((s) => s.transferId)) {
     updateTracked(tx, booking, [target.id], patch, grouped);
@@ -255,6 +300,7 @@ function linkCandidate(
   openAccount(tx, target.accountId);
   if (
     target.bankSourceId ||
+    target.bankRawText !== null ||
     target.importKey?.startsWith(BANK_KEY_PREFIX) ||
     !bankMatches(row, [target]).length
   )
@@ -292,7 +338,7 @@ export function mergeBankCandidate(
     if (target.source !== 'manual' || target.importKey || !bankMatches(row, [target]).length)
       throw new ConflictError('Die Buchung passt nicht mehr zu diesem Bankumsatz.');
     const grouped = withGroup(ctx);
-    adoptBankReference(tx, target, row.date, 'bank-sync:' + row.dedupeKey, grouped);
+    adoptBankReference(tx, target, row.date, 'bank-sync:' + row.dedupeKey, grouped, row);
     updateTracked(
       tx,
       inboxItem,

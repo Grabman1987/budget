@@ -182,7 +182,7 @@ it('keeps ambiguous matches, foreign currency, closed accounts and already dismi
   expect(result.groupId).not.toBe('');
   expect(item(ambiguous).resolvedAt).toBeNull();
   expect(item(foreign).resolvedAt).toBeNull();
-  expect(item(ambiguous).detail).toContain('Mehrere passende');
+  expect(item(ambiguous).detail).toContain('Mehrdeutige Zuordnung');
   undoAuditGroups(opened.db, [result.groupId], { actor: 'operator' });
   expect(item(ambiguous).detail).toBeNull();
   opened.db

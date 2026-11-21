@@ -277,3 +277,6 @@ When „Zu verteilen“ is positive or over-assigned, „Verteilen“ under „A
 ## Prüfen: recurring bank transfers (#1266)
 
 A matching transfer rule or two consecutive confirmed bank occurrences to the same own account prefill the destination. The row displays a single transfer choice. The owner confirms it explicitly, and the existing transfer path uses an eligible counterpart and records the action as one Undo group.
+## Prüfen: ambiguous bank matches (#516)
+
+A bank line only links automatically if it has one eligible booking and is that booking’s only bank-line claim. All other matches stay open for manual review. The default suggestion uses the latest known confirmation, then closest booking date and stable identity. The owner sees the number of alternatives and confirms or changes the selection.

@@ -384,7 +384,16 @@ it.each(['cell', 'form'])(
       ...item,
       bankCandidate: {
         ...item.bankCandidate!,
-        preparation: { assignment, matches: { merge: [], link: [], transfers: [] } },
+        preparation: {
+          assignment,
+          matches: {
+            merge: [],
+            link: [],
+            transfers: [],
+            preferredBookingId: null,
+            alternativeCount: 0,
+          },
+        },
       },
     });
     await waitFor(() =>
@@ -424,7 +433,16 @@ it('does not fetch payee history for mounted prepared rows with no rule or defau
     ...item,
     bankCandidate: {
       ...item.bankCandidate!,
-      preparation: { assignment, matches: { merge: [], link: [], transfers: [] } },
+      preparation: {
+        assignment,
+        matches: {
+          merge: [],
+          link: [],
+          transfers: [],
+          preferredBookingId: null,
+          alternativeCount: 0,
+        },
+      },
     },
   });
   await screen.findByText('Kategorie fehlt.');
@@ -440,7 +458,16 @@ it('retains a recipient chosen while fresh editor queries are still loading', as
     ...item,
     bankCandidate: {
       ...item.bankCandidate!,
-      preparation: { assignment, matches: { merge: [], link: [], transfers: [] } },
+      preparation: {
+        assignment,
+        matches: {
+          merge: [],
+          link: [],
+          transfers: [],
+          preferredBookingId: null,
+          alternativeCount: 0,
+        },
+      },
     },
   });
   await screen.findByRole('button', { name: 'Empfänger bearbeiten: Synthetic recipient' });

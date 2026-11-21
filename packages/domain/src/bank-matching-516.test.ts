@@ -64,11 +64,14 @@ describe('literal matching audit #516', () => {
     });
   });
 
-  it('retains input-order tie breaking when two singleton claims meet one booking', () => {
-    expect(match([line('first', '2026-10-26'), line('second', '2026-10-28')])).toEqual({
-      first: { kind: 'linked', bookingId: 'target' },
-      second: { kind: 'none' },
-    });
+  it('keeps both singleton claims ambiguous, regardless of input order', () => {
+    const lines = [line('first', '2026-10-26'), line('second', '2026-10-28')];
+    const expected = {
+      first: { kind: 'ambiguous', bookingIds: ['target'] },
+      second: { kind: 'ambiguous', bookingIds: ['target'] },
+    };
+    expect(match(lines)).toEqual(expected);
+    expect(match(lines.reverse())).toEqual(expected);
   });
 
   it('does not pair equal-sized groups when the target booking dates differ', () => {
