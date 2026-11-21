@@ -108,15 +108,15 @@ keyboard/touch inspection, privacy and both themes at 1440/390. Read-only inspec
 captured slips and annual totals unchanged. Full development views remain under RP-03;
 owner live acceptance is pending.
 
-### RP-03 – Echte Gehaltsentwicklung (geplant)
+### RP-03 – Echte Gehaltsentwicklung
 - **Story:** Als Nutzer möchte ich Grundgehalt, Sonderzahlungen und Bonus getrennt und real gegen Inflation sehen, damit ich erkenne, ob ich wirklich mehr verdiene oder nur die Preise gestiegen sind.
 - **Ausgangslage:** Mehrere Gehaltszettel liegen vor; jede Lohnart ist einer von fünf Komponenten zugeordnet.
-- **Ablauf:** (geplant, nach Ticket)
+- **Ablauf:**
   1. Reports › Gehaltsreport: Lohnarten einmal den fünf Komponenten zuordnen (Grundgehalt, Sonderzahlungen, variable Bezüge, Sachbezüge, Erstattungen); nicht zugeordnete Lohnarten sind aufgelistet und sperren den betroffenen Monat für Vergleiche.
   2. Leitwert „Grundgehalt brutto pro Monat“ als Stufenlinie mit jeder Erhöhung (Datum, Betrag, Prozent).
   3. Jahresvergleich und Monatsvergleich je Komponente; Monate mit Sonderzahlung oder Bonus sind markiert; Bonus je Jahr mit Anteil am Grundgehalt.
   4. „Real gegen nominal“: Index gegen VPI und persönliche Inflation, kumuliert in Prozent und Euro.
-  5. Technischer Zwischenstand für die spätere Ansicht: Die angemeldete Sitzung kann die nominale Entwicklung bis zu einem gewählten Monat über `GET /api/payslips/development?throughMonth=YYYY-MM` lesen; ohne Auswahl gilt der aktuelle Monat. In Reports › Gehaltsreport zeigen die Karten „Grundgehalt · Erhöhungen“ und „Gehaltsentwicklung je Jahr“ (Summe inklusive Sonderzahlungen und Bonus) diese Daten.
+  5. In Reports › Gehaltsreport › Gehaltsentwicklung stehen der letzte belegte Grundgehaltsbetrag mit Monat, Stufen, Jahreswerte, der Vergleich gleicher Kalendermonate, Bonus mit separat zuordenbarer SV und Lohnsteuer sowie Datenlücken und nicht zugeordnete Lohnarten. Preisvergleiche zeigen je Reihe ihren gemeinsamen Ausgangsmonat mit Basis 100, Indexwerte je Monat sowie Preisabstand in Euro und reale Änderung je Jahr. Ohne Monatswahl gilt der aktuelle Monat.
 - **Ergebnis:** Ich sehe den echten Zuwachs und Kaufkraftverlust.
 - **Abnahmekriterien:**
   - Sachbezüge und Spesen verzerren die Entwicklung nicht; sie stehen getrennt.
@@ -124,8 +124,8 @@ owner live acceptance is pending.
   - Der Inflationsvergleich nutzt VPI und den vorhandenen Warenkorb (Persönliche Inflation).
   - Randfall: Eine Lohnart ohne Zuordnung blockiert nur ihren Monat und wird genannt.
   - Der nominale Datenpfad verwendet gespeicherte Lohnzeilen und Komponenten-Zuordnungen sowie die gemeinsame Rechenlogik. Spätere und gelöschte Gehaltszettel sind ausgeschlossen; Lesen verändert weder Daten noch Buchungen.
-- **Status:** teilweise implementiert für Review (Lohnzeilen/Komponentenmodell aus #1082; nominaler Lese-Endpunkt in dieser Fortsetzung), Erhöhungen und Jahresvergleich in der Oberfläche, Monatsvergleich, Bonus und Real-gegen-nominal offen · **Verweis:** #1066
-  Fehlt noch: Zuordnungsoberfläche und Schreib-Endpunkte, Ansichten, Vorschau/Bestätigung des expliziten PDF-Neulesens, Anbindung des vorhandenen VPI und der persönlichen Inflation, Ereignismarker und gedruckte Arbeitgeberbeiträge.
+- **Status:** Nominale und reale Entwicklung zur Durchsicht implementiert · **Verweis:** #1066
+  Offen: Zuordnungsoberfläche und Designabnahme, Vorschau/Bestätigung des expliziten PDF-Neulesens, Ereignismarker und gedruckte Arbeitgeberbeiträge.
 
 ### RP-02a – Netto der letzten 24 Monate mit Sonderzahlungen
 - **Story:** Als Nutzer möchte ich je Monat das laufende Netto und die Sonderzahlungen getrennt, aber mit korrekter Monatssumme sehen, damit ein Bonusmonat das laufende Gehalt nicht scheinbar einbrechen lässt.
