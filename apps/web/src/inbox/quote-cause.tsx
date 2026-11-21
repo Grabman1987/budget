@@ -1,4 +1,4 @@
-import { Button, Field, TextInput, useAmountPrivacy, useToast } from '@budget/ui';
+import { Button, Field, TextInput, maskMoneyText, useAmountPrivacy, useToast } from '@budget/ui';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { request } from '../api/http';
@@ -12,7 +12,6 @@ import {
   ARIVA_LINK_ERROR,
   validArivaLink,
   quoteFailureText,
-  latestQuoteFailure,
 } from '../wealth/quote-source';
 import { quoteText } from '../wealth/portfolio-format';
 
@@ -64,14 +63,20 @@ export interface QuotePreview {
 }
 
 const ERRORS: Record<string, string> = {
+  network: 'Die Verbindung zur Quelle ist fehlgeschlagen.',
   timeout: 'Die Quelle hat nicht rechtzeitig geantwortet.',
+  rate_limited: 'Die Quelle begrenzt die Anzahl der Abrufe. Später erneut versuchen.',
+  not_found: 'Die Quelle hat das Instrument nicht gefunden.',
   parse: 'Die Antwort konnte nicht gelesen werden.',
 };
+
+const diagnosticFailureText = (error: string, currency?: string, sourceCurrency?: string) =>
+  ERRORS[error] ?? quoteFailureText(error, currency, sourceCurrency);
 
 const attemptText = (a: QuoteAttempt, currency: string): string =>
   a.outcome === 'ok'
     ? `erfolgreich${a.detail ? ` (${a.detail})` : ''}`
-    : `${ERRORS[a.outcome] ?? quoteFailureText(a.outcome, currency)}${a.httpStatus !== null ? ` (HTTP ${a.httpStatus})` : ''}`;
+    : `${diagnosticFailureText(a.outcome, currency)}${a.httpStatus !== null ? ` (HTTP ${a.httpStatus})` : ''}`;
 const attemptTime = (a: QuoteAttempt): string =>
   `${new Date(a.attemptedAt).toLocaleString('de-AT')} · ${a.source}`;
 
@@ -151,15 +156,18 @@ export function QuoteCause({
       <ErrorNote what="Kursursache" error={query.error} onRetry={() => void query.refetch()} />
     );
   const data = query.data;
-  const latestFailure = latestQuoteFailure(data.attempts);
   return (
     <section className="quote-cause" aria-label="Kursursache">
-      <p>
-        Warnung vom {longDay(createdAt.slice(0, 10))}:{' '}
-        {detail?.startsWith('Fehlerklasse: ')
-          ? quoteFailureText(detail.slice('Fehlerklasse: '.length), data.currency)
-          : (detail ?? 'Fehlerklasse nicht gespeichert.')}
-      </p>
+      <section aria-label="Gespeicherte Warnung">
+        <h3>Warnung vom {longDay(createdAt.slice(0, 10))}</h3>
+        <p>
+          {detail?.startsWith('Fehlerklasse: ')
+            ? diagnosticFailureText(detail.slice('Fehlerklasse: '.length))
+            : maskMoneyText(detail ?? 'Fehlerklasse nicht gespeichert.')}
+        </p>
+        <p>Der damalige Quellwert und die antwortende Quelle wurden nicht gespeichert.</p>
+      </section>
+      <h3>Aktuelle Zuordnung · Stand {longDay(data.asOf)}</h3>
       {!data.hasQuoteUrl && !data.coingeckoId && (
         <div>
           <p>Kein Kurs-Link hinterlegt</p>
@@ -189,9 +197,6 @@ export function QuoteCause({
           )}
         </div>
       )}
-      {latestFailure && <p>{quoteFailureText(latestFailure, data.currency)}</p>}
-      <p>Der damalige Quellwert und die antwortende Quelle wurden nicht gespeichert.</p>
-      <h3>Aktuelle Zuordnung · Stand {longDay(data.asOf)}</h3>
       <dl>
         <dt>Instrument-ID</dt>
         <dd>
@@ -278,8 +283,8 @@ export function QuoteCause({
         </details>
       )}
       <p>
-        Ein manueller Kurs repariert die automatische Quelle nicht. Die Warnung schließt erst nach
-        einem erfolgreichen automatischen Kursabruf.
+        Ein manueller Kurs repariert die automatische Quelle nicht. Die Warnung schließt nach einem
+        erfolgreichen automatischen Kursabruf oder wenn du den Abruf bewusst abschaltest.
       </p>
       <AppLink
         className="btn btn-ghost btn-sm"
@@ -313,7 +318,7 @@ export function QuoteCause({
                   : attempt.error === 'currency_mismatch' &&
                       attempt.currencyEvidence?.origin === 'mapping'
                     ? 'Die Quellzuordnung verwendet eine andere Kurswährung.'
-                    : quoteFailureText(
+                    : diagnosticFailureText(
                         attempt.error ?? 'unbekannt',
                         preview.data.currency,
                         attempt.currencyEvidence?.origin === 'response'

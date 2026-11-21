@@ -50,6 +50,15 @@ test('Konten Prüfen opens a quote cause and tests sources without dismissing th
         asOf: '2026-09-17',
         latest: { date: '2026-09-16', priceMicro: 1234567, source: 'manual', currency: 'USD' },
         movements: [{ id: 'synthetic-movement', date: '2026-09-10', kind: 'buy' }],
+        attempts: [
+          {
+            source: 'coingecko',
+            attemptedAt: '2026-09-16T12:00:00Z',
+            outcome: 'timeout',
+            httpStatus: null,
+            detail: null,
+          },
+        ],
       },
     }),
   );
@@ -78,6 +87,14 @@ test('Konten Prüfen opens a quote cause and tests sources without dismissing th
   await page.getByRole('link', { name: 'Warnung erklären' }).click();
   await expect(page).toHaveURL(/\/konten\/pruefen\/synthetic-quote-warning/);
   const cause = page.getByRole('region', { name: 'Kursursache' });
+  const warning = cause.getByRole('region', { name: 'Gespeicherte Warnung' });
+  await expect(warning).toContainText('Die Quelle liefert eine andere Kurswährung');
+  await expect(warning).toContainText(
+    'Der damalige Quellwert und die antwortende Quelle wurden nicht gespeichert.',
+  );
+  await expect(warning).not.toContainText('coingecko');
+  await expect(cause).toContainText('Letzter Abrufversuch');
+  await expect(cause).toContainText('coingecko · Die Quelle hat nicht rechtzeitig geantwortet.');
   await expect(cause).toContainText('Erwartet');
   await expect(cause).toContainText('Automatischer Kurs in EUR');
   await expect(cause).toContainText('1,234567');

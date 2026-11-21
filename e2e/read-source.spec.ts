@@ -81,6 +81,7 @@ test('source status, read-only capture, explicit mapping and responsive themes',
       refreshed = refreshes >= 2;
       await route.fulfill({ json: { status: refreshed ? 'ok' : 'partial' } });
     } else if (request.url().endsWith('/reconcile')) {
+      expect(saved).toBe(true);
       reconciled = true;
       await route.fulfill({
         json: {
@@ -136,16 +137,16 @@ test('source status, read-only capture, explicit mapping and responsive themes',
   await expect(summary.getByText('Fehlt in der App', { exact: true })).toBeVisible();
   await expect(summary.getByText('Ohne Zuordnung', { exact: true })).toBeVisible();
   await expect(summary.getByText('Informativ', { exact: true })).toBeVisible();
+  await page.getByLabel('Verrechnungskonto', { exact: true }).selectOption('cash');
+  await crypto.getByRole('button', { name: 'Zuordnung speichern' }).click();
+  await expect(page.getByText('Zuordnung gespeichert.', { exact: false })).toBeVisible();
+  expect(saved).toBe(true);
   await summary.getByRole('button', { name: 'Abgleich neu ausführen' }).click();
   await expect(
     summary.getByText('2 Einträge in der Datenquelle aktualisiert.', { exact: false }),
   ).toBeVisible();
   expect(reconciled).toBe(true);
   await expect(summary.getByRole('button', { name: 'Rückgängig' })).toBeVisible();
-  await page.getByLabel('Verrechnungskonto', { exact: true }).selectOption('cash');
-  await crypto.getByRole('button', { name: 'Zuordnung speichern' }).click();
-  await expect(page.getByText('Zuordnung gespeichert.', { exact: false })).toBeVisible();
-  expect(saved).toBe(true);
   await crypto.getByRole('button', { name: 'Jetzt abrufen' }).click();
   await expect(page.getByText('Abruf abgeschlossen', { exact: true })).toBeVisible();
   expect(refreshed).toBe(true);
@@ -278,8 +279,8 @@ test('source operations remain readable in data sources without posting', async 
     .getByRole('button', { name: /Quellbewegung: Umbuchung abgleichen.*Einzelpunkte anzeigen/ })
     .click();
   await expect(page.getByText('Zugang: 12,34', { exact: false })).toBeVisible();
-  await page.getByText('Rohdaten und Zuordnung anzeigen').click();
-  await expect(page.locator('.source-inbox-detail pre')).toContainText('operation-synthetic');
+  await expect(page.getByText(/Vorgang: operation-synthetic/)).toBeVisible();
+  await expect(page.locator('.source-inbox-detail pre')).toHaveCount(0);
   await expect(page.getByRole('link', { name: 'Datenquelle prüfen' })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
@@ -358,7 +359,7 @@ test('invalid movements and categorized failures are readable without raw payloa
   await page
     .getByRole('button', { name: /Quellbewegung: Datenformat prüfen.*Einzelpunkte anzeigen/ })
     .click();
-  await page.getByText('Rohdaten und Zuordnung anzeigen').first().click();
-  await expect(page.locator('.source-inbox-detail pre').first()).toContainText('invalid-op');
+  await expect(page.getByText('Quellreferenz: invalid-op')).toBeVisible();
+  await expect(page.locator('.source-inbox-detail pre')).toHaveCount(0);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });

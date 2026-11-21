@@ -52,12 +52,18 @@ source and app units, open net effect, source fetch date and app comparison day.
 Related operations expose source movement/trade references and gross, fee and net
 units through the existing shared calculation. Missing funding names the unmatched
 cash leg and any known ledger counterparts; absent historic diagnostics remain
-explicitly unavailable. Amount privacy also hides the trace amounts and raw JSON.
+explicitly unavailable. Amount privacy hides the comparison and trace amounts.
 Correct the mapping/source evidence through the existing data-source controls and
 run **Abgleich neu ausführen**; an unsuccessful retry retains the warning and a
 successful balance check resolves it. Manual acknowledgement is not source repair.
 This slice creates no bookings, valuations, cost basis or tax values. Owner-approved
 local-copy analysis and money acceptance for #1205 remain pending.
+
+Unreadable movements identify the source reference and failing schema field when available.
+The quote warning separates its stored reason and unavailable historic evidence
+from the current mapping, recorded attempts and read-only preview. A preview or
+manual price leaves the warning open. A successful automatic quote check or an
+explicit source policy that disables the fetch closes it.
 
 ## Disabled quote warnings (#1259)
 

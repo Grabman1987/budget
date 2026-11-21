@@ -28,6 +28,7 @@ it('explains a fiat balance difference with exact snapshot values and the next a
   expect(screen.getByText(/App beim Abgleich: 12,34/)).toBeTruthy();
   expect(screen.getByText(/Differenz .*\+0,01/)).toBeTruthy();
   expect(screen.getByText(/Keine Währung beim Abgleich angegeben/)).toBeTruthy();
+  expect(screen.getByText('Quellreferenz: currency:eur · App-Konto: cash-private-id')).toBeTruthy();
   expect(container.textContent).toContain(
     'Gleiche neue Bewegungen mit dem Hauptbuch ab und führe danach den Abgleich erneut aus.',
   );
@@ -70,7 +71,7 @@ it('shows missing or invalid snapshot values explicitly', () => {
   expect(screen.getByText(/Differenz.*Nicht berechenbar/)).toBeTruthy();
 });
 
-it('hides amounts and raw JSON while amount privacy is enabled', () => {
+it('hides snapshot amounts while amount privacy is enabled', () => {
   setAmountsHidden(true);
   const { container } = render(
     <ReadSourceDetail
@@ -91,6 +92,25 @@ it('hides amounts and raw JSON while amount privacy is enabled', () => {
   expect(container.textContent).not.toContain('12,35');
   expect(container.textContent).not.toContain('private-account-id');
   expect(container.textContent).not.toContain('currency:private-key');
+});
+
+it('shows the known source reference without exposing the stored object or its unknown fields', () => {
+  const { container } = render(
+    <ReadSourceDetail
+      detail={JSON.stringify({
+        id: 'synthetic-operation',
+        reason: 'schema',
+        field: 'transactions.#.amount',
+        unknownField: 'synthetic-raw-field',
+      })}
+    />,
+  );
+
+  expect(screen.getByText('Quellreferenz: synthetic-operation')).toBeTruthy();
+  expect(screen.getByText('Betroffenes Quellfeld: transactions.#.amount')).toBeTruthy();
+  expect(screen.getByText(/Die Bewegung konnte nicht gelesen werden/)).toBeTruthy();
+  expect(container.textContent).not.toContain('synthetic-raw-field');
+  expect(container.querySelector('pre')).toBeNull();
 });
 
 it('masks amounts in legacy free-text details', () => {
@@ -155,6 +175,25 @@ it.each([
     'Summe der Fiatbewegungen laut Quelle (absolut): Nicht verfügbar',
   );
   expect(screen.getByText(/App-Stichtag: 2026-10-02/)).toBeTruthy();
+});
+
+it('labels the current mapping separately from stored operation evidence', () => {
+  render(
+    <ReadSourceDetail
+      detail={JSON.stringify({
+        ...reward,
+        mappings: [
+          { key: 'asset:synthetic-coin', accountId: 'synthetic-depot', securityId: 'synthetic-id' },
+        ],
+      })}
+    />,
+  );
+
+  expect(
+    screen.getByText(
+      'Aktuelle Zuordnung: asset:synthetic-coin · App-Konto: synthetic-depot · App-Instrument: synthetic-id',
+    ),
+  ).toBeTruthy();
 });
 
 it('names the missing funding leg and retains known ledger references without inventing a deposit', () => {

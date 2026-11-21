@@ -682,8 +682,8 @@ function seedImports(databasePath: string) {
 async function importBody(p: Page, detail: boolean) {
   if (detail) {
     await expect(p.getByTestId('inbox-row')).toContainText('Quellsaldo: Synthetische Datenprüfung');
-    await disclose(p.locator('.source-inbox-detail').locator('details'));
-    await expect(p.locator('.source-inbox-detail pre')).toContainText('check-a');
+    await expect(p.getByText('Quellreferenz: check-a')).toBeVisible();
+    await expect(p.locator('.source-inbox-detail pre')).toHaveCount(0);
     await expect(p.getByRole('link', { name: 'Datenquelle prüfen', exact: true })).toBeVisible();
   } else {
     if ((await p.getByLabel('Zeitraum der Aufgaben').inputValue()) !== 'current') {
