@@ -179,6 +179,7 @@ const proceeds = (t: CostTrade) =>
 export function averageCost(
   opening: { unitsE8: number; costBasisCents: number },
   trades: ReadonlyArray<CostTrade>,
+  onSale?: (trade: CostTrade, gainCents: number) => void,
 ): CostResult {
   let units = opening.unitsE8;
   let cost = opening.costBasisCents;
@@ -192,7 +193,11 @@ export function averageCost(
       const soldCost = mulDivRound(cost, sold, units);
       cost -= soldCost;
       units -= sold;
-      if (t.kind === 'sell') realized += proceeds(t) - soldCost;
+      if (t.kind === 'sell') {
+        const gain = proceeds(t) - soldCost;
+        realized += gain;
+        onSale?.(t, gain);
+      }
     } else if (t.kind === 'split') units += t.unitsE8;
   }
   return { unitsE8: units, costBasisCents: cost, realizedGainCents: realized };
@@ -211,6 +216,7 @@ export const costBasisCents = (
 export function fifoCost(
   opening: { unitsE8: number; costBasisCents: number },
   trades: ReadonlyArray<CostTrade>,
+  onSale?: (trade: CostTrade, gainCents: number) => void,
 ): CostResult {
   const lots: { units: number; cost: number }[] =
     opening.unitsE8 > 0 ? [{ units: opening.unitsE8, cost: opening.costBasisCents }] : [];
@@ -230,7 +236,11 @@ export function fifoCost(
         left -= take;
         if (lot.units === 0) lots.shift();
       }
-      if (t.kind === 'sell') realized += proceeds(t) - soldCost;
+      if (t.kind === 'sell') {
+        const gain = proceeds(t) - soldCost;
+        realized += gain;
+        onSale?.(t, gain);
+      }
     } else if (t.kind === 'split') {
       const total = lots.reduce((a, l) => a + l.units, 0);
       if (total > 0) {

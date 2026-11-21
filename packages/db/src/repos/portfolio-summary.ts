@@ -11,6 +11,8 @@ import {
   clusterRisk,
   documentedCostOf,
   documentedRealizedGain,
+  documentedRealizedMovements,
+  type RealizedMovement,
   ExchangeRateUnavailableError,
   fxOn,
   fundCosts,
@@ -402,6 +404,7 @@ function realizedByPosition(
   liveSecurityIds: ReadonlySet<string>,
   rates: RateTable,
   method: CostMethod,
+  includeMovements = false,
 ) {
   const pairs = new Map<string, { accountId: string; securityId: string }>();
   for (const row of [...snapshots, ...trades])
@@ -410,7 +413,10 @@ function realizedByPosition(
         accountId: row.accountId,
         securityId: row.securityId,
       });
-  const gains = new Map<string, { cents: number; complete: boolean }>();
+  const gains = new Map<
+    string,
+    { cents: number; complete: boolean; movements?: RealizedMovement[] }
+  >();
   for (const { accountId, securityId } of pairs.values()) {
     const key = `${accountId}\0${securityId}`;
     const mine = trades
@@ -424,6 +430,7 @@ function realizedByPosition(
     );
     let total = 0;
     let complete = true;
+    const movements = includeMovements ? ([] as RealizedMovement[]) : undefined;
     let opening:
       | { unitsE8: number; costBasisCents: number | null; currency: string; asOf: string }
       | undefined;
@@ -435,7 +442,11 @@ function realizedByPosition(
         (t) => (after === undefined || t.date > after) && (until === undefined || t.date <= until),
       );
       const hasSale = intervalTrades.some((t) => t.kind === 'sell');
-      if (hasSale) {
+      if (
+        hasSale ||
+        (movements &&
+          intervalTrades.some(({ kind }) => kind === 'delivery_out' || kind === 'split'))
+      ) {
         const costTrades = intervalTrades.filter((t) =>
           ['buy', 'sell', 'delivery_in', 'delivery_out', 'split'].includes(t.kind),
         );
@@ -449,11 +460,18 @@ function realizedByPosition(
                   : centsInEur(opening.costBasisCents, opening.currency, opening.asOf, rates),
             }
           : undefined;
-        const result = documentedRealizedGain(eurTrades, eurOpening, method);
-        total += result.cents;
-        complete &&= result.complete;
+        const result = movements
+          ? documentedRealizedMovements(eurTrades, eurOpening, method)
+          : documentedRealizedGain(eurTrades, eurOpening, method);
+        if (hasSale) {
+          total += result.cents;
+          complete &&= result.complete;
+        }
+        if (movements && 'movements' in result)
+          movements.push(...(result.movements as RealizedMovement[]));
       }
       if (snapshot) {
+        if (snapshot.unitsE8 === 0) movements?.push({ kind: 'reset', date: snapshot.asOf });
         after = snapshot.asOf;
         opening = {
           unitsE8: snapshot.unitsE8,
@@ -463,7 +481,7 @@ function realizedByPosition(
         };
       }
     }
-    gains.set(key, { cents: total, complete });
+    gains.set(key, { cents: total, complete, ...(movements && { movements }) });
   }
   return gains;
 }
@@ -809,6 +827,27 @@ export function realizedGainAsOf(
     realizedGainCents: realizedResults.reduce((sum, result) => sum + result.cents, 0),
     realizedGainComplete: realizedResults.every((result) => result.complete),
   };
+}
+
+/** Sale results and actual closures, replayed from the same documented basis as realised gain. */
+export function realizedMovementsByPosition(db: Executor, to: string) {
+  const loaded = load(db);
+  const snapshots = db
+    .select()
+    .from(holding)
+    .where(and(isNull(holding.deletedAt), lte(holding.asOf, to)))
+    .all();
+  return [
+    ...realizedByPosition(
+      snapshots,
+      tradesUpTo(db, to),
+      loaded.accountCurrency,
+      new Set(loaded.securities.keys()),
+      ratesAsOf(db, to),
+      investmentPreferences(db).costMethod,
+      true,
+    ).values(),
+  ].map((result) => result.movements ?? []);
 }
 
 function portfolioSummaryInRange(

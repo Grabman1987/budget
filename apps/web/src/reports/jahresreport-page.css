@@ -289,6 +289,10 @@
   .ov-table.ov-sheet-table tbody th {
     white-space: normal;
   }
+  .ov-sheet-extra .ov-sheet-table td.n {
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
   .ov-table.ov-sheet-table th,
   .ov-table.ov-sheet-table td {
     padding-right: 3px;
