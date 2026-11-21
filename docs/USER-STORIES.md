@@ -267,3 +267,7 @@ Status: implementation for review; production recovery and owner acceptance pend
 ## Reports: calendar-year costs (#1160)
 
 In Reports › Portfolio › Kosten und Steuern › Kosten gesamt, select a calendar year to see the shared reporting dates, full cost breakdown, closing-value cost ratio and estimate labels. The year stays in the URL, and the report lists all years newest first with partial coverage marked. Turning on amount privacy hides all amounts and ratios.
+## Reports: investment return in the Jahresreport (#1118)
+
+The Investments section displays the same annualised XIRR as the securities performance report for the included months. If the dated cash flows do not yield a rate, the report explains why the figure is unavailable. The existing amount privacy toggle hides the rate.
+The trading section shows realised gains and signed losses from the shared sale results, including fees and taxes. A position counts as closed when its account position returns to zero through a sale. The hit rate is the share of those closed positions that produced a positive result, including earlier partial sales. Results compare the same calendar months of the previous year. Figures without a documented basis are marked unavailable.

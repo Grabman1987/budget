@@ -601,14 +601,16 @@ owner live acceptance is pending.
   1. Reports › Jahresreport öffnen, Jahr wählen, auf Blatt 2 Abschnitt I lesen.
   2. Vermögenszuwachs ohne Markt (eigener Beitrag) und mit Markt nebeneinander vergleichen.
   3. Sparquote gesamt, davon in Investments, davon auf Kontos lesen.
-  4. Investments: Wert Anfang/Ende, Netto-Einzahlungen, Marktergebnis, TTWROR, Dietz-Rendite, Erträge; Trading: Käufe/Verkäufe, Sparplan-Käufe, realisierter Gewinn, Gebühren, Steuern.
+  4. Investments: Wert Anfang/Ende, Netto-Einzahlungen, Marktergebnis, TTWROR, annualisierte XIRR, Erträge; Trading: Käufe/Verkäufe, Sparplan-Käufe, realisierte Gewinne und Verluste, Trefferquote geschlossener Positionen, Gebühren und Steuern.
 - **Abnahmekriterien:**
-  - Wert, Einzahlungen, Marktergebnis, TTWROR und Dietz-Rendite sind centgenau/identisch mit dem Portfolio-Report für denselben Zeitraum (Test); Erträge, Gebühren und Steuern nutzen die Vermögen-Helfer auf den Trades der enthaltenen Monate; realisierter Gewinn ist die Differenz zweier Stände derselben Funktion wie im Portfolio.
+  - Wert, Einzahlungen, Marktergebnis, TTWROR und annualisierte XIRR sind centgenau/identisch mit dem Portfolio-Report für denselben Zeitraum (Test); Erträge, Gebühren und Steuern nutzen die Vermögen-Helfer auf den Trades der enthaltenen Monate; realisierter Gewinn ist die Differenz zweier Stände derselben Funktion wie im Portfolio.
   - Investiert + Bargeld ergeben exakt die Sparquote (Cent und Basispunkte, Test); Bargeld ist der Rest.
-  - Ohne Kurse oder Depotdaten steht „nicht ermittelbar“ mit Grund; nichts wird geschätzt. Die Trefferquote geschlossener Positionen fehlt, weil kein Gewinn je Position vorliegt.
+  - Ohne Kurse oder Depotdaten steht „nicht ermittelbar“ mit Grund; nichts wird geschätzt. Fehlende Einstandsdaten oder keine geschlossene Position werden an der Trefferquote erklärt.
 - **Status:** implemented locally; PR review and live acceptance pending · **Verweis:** 5.1, #1118
 - **Slice 2 im Block:** Vergleich mit dem konfigurierten Vergleichswert, Restschuld Anfang/Ende, Einkommen nach Quelle (bestehende Leser). Netto-Einzahlungen sind das Geld, das netto ins Depot floss, keine echte Zerlegung der Sparquote; der Zeitraum „bis letzter voller Monat“ steht im Block. Der Block ist ein Bildschirmabschnitt und wird nicht gedruckt (Blatt 2 hat keinen Platz; ein drittes A4-Blatt wäre Owner-Entscheid).
-- **Remaining scope:** Vorjahresvergleich der neuen Investment-/Trading-Zahlen; Realwerte (Inflation), Zinszahlungen, Sparziele, Rücklage (noch keine gemeinsame Berechnung).
+- **Remaining scope:** Vorjahresvergleich der weiteren Investment-/Trading-Zahlen; Realwerte (Inflation), Zinszahlungen, Sparziele, Rücklage (noch keine gemeinsame Berechnung).
+
+- **Vorjahresvergleich (#1118):** Gewinne, Verluste und Trefferquote vergleichen dieselben Kalendermonate des Vorjahres. Ein vollständiger Verkauf beendet die Position; frühere Teilverkäufe zählen zu ihrem Ergebnis. Die neuen Werte und Differenzen folgen dem Privatsphäre-Schalter.
 
 ### RP-21a – Finanz-Check-Verlauf
 - **Story:** Als Nutzer möchte ich sehen, welche Regeln verletzt sind und seit wann, damit ich zuerst die offene Regel der aktuellen Stufe behebe.

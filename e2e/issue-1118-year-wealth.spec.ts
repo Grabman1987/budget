@@ -93,3 +93,41 @@ for (const year of [2026, 2025]) {
     }
   });
 }
+
+test('1118 shows the detailed performance XIRR and hides investment figures with privacy', async ({
+  page,
+}) => {
+  await page.goto('/reports/jahresreport?darstellung=druckblatt');
+  await page.getByRole('button', { name: '2026', exact: true }).click();
+  const response = await page.request.get('/api/overview/year?year=2026');
+  expect(response.ok()).toBe(true);
+  const data = (await response.json()) as YearReportRead;
+  const months = data.report.months;
+  const range = `${months[0]}..${months.at(-1)}`;
+  const detail = await page.request.get(
+    `/api/portfolio?period=${range}&view=securities&history=performance&provenance=valuation-v1`,
+  );
+  expect(detail.ok()).toBe(true);
+  const xirr = (await detail.json()).portfolio.performance.xirr as number | null;
+  expect(data.investments?.performance?.xirr).toBe(xirr);
+  const rows = page.getByTestId('yr-invest-figures');
+  const xirrCell = rows.getByRole('row', { name: /Rendite \(XIRR p\. a\.\)/ }).getByRole('cell');
+  await expect(xirrCell).toHaveText(
+    xirr === null
+      ? 'nicht ermittelbar · keine berechenbare Zahlungsreihe im Zeitraum'
+      : `${xirr > 0 ? '+' : xirr <= -0.0005 ? '−' : ''}${new Intl.NumberFormat('de-AT', {
+          minimumFractionDigits: 1,
+          maximumFractionDigits: 1,
+        }).format(Math.abs(xirr) * 100)} %`,
+  );
+  const gains = rows.getByRole('row', { name: /Realisierte Gewinne/ });
+  const losses = rows.getByRole('row', { name: /Realisierte Verluste/ });
+  const hitRate = rows.getByRole('row', { name: /Trefferquote geschlossener Positionen/ });
+  for (const row of [gains, losses, hitRate]) await expect(row).toContainText('Vorjahr');
+  const privacy = page
+    .locator('.m-head:visible, .topbar:visible')
+    .getByRole('button', { name: 'Beträge verbergen', exact: true });
+  await privacy.press('Enter');
+  if (xirr !== null) await expect(xirrCell).toHaveText('•••');
+  for (const row of [gains, losses, hitRate]) await expect(row).not.toContainText(/\d+\s*[€%]/);
+});
