@@ -1488,28 +1488,32 @@ it('prefills two consecutive recurring own-account moves, reuses the other bank 
   expect(readAssignmentCandidate(opened.db, source).recurringTransferAccountId).toBeNull();
 });
 
-it('refuses a new transfer when an exact reconciled counterpart is already recorded', async () => {
-  const source = candidate('Synthetic investment');
-  const review = readAssignmentCandidate(opened.db, source);
-  createBooking(
-    opened.db,
-    {
-      accountId: 'spar',
-      date: today,
-      amountCents: 1201,
-      status: 'reconciled',
-      splits: [{ amountCents: 1201 }],
-    },
-    { actor: 'owner' },
-  );
-  const before = accountBalances(opened.db, today);
-  const result = await call('POST', '/bank-sync/candidates/' + source + '/confirm', {
-    categoryId: null,
-    candidateRevision: review.candidateRevision,
-    verifyNewTransfer: true,
-    actions: { transferAccountId: 'spar' },
-  });
-  expect(result.status).toBe(409);
-  expect(accountBalances(opened.db, today)).toEqual(before);
-  expect(readAssignmentCandidate(opened.db, source).candidate.id).toBe(source);
-});
+it.each([today, '2026-09-27'])(
+  'refuses a new transfer when a reconciled counterpart exists on %s',
+  async (date) => {
+    const source = candidate('Synthetic investment');
+    const review = readAssignmentCandidate(opened.db, source);
+    createBooking(
+      opened.db,
+      {
+        accountId: 'spar',
+        date,
+        amountCents: 1201,
+        status: 'reconciled',
+        splits: [{ amountCents: 1201 }],
+      },
+      { actor: 'owner' },
+    );
+    const before = accountBalances(opened.db, today);
+    expect(before.find((row) => row.accountId === 'spar')?.balanceCents).toBe(1201);
+    const result = await call('POST', '/bank-sync/candidates/' + source + '/confirm', {
+      categoryId: null,
+      candidateRevision: review.candidateRevision,
+      verifyNewTransfer: true,
+      actions: { transferAccountId: 'spar' },
+    });
+    expect(result.status).toBe(409);
+    expect(accountBalances(opened.db, today)).toEqual(before);
+    expect(readAssignmentCandidate(opened.db, source).candidate.id).toBe(source);
+  },
+);

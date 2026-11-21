@@ -1270,7 +1270,14 @@ describe('matching bank lines against existing bookings', () => {
   it('posts without a match as an unchecked booking that stays visible in the inbox', async () => {
     service.setPolicy(consentId, true);
     await service.tick();
-    expect(bookings()).toMatchObject([{ status: 'pending', source: 'bank' }]);
+    expect(bookings()).toMatchObject([
+      {
+        status: 'pending',
+        source: 'bank',
+        bankSourceId: linkId,
+        bankRawText: row.memo,
+      },
+    ]);
     expect(item(candidates()[0]!.id).resolution).toMatch(/^Als ungeprüfte Buchung angelegt/);
     expect(
       readInbox(opened.db, '2026-10-01').entries.filter((i) => i.type === 'booking'),

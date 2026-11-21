@@ -43,9 +43,12 @@ function dayGap(a: string, b: string): number {
   return Math.abs(Date.parse(a + 'T00:00:00Z') - Date.parse(b + 'T00:00:00Z')) / 86_400_000;
 }
 
+/** Maximum booking-date gap for a manual bank match, in calendar days. */
+export const BANK_MATCH_DAYS = 5;
+
 /** Calendar days, inclusive. */
 export function withinBankWindow(a: string, b: string): boolean {
-  return dayGap(a, b) <= 5;
+  return dayGap(a, b) <= BANK_MATCH_DAYS;
 }
 
 /**

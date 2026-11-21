@@ -39,6 +39,7 @@ import {
   bankFetchFrom,
   addDays,
   BANK_AUTO_LINK_DAYS,
+  BANK_MATCH_DAYS,
   type BankLineMatch,
   matchBankLines,
   cents,
@@ -199,6 +200,9 @@ export class BankSync {
             amountCents: row.amountCents,
             currency: row.currency,
             memo: row.memo,
+            bankRawText: row.memo,
+            bankRawPayee: row.rawPayee,
+            bankSourceId: row.sourceId,
             source: 'bank',
             importKey: 'bank-sync:' + row.dedupeKey,
             status: 'pending',
@@ -1267,25 +1271,21 @@ export class BankSync {
       );
       if (options.verifyNewTransfer && actions.transferAccountId) {
         const matches = candidateMatches(tx, id);
-        const exactCounterpart = tx
+        const counterpart = tx
           .select({ id: booking.id })
           .from(booking)
           .where(
             and(
               eq(booking.accountId, actions.transferAccountId),
-              eq(booking.date, row.date),
+              gte(booking.date, addDays(row.date, -BANK_MATCH_DAYS)),
+              lte(booking.date, addDays(row.date, BANK_MATCH_DAYS)),
               eq(booking.amountCents, -row.amountCents),
               eq(booking.currency, row.currency),
               isNull(booking.deletedAt),
             ),
           )
           .get();
-        if (
-          exactCounterpart ||
-          matches.merge.length ||
-          matches.link.length ||
-          matches.transfers.some((match) => match.accountId === actions.transferAccountId)
-        )
+        if (counterpart || matches.merge.length || matches.link.length)
           throw new ConflictError(
             'Eine passende Buchung besteht bereits. Bitte im Formular prüfen.',
           );
