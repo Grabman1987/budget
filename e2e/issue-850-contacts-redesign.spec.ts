@@ -85,7 +85,11 @@ test('961/962 contacts: zero net retains credit and movement source context', as
   await expect(showAll).not.toBeChecked();
   await expect(list.getByRole('link', { name: new RegExp(settled.name) })).toHaveCount(0);
   await showAll.check();
-  await expect(list.getByRole('link', { name: new RegExp(settled.name) })).toBeVisible();
+  await expect(list.getByRole('link', { name: new RegExp(settled.name) })).toHaveCount(0);
+  const settledHistory = page.locator('.r4-contact-settled');
+  await expect(settledHistory).not.toHaveAttribute('open');
+  await settledHistory.locator(':scope > summary').click();
+  await expect(settledHistory.getByRole('link', { name: settled.name, exact: true })).toBeVisible();
   await showAll.uncheck();
   await expect(list.getByRole('link', { name: new RegExp(credit.name) })).toBeVisible();
   await list.getByRole('link', { name: new RegExp(owed.name) }).click();
@@ -169,8 +173,121 @@ async function debtFixture(request: APIRequestContext, origin: string) {
   expect(assigned.ok()).toBe(true);
   const cash = (await read('/accounts')).accounts[0].balanceCents;
   expect(cash).toBe(97000);
-  return { post, read, gifts, account, owed, credit, balanced, cash };
+  return { post, read, advance, gifts, account, owed, credit, balanced, cash };
 }
+
+test('1149 all open contacts stay visible and settled history stays closed, including zero net with credit', async ({
+  page,
+  request,
+  isolatedLedger,
+}, info) => {
+  const { post, read, advance, account, owed, credit, balanced } = await debtFixture(
+    request,
+    isolatedLedger.origin,
+  );
+  const netZero = (await post('/contacts', { name: 'Synthetic zero net with credit' })).contact;
+  for (const contact of [balanced, netZero]) {
+    await post('/bookings', {
+      type: 'booking',
+      accountId: account.id,
+      date: '2026-10-01',
+      amountCents: -1001,
+      splits: [{ categoryId: advance.id, contactId: contact.id, amountCents: -1001 }],
+    });
+    await post(`/contacts/${contact.id}/settlements`, {
+      accountId: account.id,
+      date: '2026-10-02',
+      amountCents: 1001,
+    });
+  }
+  const before = await read(`/contacts/${netZero.id}`);
+  await post(
+    `/contacts/${netZero.id}/settlements/${before.receipts[0].receiptSplitId}/allocations`,
+    {
+      allocations: [],
+    },
+  );
+  const source = await read(`/contacts/${netZero.id}`);
+  expect(source.balanceCents).toBe(0);
+  expect(source.creditCents).toBe(1001);
+  expect(source.outlays.map((row: { remainingCents: number }) => row.remainingCents)).toEqual([
+    1001,
+  ]);
+  await page.goto('/reports/kontakte?verlauf=1');
+  if (!(await redesignReportsOn(page))) return;
+  const list = page.getByRole('region', { name: 'Kontaktsalden' });
+  for (const contact of [owed, credit, netZero]) {
+    await expect(list.getByRole('link', { name: new RegExp(contact.name) })).toBeVisible();
+    await expect(page.getByRole('heading', { name: `Kontoblatt ${contact.name}` })).toBeVisible();
+  }
+  await expect(list.getByRole('link', { name: new RegExp(balanced.name) })).toHaveCount(0);
+  const history = page.locator('.r4-contact-settled');
+  await expect(history).not.toHaveAttribute('open');
+  await expect(history.locator(':scope > summary')).toHaveText('Ausgeglichene Kontakte (1)');
+  const netTable = page.getByRole('table', { name: `Offene Forderungen von ${netZero.name}` });
+  await expect(netTable.locator('tbody tr')).toHaveCount(1);
+  await expect(netTable.locator('tfoot td')).toHaveText('10,01 €');
+  await expect(netTable).not.toContainText('+');
+  await expect(page.getByRole('link', { name: 'Guthaben ändern', exact: true })).toHaveCount(2);
+  for (const theme of ['light', 'dark']) {
+    await page.evaluate((value) => (document.documentElement.dataset['theme'] = value), theme);
+    expect((await new AxeBuilder({ page }).include('main').analyze()).violations).toEqual([]);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
+      true,
+    );
+    await page.screenshot({
+      path: info.outputPath(`contacts-multiple-${theme}.png`),
+      fullPage: true,
+    });
+  }
+  await history.locator(':scope > summary').click();
+  await expect(history.getByRole('heading', { name: `Kontoblatt ${balanced.name}` })).toBeVisible();
+  await expect(history.getByRole('table', { name: /Offene Forderungen/ })).toHaveCount(0);
+  const past = history.locator('[data-r8-detail="contact-history"]');
+  await expect(past).not.toHaveAttribute('open');
+  await expect(past.locator(':scope > summary')).toContainText(
+    '2 Buchungen · Beglichene Auslagen: 10,01 €',
+  );
+  await past.locator(':scope > summary').click();
+  await expect(past.getByRole('table')).toHaveClass(/report-table/);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  const historyScroll = past.locator('.report-table-scroll');
+  expect(
+    await historyScroll.evaluate((element) => element.getBoundingClientRect().right <= innerWidth),
+  ).toBe(true);
+  if (page.viewportSize()!.width === 390) {
+    expect(
+      await historyScroll.evaluate((element) => {
+        element.scrollLeft = element.scrollWidth;
+        return element.scrollWidth > element.clientWidth && element.scrollLeft > 0;
+      }),
+    ).toBe(true);
+  }
+  const historyBounds = await history.locator('section.r4-contact-sheet').boundingBox();
+  expect(historyBounds!.x + historyBounds!.width).toBeLessThanOrEqual(page.viewportSize()!.width);
+  for (const theme of ['light', 'dark']) {
+    await page.evaluate((value) => (document.documentElement.dataset['theme'] = value), theme);
+    expect((await new AxeBuilder({ page }).include('main').analyze()).violations).toEqual([]);
+    await page.screenshot({
+      path: info.outputPath(`contacts-history-${theme}.png`),
+      fullPage: true,
+    });
+  }
+  const historyAfterCapture = await history.locator('section.r4-contact-sheet').boundingBox();
+  expect(historyAfterCapture!.x + historyAfterCapture!.width).toBeLessThanOrEqual(
+    page.viewportSize()!.width,
+  );
+  const privacy = page.locator('.m-head:visible, .topbar:visible').getByRole('button', {
+    name: 'Beträge verbergen',
+    exact: true,
+  });
+  await privacy.press('Enter');
+  await expect(netTable.locator('tfoot td')).toHaveText('••• €');
+  await expect(page.locator('.r4-contact-report')).not.toContainText('10,01');
+  await expect(page.locator('.r4-contact-report')).not.toContainText('50,00');
+  await page.reload();
+  await expect(history).not.toHaveAttribute('open');
+});
 
 test('850 contacts: 5000-cent debt forgiveness, exact shortfall, cash unchanged, stale denial and Undo', async ({
   page,
@@ -195,6 +312,9 @@ test('850 contacts: 5000-cent debt forgiveness, exact shortfall, cash unchanged,
   expect(new URL(page.url()).hash).toBe('#details');
   const body = page.locator('.r4-contact-report');
   const sheet = page.getByRole('region', { name: 'Kontaktkontoauszug' });
+  const settledHistory = page.locator('.r4-contact-settled');
+  await expect(settledHistory).not.toHaveAttribute('open');
+  await settledHistory.locator(':scope > summary').click();
   await expect(body.getByRole('link', { name: new RegExp(balanced.name) })).toBeVisible();
   await expect(page.getByTestId('report-frame-result')).toContainText('30,00 €');
   await body.getByRole('link', { name: new RegExp(credit.name) }).click();
@@ -385,6 +505,11 @@ test('1149 contacts: open register and forgiveness remain readable and accessibl
   }
   await page.getByRole('combobox', { name: 'Darstellung der Kontakte' }).selectOption('offen');
   const openTable = sheet.getByRole('table', { name: /Offene Forderungen/ });
+  const tableRegion = sheet.getByRole('region', { name: `Offene Forderungen von ${owed.name}` });
+  await expect(tableRegion).toHaveAttribute('tabindex', '0');
+  await expect(openTable).toHaveClass(/report-table/);
+  await tableRegion.focus();
+  await expect(tableRegion).toBeFocused();
   await expect(openTable).toContainText('50,00 €');
   await expect(openTable.getByRole('columnheader')).toHaveText([
     'Datum',
@@ -392,7 +517,11 @@ test('1149 contacts: open register and forgiveness remain readable and accessibl
     'Betrag',
     'Offen',
   ]);
-  await expect(openTable.getByRole('columnheader', { name: 'Offen', exact: true })).toBeVisible();
+  const openHeader = openTable.getByRole('columnheader', { name: 'Offen', exact: true });
+  await expect(openHeader).toHaveCSS('position', 'sticky');
+  await openHeader.scrollIntoViewIfNeeded();
+  await expect(openHeader).toBeVisible();
+  await expect(openHeader).toHaveCSS('text-align', 'right');
   for (const theme of ['light', 'dark']) {
     await page.evaluate((value) => {
       document.documentElement.dataset['theme'] = value;

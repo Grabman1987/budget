@@ -45,6 +45,14 @@ Grundlage: `docs/pwa.md`. Die App ist eine PWA: Hülle und Programmdateien liege
   Kontakt-Replay-Fix in #1154: Rückdatierte Auslagen lassen gespeicherte automatische und ausdrückliche Verrechnungen unverändert. Neue Auslagen nutzen nur tatsächlich freies Kontaktguthaben; widersprüchliche Kontaktverrechnungen liefern eine deutsche 422-Antwort. Bereits gebundene Auslagen bleiben gegen wirtschaftliche Änderungen und Löschen geschützt. Der Fix ist durch DB- und API-Regressionstests geprüft; die Veröffentlichung ist damit noch nicht bestätigt.
   Fehlt noch: Durchgängige deutsche 422-Validierung, Anzeige/Kopieren der Fehler-ID, Entwürfe ohne Blockade späterer Einträge und der Drei-Buchungen-E2E-Test (#1144). Derzeit hält eine Ablehnung spätere Einträge weiterhin zurück. Außerdem Abnahme auf einem echten Gerät; getrennt davon der klare Status je Änderung (A-02).
 
+Queue acceptance update (#1144, 2026-11-19): the older missing-client list above
+is superseded by the queue implementation and `e2e/issue-1144-queue.spec.ts`.
+Three offline captures exercise a middle HTTP 500, ordered delivery of both
+neighbours, safe server message/error-ID copying, delivery-absence checking,
+correction with the original key, and discard. Raw technical messages stay
+redacted. The endpoint-wide German 422 inventory and physical-device acceptance
+remain outside this bounded queue package.
+
 ### A-01b – Offline den letzten Stand lesen
 - **Story:** Als Nutzer möchte ich ohne Netz den zuletzt geladenen Stand von Heute und den Konten ansehen, damit ich unterwegs wenigstens grob weiß, wo ich stehe.
 - **Ausgangslage:** Der Nutzer ist offline; die App war zuvor online geöffnet.

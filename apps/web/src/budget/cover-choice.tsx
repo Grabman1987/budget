@@ -9,7 +9,7 @@ import { useBudgetWrite } from './use-category-writes';
  */
 export function useCover(month: string, sourceName: (id: string) => string | undefined) {
   const write = useBudgetWrite();
-  return (r: PlanRow, fromId: string | null) =>
+  return (r: PlanRow, fromId: string | null, options?: { awaitRefresh?: boolean }) =>
     write(
       () => coverOverspending(month, r.id, fromId),
       (res) => {
@@ -17,5 +17,6 @@ export function useCover(month: string, sourceName: (id: string) => string | und
         const from = fromId ? sourceName(fromId) : 'Zu verteilen';
         return `${eur(res.coveredCents)} von ${from} zu ${r.name} verschoben${rest > 0 ? ` · ${eur(rest)} bleiben offen${fromId ? ' · auf freies Geld begrenzt' : ''}` : ''}`;
       },
+      options,
     );
 }

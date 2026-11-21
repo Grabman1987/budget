@@ -27,6 +27,9 @@ dialog.overlay .panel-body:has(.payslip-review-layout) {
 }
 .payslip-review-layout {
   --payslip-pad: 24px;
+  --control-height: 44px;
+  --control-small-height: 44px;
+  --field-height: 44px;
   min-width: 0;
   padding-inline: var(--payslip-pad);
 }

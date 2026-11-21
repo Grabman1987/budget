@@ -24,7 +24,7 @@ import {
   security,
   trade,
 } from '../schema';
-import { nowIso, updateTracked, withGroup } from './audit';
+import { nowIso, updateTracked, withGroup, type AuditContext } from './audit';
 import type { FxRateRow } from './prices';
 import { runInTransaction, type Executor } from './types';
 
@@ -203,12 +203,14 @@ export const AUTO_RESOLVED_HISTORY_LIMIT = 20;
  * Only items whose detail is an error class are touched: a `stale_value` item about a real
  * difference (holdings, missing movements, conflicting closes) is never closed here. Each close
  * is audited and undoable; all closes of one call share an undo group.
+ * A supplied context joins an explicit setting change and stores its exact reason instead.
  */
 export function resolveStaleValueItems(
   db: Executor,
   refType: 'security' | 'fx',
   refId: string,
   reason: string,
+  context?: AuditContext,
 ): number {
   return runInTransaction(db, (tx) => {
     const open = tx
@@ -225,8 +227,11 @@ export function resolveStaleValueItems(
       )
       .all();
     if (open.length === 0) return 0;
-    const ctx = withGroup({ actor: MARKET_ACTOR });
-    const patch = { resolvedAt: nowIso(), resolution: `${AUTO_RESOLVED_PREFIX}${reason}` };
+    const ctx = withGroup(context ?? { actor: MARKET_ACTOR });
+    const patch = {
+      resolvedAt: nowIso(),
+      resolution: context ? reason : `${AUTO_RESOLVED_PREFIX}${reason}`,
+    };
     for (const { id } of open) updateTracked(tx, inboxItem, [id], patch, ctx);
     return open.length;
   });

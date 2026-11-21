@@ -40,6 +40,7 @@ export function AccountRegister({
         {page && <span className="aside">{pluralBookings(page.total)}</span>}
       </div>
       {list.isPending && <LoadingNote what="Buchungen" />}
+      {page && list.isFetching && !list.isFetchingNextPage && <LoadingNote what="Buchungen" />}
       {list.isError && (
         <ErrorNote what="Buchungen" error={list.error} onRetry={() => void list.refetch()} />
       )}
@@ -52,7 +53,10 @@ export function AccountRegister({
         </EmptyNote>
       )}
       {(items.length > 0 || (upcoming.model?.count ?? 0) > 0) && (
-        <div className="kaccount-table-card">
+        <div
+          className="kaccount-table-card"
+          aria-busy={list.isFetching && !list.isFetchingNextPage}
+        >
           <BookingTable
             items={items}
             caption="Buchungen mit laufendem Saldo"

@@ -136,7 +136,13 @@ export function EnvelopeBody({
     }
   };
   const cover = async () => {
-    if (await coverFrom(r, other === '' ? null : other)) onDone();
+    if (coverBusy) return;
+    setCoverBusy(true);
+    try {
+      if (await coverFrom(r, other === '' ? null : other, { awaitRefresh: compact })) onDone();
+    } finally {
+      setCoverBusy(false);
+    }
   };
   const assignment = readAssign(amount, r.assignedCents, false);
   const assignHint =
@@ -231,7 +237,7 @@ export function EnvelopeBody({
         {r.overspentCents > 0 && (
           <Button
             variant={r.cashOverspentCents > 0 ? 'alert' : 'ghost'}
-            disabled={other === 'none'}
+            disabled={coverBusy || other === 'none'}
             onClick={() => void cover()}
           >
             Decken · {eur(r.overspentCents)}

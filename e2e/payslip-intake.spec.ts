@@ -67,6 +67,78 @@ async function captureReviewViewport(page: Page, info: TestInfo) {
     await page.locator('dialog.overlay .panel-body').evaluate((body) => {
       body.scrollTop = body.scrollHeight;
     });
+    const review = page.locator('dialog[open]');
+    await expect(review.getByRole('region', { name: 'Zusammenfassung' })).toHaveCount(1);
+    const geometry = await review.evaluate((dialog) => {
+      const box = (selector: string) => dialog.querySelector(selector)!.getBoundingClientRect();
+      const body = box('.panel-body');
+      const actions = box('.payslip-review-actions');
+      const original = box('.payslip-document-original');
+      return {
+        body: { top: body.top, left: body.left, right: body.right, bottom: body.bottom },
+        actions: {
+          top: actions.top,
+          left: actions.left,
+          right: actions.right,
+          bottom: actions.bottom,
+        },
+        original: { top: original.top, bottom: original.bottom },
+        buttons: Array.from(
+          dialog.querySelectorAll<HTMLElement>('.payslip-review-actions .btn'),
+        ).map((button) => {
+          const rect = button.getBoundingClientRect();
+          const range = document.createRange();
+          range.selectNodeContents(button);
+          return {
+            width: rect.width,
+            height: rect.height,
+            top: rect.top,
+            lines: range.getClientRects().length,
+          };
+        }),
+        overflow: dialog.scrollWidth > dialog.clientWidth,
+      };
+    });
+    expect(geometry.overflow).toBe(false);
+    expect(Math.abs(geometry.actions.left - geometry.body.left)).toBeLessThanOrEqual(1);
+    expect(Math.abs(geometry.actions.right - geometry.body.right)).toBeLessThanOrEqual(1);
+    expect(geometry.actions.bottom).toBeLessThanOrEqual(geometry.body.bottom + 1);
+    for (const button of geometry.buttons) {
+      expect(button.width).toBeGreaterThanOrEqual(44);
+      expect(button.height).toBeGreaterThanOrEqual(44);
+      expect(button.lines).toBe(1);
+    }
+    if (page.viewportSize()!.width >= 1024) {
+      expect(new Set(geometry.buttons.map((button) => button.top)).size).toBe(1);
+      expect(
+        Math.min(geometry.original.bottom, geometry.actions.top) -
+          Math.max(geometry.original.top, geometry.body.top),
+      ).toBeGreaterThan(44);
+    }
+    await page.locator('dialog.overlay .panel-body').evaluate((body) => {
+      body.scrollTop = (body.scrollHeight - body.clientHeight) / 2;
+    });
+    const sticky = await review.evaluate((dialog) => {
+      const body = dialog.querySelector('.panel-body')!.getBoundingClientRect();
+      const bar = dialog.querySelector('.payslip-review-actions')!.getBoundingClientRect();
+      return {
+        bottomGap: body.bottom - bar.bottom,
+        visibleHeight: Math.min(body.bottom, bar.bottom) - Math.max(body.top, bar.top),
+      };
+    });
+    expect(Math.abs(sticky.bottomGap)).toBeLessThanOrEqual(1);
+    expect(sticky.visibleHeight).toBeGreaterThanOrEqual(44);
+    for (const select of await review.locator('.payslip-document-fields select').all()) {
+      await select.scrollIntoViewIfNeeded();
+      const selected = await select.locator('option:checked').innerText();
+      await expect(select).toHaveAttribute('title', selected);
+      const size = await select.boundingBox();
+      expect(size!.height).toBeGreaterThanOrEqual(44);
+      expect(size!.width).toBeGreaterThanOrEqual(44);
+    }
+    await page.locator('dialog.overlay .panel-body').evaluate((body) => {
+      body.scrollTop = body.scrollHeight;
+    });
     await page.screenshot({
       fullPage: false,
       animations: 'disabled',
@@ -92,7 +164,7 @@ test('synthetic encrypted PDF upload, confirm, undo and reject on phone and desk
     return response.json();
   };
   const account = await post('/accounts', {
-    name: 'Synthetisches Gehaltskonto',
+    name: 'Synthetisches Gehaltskonto mit langer Bezeichnung für die Auswahl',
     type: 'checking',
     role: 'budget',
     onBudget: true,
@@ -176,6 +248,12 @@ test('synthetic encrypted PDF upload, confirm, undo and reject on phone and desk
   );
   await inspectReport(page, info, 'payslip-intake');
   await captureReviewViewport(page, info);
+  if (page.viewportSize()!.width >= 1024) {
+    const viewport = page.viewportSize()!;
+    await page.setViewportSize({ width: 1024, height: 900 });
+    await captureReviewViewport(page, info);
+    await page.setViewportSize(viewport);
+  }
   await review.getByRole('button', { name: 'Bestätigen', exact: true }).click();
   await expect(page.getByTestId('inbox-row')).toHaveCount(0);
   await toast(page).getByRole('button', { name: 'Rückgängig', exact: true }).click();

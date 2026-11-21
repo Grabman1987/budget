@@ -59,6 +59,25 @@ successful balance check resolves it. Manual acknowledgement is not source repai
 This slice creates no bookings, valuations, cost basis or tax values. Owner-approved
 local-copy analysis and money acceptance for #1205 remain pending.
 
+## Disabled quote warnings (#1259)
+
+Switching automatic prices off in the instrument form or operator configuration
+closes that instrument's open fetch-failure warnings with “Kursabruf abgeschaltet”.
+The setting and warning decisions share one audit/Undo group. Other instruments,
+holdings differences and stored financial rows remain unchanged. The nightly market
+run also closes legacy fetch warnings for disabled instruments; successful fetches
+retain their existing source/date resolution. Synthetic route, operator and market
+regressions cover these paths. Delivery and owner acceptance remain separate.
+
+## Payslip review geometry (#1068)
+
+The existing grouped lines, single confirmation summary, sticky document preview
+and full-width action bar are retained. The review keeps 44 px controls even under
+desktop density rules, and selected account, expectation, sender and booking values
+have complete titles. Browser checks exercise the scrolled review at 1440/1024 and
+390 px in both themes. Parsing, booking and automation retain their existing paths;
+owner acceptance remains pending.
+
 ## Offene Fragen an den Nutzer
 
 Stand nach den Entscheidungen vom 15.11.2026. Bei diesen Stories ist noch etwas offen:
@@ -78,6 +97,13 @@ Entschieden am 15.11.2026: H-01 (nächstes Sparziel im Block „Ziele finanziere
 ## Pflege
 
 Jede neue Funktion und jede Entscheidung des Nutzers bekommt im selben Pull Request ihre Story oder eine Aktualisierung von Status und Kriterien.
+
+RP-02 continuation (#1207, connected #1066 proof): the monthly salary curve labels whole
+regular/combined documents explicitly and keeps all special payments in their payout
+month. Literal synthetic browser cases cover separate specials, an unsplit combined slip
+without wage reading, allowances/travel, missing slips, shared frame/inspection and privacy.
+See [the salary story](user-stories/06-reports.md#rp-02--gehaltsreport-mit-bruttonetto-und-jahresvergleich).
+The remaining development UI under RP-03 and owner live acceptance stay open.
 
 ## Per-account liquidity (#1228, #1225)
 
@@ -167,3 +193,31 @@ RP-09 now explicitly covers the full-history disclosure lifetime: closed on entr
 only read on opening, reset after template changes/source refresh/reload, and no
 stale export. The existing Explorer spec checks exact CSV bytes and privacy in
 light/dark at the configured desktop/390 widths. See [RP-09](user-stories/06-reports.md#rp-09--gesamttabelle-explorer-template); CI and owner acceptance remain open.
+
+## Queue rejection and dialog completion (#1144, #1201)
+
+A server-rejected capture stays on the device as a draft with its safe error message
+and error ID. A rejected middle item does not stop its neighbours. Before editing
+or discarding an uncertain HTTP 500, use **Jetzt senden** to check whether the
+server committed it. A proven absent delivery can be corrected with the original
+idempotency key or discarded; a committed delivery is acknowledged without another write.
+Unknown technical error text remains redacted. The browser regression exercises
+three offline captures, ordered delivery of the first and third, copying details,
+correction/resend and discard without duplicate bookings.
+
+After a successful write, capture/transfer closes locally while its URL navigation
+and session reads finish. Plan's **Alle Ziele füllen** and envelope **Decken**
+dialogs also close without awaiting refreshed reads. Inline Plan actions retain
+their awaited refresh. A refused edit keeps the draft and error visible. Tests
+hold follow-up reads until after checking that each dialog has closed; writes are
+confirmed first. Production write latency and physical-device acceptance remain
+owner checks. Booking amounts, balances, allocations and trade data are unchanged.
+Status: implementation and regression coverage for review; publication is pending.
+Reports continuation (#1149, contacts slice of #1161): RP-21b's open and historical
+booking tables use the shared report register shell. Enabling settled history keeps
+fully settled contacts inside its closed disclosure, outside the open-contact list.
+Four columns, gross open shares, separate credit, unchanged domain balances and
+20-row history pages remain. Category purchases carry the gross expense until
+repayment returns it to the original category; no extra advance or net-worth charge.
+See [RP-21b](user-stories/06-reports.md#rp-21b--kontakte-abrechnung).
+Status: implemented for review; owner acceptance pending. No other report is migrated.

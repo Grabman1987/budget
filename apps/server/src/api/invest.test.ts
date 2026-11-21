@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- JSON answers are inspected, not typed */
-import { createTestDatabase, schema, type Db } from '@budget/db';
+import { createTestDatabase, schema, undo, type Db } from '@budget/db';
 import { seedDatabase } from '@budget/fixtures/seed';
 import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -21,6 +21,94 @@ const signedIn: AuthGate = {
 
 const appFor = (db: Db) =>
   createApp({ webDir, auth: signedIn, ledger: { db, today: () => TODAY } });
+
+it('closes only fetch warnings with the price setting and undoes both (#1259)', async () => {
+  const opened = createTestDatabase();
+  const db = opened.db;
+  try {
+    seedDatabase(db);
+    const financialRows = () =>
+      JSON.stringify([
+        db.select().from(schema.account).all(),
+        db.select().from(schema.booking).all(),
+        db.select().from(schema.bookingSplit).all(),
+        db.select().from(schema.trade).all(),
+        db.select().from(schema.holding).all(),
+      ]);
+    const financialBefore = financialRows();
+    const call = caller(appFor(db));
+    const created = await call('POST', '/securities', { name: 'Synthetic ETF', kind: 'etf' });
+    const id = created.body['security'].id;
+    for (const [warningId, refId, detail] of [
+      ['fetch', id, 'Fehlerklasse: network'],
+      ['difference', id, 'Bestand weicht ab'],
+      ['other', 'other-security', 'Fehlerklasse: http'],
+    ])
+      db.insert(schema.inboxItem)
+        .values({
+          id: warningId,
+          kind: 'stale_value',
+          title: 'Synthetic warning',
+          refType: 'security',
+          refId,
+          detail,
+        })
+        .run();
+    const before = db.select().from(schema.inboxItem).all();
+    const auditsBefore = db.select().from(schema.auditLog).all();
+    opened.sqlite.exec(`CREATE TRIGGER reject_warning_close BEFORE UPDATE ON inbox_item
+      BEGIN SELECT RAISE(ABORT, 'synthetic audit failure'); END;`);
+    expect((await call('PATCH', `/securities/${id}`, { pricesEnabled: false })).status).toBe(422);
+    expect(
+      db
+        .select()
+        .from(schema.security)
+        .all()
+        .find((s) => s.id === id)!.pricesEnabled,
+    ).toBe(true);
+    expect(db.select().from(schema.inboxItem).all()).toEqual(before);
+    expect(db.select().from(schema.auditLog).all()).toEqual(auditsBefore);
+    opened.sqlite.exec('DROP TRIGGER reject_warning_close');
+    const response = await call('PATCH', `/securities/${id}`, { pricesEnabled: false });
+    expect(response.status).toBe(200);
+    const warnings = db.select().from(schema.inboxItem).all();
+    expect(warnings.find((w) => w.id === 'fetch')).toMatchObject({
+      resolution: 'Kursabruf abgeschaltet',
+      resolvedAt: expect.any(String),
+    });
+    expect(warnings.filter((w) => w.id !== 'fetch')).toEqual(
+      before.filter((w) => w.id !== 'fetch'),
+    );
+    const audits = db.select().from(schema.auditLog).all();
+    const settingAudit = audits
+      .filter((a) => a.entityType === 'security' && a.action === 'update')
+      .at(-1)!;
+    expect(
+      audits.find((a) => a.entityType === 'inbox_item' && a.entityId === 'fetch')?.groupId,
+    ).toBe(settingAudit.groupId);
+    const undone = undo(db, { groupId: settingAudit.groupId! }, { actor: 'test' });
+    expect(
+      db
+        .select()
+        .from(schema.security)
+        .all()
+        .find((s) => s.id === id)!.pricesEnabled,
+    ).toBe(true);
+    expect(db.select().from(schema.inboxItem).all()).toEqual(before);
+    undo(db, { groupId: undone.groupId }, { actor: 'test' });
+    expect(
+      db
+        .select()
+        .from(schema.security)
+        .all()
+        .find((s) => s.id === id)!.pricesEnabled,
+    ).toBe(false);
+    expect(db.select().from(schema.inboxItem).all()).toEqual(warnings);
+    expect(financialRows()).toBe(financialBefore);
+  } finally {
+    opened.close();
+  }
+});
 
 it('saves validated region weights and rejects invalid weights without overwriting the security', async () => {
   const opened = createTestDatabase();

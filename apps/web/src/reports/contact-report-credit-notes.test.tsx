@@ -6,11 +6,13 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { ContactReportPage } from './contact-report';
 import type { ContactOverview, ContactReportStatement } from './contact-api';
 
+const route = vi.hoisted(() => ({ search: {} as { verlauf?: number } }));
+
 vi.mock('../shell/redesign-flag', () => ({ REDESIGN_ENABLED: true }));
 vi.mock('./contact-chart', () => ({ ContactBalanceChart: () => null }));
 vi.mock('@tanstack/react-router', () => ({
   useNavigate: () => vi.fn(),
-  useSearch: () => ({}),
+  useSearch: () => route.search,
   useParams: () => ({ reportId: 'kontakte' }),
   useLocation: () => ({ pathname: '/reports/kontakte' }),
   useLinkProps: ({ to }: { to: string }) => ({ href: to }),
@@ -130,12 +132,14 @@ const statement: ContactReportStatement = {
   ],
   closedThroughSplitId: null,
 };
-function show(view = overview, person = statement) {
+function show(view = overview, person = statement, others: ContactReportStatement[] = []) {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false, staleTime: Infinity } },
   });
   client.setQueryData(['ledger', 'contact-report'], view);
   client.setQueryData(['ledger', 'contact-report', person.contact.id, view.asOf], person);
+  for (const sheet of others)
+    client.setQueryData(['ledger', 'contact-report', sheet.contact.id, view.asOf], sheet);
   return render(
     <QueryClientProvider client={client}>
       <ToastProvider>
@@ -145,6 +149,7 @@ function show(view = overview, person = statement) {
   );
 }
 beforeEach(() => {
+  route.search = {};
   vi.stubGlobal(
     'matchMedia',
     vi.fn(() => ({ matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() })),
@@ -289,6 +294,10 @@ it('puts only outstanding shares above the chart and keeps completed rows in clo
     },
   );
   const table = screen.getByRole('table', { name: /Offene Forderungen/ });
+  const scroll = screen.getByRole('region', { name: 'Offene Forderungen von Beispiel Forderung' });
+  expect(scroll.tabIndex).toBe(0);
+  expect(scroll.contains(table)).toBe(true);
+  expect(table.classList.contains('report-table')).toBe(true);
   expect(
     within(table)
       .getAllByRole('columnheader')
@@ -314,4 +323,109 @@ it('puts only outstanding shares above the chart and keeps completed rows in clo
   expect(within(history).getByText('Seite 2 von 2')).toBeTruthy();
   act(() => setAmountsHidden(true));
   expect(container.innerHTML).not.toMatch(/100,01|30,01|70,00/);
+});
+
+it('keeps settled contacts inside closed history when history is included', () => {
+  route.search = { verlauf: 1 };
+  const { container } = show();
+  const list = screen.getByRole('region', { name: 'Kontaktsalden' });
+  expect(within(list).queryByRole('link', { name: /Beispiel Ausgeglichen/ })).toBeNull();
+  const history = container.querySelector<HTMLDetailsElement>('.r4-contact-settled')!;
+  expect(history).not.toBeNull();
+  expect(history.open).toBe(false);
+  expect(history.querySelector('summary')!.textContent).toBe('Ausgeglichene Kontakte (1)');
+  history.open = true;
+  expect(within(history).getByRole('link', { name: 'Beispiel Ausgeglichen' })).toBeTruthy();
+});
+
+it('does not automatically open a settled contact when there are no open contacts', () => {
+  route.search = { verlauf: 1 };
+  const { container } = show({ ...overview, contacts: [contacts[2]!] });
+  expect(container.querySelector<HTMLDetailsElement>('.r4-contact-settled')!.open).toBe(false);
+});
+
+it('shows every open sheet including zero net with credit, keeping settled sheets in history', () => {
+  route.search = { verlauf: 1 };
+  const zero = {
+    ...contacts[1]!,
+    id: 'zero',
+    name: 'Beispiel Nullsaldo',
+    balanceCents: 0,
+    creditCents: 1001,
+    receivableCents: 1001,
+  };
+  const outlay = {
+    ...movement,
+    splitId: 'zero-outlay',
+    amountCents: -1001,
+    remainingCents: 1001,
+    contactDeltaCents: 1001,
+    balanceCents: 1001,
+    memo: 'Offene Nullsaldo-Auslage',
+  };
+  const receipt = {
+    ...movement,
+    splitId: 'zero-receipt',
+    amountCents: 1001,
+    contactDeltaCents: -1001,
+    balanceCents: 0,
+  };
+  const zeroSheet: ContactReportStatement = {
+    ...statement,
+    contact: { ...statement.contact, id: zero.id, name: zero.name },
+    balanceCents: 0,
+    creditCents: 1001,
+    credits: [{ receiptSplitId: 'zero-receipt', remainingCents: 1001, categoryId: null }],
+    creditChoices: [],
+    movements: [outlay, receipt],
+    outlays: [outlay],
+    receipts: [
+      {
+        receiptSplitId: 'zero-receipt',
+        creditCents: 1001,
+        allocations: [],
+        recorded: true,
+        allocatable: true,
+      },
+    ],
+  };
+  const owedOutlay = {
+    ...outlay,
+    splitId: 'owed-outlay',
+    amountCents: -5000,
+    remainingCents: 5000,
+    contactDeltaCents: 5000,
+    balanceCents: 5000,
+  };
+  const owedSheet: ContactReportStatement = {
+    ...statement,
+    contact: { ...statement.contact, id: 'owed', name: contacts[1]!.name },
+    balanceCents: 5000,
+    creditCents: 0,
+    credits: [],
+    creditChoices: [],
+    movements: [owedOutlay],
+    outlays: [owedOutlay],
+    receipts: [],
+  };
+  const { container } = show(
+    {
+      ...overview,
+      contacts: [...contacts, zero],
+      totals: { ...overview.totals, receivableCents: 6001, payableCents: 6001, balanceCents: 0 },
+    },
+    statement,
+    [owedSheet, zeroSheet],
+  );
+  const list = screen.getByRole('region', { name: 'Kontaktsalden' });
+  expect(within(list).getAllByRole('link', { name: /Beispiel/ })).toHaveLength(3);
+  for (const name of [contacts[0]!.name, contacts[1]!.name, zero.name])
+    expect(screen.getByRole('heading', { name: `Kontoblatt ${name}` })).toBeTruthy();
+  expect(screen.queryByRole('heading', { name: 'Kontoblatt Beispiel Ausgeglichen' })).toBeNull();
+  const table = screen.getByRole('table', { name: 'Offene Forderungen von Beispiel Nullsaldo' });
+  expect(table.querySelector('tfoot td')!.textContent).toBe('10,01 €');
+  expect(screen.getAllByRole('link', { name: 'Guthaben ändern' })).toHaveLength(2);
+  expect(container.querySelector<HTMLDetailsElement>('.r4-contact-settled')!.open).toBe(false);
+  act(() => setAmountsHidden(true));
+  expect(container.innerHTML).not.toMatch(/10,01|50,00/);
 });

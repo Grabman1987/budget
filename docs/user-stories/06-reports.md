@@ -96,6 +96,18 @@ Historical references follow `docs/FEATURES.md` (positions 1.1–5.6). The hub r
 - **Status:** live · **Verweis:** 1.2
   Fehlt noch: PDF-Ablage, kollektivvertragliche und Stufenerhöhungen (siehe RP-03).
 
+**RP-02 continuation (#1207; connected proof for #1066):** Monthly net includes special
+payments in their payout month. The solid series/table column is “Regulär / kombiniert”,
+describing whole documents rather than comparable running net. A combined document stays
+whole; no split, estimated statutory allocation or split-review task is introduced.
+Separate special slips remain hatched in the same month. Telearbeit/Fahrgeld count as pay;
+travel expenses stay outside the salary curves. Missing slips remain inspection gaps and
+are absent from the recorded-month table. Synthetic browser acceptance covers literal
+regular, separate-special, combined-without-wage-read and missing-slip cases, shared frame,
+keyboard/touch inspection, privacy and both themes at 1440/390. Read-only inspection retains
+captured slips and annual totals unchanged. Full development views remain under RP-03;
+owner live acceptance is pending.
+
 ### RP-03 – Echte Gehaltsentwicklung (geplant)
 - **Story:** Als Nutzer möchte ich Grundgehalt, Sonderzahlungen und Bonus getrennt und real gegen Inflation sehen, damit ich erkenne, ob ich wirklich mehr verdiene oder nur die Preise gestiegen sind.
 - **Ausgangslage:** Mehrere Gehaltszettel liegen vor; jede Lohnart ist einer von fünf Komponenten zugeordnet.
@@ -629,6 +641,19 @@ Historical references follow `docs/FEATURES.md` (positions 1.1–5.6). The hub r
   - Datenschutz blendet Beträge auch in Summen, Kopiertext und zugänglichen Beschriftungen aus; Desktop 1440 und Telefon 390 in Hell/Dunkel bleiben bedienbar.
   - Plan-Prüfung (#1149, ohne Verhaltensänderung): Neue Kategorie-Einkäufe mit Kontaktanteilen belasten die ursprüngliche Einkaufskategorie brutto bis zur Rückzahlung. Zugeordnete Rückzahlungen fließen in diese Kategorie zurück. Der Anteil wird nicht zusätzlich als eigene Auslagen-Kategorie belastet und nicht zusätzlich im Nettovermögen gezählt. Historische/alleinstehende Auslagen ohne belegte Ursprungskategorie behalten ihre gespeicherte Kategorie. Grundlage: `docs/shared-expenses.md`, `SPEC.md` (#963/#978); keine Neuberechnung oder Datenänderung in diesem Teil.
 - **Status:** teilweise · **Verweis:** 5.4, #1149. Erster Teil: offene Tabelle, gesamter Saldoverlauf und geschlossene, paginierte Vergangenheit für den gewählten Kontakt. Zweiter Teil (Redesign): alle Kontakte mit offenem Betrag stehen untereinander mit je einem Kontoblatt (jede Liste lädt ihr eigenes Blatt; ein Link der linken Liste markiert und fokussiert das gewählte Blatt); ausgeglichene Kontakte erscheinen nur nach „Auch ausgeglichene Kontakte“ und eingeklappt unter „Ausgeglichene Kontakte (n)“, ein gewählter ausgeglichener Kontakt klappt sie auf. Offen: vollständige Wiederverwendung des Buchungsregister-Bauteils. Private Abnahme ausständig.
+
+RP-21b continuation (#1149, contacts slice of #1161), superseding the open shared-table
+item in the previous status: both open and historical booking
+tables now use `ReportTable`, including its sticky header, keyboard/phone scrolling,
+register density and right-aligned tabular amounts. Receivables are positive and
+repayments negative, without plus prefixes; both use quiet ink. Fully settled contacts
+remain exclusively inside the closed “Ausgeglichene Kontakte” history even when
+“Auch ausgeglichene Kontakte” is enabled; selecting a historical contact opens it.
+The four columns remain Datum, Empfänger, Betrag, Offen (owner correction, no category).
+The existing statement, gross claims, separate credit, source dialog, copy and 20-row
+history pagination remain authoritative. No booking, allocation or valuation changes.
+Status: implemented for review; CI and owner acceptance pending. Other reports in
+#1161 remain outside this slice.
 
 ### RP-22 – Explorer
 - **Story:** Als Nutzer möchte ich eigene Fragen als Pivot über Buchungen stellen, damit ich Auswertungen bekomme, die kein fester Bericht bietet.

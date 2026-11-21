@@ -14,7 +14,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { CategoryRow, CategoryTree } from './api';
 import { CategoriesPage } from './categories-page';
 import { CategoryPanel } from './category-panel';
-import { EnvelopePanel } from './envelope-panel';
+import { EnvelopeBody, EnvelopePanel } from './envelope-panel';
 import type { PlanRow } from './plan-model';
 import { AssignCell } from './assign-cell';
 import { QuickAssignActions } from './quick-assign-actions';
@@ -203,6 +203,58 @@ function renderEnvelope(row: PlanRow, tba: number, onClose = vi.fn(), month = '2
 }
 
 describe('Envelope panel: Decken from Zu verteilen', () => {
+  it('keeps the inline secondary cover pending until its refresh finishes', async () => {
+    const calls = stubApi({
+      'POST /api/budget/2026-09/cover': () => ok({ groupId: 'grp', coveredCents: 5_000 }),
+    });
+    const close = vi.fn();
+    const row = envelope();
+    renderWith(
+      <EnvelopeBody month="2026-09" row={row} rows={[row]} tba={10_000} onDone={close} compact />,
+    );
+    let release!: () => void;
+    const pending = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const reads = vi.spyOn(QueryClient.prototype, 'invalidateQueries').mockReturnValue(pending);
+    try {
+      await userEvent.click(screen.getByRole('button', { name: 'Decken · 50,00 €' }));
+      await waitFor(() => expect(reads).toHaveBeenCalled());
+      expect(calls('POST /api/budget/2026-09/cover')).toEqual([
+        { categoryId: 'essen', fromId: null },
+      ]);
+      expect(close).not.toHaveBeenCalled();
+      expect(
+        screen.getByRole('button', { name: 'Decken · 50,00 €' }).hasAttribute('disabled'),
+      ).toBe(true);
+      release();
+      await waitFor(() => expect(close).toHaveBeenCalledOnce());
+    } finally {
+      release();
+      reads.mockRestore();
+    }
+  });
+
+  it('closes on a successful cover while the follow-up reads remain pending', async () => {
+    const calls = stubApi({
+      'POST /api/budget/2026-09/cover': () => ok({ groupId: 'grp', coveredCents: 5_000 }),
+    });
+    const close = renderEnvelope(envelope(), 10_000);
+    const reads = vi
+      .spyOn(QueryClient.prototype, 'invalidateQueries')
+      .mockImplementation(() => new Promise(() => {}));
+    try {
+      await userEvent.click(screen.getByRole('button', { name: 'Decken · 50,00 €' }));
+      await waitFor(() => expect(close).toHaveBeenCalledOnce());
+      expect(reads).toHaveBeenCalled();
+      expect(calls('POST /api/budget/2026-09/cover')).toEqual([
+        { categoryId: 'essen', fromId: null },
+      ]);
+    } finally {
+      reads.mockRestore();
+    }
+  });
+
   it('uses an input dialog, with a visible close action, instead of a desktop side panel', () => {
     renderEnvelope(envelope(), 10_000);
     const dialog = screen.getByRole('dialog', { name: 'Lebensmittel' });
@@ -378,8 +430,8 @@ it('selects a category into the inspector, keeps amount editing separate and cle
   expect(within(inspector()).queryByLabelText('Zugewiesen')).toBeNull();
   await userEvent.keyboard('{Escape}');
   await userEvent.click(category);
-  // #588: Optionen ▾ replaces the Ansicht select; any toolbar control outside the selection is an outside click.
-  await userEvent.click(screen.getByText(/^Optionen/, { selector: 'summary' }));
+  // The redesign's calm toolbar retains selection; the page background is an outside click.
+  await userEvent.click(document.body);
   expect(within(inspector()).getByText('Monatsaufstellung', { selector: 'summary' })).toBeTruthy();
   await userEvent.click(category);
   await userEvent.click(screen.getByRole('button', { name: 'Unterfinanziert 0,00 €' }));

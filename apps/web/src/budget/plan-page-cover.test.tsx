@@ -7,7 +7,7 @@ import {
   createRootRoute,
   createRouter,
 } from '@tanstack/react-router';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { PlanMonthPage } from './plan-page';
@@ -96,7 +96,7 @@ const view = () => ({
 
 let writes: Array<{ method: string; path: string; body: unknown }> = [];
 
-function renderPlan() {
+function renderPlan(data = view()) {
   writes = [];
   vi.stubGlobal(
     'fetch',
@@ -115,7 +115,7 @@ function renderPlan() {
         return new Response(JSON.stringify({ groupId: 'g-1' }), { status: 200 });
       }
       const body = route.startsWith('/api/budget/')
-        ? view()
+        ? data
         : route === '/api/accounts'
           ? { accounts: [] }
           : route === '/api/expected'
@@ -129,18 +129,26 @@ function renderPlan() {
     routeTree: root,
     history: createMemoryHistory({ initialEntries: ['/plan/monat?monat=2026-09'] }),
   });
-  return render(
-    <QueryClientProvider
-      client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
-    >
-      <ToastProvider>
-        <RouterProvider router={router} />
-      </ToastProvider>
-    </QueryClientProvider>,
-  );
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return {
+    client,
+    ...render(
+      <QueryClientProvider client={client}>
+        <ToastProvider>
+          <RouterProvider router={router} />
+        </ToastProvider>
+      </QueryClientProvider>,
+    ),
+  };
 }
 
 beforeEach(() => {
+  HTMLDialogElement.prototype.showModal ??= function () {
+    this.setAttribute('open', '');
+  };
+  HTMLDialogElement.prototype.close ??= function () {
+    this.removeAttribute('open');
+  };
   vi.stubGlobal('matchMedia', (query: string) => ({
     matches: false,
     media: query,
@@ -148,6 +156,67 @@ beforeEach(() => {
     removeEventListener: () => {},
   }));
   vi.stubGlobal('requestAnimationFrame', (fn: FrameRequestCallback) => setTimeout(fn, 0));
+});
+
+it('marks retained monthly figures pending until the background refresh finishes', async () => {
+  const data = view();
+  const { client } = renderPlan(data);
+  expect((await screen.findByTestId('to-be-assigned')).textContent).toBe('−30,00 €');
+  let release!: () => void;
+  const held = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const fetchBeforeRefresh = globalThis.fetch;
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async (...args: Parameters<typeof fetch>) => {
+      await held;
+      return fetchBeforeRefresh(...args);
+    }),
+  );
+  const refreshing = client.invalidateQueries({ queryKey: ['budget'] });
+  try {
+    await screen.findByText('Monatswerte werden geladen …');
+    expect(screen.getByTestId('to-be-assigned').closest('[aria-busy="true"]')).not.toBeNull();
+    expect(screen.getByTestId('to-be-assigned').textContent).toBe('−30,00 €');
+    data.summary.toBeAssignedCents = -4000;
+  } finally {
+    release();
+    await refreshing;
+  }
+  await waitFor(() => expect(screen.queryByText('Monatswerte werden geladen …')).toBeNull());
+  expect(screen.getByTestId('to-be-assigned').textContent).toBe('−40,00 €');
+});
+
+it('closes the all-target preview on write success without waiting for refreshed reads', async () => {
+  const data = view();
+  data.summary.envelopes[0]!.needCents = 1_000;
+  renderPlan(data);
+  const open = await screen.findByRole('button', { name: 'Alle Ziele füllen', hidden: true });
+  fireEvent.click(open);
+  const dialog = await screen.findByRole('dialog', { name: 'Alle Ziele füllen' });
+  const reads = vi
+    .spyOn(QueryClient.prototype, 'invalidateQueries')
+    .mockImplementation(() => new Promise(() => {}));
+  try {
+    fireEvent.click(within(dialog).getByRole('button', { name: '10,00 € zuweisen' }));
+    await waitFor(() =>
+      expect(screen.queryByRole('dialog', { name: 'Alle Ziele füllen' })).toBeNull(),
+    );
+    expect(reads).toHaveBeenCalled();
+    expect(writes).toEqual([
+      {
+        method: 'PUT',
+        path: '/api/budget/2026-09/assigned',
+        body: {
+          ...(REDESIGN_ENABLED && { expectedBasis: 'a'.repeat(64) }),
+          items: [{ categoryId: 'miete', assignedCents: 6_000 }],
+        },
+      },
+    ]);
+  } finally {
+    reads.mockRestore();
+  }
 });
 afterEach(() => {
   cleanup();
