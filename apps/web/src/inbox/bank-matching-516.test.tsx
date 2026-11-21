@@ -1,9 +1,10 @@
 // @vitest-environment jsdom
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ToastProvider } from '@budget/ui';
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, expect, it, vi } from 'vitest';
+import { LEDGER_KEY } from '../ledger/queries';
 import { BankCandidate } from './bank-candidate';
 
 vi.mock('../shell/redesign-flag', () => ({ REDESIGN_ENABLED: true }));
@@ -50,6 +51,8 @@ it('ON explains source, five-day suggestions and ambiguity without writing on se
           },
         ],
         transfers: [],
+        preferredBookingId: 'b',
+        alternativeCount: 1,
       });
     if (input === '/api/assignment-rules/candidates/synthetic-516')
       return Response.json({
@@ -70,7 +73,7 @@ it('ON explains source, five-day suggestions and ambiguity without writing on se
   const user = userEvent.setup();
   await user.click(screen.getByRole('button', { name: 'Übernehmen' }));
   const select = await screen.findByRole('combobox', {
-    name: 'Passende Buchung (geringster Datumsabstand zuerst)',
+    name: 'Passende Buchung',
   });
   expect(screen.getByText(/Quelle: Bankumsatz/).textContent).toContain(
     'höchstens fünf Kalendertagen',
@@ -78,10 +81,30 @@ it('ON explains source, five-day suggestions and ambiguity without writing on se
   expect(screen.getByText(/Quelle: Bankumsatz/).textContent).toContain(
     'Erst das Zusammenführen übernimmt die Bankreferenz.',
   );
-  expect(screen.getByText(/Quelle: Bankumsatz/).textContent).toContain(
-    'keine eindeutige Zuordnung',
-  );
-  await user.selectOptions(select, 'b');
+  expect(screen.getByText(/Quelle: Bankumsatz/).textContent).toContain('1 Alternative');
+  expect((select as HTMLSelectElement).value).toBe('b');
+  await user.selectOptions(select, 'a');
+  client.setQueryData([...LEDGER_KEY, 'bank-matches', 'synthetic-516'], {
+    merge: [
+      {
+        id: 'b',
+        date: '2026-11-01',
+        accountName: 'Konto A',
+        memo: 'Muster B',
+        amountCents: -1250,
+      },
+    ],
+    transfers: [],
+    preferredBookingId: 'b',
+    alternativeCount: 0,
+  });
+  await waitFor(() => {
+    expect(screen.getByText(/Quelle: Bankumsatz/).textContent).toContain('0 Alternativen');
+    expect((select as HTMLSelectElement).value).toBe('');
+    expect(
+      (screen.getByRole('button', { name: 'Buchung auswählen' }) as HTMLButtonElement).disabled,
+    ).toBe(true);
+  });
   await user.click(screen.getByRole('button', { name: 'Abbrechen' }));
   expect(writes).toEqual([]);
 });

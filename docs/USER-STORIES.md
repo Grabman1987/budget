@@ -221,3 +221,7 @@ Four columns, gross open shares, separate credit, unchanged domain balances and
 repayment returns it to the original category; no extra advance or net-worth charge.
 See [RP-21b](user-stories/06-reports.md#rp-21b--kontakte-abrechnung).
 Status: implemented for review; owner acceptance pending. No other report is migrated.
+
+## Prüfen: ambiguous bank matches (#516)
+
+A bank line only links automatically if it has one eligible booking and is that booking’s only bank-line claim. All other matches stay open for manual review. The default suggestion uses the latest known confirmation, then closest booking date and stable identity. The owner sees the number of alternatives and confirms or changes the selection.

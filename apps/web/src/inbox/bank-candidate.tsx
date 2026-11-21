@@ -32,6 +32,14 @@ import { REDESIGN_ENABLED } from '../shell/redesign-flag';
 import '../pages/data-sources.css';
 import '../assignment/assignment.css';
 
+type CandidateMatches = {
+  merge: Match[];
+  link?: Match[];
+  transfers: Match[];
+  preferredBookingId?: string | null;
+  alternativeCount?: number;
+};
+
 type Match = {
   id: string;
   date: string;
@@ -283,7 +291,7 @@ function BankCandidateForm({
   const matches = useQuery({
     queryKey: [...LEDGER_KEY, 'bank-matches', id],
     queryFn: () =>
-      request<{ merge: Match[]; link?: Match[]; transfers: Match[] }>(
+      request<CandidateMatches>(
         'GET',
         '/api/bank-sync/candidates/' + encodeURIComponent(id) + '/matches',
       ),
@@ -300,7 +308,10 @@ function BankCandidateForm({
   const rule = fields.splitOn ? undefined : review.data?.suggestions.find((r) => r.id === ruleId);
   const recipient = payeeId ?? review.data?.cleanup.payeeId ?? '';
   const mergeRows = [...(matches.data?.merge ?? []), ...(matches.data?.link ?? [])];
-  const merge = mergeRows.find((row) => row.id === mergeId) ?? mergeRows[0];
+  const merge = mergeId
+    ? mergeRows.find((row) => row.id === mergeId)
+    : (mergeRows.find((row) => row.id === matches.data?.preferredBookingId) ?? mergeRows[0]);
+  const alternativeCount = matches.data?.alternativeCount ?? Math.max(0, mergeRows.length - 1);
   const bulkSafe = Boolean(
     review.isSuccess &&
     review.fetchStatus === 'idle' &&
@@ -324,25 +335,27 @@ function BankCandidateForm({
         matches.isPending ||
         matches.isFetching
         ? undefined
-        : merge
-          ? {
-              action: 'merge',
-              bookingId: merge.id,
-              candidateRevision,
-              label: `Mit Buchung ${shortDay(merge.date)} zusammenführen`,
-            }
-          : rule && !rule.unavailable && !categoryId && payeeId === undefined && !fields.splitOn
+        : mergeRows.length > 1
+          ? undefined
+          : merge
             ? {
-                action: 'rule',
-                ruleId: rule.id,
-                revision: rule.revision,
+                action: 'merge',
+                bookingId: merge.id,
                 candidateRevision,
-                label: rule.name,
-                // Presentation-only eligibility for the stricter redesign shortcut. Existing
-                // individual/selected actions keep their current checks and payloads.
-                ...(REDESIGN_ENABLED ? { bulkSafe } : {}),
+                label: `Mit Buchung ${shortDay(merge.date)} zusammenführen`,
               }
-            : undefined,
+            : rule && !rule.unavailable && !categoryId && payeeId === undefined && !fields.splitOn
+              ? {
+                  action: 'rule',
+                  ruleId: rule.id,
+                  revision: rule.revision,
+                  candidateRevision,
+                  label: rule.name,
+                  // Presentation-only eligibility for the stricter redesign shortcut. Existing
+                  // individual/selected actions keep their current checks and payloads.
+                  ...(REDESIGN_ENABLED ? { bulkSafe } : {}),
+                }
+              : undefined,
     );
   }, [
     onPrepared,
@@ -352,6 +365,7 @@ function BankCandidateForm({
     matches.isPending,
     matches.isFetching,
     merge,
+    mergeRows.length,
     rule,
     categoryId,
     payeeId,
@@ -423,7 +437,9 @@ function BankCandidateForm({
               Betrag bei höchstens fünf Kalendertagen Abstand. Erst das Zusammenführen übernimmt die
               Bankreferenz.
               {mergeRows.length > 1 &&
-                ' Mehrere Buchungen passen: Der geringste Datumsabstand ist keine eindeutige Zuordnung. Bitte die passende Buchung auswählen.'}
+                ' Mehrere Buchungen passen. Der Vorschlag bevorzugt die zuletzt bestätigte Buchung.'}{' '}
+              {alternativeCount} {alternativeCount === 1 ? 'Alternative' : 'Alternativen'}.
+              {mergeRows.length > 1 && ' Bitte die passende Buchung auswählen.'}
             </p>
           )}
           {(['merge', 'transfer'] as const).map((action) => {
@@ -432,17 +448,11 @@ function BankCandidateForm({
                 ? [...(matches.data?.merge ?? []), ...(matches.data?.link ?? [])]
                 : matches.data?.transfers;
             if (!rows?.length) return null;
-            const selected = (action === 'merge' ? mergeId : transferId) || rows[0]!.id;
+            const selected = action === 'merge' ? (merge?.id ?? '') : transferId || rows[0]!.id;
             const setSelected = action === 'merge' ? setMerge : setTransfer;
             return (
               <div key={action}>
-                <Field
-                  label={
-                    action === 'merge'
-                      ? 'Passende Buchung (geringster Datumsabstand zuerst)'
-                      : 'Passende Gegenbuchung'
-                  }
-                >
+                <Field label={action === 'merge' ? 'Passende Buchung' : 'Passende Gegenbuchung'}>
                   {({ id: fieldId }) => (
                     <Select
                       id={fieldId}
@@ -450,6 +460,11 @@ function BankCandidateForm({
                       disabled={busy}
                       onChange={(e) => setSelected(e.target.value)}
                     >
+                      {!selected && (
+                        <option value="" disabled>
+                          Auswahl nicht mehr verfügbar
+                        </option>
+                      )}
                       {rows.map((row) => (
                         <option key={row.id} value={row.id}>
                           {shortDay(row.date)} · {row.accountName} · {row.memo || 'Buchung'} ·{' '}
@@ -466,7 +481,7 @@ function BankCandidateForm({
                 </p>
                 <Button
                   size="sm"
-                  disabled={busy}
+                  disabled={busy || !selected}
                   onClick={() => {
                     setBusy(true);
                     void write(
@@ -493,9 +508,9 @@ function BankCandidateForm({
                   }}
                 >
                   {action === 'merge'
-                    ? 'Mit Buchung ' +
-                      shortDay(rows.find((r) => r.id === selected)?.date ?? rows[0]!.date) +
-                      ' zusammenführen'
+                    ? merge
+                      ? `Mit Buchung ${shortDay(merge.date)} zusammenführen`
+                      : 'Buchung auswählen'
                     : 'Als Umbuchung verbinden'}
                 </Button>
               </div>

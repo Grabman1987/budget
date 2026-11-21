@@ -64,7 +64,10 @@ const {
 const MAX_CONSENT_SECONDS = 15_552_000;
 /** ISO 4217 "no currency": a multi-currency account (e.g. PayPal); each line carries its own. */
 const MULTI_CURRENCY = 'XXX';
-const AMBIGUOUS_NOTE = ' · Mehrere passende vorhandene Buchungen, bitte eine auswählen';
+const AMBIGUOUS_NOTE = ' · Mehrdeutige Zuordnung, bitte eine Buchung auswählen';
+const LEGACY_AMBIGUOUS_NOTE = ' · Mehrere passende vorhandene Buchungen, bitte eine auswählen';
+const needsAmbiguousReview = (detail: string | null) =>
+  detail?.endsWith(AMBIGUOUS_NOTE) || detail?.endsWith(LEGACY_AMBIGUOUS_NOTE);
 const hash = (value: string) => createHash('sha256').update(value).digest('hex');
 const system = { actor: 'bank-sync' };
 // Standalone protocol/status writes need the same atomic row+audit contract as grouped ledger writes.
@@ -163,21 +166,23 @@ export class BankSync {
     }
     for (const row of fresh) {
       const match = matches.get(row.id) ?? { kind: 'none' as const };
+      const item = tx.select().from(inboxItem).where(eq(inboxItem.id, row.id)).get()!;
+      const needsReview = needsAmbiguousReview(item.detail);
+      // A later sync cannot resolve a previously ambiguous claim on the owner's behalf.
+      if (needsReview) continue;
       if (match.kind === 'linked') {
         linked.add(row.id);
         linkBankReference(tx, match.bookingId, row, ctx);
         resolve(row.id, 'Mit vorhandener Buchung verknüpft: ' + match.bookingId);
       } else if (match.kind === 'ambiguous') {
         // Stays open: the owner picks the booking (inbox: "Passende Buchung").
-        const item = tx.select().from(inboxItem).where(eq(inboxItem.id, row.id)).get()!;
-        if (!(item.detail ?? '').endsWith(AMBIGUOUS_NOTE))
-          updateTracked(
-            tx,
-            inboxItem,
-            [row.id],
-            { detail: (item.detail ?? '') + AMBIGUOUS_NOTE },
-            ctx,
-          );
+        updateTracked(
+          tx,
+          inboxItem,
+          [row.id],
+          { detail: (item.detail ?? '') + AMBIGUOUS_NOTE },
+          ctx,
+        );
       } else if (post) {
         const result = importBooking(
           tx,
@@ -825,7 +830,12 @@ export class BankSync {
                         tx,
                         inboxItem,
                         [existing.id],
-                        { title: 'Bankumsatz geändert – prüfen', detail },
+                        {
+                          title: 'Bankumsatz geändert – prüfen',
+                          detail: needsAmbiguousReview(item.detail)
+                            ? detail + AMBIGUOUS_NOTE
+                            : detail,
+                        },
                         ctx,
                       );
                     }

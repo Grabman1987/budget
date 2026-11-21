@@ -73,7 +73,7 @@ test('bank matching explains ambiguous fifth-day suggestions before any write', 
   await (await bankPreviewControl(row)).click();
   const dialog = page.getByRole('dialog', { name: 'Buchung übernehmen' });
   const select = dialog.getByRole('combobox', {
-    name: 'Passende Buchung (geringster Datumsabstand zuerst)',
+    name: 'Passende Buchung',
   });
   await expect(select.locator('option')).toHaveCount(2);
   await expect(dialog.getByText(/Quelle: Bankumsatz/)).toContainText(
@@ -82,7 +82,7 @@ test('bank matching explains ambiguous fifth-day suggestions before any write', 
   await expect(dialog.getByText(/Quelle: Bankumsatz/)).toContainText(
     'Erst das Zusammenführen übernimmt die Bankreferenz.',
   );
-  await expect(dialog.getByText(/Quelle: Bankumsatz/)).toContainText('keine eindeutige Zuordnung');
+  await expect(dialog.getByText(/Quelle: Bankumsatz/)).toContainText('1 Alternative');
   await select.selectOption({ index: 1 });
   await dialog.getByRole('button', { name: 'Abbrechen' }).click();
   expect(writes).toEqual([]);
