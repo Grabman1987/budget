@@ -1514,6 +1514,67 @@ node /app/migrate-cli.js undo-group --group <group-id>
 `undo-group` restores the whole successful part of the run through the ordinary
 audited Undo path, with the same subsequent-use and lock guards as the application.
 
+### Bank BOOK candidate recovery (#1267, operator task)
+
+Do not run this as part of deployment. First verify a backup and rehearse on an
+isolated copy. Applying to live data requires the owner's separate approval.
+The builder has not run it against any operator or production database.
+
+```bash
+node /app/migrate-cli.js bank-posting --dry-run --max-bookings 25
+node /app/migrate-cli.js bank-posting --source <bank-sync-account-id> --dry-run --max-bookings 25
+node /app/migrate-cli.js bank-posting --source <bank-sync-account-id> --apply --max-bookings 25
+node /app/migrate-cli.js undo-group --group <group-id> --dry-run
+node /app/migrate-cli.js undo-group --group <group-id>
+```
+
+Without `--apply` the command rolls back the complete rehearsal, including audit
+and inbox changes. `--dry-run` and `--apply` together are refused. `--max-bookings`
+defaults to 25 and must be a positive safe integer; it caps newly created bookings,
+not matching. Optional `--source` selects a `bank_sync_account.id`. All eligible
+lines are matched together before the cap is applied, so the cap cannot turn an
+ambiguous match into a new booking. Output contains aggregate counts and a group
+ID only. It contains no account names, bank text or money amounts.
+
+Only open BOOK candidates belonging to their current source/account mapping and
+an open account in the same currency are considered. PDNG, resolved/rejected
+items, foreign-currency lines and unmapped sources are untouched. Active fetch
+leases and the write hold block the run. The existing 0–4-day matcher links
+unambiguous existing bookings instead of creating money; ambiguous lines remain
+open. New rows are `pending`, with no category or income type. Source identities,
+deleted-booking tombstones and import deduplication use the normal fetch path.
+An applied run is atomic and has one audited Undo group; repeat runs cannot post
+the same identity twice. No connection policy, bank observation, reconciliation
+status or balance correction is written. Undo restores ledger/inbox decisions
+through the usual lock/conflict guards and retains provider history.
+
+Diagnosis (code/history, no live database inspected): `ed217bf8` (#400, 2026-10-09)
+introduced an explicit false policy on connection creation, overriding decision
+41's existing absent-setting default of true. #1267 sets new connections to true;
+existing false settings remain unchanged. To enable future automatic BOOK
+posting for an existing connection, the owner must use its existing policy control.
+
+Operators can distinguish cases using only these tables/columns:
+
+- `app_setting.id`, `app_setting.value`; `bank_sync_account.id`,
+  `bank_sync_account.consent_id`, `bank_sync_account.account_id`.
+- `bank_sync_candidate.id`, `account_id`, `source_id`, `dedupe_key`, `bank_status`,
+  `date`, `amount_cents`, `currency`; `inbox_item.id`, `ref_type`, `ref_id`, `resolved_at`,
+  `resolution`, `detail`.
+- `booking.id`, `account_id`, `import_key`, `bank_source_id`, `date`,
+  `amount_cents`, `currency`, `status`, `deleted_at`; `account.id`, `currency`,
+  `closed_at`, `deleted_at`; `bank_sync_consent.lease_until`.
+- `audit_log.entity_type`, `entity_id`, `action`, `group_id`, `actor`;
+  `bank_sync_account.balance_cents`, `balance_date`, `balance_fetched_at`.
+
+An open BOOK line without a booking can mean confirmation-first, ambiguity, a
+foreign currency, or a previously undone/deleted booking. The policy setting,
+inbox resolution/detail, live/tombstoned import identity and matching targets
+distinguish these cases. Resolved candidates remain provider provenance, not
+additional register money. The Prüfen reader reads unresolved candidates and
+uncategorized live bookings; it does not suppress register postings or create them.
+Never infer why a historical false setting was chosen without its audit history.
+
 ## 13. One-time Portfolio Performance migration (operator task)
 
 Same rules as section 12 (no import feature in the app, files and the private mapping never enter the repo). Prerequisite: the YNAB migration is committed (the depot, crypto and P2P accounts exist). `migrate-pp-cli.js` has the same shape: each step is one transaction, `revert` undoes a whole run (the newest committed one only, also across sources). What is written and why: `docs/migration/pp-export.md` §Commit.

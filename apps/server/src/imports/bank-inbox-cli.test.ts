@@ -78,3 +78,117 @@ it('bank-inbox CLI lists to a file, applies with exit codes and keeps a dry run 
     rmSync(dir, { recursive: true, force: true });
   }
 }, 120000);
+
+it('bank-posting CLI defaults to dry-run, bounds apply, and rejects conflicting flags and invalid limits', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'budget-bank-posting-'));
+  const databasePath = join(dir, 'synthetic.sqlite');
+  const opened = openDatabase(databasePath);
+  try {
+    migrateDatabase(opened.db);
+    accounts.create(
+      opened.db,
+      {
+        id: 'giro',
+        name: 'Synthetic Giro',
+        type: 'checking',
+        role: 'budget',
+        onBudget: true,
+        openingDate: '2026-01-01',
+        openingBalanceCents: 100000,
+      },
+      { actor: 'tester' },
+    );
+    opened.db
+      .insert(schema.bankSyncConsent)
+      .values({
+        id: 'consent',
+        initiator: 'synthetic',
+        stateHash: 'synthetic',
+        expiresAt: '2026-11-01T00:00:00Z',
+        label: 'Synthetic bank',
+        nextRunAt: '2026-11-01T00:00:00Z',
+      })
+      .run();
+    opened.db
+      .insert(schema.bankSyncAccount)
+      .values({
+        id: 'source',
+        consentId: 'consent',
+        accountId: 'giro',
+        currency: 'EUR',
+        secret: 'unused',
+        label: 'Synthetic account',
+      })
+      .run();
+    for (let i = 0; i < 2; i++) {
+      const id = `candidate-${i}`;
+      opened.db
+        .insert(schema.bankSyncCandidate)
+        .values({
+          id,
+          accountId: 'giro',
+          dedupeKey: id,
+          date: '2026-10-30',
+          amountCents: -1201 - i,
+          currency: 'EUR',
+          memo: 'Synthetic text',
+          sourceId: 'source',
+        })
+        .run();
+      opened.db
+        .insert(schema.inboxItem)
+        .values({
+          id,
+          kind: 'import',
+          title: 'Bankumsatz prüfen',
+          refType: 'bank-sync-candidate',
+          refId: id,
+        })
+        .run();
+    }
+    const cli = (...args: string[]) =>
+      spawnSync(
+        process.execPath,
+        [
+          '--import',
+          'tsx',
+          resolve(import.meta.dirname, 'migrate-cli.ts'),
+          'bank-posting',
+          ...args,
+        ],
+        { encoding: 'utf8', env: { ...process.env, DATABASE_PATH: databasePath }, timeout: 30000 },
+      );
+    const dry = cli();
+    expect(dry.status, dry.stderr).toBe(0);
+    expect(dry.stdout).toContain('"created":2');
+    expect(dry.stdout).toContain('(dry run)');
+    expect(opened.db.select().from(schema.booking).all()).toHaveLength(0);
+    const bounded = cli('--apply', '--source', 'source', '--max-bookings', '1');
+    expect(bounded.status, bounded.stderr).toBe(0);
+    expect(bounded.stdout).toContain('"created":1');
+    expect(bounded.stdout).toContain('"remaining":1');
+    expect(opened.db.select().from(schema.booking).all()).toHaveLength(1);
+    const conflict = cli('--apply', '--dry-run');
+    expect(conflict.status).toBe(1);
+    expect(conflict.stderr).toContain('exclude each other');
+    const invalid = cli('--apply', '--max-bookings', '0');
+    expect(invalid.status).toBe(1);
+    expect(invalid.stderr).toContain('positive safe integer');
+    for (const args of [
+      ['--apply', '--source'],
+      ['--apply', '--source', '--max-bookings', '1'],
+      ['--apply', '--source', ''],
+    ]) {
+      const missingSource = cli(...args);
+      expect(missingSource.status).toBe(1);
+      expect(missingSource.stderr).toContain('--source');
+    }
+    const unknownSource = cli('--apply', '--source', 'unknown-source');
+    expect(unknownSource.status).toBe(1);
+    expect(unknownSource.stderr).toContain('bank_sync_account');
+    expect(opened.db.select().from(schema.booking).all()).toHaveLength(1);
+  } finally {
+    opened.close();
+    rmSync(dir, { recursive: true, force: true });
+  }
+}, 120000);

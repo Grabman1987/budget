@@ -93,7 +93,8 @@ async function originalBank(postBooked = false) {
     .where(eq(schema.bankSyncAccount.consentId, consent.id))
     .get()!;
   service.map(mapping.id, 'giro', '2026-09-01');
-  if (postBooked) service.setPolicy(consent.id, true);
+  // Exercise both explicit policies independently of the default for new connections.
+  service.setPolicy(consent.id, postBooked);
   await service.tick();
   const candidate = opened.db.select().from(schema.bankSyncCandidate).get()!;
   const payout = postBooked

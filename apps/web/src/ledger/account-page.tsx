@@ -3,6 +3,7 @@ import { AccountFreshness } from './account-freshness';
 import { AccountStatementIntake } from '../statement-intake/statement-review-726';
 import { InboxWorkflow } from '../inbox/inbox-page';
 import { BankBalance } from './bank-balance';
+import { BankBalanceHead } from './bank-balance-head';
 import { useAmountPrivacy, Button, Segmented, Select, Field, cx } from '@budget/ui';
 import {
   addMonths,
@@ -406,6 +407,7 @@ function AccountBody({ account, bankReview }: { account: AccountRow; bankReview?
               {pending.rate && <> · {pending.rate}</>}
             </p>
           )}
+          {REDESIGN_ENABLED && <BankBalanceHead account={account} />}
         </div>
         {!REDESIGN_ENABLED && (
           <div className="fig kacct-pending">
