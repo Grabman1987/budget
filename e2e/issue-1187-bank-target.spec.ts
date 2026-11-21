@@ -74,9 +74,12 @@ test('explicit inline counter-account suggestion links a transfer and Undo resto
   await row
     .getByRole('combobox', { name: 'Vorschlag', exact: true })
     .selectOption(`transfer:${bookingId}`);
-  await expect(row.getByRole('button', { name: /^Gegenkonto bearbeiten/ })).toContainText(
-    'Synthetic destination',
-  );
+  await expect(
+    row.getByRole('button', {
+      name: 'Vorschlag bearbeiten: Überweisung an Synthetic destination',
+    }),
+  ).toBeVisible();
+  await expect(row.getByRole('button', { name: /^Kategorie bearbeiten/ })).toHaveCount(0);
   const counterpart = async () =>
     (await (await request.get(`${origin}/api/bookings/${bookingId}`)).json()).booking;
   expect((await counterpart()).transferId).toBeNull();

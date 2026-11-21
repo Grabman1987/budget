@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { eq } from 'drizzle-orm';
 import {
   createBooking,
+  accountBalances,
   createTestDatabase,
   getBooking,
   listAssignmentRules,
@@ -1433,4 +1434,82 @@ describe('assignment API and owner confirmation', () => {
       .run();
     expect((await call('GET', '/assignment-rules/bookings/' + id)).status).toBe(409);
   });
+});
+
+it('prefills two consecutive recurring own-account moves, reuses the other bank leg, and undoes once', async () => {
+  const stage = (memo: string, date: string, accountId = 'giro', amount = -1201) => {
+    const id = candidate(memo, accountId, amount);
+    opened.db
+      .update(schema.bankSyncCandidate)
+      .set({ date })
+      .where(eq(schema.bankSyncCandidate.id, id))
+      .run();
+    return id;
+  };
+  const first = stage('SEPA-Lastschrift Synthetic Platform', '2026-08-01');
+  sync.confirm(first, null, { actions: { transferAccountId: 'spar' } });
+  const second = stage('Synthetic  PLATFORM', '2026-09-01');
+  expect(readAssignmentCandidate(opened.db, second).recurringTransferAccountId).toBeNull();
+  sync.confirm(second, null, { actions: { transferAccountId: 'spar' } });
+  const source = stage('Synthetic Platform', today);
+  const other = stage('Synthetic source bank', today, 'spar', 1201);
+  const { bookingId: existing } = sync.confirm(other, null);
+  const before = accountBalances(opened.db, today);
+  const review = readAssignmentCandidate(opened.db, source);
+  expect(review.recurringTransferAccountId).toBe('spar');
+  expect(accountBalances(opened.db, today)).toEqual(before);
+  const result = await call('POST', '/bank-sync/candidates/' + source + '/confirm', {
+    categoryId: null,
+    candidateRevision: review.candidateRevision,
+    actions: { transferAccountId: 'spar' },
+  });
+  expect(result.status).toBe(200);
+  const paired = getBooking(opened.db, result.body.bookingId)!;
+  expect(paired.amountCents).toBe(-1201);
+  expect(paired.payeeId).toBeNull();
+  const legs = opened.db
+    .select()
+    .from(schema.booking)
+    .where(eq(schema.booking.transferId, paired.transferId!))
+    .all();
+  expect(legs.map(({ accountId, amountCents }) => [accountId, amountCents]).sort()).toEqual([
+    ['giro', -1201],
+    ['spar', 1201],
+  ]);
+  expect(legs.find((leg) => leg.accountId === 'spar')?.id).toBe(existing);
+  const after = accountBalances(opened.db, today);
+  expect(after.find((row) => row.accountId === 'giro')?.balanceCents).toBe(96397);
+  expect(after.find((row) => row.accountId === 'spar')?.balanceCents).toBe(3603);
+  undo(opened.db, { groupId: result.body.groupId }, { actor: 'owner' });
+  expect(accountBalances(opened.db, today)).toEqual(before);
+  expect(readAssignmentCandidate(opened.db, source).recurringTransferAccountId).toBe('spar');
+  const conflicting = stage('Synthetic Platform', '2026-10-01');
+  sync.confirm(conflicting, 'essen');
+  expect(readAssignmentCandidate(opened.db, source).recurringTransferAccountId).toBeNull();
+});
+
+it('refuses a new transfer when an exact reconciled counterpart is already recorded', async () => {
+  const source = candidate('Synthetic investment');
+  const review = readAssignmentCandidate(opened.db, source);
+  createBooking(
+    opened.db,
+    {
+      accountId: 'spar',
+      date: today,
+      amountCents: 1201,
+      status: 'reconciled',
+      splits: [{ amountCents: 1201 }],
+    },
+    { actor: 'owner' },
+  );
+  const before = accountBalances(opened.db, today);
+  const result = await call('POST', '/bank-sync/candidates/' + source + '/confirm', {
+    categoryId: null,
+    candidateRevision: review.candidateRevision,
+    verifyNewTransfer: true,
+    actions: { transferAccountId: 'spar' },
+  });
+  expect(result.status).toBe(409);
+  expect(accountBalances(opened.db, today)).toEqual(before);
+  expect(readAssignmentCandidate(opened.db, source).candidate.id).toBe(source);
 });

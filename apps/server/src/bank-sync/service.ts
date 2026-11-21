@@ -2,6 +2,7 @@ import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { and, eq, gt, gte, isNull, lte, or, sql } from 'drizzle-orm';
 import {
   bookedBalance,
+  candidateMatches,
   ConflictError,
   createBooking,
   assignmentPatch,
@@ -1090,6 +1091,7 @@ export class BankSync {
       ruleId?: string | undefined;
       revision?: string | undefined;
       candidateRevision?: string | undefined;
+      verifyNewTransfer?: boolean | undefined;
       actions?: AssignmentActions | undefined;
       memo?: string | null | undefined;
       projectId?: string | null | undefined;
@@ -1167,6 +1169,31 @@ export class BankSync {
             payeeId: options.payeeId === undefined ? review.cleanup.payeeId : options.payeeId,
           },
       );
+      if (options.verifyNewTransfer && actions.transferAccountId) {
+        const matches = candidateMatches(tx, id);
+        const exactCounterpart = tx
+          .select({ id: booking.id })
+          .from(booking)
+          .where(
+            and(
+              eq(booking.accountId, actions.transferAccountId),
+              eq(booking.date, row.date),
+              eq(booking.amountCents, -row.amountCents),
+              eq(booking.currency, row.currency),
+              isNull(booking.deletedAt),
+            ),
+          )
+          .get();
+        if (
+          exactCounterpart ||
+          matches.merge.length ||
+          matches.link.length ||
+          matches.transfers.some((match) => match.accountId === actions.transferAccountId)
+        )
+          throw new ConflictError(
+            'Eine passende Buchung besteht bereits. Bitte im Formular prüfen.',
+          );
+      }
       const assigned = assignmentPatch(row.amountCents, actions);
       if (actions.accountId && actions.accountId !== row.accountId)
         throw new ConflictError('Das Bankkonto bleibt an seine Datenquelle gebunden.');

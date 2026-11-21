@@ -221,3 +221,7 @@ Four columns, gross open shares, separate credit, unchanged domain balances and
 repayment returns it to the original category; no extra advance or net-worth charge.
 See [RP-21b](user-stories/06-reports.md#rp-21b--kontakte-abrechnung).
 Status: implemented for review; owner acceptance pending. No other report is migrated.
+
+## Prüfen: recurring bank transfers (#1266)
+
+A matching transfer rule or two consecutive confirmed bank occurrences to the same own account prefill the destination. The row displays a single transfer choice. The owner confirms it explicitly, and the existing transfer path uses an eligible counterpart and records the action as one Undo group.

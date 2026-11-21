@@ -34,6 +34,7 @@ let paths: string[];
 let writes: unknown[];
 let suggestions: object[];
 let transfers: object[];
+let recurringTransferAccountId: string | null;
 let defaultCategoryId: string | null;
 let hiddenAt: string | null;
 let recent: object[];
@@ -54,6 +55,7 @@ beforeEach(() => {
   writes = [];
   suggestions = [];
   transfers = [];
+  recurringTransferAccountId = null;
   recent = [];
   defaultCategoryId = 'category';
   hiddenAt = null;
@@ -88,6 +90,7 @@ beforeEach(() => {
               candidateRevision: 'synthetic-revision',
               cleanup: { payeeId: 'payee', payeeName: 'Synthetic recipient' },
               suggestions,
+              recurringTransferAccountId,
               existingTransfer: null,
             }
           : path.endsWith('/payees')
@@ -100,7 +103,12 @@ beforeEach(() => {
             : path.includes('/bookings?')
               ? { items: recent }
               : path.endsWith('/accounts')
-                ? { accounts: [{ id: 'account', name: 'Synthetic account' }] }
+                ? {
+                    accounts: [
+                      { id: 'account', name: 'Synthetic account' },
+                      { id: 'savings', name: 'Synthetic savings' },
+                    ],
+                  }
                 : {
                     categories: [
                       {
@@ -173,41 +181,81 @@ it('explicitly fixes an unchanged suggested recipient and a nonautomatic rule', 
   );
 });
 
-it('adopts a transfer rule after a recipient choice without sending an incompatible payee', async () => {
+it('offers a matching transfer rule with one state and confirms the guarded rule', async () => {
   suggestions = [
     {
       id: 'rule',
       name: 'Synthetic transfer',
       revision: 'rule-revision',
-      automatic: true,
+      automatic: false,
       unavailable: false,
-      actions: { transferAccountId: 'account' },
+      actions: { transferAccountId: 'savings' },
     },
   ];
   const confirmed = vi.fn();
   show(vi.fn(), confirmed);
   fireEvent.focus(screen.getByTestId('inbox-row'));
-  await screen.findByRole('button', { name: /^Gegenkonto bearbeiten/ });
-  fireEvent.click(screen.getByRole('button', { name: /^Empfänger bearbeiten/ }));
-  fireEvent.change(screen.getByRole('combobox', { name: 'Empfänger' }), {
-    target: { value: 'payee' },
+  await screen.findByRole('button', {
+    name: 'Vorschlag bearbeiten: Überweisung an Synthetic savings',
   });
-  fireEvent.click(screen.getByRole('button', { name: /^Vorschlag bearbeiten/ }));
-  fireEvent.change(screen.getByRole('combobox', { name: 'Vorschlag' }), {
-    target: { value: 'rule' },
-  });
+  expect(screen.queryByRole('button', { name: /^Empfänger bearbeiten/ })).toBeNull();
+  expect(screen.queryByRole('button', { name: /^Kategorie bearbeiten/ })).toBeNull();
+  expect((screen.getByRole('button', { name: 'Übernehmen' }) as HTMLButtonElement).disabled).toBe(
+    false,
+  );
+  expect(writes).toEqual([]);
   fireEvent.click(screen.getByRole('button', { name: 'Übernehmen' }));
   await waitFor(() =>
     expect(writes).toEqual([
       {
         categoryId: null,
         candidateRevision: 'synthetic-revision',
+        verifyNewTransfer: true,
         ruleId: 'rule',
         revision: 'rule-revision',
       },
     ]),
   );
   expect(confirmed).not.toHaveBeenCalled();
+});
+
+it('prefills the recurring transfer and sends only the destination after confirmation', async () => {
+  recurringTransferAccountId = 'savings';
+  show();
+  fireEvent.focus(screen.getByTestId('inbox-row'));
+  await screen.findByRole('button', {
+    name: 'Vorschlag bearbeiten: Überweisung an Synthetic savings',
+  });
+  expect(writes).toEqual([]);
+  fireEvent.click(screen.getByRole('button', { name: 'Übernehmen' }));
+  await waitFor(() =>
+    expect(writes).toEqual([
+      {
+        categoryId: null,
+        candidateRevision: 'synthetic-revision',
+        verifyNewTransfer: true,
+        actions: { transferAccountId: 'savings' },
+      },
+    ]),
+  );
+});
+
+it('confirms the one eligible existing counterpart instead of creating a second leg', async () => {
+  recurringTransferAccountId = 'savings';
+  transfers = [
+    { id: 'existing', accountId: 'savings', accountName: 'Synthetic savings', date: '2026-09-18' },
+  ];
+  show();
+  fireEvent.focus(screen.getByTestId('inbox-row'));
+  await screen.findByRole('button', {
+    name: 'Vorschlag bearbeiten: Überweisung an Synthetic savings',
+  });
+  expect(writes).toEqual([]);
+  fireEvent.click(screen.getByRole('button', { name: 'Übernehmen' }));
+  await waitFor(() =>
+    expect(writes).toEqual([{ bookingId: 'existing', candidateRevision: 'synthetic-revision' }]),
+  );
+  expect(paths.some((path) => path.endsWith('/synthetic-candidate/transfer'))).toBe(true);
 });
 
 it('requires an explicit unique transfer choice and uses the existing transfer writer', async () => {
@@ -219,9 +267,10 @@ it('requires an explicit unique transfer choice and uses the existing transfer w
   fireEvent.change(screen.getByRole('combobox', { name: 'Vorschlag' }), {
     target: { value: 'transfer:counterpart' },
   });
-  expect(screen.getByRole('button', { name: /^Gegenkonto bearbeiten/ }).textContent).toContain(
-    'Synthetic savings',
-  );
+  expect(
+    screen.getByRole('button', { name: 'Vorschlag bearbeiten: Überweisung an Synthetic savings' }),
+  ).toBeTruthy();
+  expect(screen.queryByRole('button', { name: /^Kategorie bearbeiten/ })).toBeNull();
   fireEvent.click(screen.getByRole('button', { name: 'Übernehmen' }));
   await waitFor(() => expect(writes).toEqual([{ bookingId: 'counterpart' }]));
   expect(paths.some((path) => path.endsWith('/synthetic-candidate/transfer'))).toBe(true);
