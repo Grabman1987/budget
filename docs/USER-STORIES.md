@@ -109,7 +109,14 @@ regular/combined documents explicitly and keeps all special payments in their pa
 month. Literal synthetic browser cases cover separate specials, an unsplit combined slip
 without wage reading, allowances/travel, missing slips, shared frame/inspection and privacy.
 See [the salary story](user-stories/06-reports.md#rp-02--gehaltsreport-mit-bruttonetto-und-jahresvergleich).
-The remaining development UI under RP-03 and owner live acceptance stay open.
+
+RP-03 Fortsetzung (#1066): Im Gehaltsreport sehe ich das letzte belegte Grundgehalt mit
+Stufenverlauf, Jahres- und Vorjahresmonatsvergleiche je Komponente sowie Bonus und
+zuordenbare Abzüge. Fehlende Gehaltszettel, nicht zugeordnete Lohnarten und nicht
+vergleichbare Monate sind benannt. Der Vergleich mit gespeichertem VPI und persönlichem
+Preisindex zeigt Basis, Indexwerte je Monat, reale Änderung und Preisabstand in Euro je Jahr.
+Die Zuordnungsoberfläche, Ereignismarker, Arbeitgeberbeiträge und die Abnahme durch den
+Nutzer sind offen. [Gehaltsentwicklung](user-stories/06-reports.md#rp-03--echte-gehaltsentwicklung)
 
 ## Per-account liquidity (#1228, #1225)
 

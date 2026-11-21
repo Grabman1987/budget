@@ -13,6 +13,7 @@ export function PayrollProjectChart({
   values,
   gross,
   focusSalary = false,
+  salaryLabel,
   height = 240,
   table = false,
 }: {
@@ -20,6 +21,7 @@ export function PayrollProjectChart({
   values: (number | null)[];
   gross?: (number | null)[];
   focusSalary?: boolean;
+  salaryLabel?: string;
   height?: number;
   table?: boolean;
 }) {
@@ -56,8 +58,8 @@ export function PayrollProjectChart({
         points={chartPoints(
           months,
           x,
-          gross && focusSalary
-            ? [{ name: 'Nettogehalt ohne steuerfreie Erstattungen', values }]
+          focusSalary
+            ? [{ name: salaryLabel ?? 'Nettogehalt ohne steuerfreie Erstattungen', values }]
             : gross
               ? [
                   { name: 'Brutto', values: gross, color: 'var(--line-2)' },
@@ -66,8 +68,8 @@ export function PayrollProjectChart({
               : [{ name: 'Projektergebnis', values, negativeColor: 'var(--ink-2)' }],
         )}
         label={
-          gross && focusSalary
-            ? 'Laufendes Nettogehalt ohne steuerfreie Erstattungen; fehlende Werte unterbrechen die Linie.'
+          focusSalary
+            ? `${salaryLabel ?? 'Laufendes Nettogehalt ohne steuerfreie Erstattungen'}; fehlende Werte unterbrechen die Linie.`
             : gross
               ? 'Brutto und Netto je Monat inklusive Sonderzahlungen, Telearbeit und Fahrgeld zählen als Gehalt, Reisespesen nicht; fehlende Werte unterbrechen die Linie.'
               : 'Projektergebnis je Monat, Balken über und unter Null.'
@@ -89,9 +91,9 @@ export function PayrollProjectChart({
             </text>
           </g>
         ))}
-        {gross ? (
+        {gross || focusSalary ? (
           <>
-            {!focusSalary && <path d={path(gross) ?? ''} className="pp-gross" />}
+            {!focusSalary && gross && <path d={path(gross) ?? ''} className="pp-gross" />}
             <path d={path(values) ?? ''} className="pp-net" />
             {values.map((v, i) =>
               v === null ? null : (
