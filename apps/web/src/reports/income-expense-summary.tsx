@@ -14,6 +14,7 @@ import {
   Line,
   XTicks,
   LineLegend,
+  maskMoneyText,
   useAmountPrivacy,
   useMediaQuery,
 } from '@budget/ui';
@@ -37,6 +38,7 @@ export function incomeOverviewModel(data: IncomeExpenseReportData, months: strin
   const income = total('inc'),
     expenses = total('exp'),
     net = total('net');
+  const sources = rows.filter((row) => row.key.startsWith('inc:'));
   const calculation: ReportCalculation | undefined =
     income !== null && expenses !== null && net !== null
       ? {
@@ -44,12 +46,12 @@ export function incomeOverviewModel(data: IncomeExpenseReportData, months: strin
           signed: true,
           terms: [
             { label: 'Haushaltseinnahmen', value: cents(income) },
-            { op: '-', label: 'Ausgaben inkl. Zukunft', value: cents(expenses) },
+            { op: '-', label: 'Ausgaben', value: cents(expenses) },
           ],
           result: { label: 'Cashflow · Buchungsdatum', value: net, unit: 'money' },
         }
       : undefined;
-  return { selected, income, expenses, net, calculation };
+  return { selected, income, expenses, net, calculation, sources };
 }
 
 export function IncomeOverviewDetails({ children }: { children: ReactNode }) {
@@ -107,6 +109,19 @@ export function IncomeExpenseSummary({
   const y = (v: number) => bottom - ((v - low) / (high - low)) * (bottom - 18);
   return (
     <div className="r8-income-summary" data-testid="income-overview-summary">
+      {m.sources.length > 0 && (
+        <div className="r8-income-types" data-testid="income-period-types">
+          <h3>Einnahmen nach Art</h3>
+          <dl>
+            {m.sources.map((source) => (
+              <div key={source.key}>
+                <dt>{maskMoneyText(source.label)}</dt>
+                <dd>{eur(tableRowTotal(source)!)}</dd>
+              </div>
+            ))}
+          </dl>
+        </div>
+      )}
       <div ref={ref} className="r8-overview-chart">
         {width > 0 && (
           <ChartSvg
@@ -114,13 +129,13 @@ export function IncomeExpenseSummary({
             width={width}
             height={height}
             testId="income-expense-chart"
-            label="Haushaltseinnahmen und Ausgaben einschließlich Zukunft, Cashflow nach Buchungsdatum"
+            label="Haushaltseinnahmen, Ausgaben und Cashflow nach Buchungsdatum"
             points={chartPoints(
               m.selected.map((r) => r.month),
               x,
               [
                 { name: 'Haushaltseinnahmen', values: income },
-                { name: 'Ausgaben inkl. Zukunft', values: expenses, color: 'var(--ink-3)' },
+                { name: 'Ausgaben', values: expenses, color: 'var(--ink-3)' },
                 { name: 'Cashflow', values: net, color: 'var(--ink)' },
               ],
             )}
@@ -167,9 +182,9 @@ export function IncomeExpenseSummary({
       </div>
       <LineLegend items={[{ kind: 'actual', label: 'Cashflow' }]} />
       <p className="r8-scope">
-        Säulen: Haushaltseinnahmen und Ausgaben inkl. Zukunft; der laufende Monat ist heller und
-        gestrichelt. Tatsächliches Buchungsdatum; Kapitalerträge und Erstattungen ohne Kategorie
-        sind keine Haushaltseinnahmen.
+        Säulen: Haushaltseinnahmen und Ausgaben; der laufende Monat ist heller und gestrichelt.
+        Tatsächliches Buchungsdatum; Kapitalerträge und Erstattungen ohne Kategorie sind keine
+        Haushaltseinnahmen.
       </p>
       <div
         className="r8-month-table"
@@ -185,7 +200,7 @@ export function IncomeExpenseSummary({
             <tr>
               <th>Monat</th>
               <th>Einnahmen</th>
-              <th>Ausgaben inkl. Zukunft</th>
+              <th>Ausgaben</th>
               <th>Cashflow</th>
             </tr>
           </thead>
@@ -212,18 +227,22 @@ export function IncomeExpenseSummary({
           </tfoot>
         </table>
       </div>
-      <nav className="r8-income-links" aria-label="Weitere Einnahmenansichten">
+      <nav className="r8-income-links" aria-label="Abschnitte zu Einnahmen und Cashflow">
         <AppLink
           to="/reports/einnahmen-ausgaben"
-          search={{ ...search, darstellung: 'income' } as never}
+          search={search}
+          hash="inc-exp-title"
+          aria-current={undefined}
         >
           Soll und Ist je Einnahme
         </AppLink>
         <AppLink
           to="/reports/einnahmen-ausgaben"
-          search={{ ...search, darstellung: 'projekte' } as never}
+          search={search}
+          hash="cashflow"
+          aria-current={undefined}
         >
-          Projekte und Nebeneinkünfte
+          Zum Cashflow
         </AppLink>
       </nav>
     </div>

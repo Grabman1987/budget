@@ -20,7 +20,7 @@ import {
   useAmountPrivacy,
 } from '@budget/ui';
 import { queryOptions, useQuery } from '@tanstack/react-query';
-import { useNavigate, useSearch } from '@tanstack/react-router';
+import { useLocation, useNavigate, useSearch } from '@tanstack/react-router';
 import { ReportDetailNav } from './report-detail-nav';
 import { request } from '../api/http';
 import { chartPoints } from '../charts/tooltip-data';
@@ -35,10 +35,11 @@ import { RowsGrid } from './table-grid';
 import { monthShort } from './table-format';
 import { TableReportFrame } from './table-report-frame';
 import type { IncomeExpenseReportData } from '@budget/db';
-import type { ReactNode } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 import { IncomeExpenseCashflow, cashflowStatementLine } from './income-expense-cashflow';
 import { ReportProjectScopeNote } from './report-project-scope';
 import { REDESIGN_ENABLED } from '../shell/redesign-flag';
+import { IntegratedIncomeExpectations } from './income-report';
 import {
   IncomeExpenseSummary,
   IncomeOverviewDetails,
@@ -73,12 +74,15 @@ export function IncomeExpenseReport({
 }) {
   const [period, setPeriod] = useZeitraum();
   const query = useQuery(queryOptionsForReport(projectId));
-  const { zelle, spalte, gruppen, monat } = useSearch({ strict: false }) as {
+  const { zelle, spalte, gruppen, monat, darstellung } = useSearch({ strict: false }) as {
     zelle?: string;
     spalte?: string;
     gruppen?: string[];
     monat?: string;
+    darstellung?: string;
   };
+  const anchor = useLocation({ select: (location) => location.hash });
+  const followedAnchor = useRef<string | undefined>(undefined);
   const navigate = useNavigate();
   const expanded = new Set(gruppen ?? []);
   const data = !query.isFetching && query.isSuccess ? query.data : null;
@@ -88,6 +92,34 @@ export function IncomeExpenseReport({
   const months = data?.months.filter((m) => window.includes(m.month)) ?? [];
   const rows = data ? incomeExpenseRows(months, data, expanded) : [];
   const summary = data && months.length ? incomeOverviewModel(data, window) : undefined;
+  const fallbackAnchor =
+    darstellung === 'cashflow'
+      ? 'ie-cashflow-title'
+      : darstellung === 'income'
+        ? 'inc-exp-title'
+        : undefined;
+  useEffect(() => {
+    if (!REDESIGN_ENABLED || sources || !data) return;
+    const id = ['cashflow', 'cf-title', 'cf-months', 'cashflow-months'].includes(anchor)
+      ? 'ie-cashflow-title'
+      : anchor;
+    const target =
+      (id ? document.getElementById(id) : null) ??
+      (fallbackAnchor ? document.getElementById(fallbackAnchor) : null);
+    if (target?.id === followedAnchor.current) return;
+    followedAnchor.current = target?.id;
+    if (!target) return;
+    for (
+      let disclosure = target.closest('details');
+      disclosure;
+      disclosure = disclosure.parentElement?.closest('details') ?? null
+    ) {
+      disclosure.open = true;
+    }
+    if (!target.hasAttribute('tabindex')) target.tabIndex = -1;
+    target.focus({ preventScroll: true });
+    target.scrollIntoView?.({ block: 'start' });
+  }, [anchor, data, fallbackAnchor, sources]);
   const selected = data
     ? incomeExpenseRows(months, data, new Set(data.categories.map((c) => c.groupId))).find(
         (r) => r.key === zelle,
@@ -148,8 +180,9 @@ export function IncomeExpenseReport({
             label: 'Zeitraum',
             value: (
               <ReportPeriodControl
-                trend={false}
+                trend={REDESIGN_ENABLED}
                 includeCurrent
+                {...(data ? { ytdYear: data.currentMonth.slice(0, 4) } : {})}
                 label="Zeitraum"
                 value={period}
                 onChange={(p) => {
@@ -241,6 +274,28 @@ export function IncomeExpenseReport({
                       <IncomeExpenseChart data={data} months={window} />
                       <LineLegend items={[{ kind: 'actual', label: 'Cashflow' }]} />
                     </>
+                  )}
+                  {REDESIGN_ENABLED && data.firstMonth && (
+                    <IntegratedIncomeExpectations
+                      month={
+                        monat && monat <= data.currentMonth
+                          ? monat
+                          : (window.at(-1) ?? data.currentMonth)
+                      }
+                      currentMonth={data.currentMonth}
+                      firstMonth={data.firstMonth}
+                      projectId={projectId}
+                      setMonth={(month) =>
+                        void navigate({
+                          to: '.',
+                          search: ((previous: Record<string, unknown>) => ({
+                            ...previous,
+                            monat: month,
+                          })) as never,
+                          hash: 'inc-exp-title',
+                        })
+                      }
+                    />
                   )}
                   <IncomeExpenseCashflow data={data} months={window} />
                   <IncomeOverviewDetails>

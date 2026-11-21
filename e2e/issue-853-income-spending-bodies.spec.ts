@@ -26,9 +26,12 @@ for (const [name, path, ready] of [
     });
     await page.goto(path);
     const on = await redesignReportsOn(page);
-    await expect(
-      page.getByTestId(on && name === 'spending' ? 'spending-period-chart' : ready),
-    ).toBeVisible();
+    const integratedReady = {
+      income: 'income-expectations-integrated',
+      cashflow: 'cashflow-development-chart',
+      spending: 'spending-period-chart',
+    } as Record<string, string>;
+    await expect(page.getByTestId(on ? (integratedReady[name] ?? ready) : ready)).toBeVisible();
     if (!on) {
       await expect(page.locator('.titleblock')).toBeVisible();
       await expect(page.getByTestId('income-overview-summary')).toHaveCount(0);
@@ -54,8 +57,10 @@ for (const [name, path, ready] of [
       ).toHaveCount(12);
     }
     if (name === 'income') {
-      await expect(page.locator('.income-report > [data-r8-detail]')).toHaveCount(2);
-      await expect(page.locator('.income-report > [data-r8-detail][open]')).toHaveCount(0);
+      await expect(page.getByTestId('income-expense-report')).toBeVisible();
+      const monthFacts = page.locator('[data-r8-detail="income-month-facts"]');
+      await expect(monthFacts).not.toHaveAttribute('open');
+      await expect(monthFacts.locator('[data-r8-detail]')).toHaveCount(2);
     }
     if (name === 'spending') await expect(page.getByTestId('spending-period-chart')).toBeVisible();
     for (const theme of ['light', 'dark']) {
@@ -137,6 +142,16 @@ test('853 print exposes the complete reader and restores closed screen details',
     await page.goto(path);
     if (!(await redesignReportsOn(page))) {
       await expect(page.locator(tableSelector)).toBeVisible();
+      continue;
+    }
+    if (path.startsWith('/reports/cashflow')) {
+      const table = page.getByTestId('income-expense-cashflow').getByRole('table');
+      await expect(table).toBeVisible();
+      const original = await table.textContent();
+      await page.emulateMedia({ media: 'print' });
+      await expect(table).toBeVisible();
+      await expect(table).toHaveText(original!);
+      await page.emulateMedia({ media: 'screen' });
       continue;
     }
     const detail = page.locator(detailSelector),

@@ -12,7 +12,11 @@ test.describe.configure({ timeout: 150_000 });
 // Separate from the existing serious/critical checks: no impact, rule, tag or page exclusions.
 const pages = [
   ['sparquote', '/reports/sparquote', '[data-testid="savings-chart"]'],
-  ['cashflow', '/reports/cashflow', '[data-testid="cashflow-net-chart"]'],
+  [
+    'cashflow',
+    '/reports/cashflow',
+    '[data-testid="cashflow-development-chart"], [data-testid="cashflow-net-chart"]',
+  ],
   ['vermoegen-schulden', '/reports/vermoegen-schulden', '[data-testid="assets-debts-chart"]'],
   ['vergleich', '/reports/vergleich', '[data-testid="vg-consumption"]'],
   ['projekte', '/reports/projekte', '.pp-project .pp-chart'],

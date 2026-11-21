@@ -17,10 +17,8 @@ test('income versus expense expands categories, drills bookings and exports the 
   await expect(page.getByTestId('cashflow-statement')).toContainText('durchschnittlich');
   await expect(page.getByTestId('report-verdict')).toContainText('inkl. laufendem Monat');
   await expect(page.getByTestId('report-verdict')).not.toContainText('im Plan');
-  // The month table is hidden on phones by design (the chart carries the story there).
-  const monthTable = info.project.name === 'mobile' ? 'toBeHidden' : 'toBeVisible';
   await expect(cashflow.locator('tbody th', { hasText: /· laufend$/ })).toHaveCount(1);
-  await expect(cashflow.getByRole('columnheader', { name: 'kumuliert' }))[monthTable]();
+  await expect(cashflow.getByRole('columnheader', { name: 'kumuliert' })).toBeVisible();
   await expect(report.getByText('Cashflow (Einnahmen − Ausgaben)', { exact: true })).toBeVisible();
   const expand = report.getByRole('button', { expanded: false }).first();
   await expect(expand).toBeVisible();

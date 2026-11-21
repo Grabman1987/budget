@@ -139,6 +139,28 @@
   background: var(--surface-2);
   font-weight: 650;
 }
+[data-budget-redesign='1'] .r8-income-types dl {
+  margin: 0 0 12px;
+}
+[data-budget-redesign='1'] .r8-income-types dl > div {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  padding-block: 6px;
+  border-bottom: 1px solid var(--rule);
+}
+[data-budget-redesign='1'] .r8-income-types dt {
+  overflow-wrap: anywhere;
+}
+[data-budget-redesign='1'] .r8-income-types dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+[data-budget-redesign='1']
+  .income-expense-report
+  :is(#cashflow, #ie-cashflow-title, #inc-exp-title) {
+  scroll-margin-block-start: 6rem;
+}
 [data-budget-redesign='1'] .r8-income-links {
   display: grid;
 }
@@ -184,7 +206,7 @@
     grid-column: 1 / -1;
     grid-row: 2;
   }
-  [data-budget-redesign='1'] .r8-month-table {
+  [data-budget-redesign='1'] :is(.r8-income-summary, .r8-spending-trend) .r8-month-table {
     display: none;
   }
   [data-budget-redesign='1'] .r8-income-details .rgrid {

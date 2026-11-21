@@ -11,7 +11,7 @@ test.use({ ledgerToday: '2026-09-17' });
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => {
     localStorage.setItem('budget-report-income-details', '1');
-    for (const id of ['income-expected', 'income-types', 'income-capital'])
+    for (const id of ['income-expected', 'income-types', 'income-capital', 'income-month-facts'])
       localStorage.setItem(`budget-report-r8-${id}`, '1');
   });
 });
@@ -175,10 +175,19 @@ test('621 fixed August views equal each former report to literal cents without r
 }, info) => {
   seed(isolatedLedger.databasePath);
   await page.goto('/reports/einnahmen?monat=2026-08');
+  const on = await redesignReportsOn(page);
   await expect(page.getByTestId('income-total')).toHaveText('3.000,03 €');
   await expect(page.getByTestId('income-capital-total')).toHaveText('7,00 €');
   await page.goto(`/reports/cashflow?zeitraum=${period}`);
-  await expect(page.getByTestId('cf-figure')).toHaveText('2.705,03 €');
+  const former = await page.request.get('/api/cashflow?period=' + period);
+  expect((await former.json()).totals.netCents).toBe(270503);
+  if (on) {
+    await expect(page.getByTestId('income-expense-cashflow').locator('tfoot td').nth(2)).toHaveText(
+      '2.675,03 €',
+    );
+  } else {
+    await expect(page.getByTestId('cf-figure')).toHaveText('2.705,03 €');
+  }
   for (const theme of ['light', 'dark']) {
     await page.goto(`${path}?monat=2026-08&zeitraum=${period}`);
     await page.evaluate((value) => {
@@ -191,6 +200,24 @@ test('621 fixed August views equal each former report to literal cents without r
       ['Cashflow', '.cashflow-report', 'cf-figure'],
       ['Einnahmen und Ausgaben', '.income-expense-report', ''],
     ] as const) {
+      if (on) {
+        const intent =
+          view === 'Einnahmen' ? 'income' : view === 'Cashflow' ? 'cashflow' : 'overview';
+        const alias = path + '?monat=2026-08&zeitraum=' + period + '&darstellung=' + intent;
+        await page.goto(alias);
+        await page.evaluate((value) => {
+          document.documentElement.dataset['theme'] = value;
+        }, theme);
+        await openIncomeTable(page);
+        await expect(overviewNet(page)).toHaveText('2.675,03 €');
+        await expect(page.locator('.cashflow-report')).toHaveCount(0);
+        await expect(page.getByTestId('income-expense-cashflow')).toBeVisible();
+        await expect(page.getByTestId('income-total')).toHaveText('3.000,03 €');
+        expect(new URL(page.url()).searchParams.get('monat')).toBe('2026-08');
+        expect(new URL(page.url()).searchParams.get('zeitraum')).toBe(period);
+        await inspect(page, info, 'integrated-alias-' + intent + '-' + theme);
+        continue;
+      }
       await chooseReportView(page, 'Ansicht von Einnahmen und Cashflow', view);
       await expect(page.locator(active)).toBeVisible();
       await expect(
@@ -222,6 +249,22 @@ test('621 project identity stays scoped through every view, CSV, sources, privac
   isolatedLedger,
 }, info) => {
   const salary = seed(isolatedLedger.databasePath);
+  await page.goto(path + '?monat=2026-08&zeitraum=' + period + '&darstellung=income&projekt=a');
+  const on = await redesignReportsOn(page);
+  const view = async (label: string) => {
+    if (on) {
+      const next = new URL(page.url());
+      next.searchParams.set(
+        'darstellung',
+        label === 'Cashflow' ? 'cashflow' : label === 'Einnahmen' ? 'income' : 'overview',
+      );
+      await page.goto(next.href, { waitUntil: 'domcontentloaded' });
+    } else await chooseReportView(page, 'Ansicht von Einnahmen und Cashflow', label);
+  };
+  const cashflow = () =>
+    on
+      ? page.getByTestId('income-expense-cashflow').locator('tfoot td').nth(2)
+      : page.getByTestId('cf-figure');
   for (const theme of ['light', 'dark']) {
     await page.goto(`${path}?monat=2026-08&zeitraum=${period}&darstellung=income&projekt=a`);
     await page.evaluate((value) => {
@@ -247,7 +290,7 @@ test('621 project identity stays scoped through every view, CSV, sources, privac
     await privacy(page);
     await expect(page.getByTestId('income-total')).toHaveText('1.000,01 €');
     await inspect(page, info, `project-income-${theme}`);
-    await chooseReportView(page, 'Ansicht von Einnahmen und Cashflow', 'Einnahmen und Ausgaben');
+    await view('Einnahmen und Ausgaben');
     await openIncomeTable(page);
     await expect(overviewNet(page)).toHaveText('875,01 €');
     await expect(page.locator('.report-project-note')).toContainText(
@@ -265,17 +308,20 @@ test('621 project identity stays scoped through every view, CSV, sources, privac
     expect(csv).toContain('875,01');
     expect(csv).not.toContain('2000,02');
     await inspect(page, info, `project-overview-${theme}`);
-    await chooseReportView(page, 'Ansicht von Einnahmen und Cashflow', 'Cashflow');
-    await expect(page.getByTestId('cf-figure')).toHaveText('905,01 €');
+    await view('Cashflow');
+    await expect(cashflow()).toHaveText(on ? '875,01 €' : '905,01 €');
+    const former = await page.request.get('/api/cashflow?period=' + period + '&projectId=a');
+    expect((await former.json()).totals.netCents).toBe(90501);
     await expect(page.locator('.report-project-note')).toHaveAttribute('data-project-id', 'a');
     await inspect(page, info, `project-cashflow-${theme}`);
   }
   await page.getByRole('combobox', { name: 'Projektfilter', exact: true }).selectOption('b');
-  await expect(page.getByTestId('cf-figure')).toHaveText('1.800,02 €');
+  await expect(cashflow()).toHaveText('1.800,02 €');
   await expect(page.locator('.report-project-note')).toContainText('archiviert');
   await page.getByRole('combobox', { name: 'Projektfilter', exact: true }).selectOption('empty');
-  await expect(page.getByTestId('cf-figure')).toHaveText('0,00 €');
+  await expect(cashflow()).toHaveText('0,00 €');
   await page.goto(`${path}?monat=2026-08&zeitraum=${period}&darstellung=overview&projekt=a`);
+  await openIncomeTable(page);
   const household = page
     .locator('.income-expense-report .rgrid tbody tr')
     .filter({ has: page.getByRole('rowheader', { name: 'Einnahmen · Haushalt', exact: true }) })
@@ -316,15 +362,15 @@ test('621 project identity stays scoped through every view, CSV, sources, privac
   const selectedHeld = new Promise<void>((resolve) => {
     releaseSelected = resolve;
   });
-  await page.route('**/api/reports/month/income?*', async (route) => {
+  const incomeApi = on ? '/api/report-tables/income-expense' : '/api/reports/month/income';
+  const incomeApiRoute = '**' + incomeApi + '?*';
+  await page.route(incomeApiRoute, async (route) => {
     await selectedHeld;
     await route.continue();
   });
   const selectedReread = page.waitForRequest((request) => {
     const url = new URL(request.url());
-    return (
-      url.pathname === '/api/reports/month/income' && url.searchParams.get('projectId') === 'a'
-    );
+    return url.pathname === incomeApi && url.searchParams.get('projectId') === 'a';
   });
   await projectFilter.selectOption('a');
   try {
@@ -337,25 +383,23 @@ test('621 project identity stays scoped through every view, CSV, sources, privac
   await expect(page.getByRole('alert')).toBeVisible();
   await expect(page.getByTestId('income-total')).toHaveCount(0);
   expect(new URL(page.url()).searchParams.get('projekt')).toBe('a');
-  await page.unroute('**/api/reports/month/income?*');
-  await chooseReportView(page, 'Ansicht von Einnahmen und Cashflow', 'Cashflow');
+  await page.unroute(incomeApiRoute);
+  await view('Cashflow');
   await expect(page.getByRole('alert')).toBeVisible();
   // A fresh cached 100001-cent result must stay hidden while its deleted scope is reread.
   let releaseIncome!: () => void;
   const incomeHeld = new Promise<void>((resolve) => {
     releaseIncome = resolve;
   });
-  await page.route('**/api/reports/month/income?*', async (route) => {
+  await page.route(incomeApiRoute, async (route) => {
     await incomeHeld;
     await route.continue();
   });
   const incomeReread = page.waitForRequest((request) => {
     const url = new URL(request.url());
-    return (
-      url.pathname === '/api/reports/month/income' && url.searchParams.get('projectId') === 'a'
-    );
+    return url.pathname === incomeApi && url.searchParams.get('projectId') === 'a';
   });
-  await chooseReportView(page, 'Ansicht von Einnahmen und Cashflow', 'Einnahmen');
+  await view('Einnahmen');
   try {
     await incomeReread;
     await expect(page.getByTestId('income-total')).toHaveCount(0);
