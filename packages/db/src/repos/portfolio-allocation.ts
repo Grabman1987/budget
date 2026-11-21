@@ -14,6 +14,7 @@ import { riskOf } from './portfolio-summary';
 import type { Executor } from './types';
 
 export interface PortfolioAllocationView {
+  cashReconciliation?: ReturnType<typeof allocationInputsAsOf>['cashReconciliation'];
   asOf: string;
   policy: PortfolioRiskPolicy;
   valuationQuality: AllocationQuality['valuationQuality'];
@@ -71,6 +72,7 @@ export function portfolioAllocation(db: Executor, asOf: string): PortfolioAlloca
     quality: current.quality,
     universe: current.universe,
     exposureEvidence: current.exposureEvidence,
+    cashReconciliation: current.cashReconciliation,
     valueCents: current.valueCents,
     status,
     missing,

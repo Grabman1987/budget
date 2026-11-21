@@ -1,3 +1,4 @@
+import { bankTransitReconciliation } from './bank-transfer-transit';
 import { portfolioBenchmarks, type PortfolioBenchmarkSeries } from './portfolio-benchmarks';
 import { cashValuer } from './cash-valuation';
 import {
@@ -45,6 +46,7 @@ export interface DepotColumn {
 }
 
 export interface DepotComparison {
+  cashReconciliation?: ReturnType<typeof bankTransitReconciliation>;
   asOf: string;
   period: Period;
   /** `null` while the portfolio has no history. */
@@ -88,6 +90,11 @@ export function depotComparison(
       .sort()[0] ?? null;
   const lines = positionLines(db, today);
   const empty: DepotComparison = {
+    cashReconciliation: bankTransitReconciliation(
+      db,
+      today,
+      accounts.map((a) => a.id),
+    ),
     asOf: today,
     period,
     window: null,
@@ -323,6 +330,11 @@ export function depotComparison(
     products: productsOf(null),
   };
   return {
+    cashReconciliation: bankTransitReconciliation(
+      db,
+      today,
+      accounts.map((a) => a.id),
+    ),
     asOf: today,
     period,
     window: effective,

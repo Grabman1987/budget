@@ -11,7 +11,7 @@ import {
   restoreBooking,
   updateBooking,
 } from './bookings';
-import { ConflictError } from './errors';
+import { BookingInvariantError, ConflictError } from './errors';
 import { accounts, createEntity } from './entities';
 import { createExpectedPayment, linkOccurrence } from './expected';
 import { portfolioFlows } from './portfolio';
@@ -187,7 +187,11 @@ describe('trades settle on the investment account', () => {
       testCtx,
     );
     const id = r.bookingId as string;
-    expect(() => updateBooking(db, id, { amountCents: -1 }, testCtx)).toThrow(/Handelsabrechnung/);
+    expect(() => updateBooking(db, id, { amountCents: -1 }, testCtx)).toThrow(
+      new BookingInvariantError(
+        'Eine Handelsabrechnung kann nicht geändert werden. Bitte den Handel ändern.',
+      ),
+    );
     expect(() => updateBooking(db, id, { date: '2026-03-03' }, testCtx)).toThrow(
       /Handelsabrechnung/,
     );
@@ -198,7 +202,11 @@ describe('trades settle on the investment account', () => {
     expect(() =>
       updateBooking(db, id, { splits: [{ categoryId: null, amountCents: -10_000 }] }, testCtx),
     ).toThrow(/Handelsabrechnung/);
-    expect(() => deleteBooking(db, id, testCtx)).toThrow(/Handelsabrechnung/);
+    expect(() => deleteBooking(db, id, testCtx)).toThrow(
+      new BookingInvariantError(
+        'Eine Handelsabrechnung kann nicht gelöscht werden. Bitte den Handel ändern.',
+      ),
+    );
     updateBooking(
       db,
       id,
@@ -239,7 +247,11 @@ describe('trades settle on the investment account', () => {
       testCtx,
     );
     deleteTrade(db, r.trade.id, testCtx);
-    expect(() => restoreBooking(db, r.bookingId as string, testCtx)).toThrow(/Handelsabrechnung/);
+    expect(() => restoreBooking(db, r.bookingId as string, testCtx)).toThrow(
+      new BookingInvariantError(
+        'Eine Handelsabrechnung kann nicht wiederhergestellt werden. Bitte den Handel ändern.',
+      ),
+    );
     expect(() => getTrade(db, r.trade.id)).toThrow();
     expect(getBooking(db, r.bookingId as string)).toBeUndefined();
     expect(balance('depot')).toBe(0);

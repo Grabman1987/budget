@@ -1,7 +1,14 @@
-import { bankTransferTransitCents, sumValuationCents } from '@budget/domain';
+import {
+  bankTransferTransitCents,
+  sumValuationCents,
+  freedomSumCents,
+  ValuationLimitError,
+} from '@budget/domain';
 import { and, isNotNull, isNull } from 'drizzle-orm';
 import { account, booking } from '../schema';
 import { memoizedShared } from './request-memo';
+import { accountBalances } from './queries';
+import { cashValuer } from './cash-valuation';
 import type { Executor } from './types';
 
 /** Whole same-currency bank transfers only; no synthetic ledger rows or balance adjustments. */
@@ -75,4 +82,57 @@ export function cashWithBankTransit(
   );
   // Sum once: large opposing cash/transit terms may still have a safe final native value.
   return terms.some((cents) => cents !== 0) ? sumValuationCents([cashCents, ...terms]) : cashCents;
+}
+
+/** Display-only reconciliation for an explicit account universe; bank facts stay untouched. */
+export function bankTransitReconciliation(
+  db: Executor,
+  asOf: string,
+  accountIds: readonly string[],
+) {
+  const selected = new Set(accountIds);
+  const rows = db.select().from(account).where(isNull(account.deletedAt)).all();
+  const accounts = new Map(rows.filter((a) => selected.has(a.id)).map((a) => [a.id, a]));
+  const transit = bankTransferTransit(db);
+  const value = cashValuer(db);
+  const raw: number[] = [];
+  const corrected: number[] = [];
+  const missingFxAccountIds: string[] = [];
+  let valuationLimited = false;
+  for (const balance of accountBalances(db, asOf)) {
+    const acct = accounts.get(balance.accountId);
+    if (!acct) continue;
+    try {
+      const native = cashWithBankTransit(transit, acct.id, asOf, balance.balanceCents);
+      // Zero bank cash needs no exchange rate, as in cashSeries/net-worth valuation.
+      const rawValue =
+        balance.balanceCents === 0 ? 0 : value(balance.balanceCents, acct.currency, asOf).eurCents;
+      const correctedValue = native === 0 ? 0 : value(native, acct.currency, asOf).eurCents;
+      if (rawValue === null || correctedValue === null) {
+        missingFxAccountIds.push(acct.id);
+        continue;
+      }
+      raw.push(rawValue);
+      corrected.push(correctedValue);
+    } catch (error) {
+      if (!(error instanceof ValuationLimitError) || error.boundary !== 'result') throw error;
+      // Optional display evidence must not turn a previously readable source into an error.
+      valuationLimited = true;
+    }
+  }
+  const rawCashCents = missingFxAccountIds.length || valuationLimited ? null : freedomSumCents(raw);
+  const cashIncludingTransitCents =
+    missingFxAccountIds.length || valuationLimited ? null : freedomSumCents(corrected);
+  return {
+    label: 'Geld unterwegs' as const,
+    asOf,
+    accountIds: [...accounts.keys()].sort(),
+    rawCashCents,
+    transitCents:
+      rawCashCents === null || cashIncludingTransitCents === null
+        ? null
+        : freedomSumCents([cashIncludingTransitCents, -rawCashCents]),
+    cashIncludingTransitCents,
+    missingFxAccountIds: missingFxAccountIds.sort(),
+  };
 }

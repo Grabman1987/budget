@@ -221,3 +221,32 @@ Four columns, gross open shares, separate credit, unchanged domain balances and
 repayment returns it to the original category; no extra advance or net-worth charge.
 See [RP-21b](user-stories/06-reports.md#rp-21b--kontakte-abrechnung).
 Status: implemented for review; owner acceptance pending. No other report is migrated.
+
+## Transit reconciliation (#1195, audit rests 1 and 2)
+
+Allocation, portfolio summary, depot comparison and whole picture show a read-only
+**Geld unterwegs** cash bridge: raw bank cash, the signed transit difference, and
+cash including transit, with the as-of day and explicit account count. Allocation
+uses its selected universe; summary uses requested reference accounts (otherwise
+investment accounts), depot comparison uses investment accounts, and whole picture
+uses all live household accounts at the selected period end. A subset never claims
+to be household net worth. PP comparison and book inputs expose the same labelled
+bridge for their target/reference universe. Missing FX withholds the bridge.
+Security values, manual valuations and decision denominators keep their existing
+definitions; the line reconciles cash only. Bookings, allocations, trades, raw
+balances, performance and net worth remain unchanged.
+
+Independent-date transit supports whole equal-amount, same-currency transfers
+between **checking/savings** accounts, with existing opening-date and five-day
+guards. Brokerage, crypto and P2P eligibility needs an owner policy decision;
+this slice neither broadens eligibility nor invents settlement rules. Cash/bank
+transfers retain their separate contract. Deleting through either single leg
+deletes the connected pair; Undo restores both original legs and redo deletes both.
+
+Evidence: `transit-readers-1195.test.ts` covers days 0–4, reversed dates, selected
+scope, missing FX, unchanged snapshots and single-leg delete/Undo/redo.
+`invest.test.ts` pins literal German update/delete/restore refusal messages.
+`issue-1195-transit.spec.ts` covers four rendered readers, raw cash versus net
+worth, privacy, themes and responsive layout. Status: prepared for review;
+publication and owner acceptance pending. #1195 stays open for the account-type
+decision. Already-delivered items 3/4 remain unchanged.

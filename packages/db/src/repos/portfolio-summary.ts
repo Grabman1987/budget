@@ -1,3 +1,4 @@
+import { bankTransitReconciliation } from './bank-transfer-transit';
 import { withValuationRange } from './valuation-notes';
 import { portfolioBenchmarks, type PortfolioBenchmarkSeries } from './portfolio-benchmarks';
 import { allocationInputsAsOf } from './allocation-inputs';
@@ -138,6 +139,7 @@ export interface PlatformShare {
 }
 
 export interface PortfolioSummary {
+  cashReconciliation?: ReturnType<typeof bankTransitReconciliation>;
   valuationProvenance?: ValuationProvenance;
   quality: AllocationQuality;
   asOf: string;
@@ -1166,6 +1168,11 @@ function portfolioSummaryInRange(
   return {
     asOf: today,
     costMethod,
+    cashReconciliation: bankTransitReconciliation(
+      db,
+      today,
+      options.referenceAccounts ?? investmentAccounts,
+    ),
     period,
     view,
     valueCents,
