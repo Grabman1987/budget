@@ -58,7 +58,9 @@ test('619 sixteen-report hub has searchable groups, three session recents and a 
     ).toHaveCount(3);
     expect(
       await page.evaluate(() => JSON.parse(sessionStorage.getItem('budget.reports.recent.v1')!)),
-    ).toEqual(['explorer', 'vergleich', 'budgettreue']);
+    ).toEqual(
+      redesign ? ['explorer', 'ausgaben', 'budgettreue'] : ['explorer', 'vergleich', 'budgettreue'],
+    );
     await expect(
       page.getByRole('navigation', { name: 'Register von Reports', exact: true }),
     ).toHaveCount(0);
@@ -112,7 +114,9 @@ test('619 sixteen-report hub has searchable groups, three session recents and a 
     await expect(page.locator('.report-hub-list > li')).toHaveCount(HUB_REPORT_COUNT);
     await search.fill('Ausgabenanalyse');
     await page.locator('.report-hub-list > li > a').click();
-    await expect(page).toHaveURL(/\/reports\/ausgaben$/);
+    await expect(page).toHaveURL(
+      redesign ? /\/reports\/ausgaben\?zeitraum=1M$/ : /\/reports\/ausgaben$/,
+    );
     await expect(
       page.getByRole('navigation', { name: 'Register von Reports', exact: true }),
     ).toHaveCount(0);

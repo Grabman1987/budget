@@ -1,4 +1,7 @@
-import { redesignReportsOn, revealComparisonDetail } from './report-frame';
+import { redesignReportsOn } from './report-frame';
+import { openSpendingGroups } from './income-spending-controls';
+import { eur } from '../apps/web/src/ledger/format';
+import type { SpendingReport } from '@budget/db';
 import { cents, formatEuro } from '@budget/domain';
 import { expect as baseExpect, sampleTest as test } from './sample';
 import { inspectReport } from './overview-report';
@@ -14,11 +17,34 @@ const whole = (value: number) => formatEuro(cents(value), { cents: false });
 test('Zeitraumvergleich shows the figures of the endpoint and switches the mode', async ({
   page,
 }, info) => {
-  const first = page.waitForResponse(
-    (r) => new URL(r.url()).pathname === '/api/overview/compare' && r.status() === 200,
-  );
   await page.goto('/reports/vergleich');
-  const { comparison } = (await (await first).json()) as {
+  if (await redesignReportsOn(page)) {
+    await expect(page).toHaveURL(
+      (url) =>
+        url.pathname === '/reports/ausgaben' &&
+        url.searchParams.get('zeitraum') === '1M' &&
+        url.searchParams.get('vergleich') === 'vorjahr',
+    );
+    const response = await page.request.get(
+      '/api/reports/spending/analysis?period=1M&basis=previous-year',
+    );
+    expect(response.ok()).toBe(true);
+    const data = (await response.json()) as SpendingReport;
+    await openSpendingGroups(page);
+    await expect(page.getByTestId('sa-consumption')).toHaveText(eur(data.consumptionCents));
+    const chain = page.getByRole('group', { name: 'Maßkette Veränderung', exact: true });
+    await expect(chain).toContainText(eur(data.answerComparison.previousCents!));
+    await expect(chain).toContainText(eur(data.consumptionCents));
+    const mode = page.getByRole('combobox', { name: 'Vergleich mit', exact: true });
+    await expect(mode).toHaveValue('vorjahr');
+    await mode.selectOption('vorperiode');
+    await expect(mode).toHaveValue('vorperiode');
+    await expect(chain).toBeVisible();
+    return;
+  }
+  const response = await page.request.get('/api/overview/compare?mode=vj');
+  expect(response.ok()).toBe(true);
+  const { comparison } = (await response.json()) as {
     comparison: {
       current: string[];
       previous: string[];
@@ -30,7 +56,6 @@ test('Zeitraumvergleich shows the figures of the endpoint and switches the mode'
   expect(comparison.current).toEqual(['2026-08']);
   expect(comparison.previous).toEqual(['2025-08']);
 
-  await revealComparisonDetail(page);
   await expect(page.getByRole('heading', { name: 'August 2026 gegen August 2025' })).toBeVisible();
   await expect(page.getByTestId('vg-consumption')).toHaveText(
     whole(comparison.currentTotals.consumptionCents),
@@ -42,13 +67,6 @@ test('Zeitraumvergleich shows the figures of the endpoint and switches the mode'
   await expect(page.getByTestId('vg-capital')).toHaveText(
     whole(comparison.currentTotals.capitalCents),
   );
-  if ((await redesignReportsOn(page)) && comparison.rows.length > 4)
-    await page
-      .getByRole('button', {
-        name: `Alle ${comparison.rows.length} Kategorien anzeigen`,
-        exact: true,
-      })
-      .click();
   await expect(page.locator('.dv li')).toHaveCount(comparison.rows.length);
   const moreBar = page.locator('.dv-track i.is-more').first();
   await expect(moreBar).toBeVisible();
@@ -69,18 +87,12 @@ test('Zeitraumvergleich shows the figures of the endpoint and switches the mode'
   const next = page.waitForResponse(
     (r) => r.url().includes('/api/overview/compare?mode=ytd') && r.status() === 200,
   );
-  if (await redesignReportsOn(page)) {
-    await page.getByRole('combobox', { name: 'Vergleich', exact: true }).selectOption('ytd');
-    await next;
-    await expect(page.getByRole('combobox', { name: 'Vergleich', exact: true })).toHaveValue('ytd');
-  } else {
-    await page.getByRole('button', { name: 'Jahr bis heute gegen Vorjahr' }).click();
-    await next;
-    await expect(
-      page.getByRole('button', { name: 'Jahr bis heute gegen Vorjahr' }),
-    ).toHaveAttribute('aria-pressed', 'true');
-  }
-  await revealComparisonDetail(page);
+  await page.getByRole('button', { name: 'Jahr bis heute gegen Vorjahr' }).click();
+  await next;
+  await expect(page.getByRole('button', { name: 'Jahr bis heute gegen Vorjahr' })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
   await expect(
     page.getByRole('heading', { name: 'Jän 26 bis Aug 26 gegen Jän 25 bis Aug 25' }),
   ).toBeVisible();

@@ -161,7 +161,12 @@ const pageRoute = (path: string, meta: PageMeta) =>
 
 const redirectRoute = (
   path: string,
-  to: string,
+  to:
+    | string
+    | ((search: Record<string, unknown>) => {
+        path: string;
+        intent: Readonly<Record<string, string>>;
+      }),
   intent: Readonly<Record<string, string>> = {},
   fallbackPeriod?: Period,
 ) =>
@@ -169,11 +174,13 @@ const redirectRoute = (
     getParentRoute: () => shellRoute,
     path,
     beforeLoad: ({ location, params, search }) => {
+      const destination = typeof to === 'function' ? to(search) : { path: to, intent };
       const target = new URL(
-        `${to.replace('$id', encodeURIComponent((params as { id?: string }).id ?? ''))}${location.searchStr}${location.hash ? `#${location.hash}` : ''}`,
+        `${destination.path.replace('$id', encodeURIComponent((params as { id?: string }).id ?? ''))}${location.searchStr}${location.hash ? `#${location.hash}` : ''}`,
         'https://budget.invalid',
       );
-      for (const [key, value] of Object.entries(intent)) target.searchParams.set(key, value);
+      for (const [key, value] of Object.entries(destination.intent))
+        target.searchParams.set(key, value);
       if (fallbackPeriod && !isZeitraum(search.zeitraum))
         target.searchParams.set('zeitraum', fallbackPeriod);
       throw redirect({
@@ -734,7 +741,17 @@ const redirects = [
   redirectRoute('/reports/peinzahlungen', '/reports/pallocation', { darstellung: 'einzahlungen' }),
   redirectRoute('/reports/prendite', '/reports/pallocation', { darstellung: 'rendite' }),
   redirectRoute('/reports/jahresansicht', '/reports/explorer', { vorlage: 'year' }, 'YTD'),
-  redirectRoute('/reports/kategorien', '/reports/explorer', { vorlage: 'category' }, 'YTD'),
+  redirectRoute(
+    '/reports/kategorien',
+    (search) => {
+      const { ansicht, exakt, vorlage } = validateReportSearch(search);
+      return REDESIGN_ENABLED && !ansicht && !exakt && vorlage !== 'category'
+        ? { path: '/reports/ausgaben', intent: { darstellung: 'kategorien' } }
+        : { path: '/reports/explorer', intent: { vorlage: 'category' } };
+    },
+    {},
+    'YTD',
+  ),
   redirectRoute('/reports/gesamttabelle', '/reports/explorer', { vorlage: 'total' }, 'Alles'),
   redirectRoute(
     '/reports/vorschau',
@@ -830,6 +847,16 @@ const reportRoute = createRoute({
   path: '/reports/$reportId',
   validateSearch: validateReportSearch,
   beforeLoad: ({ params, search, location }) => {
+    if (REDESIGN_ENABLED && params.reportId === 'vergleich') {
+      const target = new URL('/reports/ausgaben' + location.searchStr, 'https://budget.invalid');
+      target.searchParams.set('darstellung', 'gruppen');
+      if (!search.zeitraum) target.searchParams.set('zeitraum', '1M');
+      if (!target.searchParams.has('vergleich')) target.searchParams.set('vergleich', 'vorjahr');
+      throw redirect({
+        href: target.pathname + target.search + (location.hash ? '#' + location.hash : ''),
+        replace: true,
+      });
+    }
     const wealthDestination = wealthReportDestination(params.reportId, search.darstellung);
     if (wealthDestination) {
       const target = new URL(

@@ -162,7 +162,6 @@ const LEGACY_HUB_REPORTS: readonly HubReport[] = [
 const redesignOrder = [
   'onepager',
   'jahresreport',
-  'vergleich',
   'kontakte',
   'explorer',
   'vermoegen-schulden',
@@ -199,18 +198,22 @@ const REDESIGN_HUB_REPORTS: readonly HubReport[] = redesignOrder.map((id, index)
         : id === 'psteuern'
           ? 'Was kostet uns das Geld, und was bleibt nach Steuern?'
           : (original?.question ?? source.question),
-    group: index < 3 ? 'reports' : index < 5 ? 'analysis' : index < 9 ? 'portfolio' : 'income',
+    group: index < 2 ? 'reports' : index < 4 ? 'analysis' : index < 8 ? 'portfolio' : 'income',
     no: index + 1,
     sources:
       id === 'onepager'
         ? ['onepager', 'finanzcheck']
-        : id === 'psteuern'
-          ? ['psteuern', 'kosten']
-          : id === 'abos'
-            ? ['abos']
-            : id === 'vermoegen-schulden'
-              ? ['vermoegen-schulden', 'vermoegen', 'gesamtuebersicht']
-              : (original?.sources ?? [id]),
+        : id === 'ausgaben'
+          ? ['ausgaben', 'empfaenger', 'vergleich', 'kategorien']
+          : id === 'explorer'
+            ? ['explorer', 'jahresansicht', 'gesamttabelle']
+            : id === 'psteuern'
+              ? ['psteuern', 'kosten']
+              : id === 'abos'
+                ? ['abos']
+                : id === 'vermoegen-schulden'
+                  ? ['vermoegen-schulden', 'vermoegen', 'gesamtuebersicht']
+                  : (original?.sources ?? [id]),
   };
 });
 export const HUB_REPORTS = REDESIGN_ENABLED ? REDESIGN_HUB_REPORTS : LEGACY_HUB_REPORTS;

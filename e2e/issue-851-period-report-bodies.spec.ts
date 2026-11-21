@@ -6,13 +6,15 @@ import { sampleTest as test, expect } from './sample';
 import { redesignReportsOn, openPaperView } from './report-frame';
 import { eur } from '../apps/web/src/ledger/format';
 import type { OnePagerData } from '../apps/web/src/reports/month-api';
-import type { YearReportRead, PeriodComparisonReport } from '../apps/web/src/reports/overview-api';
+import type { YearReportRead } from '../apps/web/src/reports/overview-api';
+import type { SpendingReport } from '@budget/db';
+import { openSpendingGroups } from './income-spending-controls';
 
 const folder = 'docs/evidence/redesign-reports-20261103-a';
 for (const [name, path, summary] of [
   ['month', '/reports/onepager?monat=2026-08&period=month', 'r5-month-summary'],
   ['year', '/reports/jahresreport', 'r5-year-summary'],
-  ['compare', '/reports/vergleich', 'report-calculation'],
+  ['compare', '/reports/vergleich', 'redesign-report-head'],
 ] as const) {
   test(`851 ${name}: exact real-reader summary, retained detail, both themes and 320px`, async ({
     page,
@@ -43,35 +45,17 @@ for (const [name, path, summary] of [
       await expect(page.getByTestId('r5-year-bars')).toBeVisible();
       await expect(page.getByTestId(summary).getByRole('article')).toHaveCount(2);
     } else {
-      const response = await page.request.get('/api/overview/compare?mode=vj');
+      const response = await page.request.get(
+        '/api/reports/spending/analysis?period=1M&basis=previous-year',
+      );
       expect(response.ok()).toBe(true);
-      const data = (await response.json()) as PeriodComparisonReport;
-      await expect(page.getByTestId('report-frame-result')).toHaveText(
-        eur(data.comparison.chain.currentCents - data.comparison.chain.previousCents, {
-          sign: true,
-        }),
-      );
-      await expect(page.locator('.period-comparison-table tbody tr')).toHaveCount(
-        Math.min(4, data.comparison.rows.length),
-      );
-      if (data.comparison.rows.length > 4) {
-        await page
-          .getByRole('button', {
-            name: `Alle ${data.comparison.rows.length} Kategorien anzeigen`,
-            exact: true,
-          })
-          .click();
-        await expect(page.locator('.period-comparison-table tbody tr')).toHaveCount(
-          data.comparison.rows.length,
-        );
-        await page
-          .getByRole('button', { name: 'Nur größte Änderungen zeigen', exact: true })
-          .click();
-        await page.evaluate(() => scrollTo(0, 0));
-      }
-      await expect(page.locator('.period-comparison-table tfoot')).toContainText(
-        eur(data.comparison.chain.currentCents),
-      );
+      const data = (await response.json()) as SpendingReport;
+      await openSpendingGroups(page);
+      await expect(page.getByTestId('report-frame-result')).toHaveText(eur(data.consumptionCents));
+      await expect(page.getByTestId('sa-consumption')).toHaveText(eur(data.consumptionCents));
+      const chain = page.getByRole('group', { name: 'Maßkette Veränderung', exact: true });
+      await expect(chain).toContainText(eur(data.answerComparison.previousCents!));
+      await expect(chain).toContainText(eur(data.consumptionCents));
     }
     for (const theme of ['light', 'dark']) {
       await page.evaluate((value) => {
@@ -101,13 +85,9 @@ for (const [name, path, summary] of [
       true,
     );
     if (name === 'compare') {
-      await page.getByRole('button', { name: 'Werte als Tabelle', exact: true }).click();
-      const region = page.getByRole('region', {
-        name: 'Zeitraumvergleich als Tabelle, horizontal verschiebbar',
-      });
-      await region.focus();
-      await page.keyboard.press('ArrowRight');
-      await expect.poll(() => region.evaluate((element) => element.scrollLeft)).toBeGreaterThan(0);
+      await expect(
+        page.getByRole('combobox', { name: 'Vergleich mit', exact: true }),
+      ).toBeVisible();
     } else {
       await openPaperView(page);
       await expect(page.locator(name === 'month' ? '.psheet' : '.ov-sheet').first()).toBeVisible();
@@ -148,7 +128,7 @@ test('851 monthly presentation retains the historical finance view and source/mo
   await expect(page.locator('#ps-b')).toBeVisible();
 });
 
-test('851 comparison print retains all categories and the full calculation, then restores the screen choices', async ({
+test('851 comparison print retains every spending group and restores the screen choices', async ({
   page,
 }) => {
   await page.goto('/reports/vergleich');
@@ -156,34 +136,37 @@ test('851 comparison print retains all categories and the full calculation, then
     await expect(page.getByTestId('vg-consumption')).toBeVisible();
     return;
   }
-  const response = await page.request.get('/api/overview/compare?mode=vj');
+  const response = await page.request.get(
+    '/api/reports/spending/analysis?period=1M&basis=previous-year',
+  );
   expect(response.ok()).toBe(true);
-  const data = (await response.json()) as PeriodComparisonReport;
-  const detail = page.locator('.period-comparison-detail');
-  const rows = page.locator('.dv li');
-  await expect(detail).not.toHaveAttribute('open');
-  await expect(rows).toHaveCount(Math.min(4, data.comparison.rows.length));
+  const data = (await response.json()) as SpendingReport;
+  const groupCount = new Set(data.breakdown.map((row) => row.groupId ?? `category:${row.id}`)).size;
+  const detail = page.locator('[data-r8-detail="spending-answer"]');
+  const section = page.locator('section[aria-labelledby="sa-main"]');
+  await expect(section).toBeVisible();
+  if ((await section.getAttribute('data-collapsed')) === 'true')
+    await section.locator('.section-toggle').click();
+  const rows = page.locator('.sa-groups > li');
+  await expect(rows).toHaveCount(Math.min(4, groupCount));
   await page.evaluate(() => {
     document.documentElement.dataset['theme'] = 'dark';
   });
   await page.emulateMedia({ media: 'print' });
   await expect(page.locator('.redesign-report-title h1')).toBeVisible();
   await expect(page.locator('.m-head')).toBeHidden();
-  await expect(page.getByTestId('report-frame-result')).toBeVisible();
-  await expect(page.getByTestId('vg-consumption')).toBeVisible();
-  await expect(rows).toHaveCount(data.comparison.rows.length);
-  await expect(page.locator('.period-comparison-table tfoot')).toContainText(
-    eur(data.comparison.chain.currentCents),
-  );
-  await expect(page.getByRole('combobox', { name: 'Vergleich', exact: true })).toBeHidden();
-  await expect(page.locator('.period-comparison-actions')).toBeHidden();
+  await expect(page.getByTestId('report-frame-result')).toHaveText(eur(data.consumptionCents));
+  await expect(page.getByTestId('sa-consumption')).toBeVisible();
+  await expect(rows).toHaveCount(groupCount);
+  await expect(page.locator('.sa-category-rows > li').first()).toBeVisible();
+  await expect(detail.getByRole('group', { name: 'Maßkette Veränderung' })).toBeVisible();
+  await expect(page.getByRole('combobox', { name: 'Vergleich mit', exact: true })).toBeHidden();
   await page.emulateMedia({ media: 'screen' });
-  await expect(detail).not.toHaveAttribute('open');
-  await expect(rows).toHaveCount(Math.min(4, data.comparison.rows.length));
-  await detail.locator('summary').click();
-  await expect(page.getByTestId('vg-consumption')).toBeVisible();
+  await expect(rows).toHaveCount(Math.min(4, groupCount));
+  if ((await detail.getAttribute('open')) === null) await detail.locator('summary').click();
+  await expect(detail.getByRole('group', { name: 'Maßkette Veränderung' })).toBeVisible();
   await page.emulateMedia({ media: 'print' });
-  await expect(rows).toHaveCount(data.comparison.rows.length);
+  await expect(rows).toHaveCount(groupCount);
   await page.emulateMedia({ media: 'screen' });
   await expect(detail).toHaveAttribute('open', '');
 });

@@ -135,12 +135,12 @@ Größen: S = bis ca. 1 Std., M = ca. 1 Tag / ein PR, L = mehrere PRs oder Daten
 
 ### 2.1 Ausgabenanalyse (Hub "Ausgaben", Ansicht "Gruppen und Kategorien")
 - Frage: Wofür geben wir Geld aus, was hat sich gegenüber dem Vorzeitraum geändert?
-- Zeigt heute: Konsum nach Gruppe mit Vorzeitraum, größte Veränderungen, Klassen und Zukunft, 12-Monats-Heatmap, Kategorie öffnet Buchungen.
-- Ohne Aussage: Für "Alles" kein Vorzeitraum; Heatmap und Kategorieliste wiederholen 1.6.
+- Zeigt heute: Konsum nach Gruppe mit Vorperiode, Vorjahr oder eigenem Vergleichszeitraum mit exakten Tagen. Die Auswahl bleibt in der Adresse. Kategorien und Verlauf sowie Empfänger sind eigene Ansichten desselben Berichts.
+- Ohne Aussage: Für „Alles“ gibt es keine gleich lange Vorperiode. Beim eigenen Vergleich steht fehlende Historie ausdrücklich dabei.
 - Fehlt: -
 - Überschneidung: 1.6, Explorer, 5.5, Geldfluss.
 - Design: Eigene Komponenten.
-- Urteil: behalten als Haupt-Ausgabenbericht, 1.6 und Vergleichs-Kategorien hinein · M.
+- Urteil: Die alten Adressen für Kategorien und Zeitraumvergleich öffnen die entsprechenden Ansichten der Ausgabenanalyse. Die Explorer-Vorlagen und gespeicherten Ansichten bleiben erreichbar.
 
 ### 2.2 Budgettreue inkl. 50/30/20 (Hub "Budgettreue", Ansicht "Budgettreue")
 - Frage: Halten wir den Plan, stimmt 50/30/20?
@@ -322,6 +322,7 @@ Größen: S = bis ca. 1 Std., M = ca. 1 Tag / ein PR, L = mehrere PRs oder Daten
 - Urteil: überarbeiten komplett laut #1149 · L.
 
 ### 5.5 Zeitraumvergleich
+- Das Redesign öffnet aus dieser alten Adresse die Ausgabenanalyse mit Vorjahresvergleich. Abweichende gespeicherte Vergleichsdaten und Anker bleiben erhalten. Die folgende Bestandsaufnahme beschreibt die frühere Ansicht.
 - Frage: Was hat sich gegenüber damals geändert, welche Kategorie macht den Unterschied?
 - Zeigt heute: Vier Vergleichsarten, Maßkette Konsum vorher + mehr − weniger = jetzt, Balken um Null, Tabelle Jetzt/Vorher/Differenz.
 - Ohne Aussage: Vergleichsart nicht in der Adresse.

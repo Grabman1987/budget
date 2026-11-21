@@ -85,8 +85,15 @@ for (const [slug, target, view] of landings) {
     await expect(page.locator('.app')).toHaveCount(1);
     const redesign = await redesignReportsOn(page);
     const finanzcheck = slug === 'finanzcheck' && redesign;
-    const expectedTarget =
-      redesign && slug === 'kosten'
+    const spendingView =
+      redesign && (slug === 'vergleich' || slug === 'kategorien')
+        ? slug === 'vergleich'
+          ? 'Gruppen und Kategorien'
+          : 'Kategorien und Verlauf'
+        : undefined;
+    const expectedTarget = spendingView
+      ? '/reports/ausgaben'
+      : redesign && slug === 'kosten'
         ? '/reports/psteuern'
         : redesign && slug === 'kontakte'
           ? '/reports/kontakte'
@@ -105,11 +112,11 @@ for (const [slug, target, view] of landings) {
     expect(new URL(page.url()).searchParams.get('monat')).toBe('2026-08');
     expect(new URL(page.url()).searchParams.get('zeitraum')).toBe('2026-01..2026-08');
     expect(new URL(page.url()).hash).toBe('#details');
-    await selectedView(page, expectedTarget, view);
+    await selectedView(page, expectedTarget, spendingView ?? view);
     const bookmark = page.url();
     await page.reload();
     await expect(page).toHaveURL(bookmark);
-    await selectedView(page, expectedTarget, view);
+    await selectedView(page, expectedTarget, spendingView ?? view);
   });
 }
 

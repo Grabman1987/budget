@@ -136,8 +136,14 @@ export interface SpendingReport extends SpendingAnalysis {
   };
 }
 
-/** Which window the answer comparison uses: the equally long period before, or the same days a year earlier. */
-export type SpendingComparisonBasis = 'previous-period' | 'previous-year';
+export interface SpendingComparisonWindow {
+  from: string;
+  to: string;
+}
+
+/** The immediately preceding period, the same days last year, or inclusive custom dates. */
+export type SpendingComparisonBasis =
+  'previous-period' | 'previous-year' | SpendingComparisonWindow;
 
 const firstDay = (month: string) => `${month}-01`;
 const lastDay = lastDayOfMonth;
@@ -158,21 +164,25 @@ function answerComparison(
       : shifted;
   };
   const before =
-    basis === 'previous-year'
-      ? to && days
-        ? yearEarlier(to)
-        : null
-      : from && days
-        ? addDays(from, -1)
-        : null;
+    typeof basis === 'object'
+      ? basis.to
+      : basis === 'previous-year'
+        ? to && days
+          ? yearEarlier(to)
+          : null
+        : from && days
+          ? addDays(from, -1)
+          : null;
   const start =
-    basis === 'previous-year'
-      ? from && days
-        ? yearEarlier(from)
-        : null
-      : before
-        ? addDays(before, 1 - days)
-        : null;
+    typeof basis === 'object'
+      ? basis.from
+      : basis === 'previous-year'
+        ? from && days
+          ? yearEarlier(from)
+          : null
+        : before
+          ? addDays(before, 1 - days)
+          : null;
   const first = db
     .select({ day: account.openingDate, onBudget: account.onBudget })
     .from(account)
@@ -183,7 +193,7 @@ function answerComparison(
     .sort()[0];
   const eligible = categories.filter((c) => c.class !== 'future');
   // A covered period with no movements is a valid zero, unlike unavailable ledger history.
-  if (!start || !before || !first || start < first)
+  if (!from || !to || !start || !before || !first || start > before || start < first)
     return {
       from,
       to,

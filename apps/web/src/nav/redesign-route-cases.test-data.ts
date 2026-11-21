@@ -207,7 +207,6 @@ export const currentHub16 = [
 export const plannedStable16 = [
   ['onepager', '/reports/onepager', 'onepager'],
   ['jahresreport', '/reports/jahresreport', 'yearReport'],
-  ['vergleich', '/reports/vergleich', 'compare'],
   ['kontakte', '/konten/kontakte', 'contacts'],
   ['explorer', '/reports/explorer', 'explorer'],
   ['vermoegen-schulden', '/reports/vermoegen-schulden', 'assetsDebts'],

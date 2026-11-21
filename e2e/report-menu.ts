@@ -59,5 +59,5 @@ export const chooseReportMenuValue = (page: Page, value: string) =>
 export const expectReportMenuValue = (page: Page, value: string) =>
   expectReportMenuView(page, labelFor(page, value));
 
-/** 17 reports in the hub (Portfolio-Auswertung joined the Portfolio group), in both presentations. */
-export const HUB_REPORT_COUNT = 17;
+/** Both presentations list sixteen reports. */
+export const HUB_REPORT_COUNT = 16;

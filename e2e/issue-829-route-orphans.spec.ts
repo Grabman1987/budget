@@ -283,7 +283,7 @@ const probes = {
   debts: (p: Page) => id(p, 'debt-total'),
   freedom: (p: Page) => id(p, 'freedom-chart'),
   hub: async (p: Page) => expect(p.locator('.report-hub-list > li')).toHaveCount(HUB_REPORT_COUNT),
-  reportGroup: (p: Page) => css(p, '.report-hub-list a[href="/reports/einnahmen-ausgaben"]'),
+  reportGroup: (p: Page) => css(p, '.report-hub-list > li > a[href="/reports/einnahmen-ausgaben"]'),
   onepager: async (p: Page) =>
     id(p, (await redesignReportsOn(p)) ? 'r5-month-saved' : 'onepager-saved'), // The real monthly reader in either presentation, never the unrelated rg-all table.
   // The hub opens the current (September) month, whose sample payslip is intentionally absent.
@@ -361,6 +361,8 @@ const probes = {
     css(p, '[data-testid="template-year"] table.ex-template-table tbody tr'),
   categoryTemplate: (p: Page) =>
     css(p, '[data-testid="template-category"] table.ex-template-table tbody tr'),
+  spendingCategories: (p: Page) =>
+    expect(p.getByRole('heading', { name: 'Kategorietrend', exact: true })).toBeVisible(),
   totalTemplate: (p: Page) =>
     css(p, '[data-testid="template-total"] table.ex-template-table tbody tr'),
   spending: async (p: Page) =>
@@ -527,6 +529,7 @@ const reportAliases = [
     'Kategorie im Verlauf',
     'categoryTemplate',
   ],
+  ['vergleich', '/reports/vergleich', '', '', 'compare'],
   ['gesamttabelle', '/reports/explorer', 'vorlage=total', 'Gesamttabelle', 'totalTemplate'],
   ['vorschau', '/plan/erwartet', '', '', 'expected'],
   ['sparziele', '/plan/sparziele', '', '', 'goals'],
@@ -536,21 +539,39 @@ const reportAliases = [
 for (const [slug, legacyPath, legacyIntent, view, legacyBody] of reportAliases)
   test(`A2 report alias ${slug}`, async ({ page }) => {
     await page.goto('/plan/monat?monat=2026-08');
-    const finanzcheck = (await flag(page)) && slug === 'finanzcheck';
-    const path =
-      (await flag(page)) && slug === 'kosten'
+    const on = await flag(page);
+    const finanzcheck = on && slug === 'finanzcheck';
+    const spending = on && (slug === 'kategorien' || slug === 'vergleich');
+    const selectedView = spending
+      ? slug === 'kategorien'
+        ? 'Kategorien und Verlauf'
+        : 'Gruppen und Kategorien'
+      : view;
+    const path = spending
+      ? '/reports/ausgaben'
+      : on && slug === 'kosten'
         ? '/reports/psteuern'
         : finanzcheck
           ? '/reports/onepager'
           : (await flag(page)) && slug === 'kontakte'
             ? '/reports/kontakte'
             : legacyPath;
-    const intent = finanzcheck ? 'darstellung=finanzcheck' : legacyIntent;
-    const body = finanzcheck
-      ? 'finanzcheck'
-      : (await flag(page)) && slug === 'kontakte'
-        ? 'contactReport'
-        : legacyBody;
+    const intent = spending
+      ? slug === 'kategorien'
+        ? 'darstellung=kategorien'
+        : 'darstellung=gruppen&vergleich=vorjahr'
+      : finanzcheck
+        ? 'darstellung=finanzcheck'
+        : legacyIntent;
+    const body = spending
+      ? slug === 'kategorien'
+        ? 'spendingCategories'
+        : 'spending'
+      : finanzcheck
+        ? 'finanzcheck'
+        : (await flag(page)) && slug === 'kontakte'
+          ? 'contactReport'
+          : legacyBody;
     await probes.plan(page);
     await page.goto(
       `/reports/${slug}?monat=2026-08&period=month&zeitraum=2026-01..2026-08#details`,
@@ -569,23 +590,23 @@ for (const [slug, legacyPath, legacyIntent, view, legacyBody] of reportAliases)
         expect(url.searchParams.get(key)).toBe(value);
       if ((await redesignReportsOn(page)) && path === '/reports/psteuern' && slug === 'kosten') {
         await expectReportMenuView(page, 'Bank- und Zinskosten');
-      } else if (view) {
+      } else if (selectedView) {
         if (
           (await redesignReportsOn(page)) &&
           ['/reports/einnahmen-ausgaben', '/reports/ausgaben'].includes(path)
         ) {
-          await expectReportMenuView(page, view);
+          await expectReportMenuView(page, selectedView);
         } else if ((await redesignReportsOn(page)) && path === '/reports/explorer') {
           await expect(
             page
               .getByRole('combobox', { name: 'Darstellung der Auswertung' })
               .locator('option:checked'),
-          ).toHaveText(view);
+          ).toHaveText(selectedView);
         } else if (['/reports/pallocation', '/reports/vermoegen-schulden'].includes(path)) {
-          await expectWealthReportView(page, view);
+          await expectWealthReportView(page, selectedView);
         } else {
           await expect(
-            page.getByRole('button', { name: view, exact: true, pressed: true }),
+            page.getByRole('button', { name: selectedView, exact: true, pressed: true }),
           ).toBeVisible();
         }
       }
@@ -642,7 +663,17 @@ for (const [name, body] of currentHub)
   test(`A2 current hub entry ${name}`, async ({ page }) => {
     await page.goto('/reports');
     await probes.hub(page);
-    await page.locator(`.report-hub-list a[href="/reports/${name}"]`).click();
+    const entry = page.locator(`.report-hub-list > li > a[href="/reports/${name}"]`);
+    if (name === 'vergleich' && (await flag(page))) {
+      await expect(entry).toHaveCount(0);
+      await page.getByRole('searchbox').fill('Zeitraumvergleich');
+      await expect(page.locator('.report-hub-list > li > a')).toHaveAttribute(
+        'href',
+        '/reports/ausgaben',
+      );
+      return;
+    }
+    await entry.click();
     const path = name === 'pallocation' ? await portfolioReportPath(page) : `/reports/${name}`;
     await loaded(page, path, body);
     if (name === 'pallocation' && (await wealthRedesign(page)))
