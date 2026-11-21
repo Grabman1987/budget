@@ -221,3 +221,7 @@ Four columns, gross open shares, separate credit, unchanged domain balances and
 repayment returns it to the original category; no extra advance or net-worth charge.
 See [RP-21b](user-stories/06-reports.md#rp-21b--kontakte-abrechnung).
 Status: implemented for review; owner acceptance pending. No other report is migrated.
+
+## Heute: direct guided distribution (#1055)
+
+When „Zu verteilen“ is positive or over-assigned, „Verteilen“ under „Als Nächstes“ opens the same guided flow as Plan for the selected month. At zero the action is absent. The link opens the flow without writing an assignment.

@@ -5,6 +5,7 @@ import type { ReactNode } from 'react';
 import { afterEach, expect, it, vi } from 'vitest';
 import type { BudgetMonthView } from '../budget/budget-api';
 import type { Heute } from './api';
+import { REDESIGN_ENABLED } from '../shell/redesign-flag';
 import { Kennzahlen } from './kennzahlen';
 
 vi.mock('../shell/app-link', () => ({
@@ -45,6 +46,7 @@ const heute = {
 /** Two envelopes (+12,34 € and −2,00 €) and a month with 100,00 € still to distribute. */
 const month = {
   summary: {
+    month: '2026-09',
     toBeAssignedCents: 10_000,
     assignedCents: 40_000,
     carryInCents: 20_000,
@@ -105,9 +107,14 @@ it('replaces the middle figure by Frei bis Gehalt in the mode Bis Gehalt', () =>
   );
   expect(screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent)).toEqual([
     'Zu verteilen',
-    'Frei bis Gehalt',
+    REDESIGN_ENABLED ? 'Verfügbar im Budget' : 'Frei bis Gehalt',
     'Nettovermögen',
   ]);
+  if (REDESIGN_ENABLED) {
+    expect(screen.queryByTestId('heute-lead-value')).toBeNull();
+    expect(document.querySelector('[data-kennzahl="verfuegbar"]')?.textContent).toBe('10,34 €');
+    return;
+  }
   const lead = screen.getByTestId('heute-lead-value');
   expect(lead.textContent).toBe('680,01 €');
   fireEvent.click(lead);
@@ -163,10 +170,15 @@ it('says so when no income is expected in the forecast period', () => {
       onLeadClick={() => {}}
     />,
   );
-  fireEvent.click(screen.getByRole('button', { name: 'Herleitung Frei bis Gehalt' }));
-  expect(document.getElementById('kennzahl-frei-bis-gehalt-note')?.textContent).toContain(
-    'Kein Geldeingang im Prognosezeitraum erwartet.',
-  );
+  if (REDESIGN_ENABLED) {
+    expect(screen.queryByRole('button', { name: 'Herleitung Frei bis Gehalt' })).toBeNull();
+    expect(screen.getByRole('heading', { name: 'Verfügbar im Budget' })).toBeTruthy();
+  } else {
+    fireEvent.click(screen.getByRole('button', { name: 'Herleitung Frei bis Gehalt' }));
+    expect(document.getElementById('kennzahl-frei-bis-gehalt-note')?.textContent).toContain(
+      'Kein Geldeingang im Prognosezeitraum erwartet.',
+    );
+  }
 });
 
 it('keeps a failed budget in its own tile and the other figures visible', () => {
@@ -202,11 +214,21 @@ it('labels the current figures for another month and shows the nearest goal only
     nearestGoal: { name: 'Reise', savedCents: 120_001, remainingCents: 80_000 },
   } as unknown as Heute;
   const { unmount } = render(<Kennzahlen data={away} budget={query()} onLeadClick={() => {}} />);
-  expect(screen.getByText('Stand heute · 26.09.2026')).toBeTruthy();
+  expect(
+    screen.getByText(
+      REDESIGN_ENABLED
+        ? 'Budget: August 2026 · Nettovermögen: Stand heute · 26.09.2026'
+        : 'Stand heute · 26.09.2026',
+    ),
+  ).toBeTruthy();
   expect(screen.getByText('Reise · gespart 1.200,01 € · fehlt 800,00 €')).toBeTruthy();
   unmount();
   render(<Kennzahlen data={heute} budget={query()} onLeadClick={() => {}} />);
-  expect(screen.queryByText(/Stand heute/)).toBeNull();
+  if (REDESIGN_ENABLED) {
+    expect(screen.getByText(/Budget: September 2026 · Nettovermögen: Stand heute/)).toBeTruthy();
+  } else {
+    expect(screen.queryByText(/Stand heute/)).toBeNull();
+  }
   expect(screen.queryByText(/gespart/)).toBeNull();
 });
 
@@ -221,9 +243,9 @@ it('links Zu verteilen to the guided flow unless nothing is left to distribute',
     });
   for (const cents of [10_000, -500]) {
     render(<Kennzahlen data={heute} budget={withAmount(cents)} onLeadClick={() => {}} />);
-    expect(link()).toContain('"ablauf":"verteilen"');
+    expect(JSON.parse(link() ?? 'null')).toEqual({ monat: '2026-09', ablauf: 'verteilen' });
     cleanup();
   }
   render(<Kennzahlen data={heute} budget={withAmount(0)} onLeadClick={() => {}} />);
-  expect(link()).not.toContain('ablauf');
+  expect(JSON.parse(link() ?? 'null')).toEqual({ monat: '2026-09' });
 });

@@ -188,6 +188,80 @@ for (const theme of ['light', 'dark'] as const) {
   });
 }
 
+for (const theme of ['light', 'dark'] as const) {
+  test(`Heute links positive and negative assignments directly to distribution (${theme})`, async ({
+    page,
+    request,
+    baseURL,
+  }) => {
+    await page.addInitScript((value) => localStorage.setItem('budget-theme', value), theme);
+    const send = async (path: string, data: unknown, method = 'POST') => {
+      const response = await request.fetch(`/api${path}`, {
+        method,
+        data,
+        headers: { origin: baseURL! },
+      });
+      expect(response.ok(), await response.text()).toBe(true);
+      return response.json();
+    };
+    await send('/accounts', {
+      name: 'Synthetic cash',
+      type: 'cash',
+      openingDate: '2026-10-01',
+      openingBalanceCents: 10_000,
+    });
+    const { group } = await send('/categories/groups', { name: 'Synthetic group' });
+    const { category } = await send('/categories', {
+      name: 'Synthetic target',
+      groupId: group.id,
+      class: 'need',
+      kind: 'variable',
+      stage: 1,
+    });
+    const today = '/?monat=2026-10&period=month';
+    const tba = page.locator('.hv-tasks [data-kennzahl="zu-verteilen"]');
+    const link = page.locator('.hv-tasks').getByRole('link', { name: 'Verteilen →', exact: true });
+    for (const [assignedCents, amount] of [
+      [0, '100,00 €'],
+      [10_500, '−5,00 €'],
+    ] as const) {
+      await send(
+        '/budget/2026-10/assigned',
+        { items: [{ categoryId: category.id, assignedCents }] },
+        'PUT',
+      );
+      await page.goto(today);
+      await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
+      await expect(tba).toHaveText(amount);
+      await expect(link).toHaveAttribute('href', /ablauf=verteilen/);
+      await link.click();
+      await expect(page).toHaveURL(
+        (url) =>
+          url.pathname === '/plan/monat' &&
+          url.searchParams.get('monat') === '2026-10' &&
+          url.searchParams.get('ablauf') === 'verteilen',
+      );
+      const flow = page.getByTestId('distribute-flow');
+      await expect(flow.locator('#distribute-step-title')).toHaveText('1. Eingang prüfen');
+      await expect(flow.getByTestId('distribute-tba')).toHaveText(amount);
+    }
+    await send(
+      '/budget/2026-10/assigned',
+      {
+        items: [{ categoryId: category.id, assignedCents: 10_000 }],
+      },
+      'PUT',
+    );
+    await page.goto(today);
+    await expect(page.locator('.hv-tasks')).toContainText('Als Nächstes');
+    await expect(link).toHaveCount(0);
+    await expect(page.locator('a[href*="ablauf=verteilen"]')).toHaveCount(0);
+    const response = await request.get('/api/budget/2026-10');
+    expect(response.ok()).toBe(true);
+    expect((await response.json()).summary.toBeAssignedCents).toBe(0);
+  });
+}
+
 test('historical templates preview, edit, assign and undo as one group', async ({
   page,
   request,

@@ -608,7 +608,7 @@ function NextWork({
       ),
       label: 'Verteilen',
       to: '/plan/monat',
-      search: { monat: month },
+      search: { monat: month, ablauf: 'verteilen' },
       urgent: assignment < 0,
     });
   if (over.length)
