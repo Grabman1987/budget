@@ -208,7 +208,7 @@ export function bankSyncRoutes(
               if (!service) throw new ConflictError('Bankbestätigung nicht verfügbar.');
               // The synchronous service opens a savepoint on this same connection; the outer
               // transaction rolls back every row and its audit entries together.
-              service.confirm(row.id, null, prepared, ctx);
+              service.confirm(row.id, null, { ...prepared, verifyNewTransfer: true }, ctx);
             }
           } else if (prepared.action === 'merge')
             mergeBankBooking(tx, row.id, prepared.bookingId, ctx);
@@ -231,16 +231,32 @@ export function bankSyncRoutes(
   );
   for (const action of ['merge', 'transfer'] as const)
     app.post('/candidates/:id/' + action, async (c) => {
-      const input = await readBody(c, z.object({ bookingId: z.string().min(1).max(200) }).strict());
+      const input = await readBody(
+        c,
+        z
+          .object({
+            bookingId: z.string().min(1).max(200),
+            candidateRevision: z.string().length(64).optional(),
+          })
+          .strict(),
+      );
+      const candidateId = z.string().uuid().parse(c.req.param('id'));
       const mutate = action === 'merge' ? mergeBankCandidate : linkBankCandidate;
       return c.json(
-        mutate(
-          db,
-          z.string().uuid().parse(c.req.param('id')),
-          input.bookingId,
-          { actor: 'owner', groupId: randomUUID() },
-          service?.clock().toISOString() ?? new Date().toISOString(),
-        ),
+        db.transaction((tx) => {
+          if (
+            input.candidateRevision !== undefined &&
+            readAssignmentCandidate(tx, candidateId).candidateRevision !== input.candidateRevision
+          )
+            throw new ConflictError('Der Bankumsatz hat sich geändert. Bitte neu laden.');
+          return mutate(
+            tx,
+            candidateId,
+            input.bookingId,
+            { actor: 'owner', groupId: randomUUID() },
+            service?.clock().toISOString() ?? new Date().toISOString(),
+          );
+        }),
       );
     });
   // Decision 41: a booked bank row is already an unchecked booking, merged into an earlier manual one.

@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from 'node:crypto';
-import { and, asc, eq, inArray, isNull } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray, isNotNull, isNull, ne, lte } from 'drizzle-orm';
 import {
   assignmentRuleSchema,
   assignmentMatchSchema,
@@ -355,6 +355,69 @@ export function assignmentSuggestions(db: Executor, row: AssignmentRow) {
     });
 }
 
+/** Two consecutive confirmed bank occurrences must prove the same own-account transfer. */
+function recurringTransferTarget(
+  db: Executor,
+  candidate: typeof bankSyncCandidate.$inferSelect,
+  counterparty: string,
+): string | null {
+  const normalized = bankAliasKey(counterparty);
+  if (!normalized || candidate.amountCents === 0) return null;
+  const recent = db
+    .select({
+      transferId: booking.transferId,
+      date: booking.date,
+      rawPayee: booking.bankRawPayee,
+      rawText: booking.bankRawText,
+      sourceId: booking.bankSourceId,
+    })
+    .from(booking)
+    .where(
+      and(
+        eq(booking.accountId, candidate.accountId),
+        eq(booking.currency, candidate.currency),
+        inArray(booking.status, ['confirmed', 'reconciled']),
+        lte(booking.date, candidate.date),
+        isNotNull(booking.bankRawText),
+        isNull(booking.deletedAt),
+      ),
+    )
+    .orderBy(desc(booking.date), desc(booking.createdAt), desc(booking.id))
+    .all();
+  const cleanup = new Map<string, PayeeCleanup>();
+  const occurrences: typeof recent = [];
+  for (const row of recent) {
+    if (occurrences.length >= 2 && row.date < occurrences[1]!.date) break;
+    const source = row.sourceId ?? '';
+    const options = cleanup.get(source) ?? readPayeeCleanup(db, source);
+    cleanup.set(source, options);
+    if (bankAliasKey(cleanBankPayee(row.rawPayee, row.rawText ?? '', options)) === normalized)
+      occurrences.push(row);
+  }
+  if (occurrences.length < 2 || occurrences.some((entry) => !entry.transferId)) return null;
+  const transferIds = occurrences.map((entry) => entry.transferId!);
+  const partners = db
+    .select({ accountId: booking.accountId })
+    .from(booking)
+    .innerJoin(account, eq(account.id, booking.accountId))
+    .where(
+      and(
+        inArray(booking.transferId, transferIds),
+        ne(booking.accountId, candidate.accountId),
+        eq(account.currency, candidate.currency),
+        lte(account.openingDate, candidate.date),
+        isNull(account.deletedAt),
+        isNull(account.closedAt),
+        isNull(booking.deletedAt),
+      ),
+    )
+    .all();
+  return partners.length === occurrences.length &&
+    partners.every((partner) => partner.accountId === partners[0]?.accountId)
+    ? partners[0]!.accountId
+    : null;
+}
+
 export function readAssignmentCandidate(db: Executor, id: string) {
   const candidate = db.select().from(bankSyncCandidate).where(eq(bankSyncCandidate.id, id)).get();
   const item = db.select().from(inboxItem).where(eq(inboxItem.id, id)).get();
@@ -386,20 +449,31 @@ export function readAssignmentCandidate(db: Executor, id: string) {
   const existingTransfer = counterparts[0]
     ? { bookingId: counterparts[0].id, transferId: counterparts[0].transferId }
     : null;
+  const recurringTransferAccountId = recurringTransferTarget(db, candidate, cleanup.cleaned);
+  const suggestions = assignmentSuggestions(db, {
+    ...candidate,
+    source: 'bank',
+    rawText: bankAssignmentText(candidate.rawPayee, candidate.memo),
+    payeeId: cleanup.payeeId,
+    counterparty: cleanup.cleaned,
+  });
   return {
     candidate,
+    recurringTransferAccountId,
     candidateRevision: createHash('sha256')
-      .update(JSON.stringify([candidate, cleanup]))
+      .update(
+        JSON.stringify([
+          candidate,
+          cleanup,
+          existingTransfer,
+          recurringTransferAccountId,
+          suggestions.map(({ id, revision, unavailable }) => [id, revision, unavailable]),
+        ]),
+      )
       .digest('hex'),
     cleanup,
     existingTransfer,
-    suggestions: assignmentSuggestions(db, {
-      ...candidate,
-      source: 'bank',
-      rawText: bankAssignmentText(candidate.rawPayee, candidate.memo),
-      payeeId: cleanup.payeeId,
-      counterparty: cleanup.cleaned,
-    }),
+    suggestions,
   };
 }
 

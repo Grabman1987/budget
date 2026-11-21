@@ -274,3 +274,6 @@ The trading section shows realised gains and signed losses from the shared sale 
 ## Heute: direct guided distribution (#1055)
 
 When „Zu verteilen“ is positive or over-assigned, „Verteilen“ under „Als Nächstes“ opens the same guided flow as Plan for the selected month. At zero the action is absent. The link opens the flow without writing an assignment.
+## Prüfen: recurring bank transfers (#1266)
+
+A matching transfer rule or two consecutive confirmed bank occurrences to the same own account prefill the destination. The row displays a single transfer choice. The owner confirms it explicitly, and the existing transfer path uses an eligible counterpart and records the action as one Undo group.
