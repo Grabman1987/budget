@@ -28,7 +28,7 @@ test('category choice and period survive reload; exact month sources and booking
   const data = (await response.json()) as ReportTables;
   const ids = data.categories.slice(0, 2).map((c) => c.id);
   await page.goto(
-    `/reports/kategorien?zeitraum=3M&kategorien=${encodeURIComponent(JSON.stringify(ids))}&vorjahr=true`,
+    `/reports/explorer?vorlage=category&zeitraum=3M&kategorien=${encodeURIComponent(JSON.stringify(ids))}&vorjahr=true`,
   );
   const template = page.getByTestId('template-category');
   const picker = page.getByRole('combobox', { name: 'Kategorie', exact: true });
@@ -131,7 +131,7 @@ test('category choice and period survive reload; exact month sources and booking
 test('masking covers the accepted category trend values and exact heatmap source cells', async ({
   page,
 }) => {
-  await page.goto('/reports/kategorien?zeitraum=Alles&vorjahr=true');
+  await page.goto('/reports/explorer?vorlage=category&zeitraum=Alles&vorjahr=true');
   const template = page.getByTestId('template-category');
   await expect(template.locator('.table-cell-open').first()).toBeVisible();
   await withShellControls(page, async ({ privacy }) => {

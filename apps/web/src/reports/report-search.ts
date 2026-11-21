@@ -1,5 +1,6 @@
 import { isMonth, monthOf } from '../nav/month';
-import { isExplorerTemplate } from '@budget/domain';
+import { isExplorerTemplate, todayInVienna } from '@budget/domain';
+import { z } from 'zod';
 import { REDESIGN_ENABLED } from '../shell/redesign-flag';
 
 export const FINANZCHECK_HEADING_HASHES: readonly string[] = [
@@ -33,11 +34,29 @@ export function normalizeHistoryPeriod(search: Record<string, unknown>): boolean
   );
 }
 
+export const spendingComparisonWindow = z
+  .object({ von: z.iso.date(), bis: z.iso.date() })
+  .refine(({ von, bis }) => von <= bis && bis <= todayInVienna());
+
+function spendingComparisonSearch(search: Record<string, unknown>) {
+  const result = spendingComparisonWindow.safeParse({
+    von: search['vergleichVon'],
+    bis: search['vergleichBis'],
+  });
+  if (search['vergleich'] === 'eigen' && result.success)
+    return {
+      vergleich: 'eigen' as const,
+      vergleichVon: result.data.von,
+      vergleichBis: result.data.bis,
+    };
+  return { vergleich: search['vergleich'] === 'vorjahr' ? ('vorjahr' as const) : undefined };
+}
+
 export const validateReportSearch = (search: Record<string, unknown>) => ({
   ...(REDESIGN_ENABLED
     ? {
         kontakteansicht: search['kontakteansicht'] === 'offen' ? 'offen' : undefined,
-        vergleich: search['vergleich'] === 'vorjahr' ? 'vorjahr' : undefined,
+        ...spendingComparisonSearch(search),
         verlauf: search['verlauf'] === 1 || search['verlauf'] === '1' ? 1 : undefined,
         inflationsansicht:
           search['inflationsansicht'] === 'basket' || search['inflationsansicht'] === 'explorer'

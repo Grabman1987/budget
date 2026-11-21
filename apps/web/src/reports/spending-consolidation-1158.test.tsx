@@ -77,10 +77,59 @@ it('keeps the OFF view set and fallback unchanged', () => {
 it('keeps the comparison mode in the address and clears it for the default', () => {
   state.search = validateReportSearch({ vergleich: 'vorjahr' });
   expect(state.search.vergleich).toBe('vorjahr');
-  expect(validateReportSearch({ vergleich: 'x' }).vergleich).toBeUndefined();
+  expect(validateReportSearch({ vergleich: 'x' })).toHaveProperty('vergleich', undefined);
   render(<SpendingReportViews {...props} />);
   fireEvent.click(screen.getByText('mode-vorjahr'));
   const options = state.navigate.mock.calls[0]![0];
-  expect(options.search({ zeitraum: '3M' })).toEqual({ zeitraum: '3M', vergleich: 'vorjahr' });
+  expect(
+    options.search({ zeitraum: '3M', vergleichVon: '2025-02-01', vergleichBis: '2025-02-07' }),
+  ).toEqual({
+    zeitraum: '3M',
+    vergleich: 'vorjahr',
+    vergleichVon: undefined,
+    vergleichBis: undefined,
+  });
   expect(options.replace).toBe(true);
+});
+
+it('validates both literal calendar dates for an independent comparison window', () => {
+  expect(
+    validateReportSearch({
+      vergleich: 'eigen',
+      vergleichVon: '2025-05-03',
+      vergleichBis: '2025-05-05',
+    }),
+  ).toMatchObject({
+    vergleich: 'eigen',
+    vergleichVon: '2025-05-03',
+    vergleichBis: '2025-05-05',
+  });
+  expect(
+    validateReportSearch({
+      vergleich: 'eigen',
+      vergleichVon: '2025-02-30',
+      vergleichBis: '2025-03-05',
+    }),
+  ).toHaveProperty('vergleich', undefined);
+  expect(
+    validateReportSearch({
+      vergleich: 'eigen',
+      vergleichVon: '2025-05-03',
+      vergleichBis: '2025-05-02',
+    }),
+  ).toHaveProperty('vergleich', undefined);
+  expect(validateReportSearch({ vergleich: 'eigen', vergleichVon: '2025-05-03' })).toHaveProperty(
+    'vergleich',
+    undefined,
+  );
+});
+
+it('falls back to the editable default for a future comparison bookmark', () => {
+  expect(
+    validateReportSearch({
+      vergleich: 'eigen',
+      vergleichVon: '9998-01-01',
+      vergleichBis: '9999-01-01',
+    }),
+  ).toHaveProperty('vergleich', undefined);
 });

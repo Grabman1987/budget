@@ -1,3 +1,4 @@
+import { openSpendingGroups } from './income-spending-controls';
 import AxeBuilder from '@axe-core/playwright';
 import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
@@ -6,7 +7,7 @@ import { sampleTest as test, expect } from './sample';
 const reports = [
   ['month', '/reports/onepager?monat=2026-08', 'Berechnung Planabweichung'],
   ['year', '/reports/jahresreport', 'Berechnung Jahresergebnis'],
-  ['compare', '/reports/vergleich', 'Berechnung Zeitraumvergleich'],
+  ['compare', '/reports/vergleich', 'Berechnung Konsum'],
 ] as const;
 for (const [name, path, chain] of reports)
   test(`${name}: shared calculation head, controls, source and accessible detail`, async ({
@@ -24,15 +25,21 @@ for (const [name, path, chain] of reports)
     const head = page.getByTestId('redesign-report-head');
     await expect(head.getByRole('group', { name: chain, exact: true })).toHaveCount(0);
     await expect(page.getByTestId('report-frame-result')).not.toHaveText('—');
-    await expect(page.getByTestId('report-frame-source')).toContainText('Stand');
+    await expect(page.getByTestId('report-frame-source')).toContainText(
+      name === 'compare' ? 'Stichtag: 31.08.2026' : 'Stand',
+    );
     if (name === 'month') {
       await expect(page.getByRole('group', { name: 'Monat', exact: true })).toHaveCount(1);
       await expect(page.getByRole('button', { name: 'Drucken', exact: true })).toBeVisible();
     }
     if (name === 'year')
       await expect(head.getByRole('group', { name: 'Jahr', exact: true })).toHaveCount(1);
-    if (name === 'compare')
-      await expect(head.getByRole('combobox', { name: 'Vergleich', exact: true })).toHaveCount(1);
+    if (name === 'compare') {
+      await openSpendingGroups(page);
+      await expect(page.getByRole('combobox', { name: 'Vergleich mit', exact: true })).toHaveValue(
+        'vorjahr',
+      );
+    }
     for (const button of await head.getByRole('button').all()) {
       expect(
         await button.evaluate((element) => element.scrollHeight <= element.clientHeight + 1),

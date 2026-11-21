@@ -7,8 +7,9 @@ import {
   useIsPhone,
   useMediaQuery,
 } from '@budget/ui';
-import { cents, type SpendRow, type SpendingPeriod } from '@budget/domain';
+import { cents, todayInVienna, type SpendRow, type SpendingPeriod } from '@budget/domain';
 import type { SpendingReport } from '@budget/db';
+import { spendingComparisonWindow } from './report-search';
 import { ReportViewControl } from './report-view-control';
 import { queryOptions, useQuery } from '@tanstack/react-query';
 import { useState, type CSSProperties, type ReactNode } from 'react';
@@ -24,26 +25,38 @@ import { ReportAnswer } from './report-answer';
 import { useCollapsibleSections } from './month-frame';
 import { PeriodSwitch, periodName, ReportQuery, useReportPeriod } from './spending-shared';
 import './spending-analysis-report.css';
+import './table-print.css';
 import { REDESIGN_ENABLED } from '../shell/redesign-flag';
 import { ReportBodyDisclosure } from './report-body-disclosure';
 import { SpendingTrend } from './spending-trend';
 import './income-spending-redesign.css';
 
-export type SpendingComparison = 'vorperiode' | 'vorjahr';
+export type SpendingComparison = 'vorperiode' | 'vorjahr' | 'eigen';
+type ComparisonWindow = { von: string; bis: string };
+type ComparisonChange = (comparison: SpendingComparison, window?: ComparisonWindow) => void;
 const COMPARISONS = [
   { value: 'vorperiode', label: 'Vorperiode' },
   { value: 'vorjahr', label: 'Vorjahr' },
+  { value: 'eigen', label: 'Eigener Vergleichszeitraum' },
 ] as const;
 
-const analysisQuery = (period: SpendingPeriod, comparison: SpendingComparison) =>
+const analysisQuery = (
+  period: SpendingPeriod,
+  comparison: SpendingComparison,
+  window?: ComparisonWindow,
+) =>
   queryOptions({
-    queryKey: [...LEDGER_KEY, 'spending-analysis', period, comparison],
+    queryKey: [...LEDGER_KEY, 'spending-analysis', period, comparison, window],
     retry: false,
     queryFn: () =>
       request<SpendingReport>(
         'GET',
         `/api/reports/spending/analysis?period=${period}${
-          comparison === 'vorjahr' ? '&basis=previous-year' : ''
+          comparison === 'eigen' && window
+            ? `&basis=custom&comparisonFrom=${window.von}&comparisonTo=${window.bis}`
+            : comparison === 'vorjahr'
+              ? '&basis=previous-year'
+              : ''
         }`,
       ),
   });
@@ -57,6 +70,7 @@ export function SpendingAnalysisReport({
   viewControl,
   onPeriodChange,
   comparison: comparisonMode = 'vorperiode',
+  comparisonWindow,
   onComparisonChange,
 }: {
   report: ReportEntry;
@@ -64,11 +78,12 @@ export function SpendingAnalysisReport({
   viewControl?: ReactNode;
   onPeriodChange?: (period: SpendingPeriod) => void;
   comparison?: SpendingComparison;
-  onComparisonChange?: (comparison: SpendingComparison) => void;
+  comparisonWindow?: ComparisonWindow;
+  onComparisonChange?: ComparisonChange;
 }) {
   useAmountPrivacy();
   const [period, setPeriod] = useReportPeriod();
-  const query = useQuery(analysisQuery(period, comparisonMode));
+  const query = useQuery(analysisQuery(period, comparisonMode, comparisonWindow));
   const data = query.data && !query.isFetching ? query.data : undefined;
   const phone = useIsPhone();
   const sections = useCollapsibleSections(
@@ -124,12 +139,17 @@ export function SpendingAnalysisReport({
         },
       ]}
     >
-      <div ref={sections} className="kview sr spending-analysis" data-testid="spending-analysis">
+      <div
+        ref={sections}
+        className={`kview sr spending-analysis${REDESIGN_ENABLED ? ' report-table-print' : ''}`}
+        data-testid="spending-analysis"
+      >
         <ReportQuery query={query} what="Ausgabenanalyse">
           {(result) => (
             <Body
               data={result}
               comparisonMode={comparisonMode}
+              comparisonWindow={comparisonWindow}
               onComparisonChange={onComparisonChange}
             />
           )}
@@ -220,6 +240,7 @@ export function spendingChangeChain(
 function SignedBar({
   current,
   previous,
+  comparisonLabel,
   minimum,
   maximum,
   label,
@@ -227,6 +248,7 @@ function SignedBar({
 }: {
   current: number;
   previous: number | null;
+  comparisonLabel: string;
   minimum: number;
   maximum: number;
   label: string;
@@ -243,7 +265,7 @@ function SignedBar({
         { name: 'Aktuell', value: eur(current), color: 'var(--line)' },
         ...(previous === null
           ? []
-          : [{ name: 'Vorzeitraum', value: eur(previous), color: 'var(--ink-3)' }]),
+          : [{ name: comparisonLabel, value: eur(previous), color: 'var(--ink-3)' }]),
       ]}
     >
       <span
@@ -266,16 +288,20 @@ function SignedBar({
 function Body({
   data,
   comparisonMode,
+  comparisonWindow,
   onComparisonChange,
 }: {
   data: SpendingReport;
   comparisonMode: SpendingComparison;
-  onComparisonChange: ((comparison: SpendingComparison) => void) | undefined;
+  comparisonWindow: ComparisonWindow | undefined;
+  onComparisonChange: ComparisonChange | undefined;
 }) {
   useAmountPrivacy();
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [tableOpen, setTableOpen] = useState(false);
   const [allGroups, setAllGroups] = useState(false);
+  const [editingComparison, setEditingComparison] = useState(false);
+  const [comparisonError, setComparisonError] = useState(false);
   const printing = useMediaQuery('print');
   if (data.months.length === 0)
     return (
@@ -318,11 +344,12 @@ function Body({
     bis: data.to,
   });
   const comparison = data.answerComparison;
+  const comparisonLabel = comparisonMode === 'vorperiode' ? 'Vorzeitraum' : 'Vergleichszeitraum';
   const changeChain = REDESIGN_ENABLED ? spendingChangeChain(data) : null;
   const date = data.from && data.to ? `${data.from} · ${data.to}` : '';
   return (
     <>
-      {REDESIGN_ENABLED && <SpendingTrend data={data} />}
+      {REDESIGN_ENABLED && <SpendingTrend data={data} comparisonMode={comparisonMode} />}
       <section className="sr-card sr-wide" aria-labelledby="sa-main">
         <div className="sr-head">
           <h2 id="sa-main">01 · Konsum nach Gruppe</h2>
@@ -347,25 +374,85 @@ function Body({
             }}
           />
           {REDESIGN_ENABLED && onComparisonChange && (
-            <ReportViewControl
-              label="Vergleich mit"
-              options={COMPARISONS}
-              value={comparisonMode}
-              onChange={onComparisonChange}
-            />
+            <>
+              <ReportViewControl
+                label="Vergleich mit"
+                options={COMPARISONS}
+                value={editingComparison ? 'eigen' : comparisonMode}
+                onChange={(value) => {
+                  setEditingComparison(value === 'eigen');
+                  setComparisonError(false);
+                  if (value !== 'eigen') onComparisonChange(value);
+                }}
+              />
+              {(editingComparison || comparisonMode === 'eigen') && (
+                <form
+                  key={comparisonWindow && `${comparisonWindow.von}:${comparisonWindow.bis}`}
+                  className="sa-custom-comparison"
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    const fields = new FormData(event.currentTarget);
+                    const result = spendingComparisonWindow.safeParse({
+                      von: fields.get('von'),
+                      bis: fields.get('bis'),
+                    });
+                    if (!result.success) {
+                      setComparisonError(true);
+                      return;
+                    }
+                    setComparisonError(false);
+                    setEditingComparison(false);
+                    onComparisonChange('eigen', result.data);
+                  }}
+                >
+                  <label>
+                    Vergleich von{' '}
+                    <input
+                      name="von"
+                      type="date"
+                      max={todayInVienna()}
+                      defaultValue={comparisonWindow?.von}
+                      required
+                    />
+                  </label>
+                  <label>
+                    Vergleich bis{' '}
+                    <input
+                      name="bis"
+                      type="date"
+                      max={todayInVienna()}
+                      defaultValue={comparisonWindow?.bis}
+                      required
+                    />
+                  </label>
+                  <button className="btn" type="submit">
+                    Vergleich übernehmen
+                  </button>
+                  {comparisonError && (
+                    <p role="alert">Bitte einen gültigen Vergleichszeitraum bis heute eingeben.</p>
+                  )}
+                </form>
+              )}
+            </>
           )}
           {comparison.previousFrom && comparison.previousTo ? (
             <p className="sa-comparison">
-              Vorzeitraum: {longDay(comparison.previousFrom)} bis {longDay(comparison.previousTo)}
+              {comparisonLabel}: {longDay(comparison.previousFrom)} bis{' '}
+              {longDay(comparison.previousTo)}
               {comparisonMode === 'vorjahr'
                 ? ' (gleiche Tage im Vorjahr)'
-                : ` · jeweils ${comparison.days} Tage`}
-              . Der Strich markiert den Vorzeitraum.
+                : comparisonMode === 'vorperiode'
+                  ? ` · jeweils ${comparison.days} Tage`
+                  : ''}
+              . Der Strich markiert den {comparisonLabel}.
             </p>
           ) : (
             <p className="sa-comparison">
-              Für diesen Zeitraum ist kein vollständig abgedeckter, gleich langer Vorzeitraum
-              verfügbar.
+              {comparisonMode === 'eigen'
+                ? 'Für den eigenen Vergleichszeitraum sind keine vollständig abgedeckten Buchungsdaten verfügbar.'
+                : comparisonMode === 'vorjahr'
+                  ? 'Für die gleichen Tage im Vorjahr sind keine vollständig abgedeckten Buchungsdaten verfügbar.'
+                  : 'Für diesen Zeitraum ist kein vollständig abgedeckter, gleich langer Vorzeitraum verfügbar.'}
             </p>
           )}
           {changeChain && (
@@ -373,7 +460,7 @@ function Body({
               label="Maßkette Veränderung"
               precision="cent"
               terms={[
-                { label: 'Vorzeitraum', value: cents(changeChain.before) },
+                { label: comparisonLabel, value: cents(changeChain.before) },
                 { label: 'Mehr', op: '+', value: cents(changeChain.more) },
                 { label: 'Weniger', op: '-', value: cents(changeChain.less) },
                 { label: 'Jetzt', op: '=', value: cents(changeChain.now), result: true },
@@ -383,12 +470,12 @@ function Body({
         </ReportBodyDisclosure>
         <div
           role="img"
-          aria-label={`Konsum nach Kategoriegruppe: ${eur(data.consumptionCents)}; ${groups.length} Gruppen, einschließlich Erstattungen. Vorzeitraum als Strich.`}
+          aria-label={`Konsum nach Kategoriegruppe: ${eur(data.consumptionCents)}; ${groups.length} Gruppen, einschließlich Erstattungen. ${comparisonLabel} als Strich.`}
         />
         <ul className="sa-groups" aria-label="Konsum nach Kategoriegruppe">
           {(REDESIGN_ENABLED && !allGroups && !printing ? groups.slice(0, 4) : groups).map(
             (group, index) => {
-              const open = expanded.has(group.id);
+              const open = (REDESIGN_ENABLED && printing) || expanded.has(group.id);
               const detailId = `sa-group-${index}`;
               return (
                 <li key={group.id} data-group={group.id}>
@@ -406,6 +493,7 @@ function Body({
                     <SignedBar
                       current={group.cents}
                       previous={group.previous}
+                      comparisonLabel={comparisonLabel}
                       minimum={minimum}
                       maximum={maximum}
                       label={group.name}
@@ -444,6 +532,7 @@ function Body({
                         <SignedBar
                           current={row.cents}
                           previous={row.previous}
+                          comparisonLabel={comparisonLabel}
                           minimum={minimum}
                           maximum={maximum}
                           label={row.name}
@@ -499,7 +588,7 @@ function Body({
               <tr>
                 <th scope="col">Position</th>
                 <th scope="col">Aktuell</th>
-                <th scope="col">Vorzeitraum</th>
+                <th scope="col">{comparisonLabel}</th>
                 <th scope="col">Differenz</th>
               </tr>
             </thead>
@@ -537,14 +626,18 @@ function Body({
           <h2 id="sa-moves">02 · Größte Veränderungen</h2>
           <span className="sr-state">
             {comparison.previousCents === null
-              ? 'Kein Vorzeitraum'
+              ? `Kein ${comparisonLabel}`
               : eur(checkedSum([data.consumptionCents, -comparison.previousCents]), { sign: true })}
           </span>
         </div>
         {comparison.previousCents === null ? (
-          <p>Kein gleich langer Vorzeitraum verfügbar.</p>
+          <p>
+            {comparisonMode === 'vorperiode'
+              ? 'Kein gleich langer Vorzeitraum verfügbar.'
+              : 'Kein Vergleichszeitraum verfügbar.'}
+          </p>
         ) : moves.length === 0 ? (
-          <p>Keine Veränderung zum Vorzeitraum.</p>
+          <p>Keine Veränderung zum {comparisonLabel}.</p>
         ) : (
           <ul className="sa-moves">
             {moves.map((row) => (

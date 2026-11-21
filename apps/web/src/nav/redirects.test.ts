@@ -12,7 +12,11 @@ const reportLandings = [
   ['einnahmen', '/reports/einnahmen-ausgaben', { darstellung: 'income' }],
   ['geldfluss', '/reports/geldfluss', {}],
   ['jahresansicht', '/reports/explorer', { vorlage: 'year' }],
-  ['kategorien', '/reports/explorer', { vorlage: 'category' }],
+  [
+    'kategorien',
+    REDESIGN_ENABLED ? '/reports/ausgaben' : '/reports/explorer',
+    REDESIGN_ENABLED ? { darstellung: 'kategorien' } : { vorlage: 'category' },
+  ],
   ['sparquote', '/reports/sparquote', {}],
   ['gesamttabelle', '/reports/explorer', { vorlage: 'total' }],
   ['projekte', '/reports/einnahmen-ausgaben', { darstellung: 'projekte' }],
@@ -47,7 +51,11 @@ const reportLandings = [
   ],
   ['explorer', '/reports/explorer', {}],
   ['kontakte', REDESIGN_ENABLED ? '/reports/kontakte' : '/konten/kontakte', {}],
-  ['vergleich', '/reports/vergleich', {}],
+  [
+    'vergleich',
+    REDESIGN_ENABLED ? '/reports/ausgaben' : '/reports/vergleich',
+    REDESIGN_ENABLED ? { darstellung: 'gruppen', vergleich: 'vorjahr' } : {},
+  ],
   ['gesamtuebersicht', '/reports/vermoegen-schulden', { darstellung: 'gesamt' }],
 ] as const;
 
@@ -211,4 +219,45 @@ it.each([
   expect(new URLSearchParams(router.state.location.searchStr)).toEqual(
     new URL(from, 'https://budget.invalid').searchParams,
   );
+});
+
+it('preserves an exact comparison bookmark and a saved Explorer bookmark through their legacy addresses', async () => {
+  const comparison = await open(
+    '/reports/vergleich?zeitraum=3M&vergleich=eigen&vergleichVon=2025-03-03&vergleichBis=2025-03-08&fokus=synthetic#details',
+  );
+  expect(comparison.state.location.pathname).toBe(
+    REDESIGN_ENABLED ? '/reports/ausgaben' : '/reports/vergleich',
+  );
+  expect(comparison.state.location.hash).toBe('details');
+  expect(comparison.state.location.searchStr).toContain('fokus=synthetic');
+  if (REDESIGN_ENABLED)
+    expect(comparison.state.matches.at(-1)?.search).toMatchObject({
+      darstellung: 'gruppen',
+      zeitraum: '3M',
+      vergleich: 'eigen',
+      vergleichVon: '2025-03-03',
+      vergleichBis: '2025-03-08',
+    });
+  const category = await open(
+    '/reports/kategorien?zeitraum=3M&ansicht=synthetic&exakt=true#details',
+  );
+  expect(category.state.location.pathname).toBe('/reports/explorer');
+  expect(category.state.location.hash).toBe('details');
+  expect(category.state.matches.at(-1)?.search).toMatchObject({
+    vorlage: 'category',
+    ansicht: 'synthetic',
+    zeitraum: '3M',
+    exakt: true,
+  });
+});
+
+it('keeps a legacy category exact-window bookmark on its Explorer template', async () => {
+  const router = await open('/reports/kategorien?zeitraum=3M&exakt=true#details');
+  expect(router.state.location.pathname).toBe('/reports/explorer');
+  expect(router.state.location.hash).toBe('details');
+  expect(router.state.matches.at(-1)?.search).toMatchObject({
+    zeitraum: '3M',
+    exakt: true,
+    vorlage: 'category',
+  });
 });

@@ -173,3 +173,33 @@
     grid-column: 1 / -1;
   }
 }
+
+.sa-custom-comparison {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: var(--space-sm);
+  margin-block: var(--space-sm);
+}
+.sa-custom-comparison label {
+  display: grid;
+  gap: var(--space-xs);
+  min-inline-size: 0;
+}
+.sa-custom-comparison input {
+  max-inline-size: 100%;
+  min-block-size: var(--touch);
+}
+
+@media print {
+  [data-budget-redesign='1']
+    .redesign-report-frame:has(.spending-analysis)
+    .redesign-report-head
+    .redesign-report-calculation {
+    display: flex !important;
+  }
+  .spending-analysis .report-mode-select,
+  .sa-custom-comparison {
+    display: none;
+  }
+}

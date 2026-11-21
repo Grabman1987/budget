@@ -221,7 +221,7 @@ test.describe('1.6 Kategorie im Verlauf', () => {
             ],
       );
       const overview = categoryOverview(data.months, data, window, data.lastFullMonth);
-      await open(page, `/reports/kategorien?zeitraum=${period}`);
+      await open(page, `/reports/explorer?vorlage=category&zeitraum=${period}`);
       const selected = overview.rows.slice(0, 6);
       expect(selected.some((row) => row.category.name === 'Miete')).toBe(true);
       for (const expected of selected) {
@@ -272,7 +272,7 @@ test.describe('1.6 Kategorie im Verlauf', () => {
     const highest = first.history.reduce((a, h) =>
       (h.spentCents ?? 0) > (a.spentCents ?? 0) ? h : a,
     );
-    await open(page, '/reports/kategorien?zeitraum=1J');
+    await open(page, '/reports/explorer?vorlage=category&zeitraum=1J');
     const picker = page.getByRole('combobox', { name: 'Kategorie', exact: true });
     await picker.selectOption(first.category.id);
     await picker.focus();
@@ -297,7 +297,10 @@ test.describe('1.6 Kategorie im Verlauf', () => {
   }) => {
     const data = await facts(page);
     const id = data.categories[0]!.id;
-    await open(page, `/reports/kategorien?kategorien=${encodeURIComponent(JSON.stringify([id]))}`);
+    await open(
+      page,
+      `/reports/explorer?vorlage=category&kategorien=${encodeURIComponent(JSON.stringify([id]))}`,
+    );
     for (const period of ['1J', 'Alles'] as const) {
       await page
         .getByRole('group', { name: 'Zeitraum', exact: true })
@@ -609,7 +612,7 @@ test.describe('states', () => {
       await new Promise((resolve) => setTimeout(resolve, 600));
       await route.continue();
     });
-    await page.goto('/reports/kategorien');
+    await page.goto('/reports/explorer?vorlage=category');
     await expect(
       page.getByRole('status').filter({ hasText: 'Vorlage werden geladen' }),
     ).toBeVisible({ timeout: 20_000 });

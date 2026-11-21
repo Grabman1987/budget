@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { beforeEach, expect, it } from 'vitest';
+import { beforeEach, expect, it, vi } from 'vitest';
 import { LIQUIDITY_FORECAST, REPORTS } from '../nav/reports-catalog';
 import {
   HUB_GROUPS,
@@ -10,6 +10,8 @@ import {
   rememberReport,
 } from './report-hub-model';
 import { validateReportSearch } from './report-search';
+
+vi.mock('../shell/redesign-flag', () => ({ REDESIGN_ENABLED: false }));
 
 beforeEach(() => sessionStorage.clear());
 it('lists the exact sixteen mapped reports in four groups without removing the old report catalog', () => {

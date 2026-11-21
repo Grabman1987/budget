@@ -5,7 +5,6 @@ import { sampleTest as test, expect } from './sample';
 const identities = [
   'onepager',
   'jahresreport',
-  'vergleich',
   'kontakte',
   'explorer',
   'vermoegen-schulden',
@@ -22,7 +21,7 @@ const identities = [
   'inflation',
 ];
 
-test('catalog preserves all seventeen destinations, legacy names and usable fallback readers', async ({
+test('catalog preserves the sixteen ON destinations, legacy names and usable fallback readers', async ({
   page,
 }, info) => {
   for (const theme of ['light', 'dark'] as const) {
@@ -50,6 +49,7 @@ test('catalog preserves all seventeen destinations, legacy names and usable fall
       ['Rendite und Kennzahlen', 'pallocation'],
       ['Jahresansicht', 'explorer'],
       ['Gesamttabelle', 'explorer'],
+      ['Zeitraumvergleich', 'ausgaben'],
     ]) {
       await search.fill(name!);
       await expect(page.locator('.report-hub-list > li > a')).toHaveAttribute(
@@ -94,8 +94,8 @@ test('catalog search and legacy report bookmarks retain their destinations and s
   await expect(palette).toBeVisible();
   for (const [term, label] of [
     ['Monats-One-Pager', '1 Monatsbericht'],
-    ['Vermögensreport', '6 Vermögensreport'],
-    ['Gehaltsreport', '12 Gehalt'],
+    ['Vermögensreport', '5 Vermögensreport'],
+    ['Gehaltsreport', '11 Gehalt'],
     ['Liquiditätsprognose', 'Plan · Prognose'],
   ]) {
     await palette.fill(term!);

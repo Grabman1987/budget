@@ -5,12 +5,20 @@ import { useElementWidth } from '../charts/use-element-width';
 import { eur, longDay } from '../ledger/format';
 
 /** Exact-day snapshots from this reader; never infer a daily plan or incomplete monthly history. */
-export function SpendingTrend({ data }: { data: SpendingReport }) {
+export function SpendingTrend({
+  data,
+  comparisonMode,
+}: {
+  data: SpendingReport;
+  comparisonMode: 'vorperiode' | 'vorjahr' | 'eigen';
+}) {
   useAmountPrivacy();
   const [ref, width] = useElementWidth<HTMLDivElement>();
   if (!data.months.length) return null;
-  const values = [data.answerComparison.previousCents, data.consumptionCents];
-  const dates = [data.answerComparison.previousTo ?? 'Nicht verfügbar', data.to ?? 'Aktuell'];
+  const { previousFrom, previousTo, previousCents, days } = data.answerComparison;
+  const previousPeriod = comparisonMode === 'vorperiode';
+  const values = [previousCents, data.consumptionCents];
+  const dates = [previousTo ?? 'Nicht verfügbar', data.to ?? 'Aktuell'];
   const supplied = values.filter((v): v is number => v !== null);
   const low = Math.min(0, ...supplied),
     high = Math.max(1, ...supplied);
@@ -28,7 +36,7 @@ export function SpendingTrend({ data }: { data: SpendingReport }) {
             testId="spending-period-chart"
             width={width}
             height={180}
-            label="Konsum im aktuellen und gleich langen vorherigen Zeitraum, einschließlich Erstattungen"
+            label="Konsum im aktuellen Zeitraum und im Vergleichszeitraum, einschließlich Erstattungen"
             points={chartPoints(dates, x, [{ name: 'Konsum', values }])}
           >
             <Graticule
@@ -52,7 +60,7 @@ export function SpendingTrend({ data }: { data: SpendingReport }) {
             <XTicks
               y={174}
               ticks={[
-                { x: x(0), label: 'Vorzeitraum' },
+                { x: x(0), label: previousPeriod ? 'Vorzeitraum' : 'Vergleich' },
                 { x: x(1), label: 'Aktuell' },
               ]}
             />
@@ -62,9 +70,11 @@ export function SpendingTrend({ data }: { data: SpendingReport }) {
       <p className="r8-scope">
         Bedarf und Wunsch · netto nach Erstattungen · ohne Zukunft.{' '}
         {data.from && data.to ? `${longDay(data.from)} bis ${longDay(data.to)}.` : ''}{' '}
-        {data.answerComparison.previousCents === null
-          ? 'Vorzeitraum nicht verfügbar.'
-          : `Vergleich: jeweils ${data.answerComparison.days} Tage.`}
+        {previousFrom && previousTo
+          ? previousPeriod
+            ? `Vergleich: jeweils ${days} Tage.`
+            : `Vergleich: ${longDay(previousFrom)} bis ${longDay(previousTo)}.`
+          : 'Vergleichszeitraum nicht verfügbar.'}
       </p>
     </section>
   );

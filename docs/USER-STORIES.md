@@ -207,6 +207,10 @@ only read on opening, reset after template changes/source refresh/reload, and no
 stale export. The existing Explorer spec checks exact CSV bytes and privacy in
 light/dark at the configured desktop/390 widths. See [RP-09](user-stories/06-reports.md#rp-09--gesamttabelle-explorer-template); CI and owner acceptance remain open.
 
+## Eigener Ausgabenvergleich (#1158)
+
+Als Haushaltsmitglied kann ich in der Ausgabenanalyse einen eigenen Vergleich von Tag bis Tag auswählen und die Adresse erneut öffnen. Die Beträge reichen inklusive bis zu beiden Grenzen und zeigen fehlende Historie an. Die bisherigen Adressen für Kategorien und Zeitraumvergleich führen zur Ausgabenanalyse. Gespeicherte Explorer-Ansichten und Vorlagen bleiben erreichbar.
+
 ## Queue rejection and dialog completion (#1144, #1201)
 
 A server-rejected capture stays on the device as a draft with its safe error message

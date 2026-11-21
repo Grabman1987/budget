@@ -2,6 +2,8 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { ReportNavigation, adjacentReports } from './report-navigation';
+vi.mock('../shell/redesign-flag', () => ({ REDESIGN_ENABLED: false }));
+
 const canonical = [
   'einnahmen-ausgaben',
   'ausgaben',

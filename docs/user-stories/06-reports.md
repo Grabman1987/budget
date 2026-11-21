@@ -317,7 +317,7 @@ owner live acceptance is pending.
   - Erstattungen sind gegen ihre Kategorie gerechnet; Zukunft steht getrennt und ist kein Konsum.
   - Randfall: Für „Alles“ gibt es keinen gleich langen Vorzeitraum („Kein gleich langer Vorzeitraum verfügbar.“); ohne Monatsdaten „Noch keine Monatsdaten“.
 - **Continuation criteria (#1158):** In ON, `vergleich=vorjahr` compares with the same days one year earlier and survives reload and period changes; the default is the equally long previous period. In ON, `darstellung=kategorien` reopens the category reader after reload; selected categories and period survive switching among all three views. Existing group/payee figures and the OFF view set remain unchanged.
-- **Status:** existing body live; first consolidation slice implemented for review (#1158). Comparison mode Vorperiode/Vorjahr is delivered (address `vergleich=vorjahr`, same figures, only the comparison window differs; Empfänger is a view of the same report). The comparison section also shows the chain “Vorzeitraum + Mehr − Weniger = Jetzt” (per-category changes of the existing figures; hidden unless it adds up to the cent). Remaining: custom comparison window (needs a reader parameter) and final legacy-address consolidation. **Verweis:** 2.1
+- **Status:** existing body live; first consolidation slice implemented for review (#1158). Comparison mode Vorperiode/Vorjahr is delivered (address `vergleich=vorjahr`, same figures, only the comparison window differs; Empfänger is a view of the same report). The comparison section also shows the chain “Vorzeitraum + Mehr − Weniger = Jetzt” (per-category changes of the existing figures; hidden unless it adds up to the cent). Der eigene Vergleich akzeptiert ein Von- und ein Bis-Datum, zählt beide Tage mit und zeigt fehlende Buchungshistorie an. Die alten Kategorien- und Vergleichsadressen führen zur Ausgabenanalyse. **Verweis:** 2.1
 
 ### RP-12b – Empfänger-Analyse
 - **Story:** Als Nutzer möchte ich sehen, bei wem ich das meiste Geld lasse und wie oft ich dort zahle, damit ich Gewohnheiten und Verträge mit Händlern prüfe.
@@ -682,7 +682,7 @@ Status: implemented for review; CI and owner acceptance pending. Other reports i
   - „Summe Konsum · alle Kategorien“ stimmt mit der Ausgabenanalyse beider Zeiträume überein.
   - Kapitalerträge stehen getrennt von Einkommen und Sparquote.
   - Randfall: Die Vergleichsart steht nicht in der Adresse; Monate werden paarweise verglichen und fehlende Monate nicht erfunden.
-- **Status:** existing comparison live; integration as an Ausgaben mode with URL-selected comparison and custom periods remains open under #1158. **Verweis:** 5.5
+- **Status:** Im Redesign wählen Leser Vorperiode, Vorjahr oder eigene Tage in der Ausgabenanalyse. Die alte Adresse öffnet den letzten vollen Monat mit Vorjahresvergleich, sofern das Lesezeichen keine Zeitraumwahl enthält. Die oben beschriebenen vier Arten bleiben in der älteren Darstellung verfügbar. **Verweis:** 5.5
 
 ### RP-23b – Gesamtübersicht
 - **Story:** Als Nutzer möchte ich sehen, was Sparen und Markt zum Vermögen beigetragen haben, damit ich weiß, ob mein Fortschritt von mir oder vom Markt kommt.

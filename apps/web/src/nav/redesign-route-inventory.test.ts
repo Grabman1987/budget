@@ -111,21 +111,27 @@ describe.each([false, true])('actual A2 router, redesign=%s', (enabled) => {
         `${concrete(from)}?monat=2026-08&period=month&zeitraum=2026-01..2026-08#details`,
       );
       expect(router.state.location.pathname).toBe(
-        enabled && from === '/reports/kosten'
-          ? '/reports/psteuern'
-          : enabled && from === '/reports/kontakte'
-            ? '/reports/kontakte'
-            : offFinanzcheck
-              ? '/'
-              : enabled && from === '/vermoegen'
-                ? '/vermoegen'
-                : concrete(target),
+        enabled && from === '/reports/kategorien'
+          ? '/reports/ausgaben'
+          : enabled && from === '/reports/kosten'
+            ? '/reports/psteuern'
+            : enabled && from === '/reports/kontakte'
+              ? '/reports/kontakte'
+              : offFinanzcheck
+                ? '/'
+                : enabled && from === '/vermoegen'
+                  ? '/vermoegen'
+                  : concrete(target),
       );
       expect(router.state.location.hash).toBe('details');
       expect(router.state.matches.at(-1)?.search).toMatchObject({
         monat: '2026-08',
         zeitraum: '2026-01..2026-08',
-        ...(offFinanzcheck ? {} : intent),
+        ...(enabled && from === '/reports/kategorien'
+          ? { darstellung: 'kategorien' }
+          : offFinanzcheck
+            ? {}
+            : intent),
       });
       const reloaded = await open(router.state.location.href);
       expect(reloaded.state.location.href).toBe(router.state.location.href);
