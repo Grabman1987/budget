@@ -1,12 +1,12 @@
-import { BankCostsReportPage, bankCostsQuery } from '../reports/bank-costs-report';
-import { CombinedCostsView, combinedCostsOf } from '../reports/combined-costs-view';
-import { useSearch } from '@tanstack/react-router';
+import { BankCostsReportPage } from '../reports/bank-costs-report';
+import { CombinedCostsView } from '../reports/combined-costs-view';
+import { useNavigate, useSearch } from '@tanstack/react-router';
 import { REDESIGN_ENABLED } from '../shell/redesign-flag';
 import { PortfolioRecordedCostHistory } from '../reports/portfolio-recorded-cost-history';
 import { PortfolioIncomeDepth } from '../reports/portfolio-income-depth';
 import { useAmountPrivacy, DimensionChain } from '@budget/ui';
 import { cents } from '@budget/domain';
-import type { CostsTaxesReport } from '@budget/db';
+import type { AnnualCostYear, CostsTaxesReport } from '@budget/db';
 import { queryOptions, useQuery } from '@tanstack/react-query';
 import { request } from '../api/http';
 import { LoadingNote } from '../ledger/states';
@@ -39,16 +39,26 @@ const costsQuery = queryOptions({
   queryFn: () => request<CostsResponse>('GET', '/api/portfolio/costs-taxes'),
 });
 
+const annualCostsQuery = queryOptions({
+  queryKey: [...LEDGER_KEY, 'annual-costs-report'],
+  retry: false,
+  queryFn: () => request<{ years: AnnualCostYear[] }>('GET', '/api/portfolio/annual-costs'),
+});
+
 export function PortfolioCostsReport({ report, meta }: { report: ReportEntry; meta: PageMeta }) {
   useAmountPrivacy();
-  const search = useSearch({ strict: false }) as { darstellung?: string };
+  const search = useSearch({ strict: false }) as { darstellung?: string; jahr?: number };
+  const navigate = useNavigate();
   const view =
     REDESIGN_ENABLED &&
     ['ertraege', 'kostenverlauf', 'bankkosten', 'gesamt'].includes(search.darstellung ?? '')
       ? search.darstellung
       : 'gebuehren';
-  const query = useQuery({ ...costsQuery, enabled: view !== 'bankkosten' });
-  const bankQuery = useQuery({ ...bankCostsQuery, enabled: view === 'gesamt' });
+  const isAnnual = view === 'gesamt';
+  const query = useQuery({ ...costsQuery, enabled: view !== 'bankkosten' && !isAnnual });
+  const annualQuery = useQuery({ ...annualCostsQuery, enabled: isAnnual });
+  const years = annualQuery.data?.years ?? [];
+  const selected = years.find(({ year }) => year === search.jahr) ?? years[0];
   const data = query.data?.costs;
   // The views are indented sub-reports of the report menu (#1150).
   const control = undefined;
@@ -56,7 +66,7 @@ export function PortfolioCostsReport({ report, meta }: { report: ReportEntry; me
     return <BankCostsReportPage report={report} meta={meta} viewControl={control} />;
   return (
     <PageFrame
-      sourceDate={data?.to}
+      sourceDate={isAnnual ? selected?.to : data?.to}
       calculation={
         view !== 'gesamt' && data && !query.isFetching && !query.isError
           ? {
@@ -105,18 +115,11 @@ export function PortfolioCostsReport({ report, meta }: { report: ReportEntry; me
           : undefined
       }
       reportControls={control}
-      {...(view === 'gesamt' && data && bankQuery.data && !query.isFetching && !bankQuery.isFetching
-        ? {
-            statement: (() => {
-              const total = combinedCostsOf(bankQuery.data, data);
-              return `Kosten gesamt (12 Monate): ${eur(total.totalCents)}; Portfolio-Kostenquote ${
-                total.ratioBp === null
-                  ? 'nicht berechenbar'
-                  : `${bpText(total.ratioBp, { digits: 1 })} des Portfoliowerts`
-              }.`;
-            })(),
-          }
-        : {})}
+      statement={
+        isAnnual && selected?.total
+          ? `Kosten gesamt ${selected.year}: ${eur(selected.total.totalCents)}.`
+          : undefined
+      }
       verdict={
         view !== 'gesamt' && data && !query.isFetching && !query.isError
           ? {
@@ -136,44 +139,64 @@ export function PortfolioCostsReport({ report, meta }: { report: ReportEntry; me
       title={report.name}
       subtitle={`${report.pos} · ${report.question}`}
       reportDataBasis={
-        query.isError
-          ? 'nicht verfügbar'
-          : data
-            ? `${longDay(data.from)} bis ${longDay(data.to)}`
-            : 'wird geladen'
+        isAnnual
+          ? annualQuery.isError
+            ? 'nicht verfügbar'
+            : selected
+              ? `${longDay(selected.from)} bis ${longDay(selected.to)}`
+              : 'wird geladen'
+          : query.isError
+            ? 'nicht verfügbar'
+            : data
+              ? `${longDay(data.from)} bis ${longDay(data.to)}`
+              : 'wird geladen'
       }
     >
       <div className="prep portfolio-costs-report">
         <BookRuleMetric code="R22" />
-        {query.isPending && <LoadingNote what="Kosten, Steuern und Erträge" />}
-        {query.isError && (
+        {isAnnual ? (
+          annualQuery.isError ? (
+            <ReportUnavailable
+              what="Die Kalenderjahreskosten"
+              error={annualQuery.error}
+              onRetry={() => void annualQuery.refetch()}
+            />
+          ) : selected ? (
+            <CombinedCostsView
+              selected={selected}
+              years={years}
+              selectYear={(year) =>
+                void navigate({
+                  to: '/reports/$reportId',
+                  params: { reportId: report.id },
+                  search: ((previous: Record<string, unknown>) => ({
+                    ...previous,
+                    jahr: year,
+                  })) as never,
+                  hash: true,
+                })
+              }
+            />
+          ) : (
+            <LoadingNote what="Kalenderjahreskosten" />
+          )
+        ) : query.isError ? (
           <ReportUnavailable
             what="Die Auswertung von Kosten, Steuern und Erträgen"
             error={query.error}
             onRetry={() => void query.refetch()}
           />
-        )}
-        {data &&
-          !query.isError &&
-          (view === 'gesamt' ? (
-            bankQuery.data ? (
-              <CombinedCostsView bank={bankQuery.data} portfolio={data} />
-            ) : bankQuery.isError ? (
-              <ReportUnavailable
-                what="Die Bankkosten"
-                error={bankQuery.error}
-                onRetry={() => void bankQuery.refetch()}
-              />
-            ) : (
-              <LoadingNote what="Bank- und Zinskosten" />
-            )
-          ) : view === 'kostenverlauf' ? (
+        ) : data ? (
+          view === 'kostenverlauf' ? (
             <PortfolioRecordedCostHistory from={data.from} to={data.to} />
           ) : view === 'ertraege' ? (
             <PortfolioIncomeDepth from={data.from} to={data.to} />
           ) : (
             <CostsBody data={data} />
-          ))}
+          )
+        ) : (
+          <LoadingNote what="Kosten, Steuern und Erträge" />
+        )}
       </div>
     </PageFrame>
   );

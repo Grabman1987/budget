@@ -40,6 +40,7 @@ import {
   depotComparison,
   allocationReport,
   costsTaxesReport,
+  annualCostsReport,
   investmentPreferences,
   setInvestmentCostMethod,
   restoreSecurity,
@@ -728,6 +729,7 @@ export function portfolioRoutes(db: Db, today: () => string): Hono {
     c.json({ allocation: allocationReport(db, { today: today() }) }),
   );
   // Report 4.5: costs, broker taxes and income of the last 12 months, illustrative latent tax.
+  app.get('/annual-costs', (c) => c.json({ years: annualCostsReport(db, today()) }));
   app.get('/costs-taxes', (c) => c.json({ costs: costsTaxesReport(db, { today: today() }) }));
   app.get('/preferences', (c) => c.json(investmentPreferences(db)));
   app.get('/funding-plan', (c) =>

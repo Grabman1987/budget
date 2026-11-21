@@ -48,6 +48,14 @@ export function taxBreakdownLast12Months(
   trades: ReadonlyArray<ProductTrade>,
   today: string,
 ): TaxBreakdown {
+  return taxBreakdownInRange(trades, { from: sameDayMonthsBack(today, 12), to: today });
+}
+
+/** Booked taxes whose dates fall in the inclusive range end and exclusive range start. */
+export function taxBreakdownInRange(
+  trades: ReadonlyArray<ProductTrade>,
+  { from, to }: { from: string; to: string },
+): TaxBreakdown {
   const out = {
     dividendCents: 0,
     interestCents: 0,
@@ -56,7 +64,7 @@ export function taxBreakdownLast12Months(
     bookingCents: 0,
   };
   for (const t of trades) {
-    if (!inLast12Months(t, today)) continue;
+    if (t.date <= from || t.date > to) continue;
     switch (t.kind) {
       case 'dividend':
         out.dividendCents += t.taxCents;

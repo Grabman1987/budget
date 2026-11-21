@@ -221,3 +221,7 @@ Four columns, gross open shares, separate credit, unchanged domain balances and
 repayment returns it to the original category; no extra advance or net-worth charge.
 See [RP-21b](user-stories/06-reports.md#rp-21b--kontakte-abrechnung).
 Status: implemented for review; owner acceptance pending. No other report is migrated.
+
+## Reports: calendar-year costs (#1160)
+
+In Reports › Portfolio › Kosten und Steuern › Kosten gesamt, select a calendar year to see the shared reporting dates, full cost breakdown, closing-value cost ratio and estimate labels. The year stays in the URL, and the report lists all years newest first with partial coverage marked. Turning on amount privacy hides all amounts and ratios.
