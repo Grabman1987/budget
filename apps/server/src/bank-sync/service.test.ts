@@ -204,11 +204,15 @@ describe('bank sync workflow', () => {
     expect(readBankSyncRecap(opened.db, '2026-10-01').accounts[0]).toMatchObject({ open: null });
   });
 
-  it('requires confirmation for a newly authorized connection without changing legacy policy', async () => {
-    opened.db.delete(schema.appSetting).run();
+  it('defaults new connections to decision 41 while preserving explicit confirmation-first policy', async () => {
     await service.start('Bank A', 'AT', 'new-owner-session');
     const fresh = service.status().connections.find((c) => c.id !== consentId)!;
-    expect(fresh.bookedToLedger).toBe(false);
+    expect(fresh.bookedToLedger).toBe(true);
+    expect(service.status().connections.find((c) => c.id === consentId)?.bookedToLedger).toBe(
+      false,
+    );
+    // A connection with no stored override also follows decision 41.
+    opened.db.delete(schema.appSetting).run();
     expect(service.status().connections.find((c) => c.id === consentId)?.bookedToLedger).toBe(true);
   });
 
@@ -348,6 +352,9 @@ describe('bank sync workflow', () => {
   });
   it('counts BOOK immediately by default, leaves PDNG as a candidate, and never assigns a category', async () => {
     opened.db.delete(schema.appSetting).run();
+    expect(
+      accountBalances(opened.db, '2026-10-01').find((a) => a.accountId === 'giro')?.balanceCents,
+    ).toBe(100000);
     vi.mocked(provider.transactions).mockResolvedValue(
       batch([row, { ...row, reference: 'pending-a', bankStatus: 'pending', amountCents: -301 }]),
     );
@@ -554,6 +561,49 @@ describe('bank sync workflow', () => {
       accountBalances(opened.db, '2026-10-01').find((a) => a.accountId === 'giro')?.balanceCents,
     ).toBe(98799);
     expect(redo.entries.length).toBeGreaterThan(0);
+  });
+  it('undoes all BOOK postings from a fetch together without changing PDNG or the bank observation', async () => {
+    opened.db.delete(schema.appSetting).run();
+    vi.mocked(provider.transactions).mockResolvedValue(
+      batch([
+        row,
+        { ...row, reference: 'booked-b', amountCents: -2302 },
+        { ...row, reference: 'pending-b', bankStatus: 'pending', amountCents: -401 },
+      ]),
+    );
+    await service.tick();
+    expect(
+      accountBalances(opened.db, '2026-10-01').find((a) => a.accountId === 'giro')?.balanceCents,
+    ).toBe(96497);
+    const postingGroups = opened.db
+      .select()
+      .from(schema.auditLog)
+      .all()
+      .filter((a) => a.entityType === 'booking' && a.actor === 'bank-sync')
+      .map((a) => a.groupId!);
+    expect(postingGroups).toHaveLength(2);
+    expect(new Set(postingGroups).size).toBe(1);
+    const observation = opened.db.select().from(schema.bankSyncAccount).get()!;
+    undo(opened.db, { groupId: postingGroups[0]! }, { actor: 'owner' });
+    expect(
+      accountBalances(opened.db, '2026-10-01').find((a) => a.accountId === 'giro')?.balanceCents,
+    ).toBe(100000);
+    expect(candidates()).toHaveLength(3);
+    expect(candidates().find((c) => c.bankStatus === 'pending')?.amountCents).toBe(-401);
+    expect(opened.db.select().from(schema.bankSyncAccount).get()).toEqual(observation);
+    nextDay();
+    await service.tick();
+    expect(
+      accountBalances(opened.db, '2026-10-02').find((a) => a.accountId === 'giro')?.balanceCents,
+    ).toBe(100000);
+    expect(opened.db.select().from(schema.booking).all()).toHaveLength(2);
+    expect(
+      opened.db
+        .select()
+        .from(schema.booking)
+        .all()
+        .every((b) => b.deletedAt !== null),
+    ).toBe(true);
   });
   it('does not double count a pending candidate confirmed before it becomes BOOK', async () => {
     service.setPolicy(consentId, true);

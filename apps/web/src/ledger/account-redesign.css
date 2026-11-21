@@ -146,6 +146,14 @@
   font-size: var(--fs-meta);
   color: var(--ink-2);
 }
+.account-bank-observation p {
+  margin: 0;
+}
+.account-bank-observation a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+}
 .account-detail-redesign .kchart {
   margin-block: 0 10px;
   padding: 0 14px 8px;

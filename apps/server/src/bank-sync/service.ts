@@ -107,10 +107,16 @@ export class BankSync {
    * Ambiguity leaves the line open in the inbox for the owner. Separates the replayable ledger
    * audit from the irreversible provider protocol history.
    */
-  private postBooked(tx: Executor, ids: readonly string[], sourceId: string) {
-    // Without the opt-in a line is still tied to a booking that already exists, but never posted.
-    const post = this.bookedToLedger(tx, sourceId);
-    const ctx = withGroup(system);
+  private postBooked(
+    tx: Executor,
+    ids: readonly string[],
+    sourceId: string,
+    options: { audit?: { actor: string; groupId: string }; maxBookings?: number } = {},
+  ) {
+    // An explicit operator replay overrides the connection policy, never the matching rules.
+    const post = options.audit !== undefined || this.bookedToLedger(tx, sourceId);
+    const ctx = withGroup(options.audit ?? system);
+    let created = 0;
     const resolve = (id: string, resolution: string) =>
       updateTracked(
         tx,
@@ -178,7 +184,7 @@ export class BankSync {
             { detail: (item.detail ?? '') + AMBIGUOUS_NOTE },
             ctx,
           );
-      } else if (post) {
+      } else if (post && created < (options.maxBookings ?? Infinity)) {
         const result = importBooking(
           tx,
           {
@@ -195,11 +201,91 @@ export class BankSync {
           },
           ctx,
         );
+        if (result.created) created++;
         // The unchecked booking is itself the open task (inbox booking row with confirm / merge).
         resolve(row.id, 'Als ungeprüfte Buchung angelegt, bitte prüfen: ' + result.id);
       }
     }
     return linked;
+  }
+
+  /** Operator-only recovery of old BOOK candidates; never contacts the provider or changes policy. */
+  postExistingBooked(options: { apply?: boolean; maxBookings?: number; sourceId?: string } = {}) {
+    const maxBookings = options.maxBookings ?? 25;
+    if (!Number.isSafeInteger(maxBookings) || maxBookings < 1)
+      throw new Error('--max-bookings must be a positive safe integer');
+    if (writesHeld(this.db))
+      throw new ConflictError('Schreibzugriffe sind vorübergehend gesperrt.');
+    const ctx = withGroup({ actor: 'operator' });
+    type Result = {
+      created: number;
+      linked: number;
+      resolved: number;
+      remaining: number;
+      groupId: string;
+    };
+    class DryRun extends Error {
+      constructor(readonly result: Result) {
+        super('dry run');
+      }
+    }
+    try {
+      return this.db.transaction((tx) => {
+        if (options.sourceId && !tx.select().from(link).where(eq(link.id, options.sourceId)).get())
+          throw new EntityNotFoundError('bank_sync_account', options.sourceId);
+        const rows = tx
+          .select({ row: candidate, leaseUntil: consent.leaseUntil })
+          .from(candidate)
+          .innerJoin(inboxItem, eq(inboxItem.id, candidate.id))
+          .innerJoin(account, eq(account.id, candidate.accountId))
+          .innerJoin(
+            link,
+            and(eq(link.id, candidate.sourceId), eq(link.accountId, candidate.accountId)),
+          )
+          .innerJoin(consent, eq(consent.id, link.consentId))
+          .where(
+            and(
+              eq(candidate.bankStatus, 'booked'),
+              eq(candidate.currency, account.currency),
+              eq(inboxItem.refType, 'bank-sync-candidate'),
+              eq(inboxItem.refId, candidate.id),
+              isNull(inboxItem.resolvedAt),
+              isNull(account.deletedAt),
+              isNull(account.closedAt),
+              ...(options.sourceId ? [eq(candidate.sourceId, options.sourceId)] : []),
+            ),
+          )
+          .orderBy(candidate.date, candidate.id)
+          .all();
+        if (rows.some((r) => r.leaseUntil && r.leaseUntil > this.clock().toISOString()))
+          throw new ConflictError('Der Abruf läuft noch.');
+        const ids = rows.map((r) => r.row.id);
+        const linked = this.postBooked(tx, ids, '', { audit: ctx, maxBookings });
+        const audit = tx
+          .select()
+          .from(schema.auditLog)
+          .where(eq(schema.auditLog.groupId, ctx.groupId))
+          .all();
+        const created = audit.filter(
+          (a) => a.entityType === 'booking' && a.action === 'create',
+        ).length;
+        const remaining = ids.filter(
+          (id) => !tx.select().from(inboxItem).where(eq(inboxItem.id, id)).get()?.resolvedAt,
+        ).length;
+        const result: Result = {
+          created,
+          linked: linked.size,
+          resolved: ids.length - remaining,
+          remaining,
+          groupId: audit.length ? ctx.groupId : '',
+        };
+        if (!options.apply) throw new DryRun({ ...result, groupId: '' });
+        return result;
+      });
+    } catch (error) {
+      if (error instanceof DryRun) return error.result;
+      throw error;
+    }
   }
 
   /**
@@ -345,7 +431,7 @@ export class BankSync {
       createEntity(
         tx,
         schema.appSetting,
-        { id: 'bank.booked_to_ledger:' + id, value: 'false' },
+        { id: 'bank.booked_to_ledger:' + id, value: 'true' },
         ctx,
       );
     });

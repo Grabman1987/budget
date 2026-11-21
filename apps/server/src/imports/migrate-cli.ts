@@ -1,4 +1,4 @@
-import { readFileSync, realpathSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
 import { basename, dirname, isAbsolute, relative, resolve } from 'node:path';
 import {
   applyBookEntries,
@@ -40,6 +40,7 @@ import { deleteRun, saveMapping } from './staging';
 import { applyBankInboxEntries, listBankInbox, parseBankInboxFile } from './operator-bank-inbox';
 import { findRun, runTask, type ImportTask } from './tasks';
 import { applyRestructure, parseRestructureFile } from './operator-restructure';
+import { BankSync } from '../bank-sync/service';
 
 /**
  * One-time YNAB migration on the server (owner decision 01.10.2026: no import feature in the app;
@@ -62,6 +63,7 @@ import { applyRestructure, parseRestructureFile } from './operator-restructure';
  *   node migrate-cli.js owner-trades --file <json> [--dry-run] [--details]
  *   node migrate-cli.js bank-inbox list [--source <bankSyncAccountId>] [--out <file>]
  *   node migrate-cli.js bank-inbox apply --file <json> [--dry-run]
+ *   node migrate-cli.js bank-posting [--dry-run|--apply] [--source <bankSyncAccountId>] [--max-bookings <n>]
  *   node migrate-cli.js restore-test
  *
  * Output is aggregates only (counts, problem codes, number of differences); `--details` adds the
@@ -136,9 +138,12 @@ const required = (name: string) => {
 
 const dataDir = resolve(process.env['DATA_DIR'] ?? 'data');
 const databasePath = resolve(process.env['DATABASE_PATH'] ?? resolve(dataDir, 'budget.sqlite'));
+if (command === 'bank-posting' && !existsSync(databasePath))
+  throw new Error('bank-posting requires an existing database');
 const { db, close } = openDatabase(databasePath);
 // The server migrates at start; a fresh local database (a test run) needs it here too.
-if (process.env['BUDGET_MIGRATIONS_DIR']) migrateDatabase(db, process.env['BUDGET_MIGRATIONS_DIR']);
+if (command !== 'bank-posting' && process.env['BUDGET_MIGRATIONS_DIR'])
+  migrateDatabase(db, process.env['BUDGET_MIGRATIONS_DIR']);
 const ctx = { today: todayInVienna() };
 
 function run(task: ImportTask) {
@@ -698,6 +703,27 @@ try {
       if (outcomes.some((o) => o.status === 'skipped')) process.exitCode = 3;
       break;
     }
+    case 'bank-posting': {
+      if (args.includes('--dry-run') && args.includes('--apply'))
+        throw new Error('--dry-run and --apply exclude each other');
+      const sourceId = args.includes('--source') ? required('source').trim() : undefined;
+      if (sourceId !== undefined && (!sourceId || sourceId.startsWith('--')))
+        throw new Error('--source requires a bankSyncAccountId');
+      const maxBookings = args.includes('--max-bookings') ? Number(required('max-bookings')) : 25;
+      // Recovery is ledger-only: no provider credentials, network or connection policy change.
+      const sync = new BankSync(db, null as never, null as never, '');
+      const result = sync.postExistingBooked({
+        apply: args.includes('--apply'),
+        maxBookings,
+        ...(sourceId && { sourceId }),
+      });
+      console.log(
+        'bank-posting',
+        JSON.stringify(result),
+        args.includes('--apply') ? '' : '(dry run)',
+      );
+      break;
+    }
     case 'bank-inbox': {
       const mode = args[1];
       if (mode === 'list') {
@@ -769,7 +795,7 @@ try {
     }
     default:
       console.log(
-        'usage: migrate-cli.js stage|dry-run|report|commit|revert|delete|order-accounts|list-groups|undo-group|move-money|book|payslips|instrument-facts|owner-config|contact-allocate|restructure|owner-trades|source-rebuild|bank-inbox|restore-test [options]',
+        'usage: migrate-cli.js stage|dry-run|report|commit|revert|delete|order-accounts|list-groups|undo-group|move-money|book|payslips|instrument-facts|owner-config|contact-allocate|restructure|owner-trades|source-rebuild|bank-posting|bank-inbox|restore-test [options]',
       );
       process.exitCode = 2;
   }

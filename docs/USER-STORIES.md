@@ -221,3 +221,16 @@ Four columns, gross open shares, separate credit, unchanged domain balances and
 repayment returns it to the original category; no extra advance or net-worth charge.
 See [RP-21b](user-stories/06-reports.md#rp-21b--kontakte-abrechnung).
 Status: implemented for review; owner acceptance pending. No other report is migrated.
+
+## Bank posting and observed balance (#1267)
+
+New bank connections follow SPEC decision 41: fetched BOOK lines without a match
+become unchecked, uncategorized register bookings and count in the existing account
+balance. PDNG stays in review. An explicit confirmation-first connection policy
+remains supported. Matching, source identity, tombstones and grouped Undo remain.
+The account register head shows the stored bank observation and fetch time; a
+nonzero difference to the current app balance links to Prüfen. Privacy mode masks
+both amounts. This information never creates an adjustment or changes a balance
+formula. The operator-only recovery of older BOOK candidates is documented in
+`docs/ops.md`; it defaults to dry-run and is not a migration.
+Status: implementation for review; production recovery and owner acceptance pending.
