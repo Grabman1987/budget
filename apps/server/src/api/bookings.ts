@@ -20,6 +20,7 @@ import {
   releaseLinkedAllocations,
   relatedTransferBookings,
   connectedTransferBookings,
+  runBookingWrite,
   runInTransaction,
   updateBooking,
   type AuditContext,
@@ -31,8 +32,8 @@ import {
 } from '@budget/db';
 import { and, eq, isNull, sql } from 'drizzle-orm';
 import { createHash, randomUUID } from 'node:crypto';
-import { z } from 'zod';
-import { Hono } from 'hono';
+import { z, ZodError, type ZodType } from 'zod';
+import { Hono, type Context } from 'hono';
 import { filteredBookingCsv } from './booking-csv';
 import { readBookingInspector } from './booking-inspector';
 import {
@@ -45,6 +46,54 @@ import {
 } from './booking-note-preview';
 import { ACTOR, ApiError, defined, errorAnswer, readBody, readQuery } from './http';
 import { bookingDeleteQuery, bookingPatch, bookingQuery, bulkBody, createBody } from './schemas';
+
+/** Keep booking input messages local to its write routes. */
+async function readBookingBody<T>(c: Context, schema: ZodType<T>): Promise<T> {
+  try {
+    return await readBody(c, schema);
+  } catch (error) {
+    if (error instanceof ApiError)
+      throw new ApiError(400, 'invalid', 'Die Buchungsdaten sind kein gültiges JSON.');
+    if (!(error instanceof ZodError)) throw error;
+    const issue = error.issues[0];
+    const field = issue?.path[0];
+    if (field === 'splits') {
+      if (issue?.code === 'too_small' && issue.path.length === 1)
+        throw new ApiError(422, 'invalid', 'Die Buchung braucht mindestens eine Aufteilung.');
+      if (issue?.code === 'too_big' && issue.path.length === 1)
+        throw new ApiError(422, 'invalid', 'Die Buchung darf höchstens 50 Teilbeträge haben.');
+      if (issue?.path[2] === 'amountCents')
+        throw new ApiError(
+          422,
+          'invalid',
+          'Jeder Teilbetrag muss in ganzen Cent angegeben werden.',
+        );
+      throw new ApiError(422, 'invalid', 'Bitte die Angaben zur Aufteilung prüfen.');
+    }
+    if (field === 'amountCents')
+      throw new ApiError(
+        422,
+        'invalid',
+        issue?.code === 'too_small'
+          ? 'Der Umbuchungsbetrag muss größer als null sein.'
+          : 'Der Buchungsbetrag muss in ganzen Cent angegeben werden.',
+      );
+    if (field === 'date' || (field === 'bankLegs' && issue?.path.at(-1) === 'date'))
+      throw new ApiError(422, 'invalid', 'Bitte ein gültiges Buchungsdatum eingeben.');
+    if (
+      field === 'originalAmountCents' ||
+      field === 'originalCurrency' ||
+      field === 'fxRateMicro' ||
+      field === 'fxFeeCents'
+    )
+      throw new ApiError(
+        422,
+        'invalid',
+        'Bitte Originalbetrag, Originalwährung, Wechselkurs und Wechselgebühr prüfen.',
+      );
+    throw new ApiError(400, 'invalid', 'Bitte die Angaben zur Buchung prüfen.');
+  }
+}
 
 /** Why a bulk action left a booking out. */
 type BulkSkipReason = BookingBulkReason | 'split' | 'transfer' | 'transfer_pair' | 'unchanged';
@@ -203,13 +252,13 @@ export function bookingRoutes(db: Db, today = () => todayInVienna()): Hono {
   });
 
   app.post('/', async (c) => {
-    const body = await readBody(c, createBody);
+    const body = await readBookingBody(c, createBody);
     const key = c.req.header('Idempotency-Key');
     if (key !== undefined && !/^[a-zA-Z0-9-]{16,80}$/.test(key))
       throw new ApiError(400, 'invalid', 'Ungültiger Sendeschlüssel.');
     const hash = createHash('sha256').update(JSON.stringify(body)).digest('hex');
     const ctx = audit();
-    const response = runInTransaction(db, (tx) => {
+    const response = runBookingWrite(db, (tx) => {
       if (key) {
         const previous = tx
           .select()
@@ -294,7 +343,11 @@ export function bookingRoutes(db: Db, today = () => todayInVienna()): Hono {
           splits ?? [{ categoryId: categoryId ?? null, amountCents: body.amountCents }]
         ).map((s) => defined(s) as SplitInput);
         if (columns.date > today() && lines.some((s) => s.contactId && s.amountCents > 0))
-          throw new ApiError(422, 'future_receipt', 'A contact receipt must be an actual payment');
+          throw new ApiError(
+            422,
+            'future_receipt',
+            'Eine Rückzahlung von einem Kontakt braucht ein tatsächliches Zahlungsdatum.',
+          );
         // One transaction: a refused booking must not leave a freshly created Auslagen category.
         const id = createBooking(
           tx,
@@ -317,7 +370,7 @@ export function bookingRoutes(db: Db, today = () => todayInVienna()): Hono {
 
   app.patch('/:id', async (c) => {
     const id = c.req.param('id');
-    const body = await readBody(c, bookingPatch);
+    const body = await readBookingBody(c, bookingPatch);
     const { repeat, unlockReconciled, unlockContactLinked, overrideReason, splits, ...rest } = body;
     const key = c.req.header('Idempotency-Key');
     if (key !== undefined && !/^[a-zA-Z0-9-]{16,80}$/.test(key))
@@ -325,7 +378,7 @@ export function bookingRoutes(db: Db, today = () => todayInVienna()): Hono {
     const hash = createHash('sha256').update(JSON.stringify({ id, body })).digest('hex');
     if (rest.accountId) requireOpen(rest.accountId);
     const ctx = audit();
-    const result = runInTransaction(db, (tx) => {
+    const result = runBookingWrite(db, (tx) => {
       if (key) {
         const previous = tx
           .select()
@@ -357,11 +410,16 @@ export function bookingRoutes(db: Db, today = () => todayInVienna()): Hono {
       if (repeat && getBooking(tx, id)?.status === 'reconciled' && !unlockReconciled)
         throw new ReconciledLockedError([id]);
       const previous = getBooking(tx, id);
+      if (!previous) throw new ApiError(404, 'not_found', 'Die Buchung wurde nicht gefunden.');
       if (
-        (patch.date ?? previous?.date ?? '') > today() &&
-        (patch.splits ?? previous?.splits ?? []).some((s) => s.contactId && s.amountCents > 0)
+        (patch.date ?? previous.date) > today() &&
+        (patch.splits ?? previous.splits).some((s) => s.contactId && s.amountCents > 0)
       )
-        throw new ApiError(422, 'future_receipt', 'A contact receipt must be an actual payment');
+        throw new ApiError(
+          422,
+          'future_receipt',
+          'Eine Rückzahlung von einem Kontakt braucht ein tatsächliches Zahlungsdatum.',
+        );
       if (unlockContactLinked)
         releaseLinkedAllocations(tx, id, patch, ctx, today(), {
           unlockReconciled: unlockReconciled ?? false,

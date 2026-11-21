@@ -12,7 +12,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { eq } from 'drizzle-orm';
 import { Hono } from 'hono';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createApp, type AuthGate } from '../app';
 
 const TODAY = '2026-03-31';
@@ -607,6 +607,303 @@ describe('accounts', () => {
     expect(
       (await call('GET', `/accounts/${a.id}/series?from=2026-03-05&to=2026-03-01`)).status,
     ).toBe(400);
+  });
+});
+
+describe('booking validation (#1144)', () => {
+  const outlay = { amountCents: -1000, contactId: 'synthetic-open' };
+  const receipt = { amountCents: 1000, contactId: 'synthetic-open' };
+  const single = { date: '2026-03-10', amountCents: -1000, categoryId: 'essen' };
+  const writes = () => ({
+    bookings: db.select().from(schema.booking).all(),
+    splits: db.select().from(schema.bookingSplit).all(),
+    categories: db.select().from(schema.category).all(),
+    transfers: db.select().from(schema.transfer).all(),
+    payees: db.select().from(schema.payee).all(),
+    settlements: db.select().from(schema.contactSettlement).all(),
+    allocations: db.select().from(schema.contactAllocation).all(),
+    audit: db.select().from(schema.auditLog).all(),
+    deliveries: db.select().from(schema.bookingDelivery).all(),
+  });
+
+  beforeEach(() => {
+    db.insert(schema.contact)
+      .values([
+        { id: 'synthetic-open', name: 'Offener Kontakt' },
+        { id: 'synthetic-archived', name: 'Archivierter Kontakt', archivedAt: '2026-01-01' },
+        { id: 'synthetic-deleted', name: 'Gelöschter Kontakt', deletedAt: '2026-01-01' },
+      ])
+      .run();
+    db.insert(schema.incomeType).values({ id: 'synthetic-income', name: 'Einnahmen' }).run();
+    db.delete(schema.category).where(eq(schema.category.id, 'auslagen')).run();
+  });
+
+  describe.each(['POST', 'PATCH'] as const)('%s', (method) => {
+    it.each([
+      {
+        name: 'sum mismatch',
+        input: { splits: [{ ...outlay, amountCents: -999 }] },
+        error: 'invariant',
+        message: 'Die Summe der Teilbeträge muss dem Buchungsbetrag entsprechen.',
+      },
+      {
+        name: 'unknown contact',
+        input: { splits: [{ ...outlay, contactId: 'synthetic-unknown' }] },
+        error: 'invariant',
+        message: 'Der ausgewählte Kontakt ist nicht verfügbar. Bitte einen anderen Kontakt wählen.',
+      },
+      {
+        name: 'deleted contact',
+        input: { splits: [{ ...outlay, contactId: 'synthetic-deleted' }] },
+        error: 'invariant',
+        message: 'Der ausgewählte Kontakt ist nicht verfügbar. Bitte einen anderen Kontakt wählen.',
+      },
+      {
+        name: 'archived contact',
+        input: { splits: [{ ...outlay, contactId: 'synthetic-archived' }] },
+        error: 'contact_archived',
+        message: 'Der Kontakt ist archiviert. Bitte zuerst wieder öffnen.',
+      },
+      {
+        name: 'zero contact share',
+        input: { splits: [{ ...outlay, amountCents: 0 }, { amountCents: -1000 }] },
+        error: 'invariant',
+        message: 'Ein Kontaktanteil braucht einen Betrag ungleich null.',
+      },
+      {
+        name: 'empty split array',
+        input: { splits: [] },
+        error: 'invalid',
+        message: 'Die Buchung braucht mindestens eine Aufteilung.',
+      },
+      {
+        name: 'empty split',
+        input: { splits: [{}] },
+        error: 'invalid',
+        message: 'Jeder Teilbetrag muss in ganzen Cent angegeben werden.',
+      },
+      {
+        name: 'a percentage share among cent splits',
+        input: { splits: [{ ...outlay, amountCents: -500 }, { sharePercent: 50 }] },
+        error: 'invalid',
+        message: 'Jeder Teilbetrag muss in ganzen Cent angegeben werden.',
+      },
+      {
+        name: 'fractional split amount',
+        input: { splits: [{ ...outlay, amountCents: -999.5 }] },
+        error: 'invalid',
+        message: 'Jeder Teilbetrag muss in ganzen Cent angegeben werden.',
+      },
+      {
+        name: 'unavailable category',
+        deliveryKey: false,
+        input: { splits: [{ ...outlay, categoryId: 'synthetic-unknown' }] },
+        error: 'invariant',
+        message:
+          'Die ausgewählte Kategorie ist nicht verfügbar. Bitte eine andere Kategorie wählen.',
+      },
+      {
+        name: 'partial FX data',
+        input: { originalCurrency: 'USD' },
+        error: 'invariant',
+        message:
+          'Für eine Fremdwährungsbuchung sind Originalbetrag, Originalwährung und Wechselkurs gemeinsam erforderlich.',
+      },
+      {
+        name: 'unexpected FX amount',
+        input: { originalCurrency: 'USD', originalAmountCents: -1, fxRateMicro: 1_000_000 },
+        error: 'invariant',
+        message:
+          'Der Buchungsbetrag passt nicht zum Originalbetrag, Wechselkurs und zur Wechselgebühr.',
+      },
+      {
+        name: 'future contact receipt',
+        input: { date: '2026-04-01', amountCents: 1000, splits: [receipt] },
+        error: 'future_receipt',
+        message: 'Eine Rückzahlung von einem Kontakt braucht ein tatsächliches Zahlungsdatum.',
+      },
+      {
+        name: 'contact receipt with an income type',
+        input: { amountCents: 1000, splits: [{ ...receipt, incomeTypeId: 'synthetic-income' }] },
+        error: 'invariant',
+        message: 'Ein Kontaktanteil darf keine Einnahmenart haben.',
+      },
+      {
+        name: 'unknown payee reference',
+        input: { payeeId: 'synthetic-unknown' },
+        error: 'constraint',
+        message: 'Die Buchung verletzt eine Buchungsregel. Bitte die Angaben prüfen.',
+      },
+    ])(
+      'rejects $name with a German 422 and no partial write',
+      async ({ input, error, message, deliveryKey = true }) => {
+        const a = await newAccount();
+        const existing = method === 'PATCH' ? await newBooking(a.id, single) : undefined;
+        const path = existing ? `/api/bookings/${existing.id}` : '/api/bookings';
+        const before = writes();
+        const res = await app.request(path, {
+          method,
+          headers: {
+            'content-type': 'application/json',
+            ...(deliveryKey ? { 'idempotency-key': 'synthetic-rejected-1144' } : {}),
+          },
+          body: JSON.stringify(
+            existing ? input : { type: 'booking', accountId: a.id, ...single, ...input },
+          ),
+        });
+        expect(res.status).toBe(422);
+        expect(await res.json()).toMatchObject({ error, message });
+        expect(writes()).toEqual(before);
+      },
+    );
+  });
+
+  it('returns a German 422 for an input date outside the transfer window', async () => {
+    const from = await newAccount();
+    const to = await newAccount({ name: 'Test-Sparkonto' });
+    const create = (arrival: string) =>
+      call('POST', '/bookings', {
+        type: 'transfer',
+        fromAccountId: from.id,
+        toAccountId: to.id,
+        date: '2026-03-10',
+        amountCents: 1000,
+        bankLegs: {
+          from: { date: '2026-03-10', status: 'confirmed' },
+          to: { date: arrival, status: 'confirmed' },
+        },
+      });
+    const refusal = {
+      status: 422,
+      body: {
+        error: 'invariant',
+        message: 'Zwischen Abgang und Eingang einer Umbuchung dürfen höchstens fünf Tage liegen.',
+      },
+    };
+    const before = writes();
+    expect(await create('2026-03-16')).toEqual(refusal);
+    expect(writes()).toEqual(before);
+
+    const valid = await create('2026-03-11');
+    expect(valid.status).toBe(201);
+    const path = `/bookings/${valid.body.toBookingId}`;
+    const created = writes();
+    expect(await call('PATCH', path, { date: '2026-03-16' })).toEqual(refusal);
+    expect(writes()).toEqual(created);
+
+    db.update(schema.booking)
+      .set({ date: '2026-03-16' })
+      .where(eq(schema.booking.id, valid.body.toBookingId))
+      .run();
+    const corrupted = writes();
+    const log = vi.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      expect(await call('PATCH', path, { memo: 'Testumbuchung' })).toMatchObject({
+        status: 500,
+        body: { error: 'server_error', message: 'Die Anfrage konnte nicht verarbeitet werden.' },
+      });
+      expect(writes()).toEqual(corrupted);
+    } finally {
+      log.mockRestore();
+    }
+  });
+
+  it.each(['POST', 'PATCH'] as const)(
+    '%s returns a German 500 when saved contact allocations cannot replay',
+    async (method) => {
+      const a = await newAccount();
+      const existing = await newBooking(a.id, { ...single, splits: [outlay] });
+      await newBooking(a.id, { date: '2026-03-11', amountCents: 1000, splits: [receipt] });
+      db.update(schema.contactSettlement).set({ creditCents: 100 }).run();
+      const before = writes();
+      const path = method === 'POST' ? '/bookings' : `/bookings/${existing.id}`;
+      const input =
+        method === 'POST'
+          ? {
+              type: 'booking',
+              accountId: a.id,
+              date: '2026-03-12',
+              amountCents: 1000,
+              splits: [receipt],
+            }
+          : {};
+      const log = vi.spyOn(console, 'error').mockImplementation(() => {});
+      try {
+        const response = await call(method, path, { ...input, memo: 'synthetic-replay-memo' });
+        expect(response).toEqual({
+          status: 500,
+          body: {
+            error: 'server_error',
+            message: 'Die Anfrage konnte nicht verarbeitet werden.',
+            errorId: expect.stringMatching(/^[a-f0-9]{12}$/),
+          },
+        });
+        expect(log).toHaveBeenCalledExactlyOnceWith(
+          'Unhandled API error',
+          expect.objectContaining({
+            errorId: response.body.errorId,
+            name: 'BookingIntegrityError',
+            message: 'Saved contact allocations could not be replayed',
+          }),
+        );
+        expect(JSON.stringify(log.mock.calls)).not.toContain('synthetic-replay-memo');
+        expect(writes()).toEqual(before);
+      } finally {
+        log.mockRestore();
+      }
+    },
+  );
+
+  it('still accepts a negative outlay and a positive receipt', async () => {
+    const a = await newAccount();
+    await newBooking(a.id, { ...single, splits: [outlay] });
+    const b = await newBooking(a.id, single);
+    const edited = await call('PATCH', `/bookings/${b.id}`, {
+      date: '2026-03-11',
+      amountCents: 1000,
+      splits: [receipt],
+    });
+    expect(edited.status).toBe(200);
+    expect(db.select().from(schema.contactAllocation).all()).toMatchObject([{ amountCents: 1000 }]);
+  });
+
+  it('returns a correlated German 500 when stored contact data is inconsistent', async () => {
+    const a = await newAccount();
+    const existing = await newBooking(a.id, { ...single, splits: [outlay] });
+    db.update(schema.contact)
+      .set({ deletedAt: '2026-03-15' })
+      .where(eq(schema.contact.id, outlay.contactId))
+      .run();
+    const before = writes();
+    const log = vi.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      const response = await call('PATCH', `/bookings/${existing.id}`, {
+        memo: 'synthetic-private-memo',
+      });
+      expect(response).toEqual({
+        status: 500,
+        body: {
+          error: 'server_error',
+          message: 'Die Anfrage konnte nicht verarbeitet werden.',
+          errorId: expect.stringMatching(/^[a-f0-9]{12}$/),
+        },
+      });
+      expect(log).toHaveBeenCalledExactlyOnceWith(
+        'Unhandled API error',
+        expect.objectContaining({
+          errorId: response.body.errorId,
+          route: '/api/bookings/:id',
+          name: 'BookingIntegrityError',
+          message: 'A contact with live ledger movements must retain its identity',
+        }),
+      );
+      const diagnostic = JSON.stringify(log.mock.calls);
+      for (const privateValue of [existing.id, outlay.contactId, 'synthetic-private-memo'])
+        expect(diagnostic).not.toContain(privateValue);
+      expect(writes()).toEqual(before);
+    } finally {
+      log.mockRestore();
+    }
   });
 });
 

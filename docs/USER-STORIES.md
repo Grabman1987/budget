@@ -213,6 +213,16 @@ hold follow-up reads until after checking that each dialog has closed; writes ar
 confirmed first. Production write latency and physical-device acceptance remain
 owner checks. Booking amounts, balances, allocations and trade data are unchanged.
 Status: implementation and regression coverage for review; publication is pending.
+
+Booking creation and editing now return German 422 messages for invalid splits
+and contact references. A contact movement uses signed whole cents, with a
+negative outlay and a positive receipt. A newly entered contact amount cannot
+be zero. The API accepts cent amounts on every split and rejects missing amounts.
+The client converts percentage and fixed shares to cents before submission. Existing
+account and idempotency conflicts retain their delivery codes. A persisted
+booking or contact inconsistency that prevents saving returns a German HTTP 500
+with a correlation ID. Contact and split validation tests verify rejection
+without partial bookings, allocations, audit entries or delivery records.
 Reports continuation (#1149, contacts slice of #1161): RP-21b's open and historical
 booking tables use the shared report register shell. Enabling settled history keeps
 fully settled contacts inside its closed disclosure, outside the open-contact list.

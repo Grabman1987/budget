@@ -18,19 +18,21 @@ export class EntityNotFoundError extends Error {
 
 /** A booking or transfer input/patch violates a SPEC §5 invariant. */
 export class BookingInvariantError extends Error {
-  override readonly name = 'BookingInvariantError';
+  override readonly name: string = 'BookingInvariantError';
 }
 
-/**
- * An outlay is allocated by a contact settlement (#1108). The owner may still edit it after an
- * explicit confirmation (`unlockContactLinked`); the message stays the one the older guard used.
- */
+/** Persisted ledger state violates an invariant after booking input has been validated. */
+export class BookingIntegrityError extends BookingInvariantError {
+  override readonly name = 'BookingIntegrityError';
+}
+
+/** An allocated outlay may be edited after explicit confirmation (#1108). */
 export class ContactLinkedError extends BookingInvariantError {
   constructor(
     readonly bookingId: string,
     readonly settlementDates: string[],
   ) {
-    super('Undo the related contact settlement before changing its receipt or allocated outlay');
+    super('Diese Auslage ist mit einer Rückzahlung verknüpft. Bitte bestätige den Vorgang.');
   }
 }
 
@@ -100,6 +102,9 @@ export class ContactArchivedError extends Error {
     super('Der Kontakt ist archiviert. Bitte zuerst wieder öffnen.');
   }
 }
+
+/** A booking input tries to attach a new split to an archived contact. */
+export class BookingContactArchivedError extends ContactArchivedError {}
 
 export interface ContactBlocker {
   kind: 'receivable' | 'credit' | 'expected' | 'payee' | 'account' | 'payslip';

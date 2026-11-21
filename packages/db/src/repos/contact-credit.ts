@@ -9,7 +9,7 @@ import {
   contactSettlement,
 } from '../schema';
 import { insertTracked, updateTracked, type GroupedContext } from './audit';
-import { BookingInvariantError } from './errors';
+import { BookingIntegrityError } from './errors';
 import { memoizedShared } from './request-memo';
 import type { Executor } from './types';
 
@@ -192,7 +192,7 @@ export function assertContactCreditRecords(
     )
       continue;
     if (!row || row.deletedAt !== null)
-      throw new BookingInvariantError('Contact credit and its booking must be undone together');
+      throw new BookingIntegrityError('Contact credit and its booking must be undone together');
     const parts = db.select().from(bookingSplit).where(eq(bookingSplit.bookingId, row.id)).all();
     if (record.waiver) {
       const w = record.waiver;
@@ -247,7 +247,7 @@ export function assertContactCreditRecords(
         allocations[0]?.outlaySplitId !== w.outlaySplitId ||
         allocations[0]?.amountCents !== w.amountCents
       )
-        throw new BookingInvariantError(
+        throw new BookingIntegrityError(
           'Contact waiver must retain its source share and exact settlement',
         );
     }
@@ -260,7 +260,7 @@ export function assertContactCreditRecords(
             : 'repaymentRefundCorrections'
         ];
       if (!parent || !corrections?.some((c) => c.bookingId === row.id))
-        throw new BookingInvariantError('Contact adjustment needs its allocation provenance');
+        throw new BookingIntegrityError('Contact adjustment needs its allocation provenance');
     }
     for (const kind of ['refunds', 'repaymentRefunds'] as const) {
       for (const correction of record[
@@ -283,7 +283,7 @@ export function assertContactCreditRecords(
             line.categoryId &&
             db.select().from(category).where(eq(category.id, line.categoryId)).get();
           if (!envelope || line.contactId || line.incomeTypeId || line.transferId)
-            throw new BookingInvariantError('Invalid contact category adjustment');
+            throw new BookingIntegrityError('Invalid contact category adjustment');
           if (envelope.kind !== 'advance')
             actual.set(envelope.id, (actual.get(envelope.id) ?? 0) + line.amountCents);
         }
@@ -299,7 +299,7 @@ export function assertContactCreditRecords(
           correction.entries.some((e) => actual.get(e.categoryId) !== e.amountCents) ||
           lines.reduce((sum, s) => sum + s.amountCents, 0) !== 0
         )
-          throw new BookingInvariantError(
+          throw new BookingIntegrityError(
             'Contact category adjustment must be undone with its allocation',
           );
       }
@@ -317,7 +317,7 @@ export function assertContactCreditRecords(
             credit.contactId !== debit.contactId ||
             credit.amountCents !== -debit.amountCents))
       )
-        throw new BookingInvariantError('Invalid contact credit decision');
+        throw new BookingIntegrityError('Invalid contact credit decision');
       if (d.categoryId) {
         const target = db.select().from(category).where(eq(category.id, d.categoryId)).get();
         if (
@@ -326,7 +326,7 @@ export function assertContactCreditRecords(
           target.class === null ||
           ['advance', 'income', 'card_payment'].includes(target.kind)
         )
-          throw new BookingInvariantError('Contact credit needs its earmarked category');
+          throw new BookingIntegrityError('Contact credit needs its earmarked category');
       }
     }
     if (record.uses) {
@@ -336,7 +336,7 @@ export function assertContactCreditRecords(
           entries.map((u) => `${u.receiptSplitId}/${u.outlaySplitId}/${u.amountCents}`).sort(),
         );
       if (canonical(actual) !== canonical(record.uses))
-        throw new BookingInvariantError(
+        throw new BookingIntegrityError(
           'Undo the later contact credit use before changing its source',
         );
       for (const refund of record.refunds ?? []) {
@@ -348,14 +348,14 @@ export function assertContactCreditRecords(
               s.amountCents === refund.amountCents,
           )
         )
-          throw new BookingInvariantError('Contact credit category inflow is missing');
+          throw new BookingIntegrityError('Contact credit category inflow is missing');
       }
       if (record.refundCorrections) {
         const expected = new Map<string, number>();
         for (const use of record.uses) {
           const part = parts.find((p) => p.id === use.outlaySplitId);
           if (!part?.categoryId)
-            throw new BookingInvariantError('Contact credit outlay is missing');
+            throw new BookingIntegrityError('Contact credit outlay is missing');
           if (
             db.select().from(category).where(eq(category.id, part.categoryId)).get()?.kind !==
             'advance'
@@ -367,7 +367,7 @@ export function assertContactCreditRecords(
           actual.size !== expected.size ||
           [...expected].some(([id, amount]) => actual.get(id) !== amount)
         )
-          throw new BookingInvariantError('Contact credit return does not match its allocation');
+          throw new BookingIntegrityError('Contact credit return does not match its allocation');
       }
     }
     if (record.repayments) {
@@ -379,7 +379,7 @@ export function assertContactCreditRecords(
           .where(eq(contactSettlement.receiptSplitId, receiptSplitId))
           .get();
         if (!settlement || settlement.deletedAt !== null || settlement.bookingId !== row.id)
-          throw new BookingInvariantError('Contact repayment provenance is missing');
+          throw new BookingIntegrityError('Contact repayment provenance is missing');
         for (const a of db
           .select()
           .from(contactAllocation)
@@ -404,14 +404,14 @@ export function assertContactCreditRecords(
         expected.size !== saved.size ||
         [...expected].some(([id, amount]) => saved.get(id) !== amount)
       )
-        throw new BookingInvariantError('Contact repayment must retain its original categories');
+        throw new BookingIntegrityError('Contact repayment must retain its original categories');
       for (const { categoryId, amountCents } of record.repaymentRefunds ?? []) {
         if (
           !parts.some(
             (s) => !s.contactId && s.categoryId === categoryId && s.amountCents === amountCents,
           )
         )
-          throw new BookingInvariantError('Contact repayment category inflow is missing');
+          throw new BookingIntegrityError('Contact repayment category inflow is missing');
       }
     }
   }

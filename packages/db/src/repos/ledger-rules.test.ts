@@ -376,10 +376,10 @@ describe('C4 split-level transfers and idempotent transfer import', () => {
     const id = salary();
     const spar = listBookings(db, { accountId: 'spar' })[0]!;
     expect(() => updateBooking(db, spar.id, { amountCents: 40_000 }, ctx)).toThrow(
-      /split-level transfer/,
+      'Betrag, Datum und Konto einer Teilumbuchung bleiben fest. Bitte die Buchung löschen und neu erfassen.',
     );
     expect(() => updateBooking(db, id, { splits: [{ amountCents: 250_000 }] }, ctx)).toThrow(
-      /split-level transfer/,
+      'Betrag, Datum und Konto einer Teilumbuchung bleiben fest. Bitte die Buchung löschen und neu erfassen.',
     );
     deleteBooking(db, spar.id, ctx);
     expect(listBookings(db)).toHaveLength(0);

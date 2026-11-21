@@ -2,7 +2,7 @@ import { assertContactSettlementInvariants } from './contact-invariants';
 import { isIncomeTrade, settlementCents, withinBankWindow } from '@budget/domain';
 import { and, eq, inArray, isNull, or, sql } from 'drizzle-orm';
 import { account, auditLog, booking, bookingSplit, category, INCOME_TYPES, trade } from '../schema';
-import { BookingInvariantError } from './errors';
+import { BookingIntegrityError, BookingInvariantError } from './errors';
 import type { Executor } from './types';
 
 /**
@@ -71,13 +71,13 @@ export function assertLedgerInvariants(
     }
     const accountCurrency = accountCurrencies.get(b.accountId);
     if (accountCurrency !== b.currency)
-      throw new BookingInvariantError(
+      throw new BookingIntegrityError(
         `Booking ${b.id} currency ${b.currency} does not match account currency ${accountCurrency ?? '(missing)'}`,
       );
-    if (splits.length === 0) throw new BookingInvariantError(`Booking ${b.id} has no split`);
+    if (splits.length === 0) throw new BookingIntegrityError(`Booking ${b.id} has no split`);
     const sum = splits.reduce((a, s) => a + s.amountCents, 0);
     if (sum !== b.amountCents) {
-      throw new BookingInvariantError(
+      throw new BookingIntegrityError(
         `Booking ${b.id}: splits sum to ${sum} cents but the amount is ${b.amountCents} cents`,
       );
     }
@@ -320,22 +320,19 @@ export function transferLegsOf(tx: Executor, transferId: string) {
 function assertTransfer(transferId: string, legs: readonly Leg[]): void {
   if (legs.length === 0) return; // deleted as a whole
   if (legs.length !== 2) {
-    throw new BookingInvariantError(
+    throw new BookingIntegrityError(
       `Transfer ${transferId} has ${legs.length} live leg(s); a transfer is exactly two`,
     );
   }
   const [a, b] = legs as [(typeof legs)[number], (typeof legs)[number]];
   if (a.currency !== b.currency) {
-    throw new BookingInvariantError(`Transfer ${transferId} legs use different currencies`);
+    throw new BookingIntegrityError(`Transfer ${transferId} legs use different currencies`);
   }
-  if (
-    a.accountId === b.accountId ||
-    !withinBankWindow(a.date, b.date) ||
-    a.cents + b.cents !== 0 ||
-    a.cents === 0
-  ) {
-    throw new BookingInvariantError(
-      `Transfer ${transferId} legs must be on two accounts, within five days, with opposite non-zero amounts`,
+  if (!withinBankWindow(a.date, b.date))
+    throw new BookingIntegrityError('Transfer legs fall outside the five-day window');
+  if (a.accountId === b.accountId || a.cents + b.cents !== 0 || a.cents === 0) {
+    throw new BookingIntegrityError(
+      `Transfer ${transferId} legs must be on two accounts with opposite non-zero amounts`,
     );
   }
 }

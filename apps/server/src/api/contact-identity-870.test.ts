@@ -210,7 +210,7 @@ describe('contact archive API', () => {
     expect(facts()).toEqual(before);
   });
 
-  it('writers given an archived contact answer 409 contact_archived', async () => {
+  it('returns contact_archived with 422 for a new booking and 409 for a payee', async () => {
     await call('POST', '/contacts/kb/archive', {});
     const groups = auditGroups();
     expect(
@@ -223,7 +223,7 @@ describe('contact archive API', () => {
       amountCents: -100,
       splits: [{ categoryId: 'auslagen', contactId: 'kb', amountCents: -100 }],
     });
-    expect(booking.status).toBe(409);
+    expect(booking.status).toBe(422);
     expect(booking.body.error).toBe('contact_archived');
     expect(auditGroups()).toBe(groups);
   });
