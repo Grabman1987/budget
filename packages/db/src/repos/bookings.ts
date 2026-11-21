@@ -1,8 +1,13 @@
 import { bookingIncomeDefault } from './income-month';
-import { contactStatement, mulDivRound } from '@budget/domain';
+import {
+  ContactAllocationError,
+  contactStatement,
+  mulDivRound,
+  withinBankWindow,
+} from '@budget/domain';
 import { actualContactMovements, savedContactSettlements } from './contact-invariants';
 import { contactCreditRecords, saveContactCreditRecord } from './contact-credit';
-import { assertContactActive, resolveContactForWrite } from './contact-label';
+import { resolveContactForWrite } from './contact-label';
 import { ensureAdvanceCategory } from './categories';
 import { manualTransferStatus, type ManualBankStatus } from '@budget/domain';
 import { assertContactBookingWrite, assertContactSettlementInvariants } from './contact-invariants';
@@ -18,6 +23,7 @@ import {
   booking,
   bookingSplit,
   category,
+  contact,
   contactSettlement,
   contactAllocation,
   expectedOccurrence,
@@ -34,7 +40,14 @@ import {
   type AuditContext,
   type GroupedContext,
 } from './audit';
-import { BookingInvariantError, EntityNotFoundError, ReconciledLockedError } from './errors';
+import {
+  BookingContactArchivedError,
+  BookingIntegrityError,
+  BookingInvariantError,
+  ContactArchivedError,
+  EntityNotFoundError,
+  ReconciledLockedError,
+} from './errors';
 import {
   assertLedgerInvariants,
   assertCounterTransferRestore,
@@ -166,31 +179,31 @@ export interface BookingFilter extends BookingReadOptions {
 const isCents = (n: unknown): n is number => typeof n === 'number' && Number.isSafeInteger(n);
 
 function assertDate(date: string): void {
+  const parsed = new Date(`${date}T00:00:00Z`);
   const valid =
     /^\d{4}-\d{2}-\d{2}$/.test(date) &&
-    new Date(`${date}T00:00:00Z`).toISOString().startsWith(date);
-  if (!valid) throw new BookingInvariantError(`Date "${date}" is not a valid YYYY-MM-DD date`);
+    Number.isFinite(parsed.getTime()) &&
+    parsed.toISOString().startsWith(date);
+  if (!valid)
+    throw new BookingInvariantError('Bitte ein gültiges Datum im Format YYYY-MM-DD eingeben.');
 }
 
 function assertSplits(amountCents: number, splits: readonly SplitInput[]): void {
   if (!isCents(amountCents)) {
-    throw new BookingInvariantError(
-      `Booking amount ${amountCents} is not an integer number of cents`,
-    );
+    throw new BookingInvariantError('Der Buchungsbetrag muss in ganzen Cent angegeben werden.');
   }
-  if (splits.length < 1) throw new BookingInvariantError('A booking needs at least one split');
+  if (splits.length < 1)
+    throw new BookingInvariantError('Die Buchung braucht mindestens eine Aufteilung.');
   let sum = 0;
   for (const s of splits) {
     if (!isCents(s.amountCents)) {
-      throw new BookingInvariantError(
-        `Split amount ${s.amountCents} is not an integer number of cents`,
-      );
+      throw new BookingInvariantError('Jeder Teilbetrag muss in ganzen Cent angegeben werden.');
     }
     sum += s.amountCents;
   }
   if (sum !== amountCents) {
     throw new BookingInvariantError(
-      `Split amounts sum to ${sum} cents but the booking amount is ${amountCents} cents`,
+      'Die Summe der Teilbeträge muss dem Buchungsbetrag entsprechen.',
     );
   }
 }
@@ -214,29 +227,52 @@ function normalizeFx<T extends FxFields>(input: T): T {
   ).length;
   if (given === 0) {
     if (input.fxFeeCents !== undefined && input.fxFeeCents !== null)
-      throw new BookingInvariantError('An FX fee needs the original amount, currency and rate');
+      throw new BookingInvariantError(
+        'Eine Wechselgebühr braucht einen Originalbetrag, eine Originalwährung und einen Wechselkurs.',
+      );
     return input;
   }
   if (given !== 3) {
     throw new BookingInvariantError(
-      'Foreign currency needs original amount, original currency and rate together',
+      'Für eine Fremdwährungsbuchung sind Originalbetrag, Originalwährung und Wechselkurs gemeinsam erforderlich.',
     );
   }
   const fee = input.fxFeeCents ?? 0;
   const original = input.originalAmountCents as number;
   const rate = input.fxRateMicro as number;
   if (!isCents(original) || !isCents(fee))
-    throw new BookingInvariantError('Original amount and FX fee must be integer cents');
+    throw new BookingInvariantError(
+      'Originalbetrag und Wechselgebühr müssen in ganzen Cent angegeben werden.',
+    );
   if (!Number.isSafeInteger(rate) || rate <= 0)
-    throw new BookingInvariantError(`FX rate ${rate} must be a positive integer (micro-units)`);
+    throw new BookingInvariantError(
+      'Der Wechselkurs muss in ganzen Millionsteln angegeben werden und größer als null sein.',
+    );
   const amount = input.amountCents as number;
   const converted = mulDivRound(original, rate, 1_000_000);
   if (Math.abs(amount - (converted + fee)) > 1) {
     throw new BookingInvariantError(
-      `Amount ${amount} cents does not match ${original} × ${rate / 1e6} + fee ${fee} = ${converted + fee} cents`,
+      'Der Buchungsbetrag passt nicht zum Originalbetrag, Wechselkurs und zur Wechselgebühr.',
     );
   }
   return { ...input, fxFeeCents: fee };
+}
+
+/** Keep historical zero lines editable while requiring amounts on newly entered contact shares. */
+function assertContactShares(splits: readonly SplitInput[], existing: readonly SplitInput[] = []) {
+  const oldZeros = existing.filter((s) => s.contactId && s.amountCents === 0);
+  for (const s of splits) {
+    if (!s.contactId) continue;
+    if (s.incomeTypeId)
+      throw new BookingInvariantError('Ein Kontaktanteil darf keine Einnahmenart haben.');
+    if (s.amountCents !== 0) continue;
+    const previous = oldZeros.findIndex(
+      (old) => old.contactId === s.contactId && old.categoryId === s.categoryId,
+    );
+    if (previous < 0)
+      throw new BookingInvariantError('Ein Kontaktanteil braucht einen Betrag ungleich null.');
+    oldZeros.splice(previous, 1);
+  }
 }
 
 /** Categories and contacts referenced by splits (see the invariants at the top). */
@@ -246,13 +282,28 @@ function assertSplitRefs(
   allowSharedCategories = false,
   /** Contacts the booking already carried: history of an archived contact stays editable. */
   existingContactIds: ReadonlySet<string> = new Set(),
+  contactModel = false,
 ): void {
   for (const s of splits) {
-    if (s.contactId && !existingContactIds.has(s.contactId)) assertContactActive(tx, s.contactId);
+    if (s.contactId && !existingContactIds.has(s.contactId)) {
+      const owner = tx
+        .select({ archivedAt: contact.archivedAt, mergedIntoId: contact.mergedIntoId })
+        .from(contact)
+        .where(and(eq(contact.id, s.contactId), isNull(contact.deletedAt)))
+        .get();
+      if (!owner)
+        throw new BookingInvariantError(
+          'Der ausgewählte Kontakt ist nicht verfügbar. Bitte einen anderen Kontakt wählen.',
+        );
+      if (owner.archivedAt && !owner.mergedIntoId) {
+        if (contactModel) throw new BookingContactArchivedError(s.contactId);
+        throw new ContactArchivedError(s.contactId);
+      }
+    }
     const categoryId = s.categoryId ?? null;
     if (categoryId === null) {
       if (s.contactId)
-        throw new BookingInvariantError('A split with a contact needs the "Auslagen" category');
+        throw new BookingInvariantError('Ein Kontaktanteil braucht die Kategorie „Auslagen“.');
       continue;
     }
     const row = tx
@@ -261,10 +312,12 @@ function assertSplitRefs(
       .where(and(eq(category.id, categoryId), isNull(category.deletedAt)))
       .get();
     if (!row)
-      throw new BookingInvariantError(`Category ${categoryId} does not exist or is deleted`);
+      throw new BookingInvariantError(
+        'Die ausgewählte Kategorie ist nicht verfügbar. Bitte eine andere Kategorie wählen.',
+      );
     if (row.kind === 'card_payment') {
       throw new BookingInvariantError(
-        'A card payment envelope is filled automatically by card spending; book the spending category instead',
+        'Die Kategorie für die Kartenzahlung wird automatisch befüllt. Bitte die Ausgabenkategorie wählen.',
       );
     }
     if (
@@ -273,7 +326,7 @@ function assertSplitRefs(
       (!allowSharedCategories || row.class === null || row.kind === 'income')
     ) {
       throw new BookingInvariantError(
-        'A split with a contact (receivable share) must use an "Auslagen" category (kind advance)',
+        'Ein Kontaktanteil braucht eine zulässige Ausgabenkategorie oder die Kategorie „Auslagen“.',
       );
     }
   }
@@ -285,7 +338,10 @@ function liveAccount(tx: Executor, accountId: string) {
     .from(account)
     .where(and(eq(account.id, accountId), isNull(account.deletedAt)))
     .get();
-  if (!row) throw new BookingInvariantError(`Account ${accountId} does not exist or is deleted`);
+  if (!row)
+    throw new BookingInvariantError(
+      'Das ausgewählte Konto ist nicht verfügbar. Bitte ein anderes Konto wählen.',
+    );
   return row;
 }
 
@@ -314,6 +370,13 @@ const splitValues = (s: SplitInput) => ({
   incomeTypeId: s.incomeTypeId ?? null,
 });
 
+function assertTransferDateWindow(from: string, to: string): void {
+  if (!withinBankWindow(from, to))
+    throw new BookingInvariantError(
+      'Zwischen Abgang und Eingang einer Umbuchung dürfen höchstens fünf Tage liegen.',
+    );
+}
+
 /** Which leg of a transfer carries the category (C2): the budget leg, if exactly one is. */
 function categoryLegs(
   from: { onBudget: boolean },
@@ -324,8 +387,8 @@ function categoryLegs(
   if (from.onBudget === to.onBudget) {
     throw new BookingInvariantError(
       from.onBudget
-        ? 'A transfer between two budget accounts is neutral and takes no category'
-        : 'A transfer between two tracking accounts does not touch the budget; no category',
+        ? 'Eine Umbuchung zwischen zwei Budgetkonten ist neutral und hat keine Kategorie.'
+        : 'Eine Umbuchung zwischen zwei Beobachtungskonten wirkt sich nicht auf das Budget aus und hat keine Kategorie.',
     );
   }
   return from.onBudget ? { from: categoryId, to: null } : { from: null, to: categoryId };
@@ -354,13 +417,12 @@ function insertBooking(
   assertDate(input.date);
   assertProjectAssignment(tx, input.projectId);
   assertSplits(input.amountCents, input.splits);
-  assertSplitRefs(tx, input.splits, contactModel);
+  if (contactModel) assertContactShares(input.splits);
+  assertSplitRefs(tx, input.splits, contactModel, undefined, contactModel);
   const acct = liveAccount(tx, input.accountId);
   const currency = input.currency ?? acct.currency;
   if (currency !== acct.currency)
-    throw new BookingInvariantError(
-      `Booking currency ${currency} does not match account currency ${acct.currency}`,
-    );
+    throw new BookingInvariantError('Die Währung der Buchung muss der Kontowährung entsprechen.');
   const id = randomUUID();
   const { splits, ...columns } = normalizeFx(input);
   insertTracked(tx, booking, { ...columns, id, transferId, currency }, ctx);
@@ -370,14 +432,22 @@ function insertBooking(
     let categoryId = s.categoryId ?? null;
     if (s.transferAccountId) {
       if (transferId !== null)
-        throw new BookingInvariantError('A transfer leg booking cannot hold split transfers');
+        throw new BookingInvariantError(
+          'Eine Umbuchungsseite kann keine weiteren Teilumbuchungen enthalten.',
+        );
       if (s.transferAccountId === input.accountId)
-        throw new BookingInvariantError('A split transfer needs another account');
+        throw new BookingInvariantError('Für eine Teilumbuchung bitte ein anderes Konto wählen.');
       if (s.contactId || s.incomeTypeId)
-        throw new BookingInvariantError('A transfer split has no contact or income type');
+        throw new BookingInvariantError(
+          'Eine Teilumbuchung hat weder einen Kontakt noch eine Einnahmenart.',
+        );
+      if (s.amountCents === 0)
+        throw new BookingInvariantError('Der Betrag einer Teilumbuchung darf nicht null sein.');
       const other = liveAccount(tx, s.transferAccountId);
       if (other.currency !== acct.currency)
-        throw new BookingInvariantError('Transfers between different currencies are not supported');
+        throw new BookingInvariantError(
+          'Umbuchungen sind nur zwischen Konten derselben Währung möglich.',
+        );
       const legs = categoryLegs(acct, other, s.categoryId);
       splitTransferId = randomUUID();
       tx.insert(transfer).values({ id: splitTransferId }).run();
@@ -419,6 +489,25 @@ function insertBooking(
   return id;
 }
 
+/** Only blame the input for an allocation conflict if the unchanged contact ledger can replay. */
+export function runBookingWrite<T>(db: Executor, write: (tx: Executor) => T): T {
+  try {
+    return runInTransaction(db, write);
+  } catch (error) {
+    if (error instanceof ContactAllocationError) {
+      // The failed write has rolled back. Replay the original state only on this error path.
+      try {
+        assertContactSettlementInvariants(db);
+      } catch (storedError) {
+        if (storedError instanceof ContactAllocationError)
+          throw new BookingIntegrityError('Saved contact allocations could not be replayed');
+        throw storedError;
+      }
+    }
+    throw error;
+  }
+}
+
 /** Create a booking with its splits. Returns the booking id. */
 export function createBooking(
   db: Executor,
@@ -456,7 +545,9 @@ function recordContactReceipts(tx: Executor, bookingId: string, ctx: GroupedCont
     cash.transferId ||
     cash.originalAmountCents !== null
   )
-    throw new BookingInvariantError('Contact receipts need an EUR cash account');
+    throw new BookingInvariantError(
+      'Für eine Rückzahlung von einem Kontakt bitte ein Giro-, Spar- oder Bargeldkonto in EUR wählen und keine Fremdwährungsdaten angeben.',
+    );
   const advanceId = ensureAdvanceCategory(tx, ctx);
   for (const receipt of receipts) {
     if (receipt.categoryId !== advanceId)
@@ -488,7 +579,9 @@ function recordContactReceipts(tx: Executor, bookingId: string, ctx: GroupedCont
       const original = statement.outlays.find((o) => o.splitId === a.outlaySplitId)!;
       if (original.categoryId) {
         if (!acct.onBudget)
-          throw new BookingInvariantError('Shared category repayments require a budget account');
+          throw new BookingInvariantError(
+            'Rückzahlungen für geteilte Ausgaben brauchen ein Budgetkonto.',
+          );
         refunds.set(original.categoryId, (refunds.get(original.categoryId) ?? 0) + a.amountCents);
       }
     }
@@ -597,22 +690,19 @@ export function createTransfer(
 ): TransferResult {
   const grouped = withGroup(ctx);
   if (!isCents(input.amountCents)) {
-    throw new BookingInvariantError(
-      `Transfer amount ${input.amountCents} is not an integer number of cents`,
-    );
+    throw new BookingInvariantError('Der Umbuchungsbetrag muss in ganzen Cent angegeben werden.');
   }
-  if (input.amountCents <= 0) throw new BookingInvariantError('Transfer amount must be positive');
+  if (input.amountCents <= 0)
+    throw new BookingInvariantError('Der Umbuchungsbetrag muss größer als null sein.');
   if (input.fromAccountId === input.toAccountId) {
-    throw new BookingInvariantError(
-      'A transfer needs two different accounts, got the same account twice',
-    );
+    throw new BookingInvariantError('Eine Umbuchung braucht zwei unterschiedliche Konten.');
   }
   return runInTransaction(db, (tx) => {
     const from = liveAccount(tx, input.fromAccountId);
     const to = liveAccount(tx, input.toAccountId);
     if (from.currency !== to.currency) {
       throw new BookingInvariantError(
-        `Transfers between different currencies (${from.currency}, ${to.currency}) are not supported`,
+        'Umbuchungen sind nur zwischen Konten derselben Währung möglich.',
       );
     }
     const bankLegs = options.bankLegs;
@@ -620,12 +710,13 @@ export function createTransfer(
       const bank = (type: string) => type === 'checking' || type === 'savings';
       if (!bank(from.type) || !bank(to.type) || options.manualCashBank?.bankStatus !== undefined)
         throw new BookingInvariantError(
-          'Independent bank legs require two bank accounts and no bankStatus',
+          'Getrennte Buchungsdaten brauchen zwei Bankkonten und je Seite einen eigenen Status.',
         );
       if (bankLegs.from.date < to.openingDate)
         throw new BookingInvariantError(
           'Der Abgang darf nicht vor dem Eröffnungsdatum des Zielkontos liegen.',
         );
+      assertTransferDateWindow(bankLegs.from.date, bankLegs.to.date);
     }
     // Only the manual whole-transfer API opts in. Import/operator callers retain their policy.
     const manual = options.manualCashBank
@@ -633,7 +724,7 @@ export function createTransfer(
       : null;
     if (options.manualCashBank?.bankStatus !== undefined && !manual) {
       throw new BookingInvariantError(
-        'Bank status requires a cash transfer with checking or savings',
+        'Ein gemeinsamer Bankstatus gilt nur für eine Umbuchung zwischen Bargeld und einem Giro- oder Sparkonto.',
       );
     }
     const legs = categoryLegs(from, to, input.categoryId);
@@ -889,11 +980,13 @@ function updateBookingImpl(
         (patch.accountId !== undefined && patch.accountId !== cur.accountId))
     ) {
       throw new BookingInvariantError(
-        'A split-level transfer keeps amount, date and account; delete and re-create it',
+        'Betrag, Datum und Konto einer Teilumbuchung bleiben fest. Bitte die Buchung löschen und neu erfassen.',
       );
     }
     if (patch.splits?.some((s) => s.transferAccountId))
-      throw new BookingInvariantError('Add split transfers when creating the booking');
+      throw new BookingInvariantError(
+        'Teilumbuchungen können nur beim Anlegen der Buchung hinzugefügt werden.',
+      );
 
     if (patch.projectId !== undefined && patch.projectId !== cur.projectId)
       assertProjectAssignment(tx, patch.projectId);
@@ -901,19 +994,19 @@ function updateBookingImpl(
     const target = liveAccount(tx, patch.accountId ?? cur.accountId);
     if (patch.accountId !== undefined && patch.accountId !== cur.accountId) {
       if (cur.transferId)
-        throw new BookingInvariantError('A transfer leg cannot be moved to another account');
+        throw new BookingInvariantError(
+          'Eine Umbuchungsseite kann nicht auf ein anderes Konto verschoben werden.',
+        );
       // Amounts are cents of the account's currency: a move cannot convert them.
       if (target.currency !== cur.currency) {
         throw new BookingInvariantError(
-          `A booking in ${cur.currency} cannot move to an account in ${target.currency}; book it there anew`,
+          `Eine Buchung in ${cur.currency} kann nicht auf ein Konto in ${target.currency} verschoben werden. Bitte dort neu buchen.`,
         );
       }
     }
     const currency = patch.currency ?? cur.currency;
     if (currency !== target.currency)
-      throw new BookingInvariantError(
-        `Booking currency ${currency} does not match account currency ${target.currency}`,
-      );
+      throw new BookingInvariantError('Die Währung der Buchung muss der Kontowährung entsprechen.');
 
     const amount = patch.amountCents ?? cur.amountCents;
     const amountChanged = amount !== cur.amountCents;
@@ -932,12 +1025,14 @@ function updateBookingImpl(
       nextSplits = [{ ...curSplits[0]!, amountCents: amount }];
     } else if (amountChanged) {
       throw new BookingInvariantError(
-        'Changing the amount of a booking with several splits requires new splits',
+        'Wenn sich der Buchungsbetrag ändert, bitte die Teilbeträge neu angeben.',
       );
     } else {
       nextSplits = curSplits;
     }
-    assertSplits(amount, nextSplits);
+    if (patch.splits || amountChanged) assertSplits(amount, nextSplits);
+    if (options.contactModel && (patch.splits || amountChanged))
+      assertContactShares(nextSplits, curSplits);
     if (patch.splits) {
       // Legacy operator edits cannot silently promote historical splits into the new model.
       for (const split of nextSplits) {
@@ -951,6 +1046,7 @@ function updateBookingImpl(
           [split],
           sharedCategory,
           new Set(curSplits.flatMap((old) => (old.contactId ? [old.contactId] : []))),
+          options.contactModel,
         );
       }
     }
@@ -982,8 +1078,7 @@ function updateBookingImpl(
           ),
         )
         .get();
-      if (!partner)
-        throw new BookingInvariantError(`Transfer ${cur.transferId} has no second live leg`);
+      if (!partner) throw new BookingIntegrityError('A transfer has no second live leg');
       // Equal-date transfers move together; independently dated bank legs keep their own date.
       const partnerAccount = tx
         .select()
@@ -1004,6 +1099,7 @@ function updateBookingImpl(
           );
         if (debitDate > receiptDate)
           throw new BookingInvariantError('Der Abgang darf nicht nach dem Eingang liegen.');
+        assertTransferDateWindow(debitDate, receiptDate);
       }
       if (!tradeNative)
         assertTradeSettlementBookingWrite(
@@ -1021,13 +1117,15 @@ function updateBookingImpl(
       if (amountChanged) {
         if (amount === 0 || Math.sign(amount) !== Math.sign(cur.amountCents)) {
           throw new BookingInvariantError(
-            'A transfer leg keeps its direction and a non-zero amount; delete and re-create the transfer to reverse it',
+            'Eine Umbuchung braucht einen Betrag ungleich null. Zum Umkehren bitte löschen und neu erfassen.',
           );
         }
         partnerPatch['amountCents'] = -amount;
         const partnerSplits = loadSplits(tx, partner.id);
         if (partnerSplits.length !== 1) {
-          throw new BookingInvariantError('The partner leg has several splits; adjust it directly');
+          throw new BookingInvariantError(
+            'Die Gegenbuchung hat mehrere Teilbeträge. Bitte dort ändern.',
+          );
         }
         syncSplits(
           tx,

@@ -18,6 +18,7 @@ import {
   appSetting,
 } from '../schema';
 import {
+  BookingIntegrityError,
   BookingInvariantError,
   ConflictError,
   ContactLinkedError,
@@ -224,14 +225,14 @@ export function assertContactSettlementInvariants(tx: Executor): void {
       (envelope.kind !== 'advance' &&
         (envelope.class === null || ['income', 'card_payment'].includes(envelope.kind)))
     )
-      throw new BookingInvariantError(
+      throw new BookingIntegrityError(
         'Contact movements must retain a live expense or Auslagen category',
       );
   }
   for (const id of new Set(referenced.map((r) => r.contactId!))) {
     const row = tx.select().from(contact).where(eq(contact.id, id)).get();
     if (!row || row.deletedAt !== null)
-      throw new BookingInvariantError(
+      throw new BookingIntegrityError(
         'A contact with live ledger movements must retain its identity',
       );
   }
@@ -283,7 +284,7 @@ export function assertContactSettlementInvariants(tx: Executor): void {
             );
           });
       if (!adoption)
-        throw new BookingInvariantError('Contact receipt and settlement must be undone together');
+        throw new BookingIntegrityError('Contact receipt and settlement must be undone together');
     }
     if (!live) continue;
     const cashAccount =
@@ -300,7 +301,7 @@ export function assertContactSettlementInvariants(tx: Executor): void {
       envelope.deletedAt !== null ||
       envelope.kind !== 'advance'
     )
-      throw new BookingInvariantError(
+      throw new BookingIntegrityError(
         'Contact settlement needs its live EUR cash account and Auslagen category',
       );
     const owner = tx.select().from(contact).where(eq(contact.id, s.contactId)).get();
@@ -318,7 +319,7 @@ export function assertContactSettlementInvariants(tx: Executor): void {
       receipt.transferId !== null ||
       receipt.amountCents <= 0
     )
-      throw new BookingInvariantError('Invalid contact settlement cash booking');
+      throw new BookingIntegrityError('Invalid contact settlement cash booking');
   }
   for (const a of tx
     .select()
@@ -331,7 +332,7 @@ export function assertContactSettlementInvariants(tx: Executor): void {
       .where(eq(contactSettlement.id, a.settlementId))
       .get();
     if (!owner || owner.deletedAt !== null)
-      throw new BookingInvariantError('Contact allocation has no live settlement');
+      throw new BookingIntegrityError('Contact allocation has no live settlement');
   }
   const contacts = new Set(referenced.map((r) => r.contactId!));
   const uses: NonNullable<ReturnType<typeof contactStatement>['creditUses']> = [];
@@ -364,10 +365,10 @@ function assertLiveAllocationsFit(tx: Executor): void {
   const sums = new Map<string, number>();
   for (const r of rows) {
     if (r.split === null || r.bookingDeletedAt !== null || r.split >= 0)
-      throw new BookingInvariantError('A contact allocation must point to a live outlay');
+      throw new BookingIntegrityError('A contact allocation must point to a live outlay');
     const sum = (sums.get(r.splitId) ?? 0) + r.amountCents;
     if (sum > -r.split)
-      throw new BookingInvariantError('Contact allocations exceed the outlay they settle');
+      throw new BookingIntegrityError('Contact allocations exceed the outlay they settle');
     sums.set(r.splitId, sum);
   }
 }
@@ -513,7 +514,7 @@ export function assertContactBookingWrite(
     throw new ContactLinkedError(bookingId, linkedSettlementDates(tx, bookingId));
   }
   throw new BookingInvariantError(
-    'Undo the related contact settlement before changing its receipt or allocated outlay',
+    'Bitte die verknüpfte Kontaktabrechnung rückgängig machen, bevor du die Rückzahlung oder Auslage änderst.',
   );
 }
 

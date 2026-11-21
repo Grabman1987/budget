@@ -39,19 +39,18 @@ Grundlage: `docs/pwa.md`. Die App ist eine PWA: Hülle und Programmdateien liege
   4. Ein geschlossenes Konto oder eine gelöschte Kategorie ergibt einen verständlichen Grund statt eines stillen Verlusts.
   5. Am Handy sind „Jetzt senden“ und „Buchung erfassen“ mit dem Finger treffbar.
   6. Von drei wartenden Buchungen werden die erste und dritte gespeichert, wenn die mittlere abgelehnt wird. Die mittlere steht als „Buchung abgelehnt“ mit Grund und Fehler-ID („Details kopieren“) in der Warteschlange und bleibt korrigierbar; nach Korrektur wird sie mit demselben Idempotenz-Schlüssel genau einmal gespeichert.
-  7. Netzwerkfehler, Sitzungsablauf und HTTP 502–504 bleiben wiederholbar (die Reihenfolge wartet); fachliche Ablehnungen (4xx) und HTTP 500 mit `server_error` werden nicht endlos wiederholt und blockieren nichts. Fehlt noch: Browser-E2E dafür.
+  7. Netzwerkfehler, Sitzungsablauf und HTTP 502–504 bleiben wiederholbar (die Reihenfolge wartet); fachliche Ablehnungen (4xx) und HTTP 500 mit `server_error` werden nicht endlos wiederholt und blockieren nichts.
 - **Status:** teilweise — **Verweis:** Y26, #1144
   Serverdiagnose als erster Teil von #1144: Unerwartete Ledger-API-Fehler liefern eine kurze Fehler-ID. Das Serverprotokoll verknüpft sie mit Methode, Routenmuster und bereinigten Stackpositionen. Nur bekannte, datenfreie Fehlermeldungen werden protokolliert; unbekannte Meldungen bleiben redigiert.
   Kontakt-Replay-Fix in #1154: Rückdatierte Auslagen lassen gespeicherte automatische und ausdrückliche Verrechnungen unverändert. Neue Auslagen nutzen nur tatsächlich freies Kontaktguthaben; widersprüchliche Kontaktverrechnungen liefern eine deutsche 422-Antwort. Bereits gebundene Auslagen bleiben gegen wirtschaftliche Änderungen und Löschen geschützt. Der Fix ist durch DB- und API-Regressionstests geprüft; die Veröffentlichung ist damit noch nicht bestätigt.
-  Fehlt noch: Durchgängige deutsche 422-Validierung, Anzeige/Kopieren der Fehler-ID, Entwürfe ohne Blockade späterer Einträge und der Drei-Buchungen-E2E-Test (#1144). Derzeit hält eine Ablehnung spätere Einträge weiterhin zurück. Außerdem Abnahme auf einem echten Gerät; getrennt davon der klare Status je Änderung (A-02).
 
-Queue acceptance update (#1144, 2026-11-19): the older missing-client list above
-is superseded by the queue implementation and `e2e/issue-1144-queue.spec.ts`.
+Queue acceptance for #1144 is covered by `e2e/issue-1144-queue.spec.ts`.
 Three offline captures exercise a middle HTTP 500, ordered delivery of both
 neighbours, safe server message/error-ID copying, delivery-absence checking,
 correction with the original key, and discard. Raw technical messages stay
-redacted. The endpoint-wide German 422 inventory and physical-device acceptance
-remain outside this bounded queue package.
+redacted. Booking POST/PATCH tests cover German 422 responses to invalid splits
+and contact references, rollback of all changes, and a correlated German 500
+for inconsistent stored contact data. Physical-device acceptance remains open.
 
 ### A-01b – Offline den letzten Stand lesen
 - **Story:** Als Nutzer möchte ich ohne Netz den zuletzt geladenen Stand von Heute und den Konten ansehen, damit ich unterwegs wenigstens grob weiß, wo ich stehe.
