@@ -1,173 +1,196 @@
 import { DimensionChain, useAmountPrivacy } from '@budget/ui';
-import { cents, combinedCosts } from '@budget/domain';
-import type { BankCostsReport, CostsTaxesReport } from '@budget/db';
+import { cents } from '@budget/domain';
+import type { AnnualCostYear } from '@budget/db';
+import { ValuationHint } from '../ledger/valuation-hint';
 import { eur, longDay } from '../ledger/format';
-import { bpText, monthShort } from './spending-shared';
 import { ReportTable } from './report-table';
 
-/** Calendar-year split of the existing monthly bank and interest costs; a year with fewer than 12 months is marked partial. */
-export function bankCostsByYear(monthly: BankCostsReport['monthly']) {
-  const years = new Map<string, { cents: number; months: number }>();
-  for (const row of monthly) {
-    const year = row.month.slice(0, 4);
-    const entry = years.get(year) ?? { cents: 0, months: 0 };
-    entry.cents = cents(entry.cents + row.totalCents);
-    entry.months += 1;
-    years.set(year, entry);
-  }
-  return [...years].sort(([a], [b]) => b.localeCompare(a));
+const percent = new Intl.NumberFormat('de-AT', { maximumFractionDigits: 2 });
+
+function ratioText(ratio: number | null) {
+  return ratio === null ? '–' : `${percent.format(ratio / 100)} %`;
 }
 
-/** The one place that feeds the existing readers' figures into `combinedCosts`. */
-export function combinedCostsOf(bank: BankCostsReport, portfolio: CostsTaxesReport) {
-  return combinedCosts({
-    bankCents: bank.totalCents,
-    portfolioFeeCents:
-      (bank.rows.find((row) => row.key === 'orders')?.cents ?? 0) +
-      (bank.portfolioAccountFeeCents ?? 0),
-    terCents: portfolio.costs.terCents,
-    taxCents: portfolio.taxes.totalCents,
-    valueCents: portfolio.valueCents,
-  });
-}
-
-/**
- * "Kosten gesamt": one annual figure over the two existing readers. Trading fees are counted once
- * (inside the bank costs); TER and the broker's withheld taxes come from the portfolio reader.
- */
 export function CombinedCostsView({
-  bank,
-  portfolio,
+  selected,
+  years,
+  selectYear,
 }: {
-  bank: BankCostsReport;
-  portfolio: CostsTaxesReport;
+  selected: AnnualCostYear;
+  years: readonly AnnualCostYear[];
+  selectYear: (year: number) => void;
 }) {
-  useAmountPrivacy();
-  const total = combinedCostsOf(bank, portfolio);
-  const bankWindow = bank.months.length
-    ? `${monthShort(bank.months[0]!)} bis ${monthShort(bank.months.at(-1)!)}`
-    : 'keine geschlossenen Monate';
-  const byYear = bankCostsByYear(bank.monthly ?? []);
-  const estimated = bank.rows.some((row) => row.key === 'modeledInterest' && row.cents !== 0);
+  const hidden = useAmountPrivacy();
+  const { total, incomplete } = selected;
+  const estimated = selected.bankParts.some((row) => row.key === 'modeledInterest');
   const gaps: string[] = [];
-  if (bank.modeledInterestMissingFxPeriods)
-    gaps.push(`${bank.modeledInterestMissingFxPeriods} Zinszeiträume ohne EUR-Kurs`);
-  if (bank.skippedForeignTrades) gaps.push(`${bank.skippedForeignTrades} Trades ohne Wechselkurs`);
+  if (incomplete.modeledInterestMissingFxPeriods)
+    gaps.push(`${incomplete.modeledInterestMissingFxPeriods} Zinszeiträume ohne EUR-Kurs`);
+  if (incomplete.skippedForeignTrades)
+    gaps.push(`${incomplete.skippedForeignTrades} Trades ohne Wechselkurs`);
+  if (incomplete.skippedForeignBookings)
+    gaps.push(`${incomplete.skippedForeignBookings} Buchungen ohne Wechselkurs`);
   return (
     <section className="sr-card sr-wide" aria-labelledby="cc-title">
       <div className="sr-head">
-        <h2 id="cc-title">Kosten gesamt · 12 Monate</h2>
+        <h2 id="cc-title">Kosten gesamt · {selected.year}</h2>
+        <label>
+          Kalenderjahr{' '}
+          <select
+            value={selected.year}
+            onChange={(event) => selectYear(Number(event.target.value))}
+          >
+            {years.map(({ year, partial }) => (
+              <option key={year} value={year}>
+                {year}
+                {partial ? ' · Teiljahr' : ''}
+              </option>
+            ))}
+          </select>
+        </label>
       </div>
       <div className="sr-fig">
         <span>Kosten gesamt: Haushalt, Portfolio und Steuern</span>
-        <strong data-testid="cc-total">{eur(total.totalCents)}</strong>
+        <strong data-testid="cc-total">
+          {total ? eur(total.totalCents) : 'nicht ermittelbar'}
+        </strong>
       </div>
       <p className="sr-range">
+        {longDay(selected.from)} bis {longDay(selected.to)}
+        {selected.partial ? ' · Teiljahr' : ''}
+      </p>
+      <p className="sr-range">
         Portfolio-Kostenquote (Gebühren und TER ohne Steuern):{' '}
-        {total.ratioBp === null ? '–' : bpText(total.ratioBp, { digits: 1 })} des Portfoliowerts
+        {hidden ? '•••' : ratioText(total?.ratioBp ?? null)} des Portfoliowerts am Periodenende
       </p>
       {gaps.length > 0 && (
         <p className="sr-note" data-testid="cc-incomplete">
           unvollständig: {gaps.join(', ')}.
         </p>
       )}
-      <DimensionChain
-        precision="cent"
-        label="Maßkette Kosten gesamt"
-        terms={[
-          { label: 'Haushalts-Bank- und Zinskosten', value: cents(total.householdCents) },
-          { label: 'Portfolio-Gebühren', value: cents(total.portfolioFeeCents), op: '+' },
-          { label: 'TER-Anteil', value: cents(total.terCents), op: '+' },
-          { label: 'Steuern (einbehalten/erstattet)', value: cents(total.taxCents), op: '+' },
-          { label: 'Kosten gesamt', value: cents(total.totalCents), op: '=', result: true },
-        ]}
-      />
-      <ReportTable
-        caption="Kosten gesamt nach Quelle"
-        regionLabel="Kosten gesamt nach Quelle"
-        className="sr-table"
-        data-testid="cc-table"
-      >
-        <thead>
-          <tr>
-            <th scope="col">Posten</th>
-            <th scope="col" className="n">
-              12 Monate
-            </th>
-            <th scope="col">Zeitraum</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <th scope="row">
-              Haushalt: Bank- und Zinskosten{estimated ? ' (teils geschätzt)' : ''}
-            </th>
-            <td className="n">{eur(total.householdCents)}</td>
-            <td>{bankWindow}</td>
-          </tr>
-          <tr>
-            <th scope="row">Portfolio: Handels- und Depotgebühren</th>
-            <td className="n">{eur(total.portfolioFeeCents)}</td>
-            <td>{bankWindow}</td>
-          </tr>
-          <tr>
-            <th scope="row">Portfolio: TER-Anteil (geschätzt)</th>
-            <td className="n">{eur(total.terCents)}</td>
-            <td>
-              {longDay(portfolio.from)} bis {longDay(portfolio.to)}
-            </td>
-          </tr>
-          <tr>
-            <th scope="row">Portfolio-Kosten (Basis der Kostenquote)</th>
-            <td className="n">{eur(total.portfolioCostCents)}</td>
-            <td />
-          </tr>
-          <tr>
-            <th scope="row">Steuern (einbehalten/erstattet)</th>
-            <td className="n">{eur(total.taxCents)}</td>
-            <td>
-              {longDay(portfolio.from)} bis {longDay(portfolio.to)}
-            </td>
-          </tr>
-          <tr>
-            <th scope="row">Kosten gesamt</th>
-            <td className="n">{eur(total.totalCents)}</td>
-            <td />
-          </tr>
-        </tbody>
-      </ReportTable>
-      {byYear.length > 0 && (
+      <ValuationHint incomplete={selected.valuationNotes} />
+      {selected.portfolioUnavailable && (
+        <p className="sr-note">Portfolio-Kosten unvollständig: {selected.portfolioUnavailable}.</p>
+      )}
+      {total && (
+        <>
+          <DimensionChain
+            precision="cent"
+            label="Maßkette Kosten gesamt"
+            terms={[
+              { label: 'Haushalts-Bank- und Zinskosten', value: cents(total.householdCents) },
+              { label: 'Portfolio-Gebühren', value: cents(total.portfolioFeeCents), op: '+' },
+              { label: 'TER-Anteil', value: cents(total.terCents), op: '+' },
+              { label: 'Steuern (einbehalten/erstattet)', value: cents(total.taxCents), op: '+' },
+              { label: 'Kosten gesamt', value: cents(total.totalCents), op: '=', result: true },
+            ]}
+          />
+          <ReportTable
+            caption="Kosten gesamt nach Quelle"
+            regionLabel="Kosten gesamt nach Quelle"
+            className="sr-table"
+            data-testid="cc-table"
+          >
+            <thead>
+              <tr>
+                <th scope="col">Posten</th>
+                <th scope="col" className="n">
+                  {selected.year}
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <th scope="row">
+                  Haushalt: Bank- und Zinskosten{estimated ? ' (teils geschätzt)' : ''}
+                </th>
+                <td className="n">{eur(total.householdCents)}</td>
+              </tr>
+              <tr>
+                <th scope="row">Portfolio: Handels- und Depotgebühren</th>
+                <td className="n">{eur(total.portfolioFeeCents)}</td>
+              </tr>
+              <tr>
+                <th scope="row">Portfolio: TER-Anteil (geschätzt)</th>
+                <td className="n">{eur(total.terCents)}</td>
+              </tr>
+              <tr>
+                <th scope="row">Portfolio-Kosten (Basis der Kostenquote)</th>
+                <td className="n">{eur(total.portfolioCostCents)}</td>
+              </tr>
+              <tr>
+                <th scope="row">Steuern (einbehalten/erstattet)</th>
+                <td className="n">{eur(total.taxCents)}</td>
+              </tr>
+              <tr>
+                <th scope="row">Kosten gesamt</th>
+                <td className="n">{eur(total.totalCents)}</td>
+              </tr>
+            </tbody>
+          </ReportTable>
+        </>
+      )}
+      {selected.bankParts.length > 0 && (
         <ReportTable
-          caption="Bank- und Zinskosten je Kalenderjahr"
-          regionLabel="Bank- und Zinskosten je Kalenderjahr"
+          caption="Gebühren und Zinsen im Detail"
+          regionLabel="Gebühren und Zinsen im Detail"
           className="sr-table"
-          data-testid="cc-years"
         >
           <thead>
             <tr>
-              <th scope="col">Kalenderjahr</th>
+              <th scope="col">Posten</th>
               <th scope="col" className="n">
-                Bank- und Zinskosten
+                {selected.year}
               </th>
-              <th scope="col">Monate</th>
             </tr>
           </thead>
           <tbody>
-            {byYear.map(([year, entry]) => (
-              <tr key={year}>
-                <th scope="row">{year}</th>
-                <td className="n">{eur(entry.cents)}</td>
-                <td>{entry.months < 12 ? `${entry.months} von 12 Monaten` : '12 Monate'}</td>
+            {selected.bankParts.map((part) => (
+              <tr key={part.key}>
+                <th scope="row">{part.name}</th>
+                <td className="n">{eur(part.cents)}</td>
               </tr>
             ))}
           </tbody>
         </ReportTable>
       )}
+      <ReportTable
+        caption="Kosten gesamt je Kalenderjahr"
+        regionLabel="Kosten gesamt je Kalenderjahr"
+        className="sr-table"
+        data-testid="cc-years"
+      >
+        <thead>
+          <tr>
+            <th scope="col">Kalenderjahr</th>
+            <th scope="col" className="n">
+              Kosten gesamt
+            </th>
+            <th scope="col" className="n">
+              Portfolio-Kostenquote
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {years.map(({ year, total, partial, valuationNotes, incomplete }) => (
+            <tr key={year}>
+              <th scope="row">
+                {year}
+                {partial ? ' · Teiljahr' : ''}
+                {Object.values(incomplete).some((value) => value > 0) && ' · unvollständig'}
+              </th>
+              <td className="n">{total ? eur(total.totalCents) : 'nicht ermittelbar'}</td>
+              <td className="n">
+                {hidden ? '•••' : ratioText(total?.ratioBp ?? null)}
+                {valuationNotes.length > 0 && ' · Bewertung teils geschätzt'}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </ReportTable>
       <p className="sr-note">
-        Handelsgebühren stehen nur einmal (aus den Bankkosten). Die Kostenquote rechnet nur
-        Portfolio-Kosten; Haushalts- und Zinskosten sowie Steuern stehen getrennt. Die Zeiträume
-        sind verschieden (geschlossene Monate gegenüber den letzten 12 Monaten bis heute); TER und
-        Zinsschätzungen bleiben als Schätzung gekennzeichnet.
+        Handelsgebühren stammen aus den Bankkosten und fließen einmal in die Summe ein. TER und
+        gegebenenfalls Kreditzinsen sind Schätzungen.
       </p>
     </section>
   );

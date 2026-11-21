@@ -36,6 +36,7 @@ export function normalizeHistoryPeriod(search: Record<string, unknown>): boolean
 export const validateReportSearch = (search: Record<string, unknown>) => ({
   ...(REDESIGN_ENABLED
     ? {
+        jahr: /^\d{4}$/.test(String(search['jahr'] ?? '')) ? Number(search['jahr']) : undefined,
         kontakteansicht: search['kontakteansicht'] === 'offen' ? 'offen' : undefined,
         vergleich: search['vergleich'] === 'vorjahr' ? 'vorjahr' : undefined,
         verlauf: search['verlauf'] === 1 || search['verlauf'] === '1' ? 1 : undefined,

@@ -1,9 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createTestDatabase, type OpenedDatabase } from '../client';
-import { costsTaxesReport } from './portfolio-costs';
+import { ratioBp } from '@budget/domain';
+import { categoryGroup } from '../schema';
+import { createBooking } from './bookings';
+import { categories, createEntity } from './entities';
+import { bankCostsReport } from './bank-costs-report';
+import { annualCostsReport, costsTaxesReport } from './portfolio-costs';
 import { portfolioSummary } from './portfolio-summary';
 import { REPORT_TODAY, reportPortfolioFixture } from './portfolio-report-fixture';
-import { seedBasics } from './test-helpers';
+import { seedBasics, testCtx as ctx } from './test-helpers';
 
 let opened: OpenedDatabase;
 
@@ -115,5 +120,96 @@ describe('costsTaxesReport (report 4.5)', () => {
     } finally {
       empty.close();
     }
+  });
+});
+
+it('uses the same calendar dates for booked costs, TER, taxes and the closing valuation', () => {
+  const { db } = opened;
+  createEntity(db, categoryGroup, { id: 'bank-costs', name: 'Bank und Gebühren' }, ctx);
+  for (const [id, name] of [
+    ['account-fees', 'Kontoführung'],
+    ['overdraft', 'Sollzinsen'],
+    ['interest', 'Zinsen'],
+  ]) {
+    categories.create(db, { id: id!, name: name!, groupId: 'bank-costs', class: 'need' }, ctx);
+  }
+  for (const [date, categoryId, amountCents] of [
+    ['2025-12-31', 'account-fees', -101],
+    ['2026-01-01', 'account-fees', -203],
+    ['2026-01-01', 'overdraft', -305],
+    ['2026-09-17', 'interest', -407],
+    ['2026-09-18', 'account-fees', -509],
+  ] as const) {
+    createBooking(
+      db,
+      {
+        accountId: 'giro',
+        date,
+        amountCents,
+        splits: [{ categoryId, amountCents }],
+      },
+      ctx,
+    );
+  }
+  createBooking(
+    db,
+    {
+      accountId: 'giro',
+      date: '2026-09-17',
+      amountCents: -1000,
+      originalCurrency: 'USD',
+      originalAmountCents: -983,
+      fxRateMicro: 1_000_000,
+      fxFeeCents: -17,
+      splits: [{ amountCents: -1000 }],
+    },
+    ctx,
+  );
+  const before = opened.sqlite.serialize();
+  const years = annualCostsReport(db, REPORT_TODAY);
+  expect(opened.sqlite.serialize()).toEqual(before);
+  expect(
+    years.slice(0, 2).map(({ year, from, to, partial }) => ({ year, from, to, partial })),
+  ).toEqual([
+    { year: 2026, from: '2026-01-01', to: '2026-09-17', partial: true },
+    { year: 2025, from: '2025-01-01', to: '2025-12-31', partial: false },
+  ]);
+  for (const { from, to, total, bankParts } of years) {
+    const bank = bankCostsReport(opened.db, to, { from, to });
+    const portfolio = costsTaxesReport(opened.db, { today: to });
+    expect(total).not.toBeNull();
+    if (!total) throw new Error('Expected annual figures');
+    const tradeFees = bank.rows.find(({ key }) => key === 'orders')?.cents ?? 0;
+    expect(bankParts).toEqual(bank.rows.map(({ key, name, cents }) => ({ key, name, cents })));
+    expect(tradeFees).toBe(portfolio.costs.fees.totalCents);
+    expect(total.householdCents).toBe(bank.totalCents - tradeFees - bank.portfolioAccountFeeCents);
+    expect(total.portfolioFeeCents).toBe(tradeFees + bank.portfolioAccountFeeCents);
+    // TER is rounded once per security over the selected period.
+    expect(total.terCents).toBe(from.startsWith('2026') ? 806 : portfolio.costs.terCents);
+    expect(total.ratioBp).toBe(
+      portfolio.valueCents > 0 ? ratioBp(total.portfolioCostCents, portfolio.valueCents) : null,
+    );
+    expect(total.taxCents).toBe(portfolio.taxes.totalCents);
+    expect(total.totalCents).toBe(bank.totalCents + total.terCents + portfolio.taxes.totalCents);
+  }
+  expect(years[0]?.total).toMatchObject({
+    householdCents: 932,
+    portfolioFeeCents: 1045,
+    terCents: 806,
+    taxCents: 1250,
+    totalCents: 4033,
+  });
+  expect(years[0]?.bankParts.map(({ key, cents }) => [key, cents])).toEqual([
+    ['interest', 407],
+    ['account', 203],
+    ['orders', 1045],
+    ['fx', 17],
+    ['overdraft', 305],
+  ]);
+  expect(years[1]?.total).toMatchObject({
+    householdCents: 101,
+    portfolioFeeCents: 0,
+    taxCents: 0,
+    ratioBp: 1,
   });
 });

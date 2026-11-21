@@ -264,3 +264,6 @@ both amounts. This information never creates an adjustment or changes a balance
 formula. The operator-only recovery of older BOOK candidates is documented in
 `docs/ops.md`; it defaults to dry-run and is not a migration.
 Status: implementation for review; production recovery and owner acceptance pending.
+## Reports: calendar-year costs (#1160)
+
+In Reports › Portfolio › Kosten und Steuern › Kosten gesamt, select a calendar year to see the shared reporting dates, full cost breakdown, closing-value cost ratio and estimate labels. The year stays in the URL, and the report lists all years newest first with partial coverage marked. Turning on amount privacy hides all amounts and ratios.

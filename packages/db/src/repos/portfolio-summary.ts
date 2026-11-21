@@ -708,13 +708,31 @@ export function firstDay(db: Executor, today: string): string | null {
 }
 
 /** Month-end days of the 12 months up to `today` (the last one is `today` itself). */
-function lastTwelveMonthEnds(today: string): string[] {
+export function lastTwelveMonthEnds(today: string): string[] {
   const out: string[] = [];
   for (let i = 11; i >= 0; i--) {
     const end = lastDayOfMonth(addMonths(monthOf(today), -i));
     out.push(end < today ? end : today);
   }
   return out;
+}
+
+/** Sum the existing closing valuations per security for the shared TER calculation. */
+export function monthEndValuesForCosts(
+  series: ReturnType<typeof valuationSeries>,
+  ends: readonly string[],
+): Map<string, number[]> {
+  const monthEndValues = new Map<string, number[]>();
+  const index = new Map(series.days.map((d, i) => [d, i]));
+  for (const p of series.positions) {
+    const list = monthEndValues.get(p.securityId) ?? ends.map(() => 0);
+    ends.forEach((day, k) => {
+      const i = index.get(day);
+      if (i !== undefined) list[k] = (list[k] as number) + (p.valueCents[i] as number);
+    });
+    monthEndValues.set(p.securityId, list);
+  }
+  return monthEndValues;
 }
 
 /**
@@ -862,7 +880,7 @@ function portfolioSummaryInRange(
   let performanceHistory: PortfolioPerformanceHistory | null = null;
   let benchmark: PortfolioSummary['benchmark'] = null;
   let benchmarks: PortfolioBenchmarkSeries[] = [];
-  const monthEndValues = new Map<string, number[]>();
+  let monthEndValues = new Map<string, number[]>();
   let contributionHistory: ContributionHistory | null | undefined =
     options.includeContributionHistory ? null : undefined;
   if (start !== null) {
@@ -1086,15 +1104,7 @@ function portfolioSummaryInRange(
 
     // Month-end values per security for the TER (from the same series).
     const ends = lastTwelveMonthEnds(today);
-    const index = new Map(days.map((d, i) => [d, i]));
-    for (const p of series.positions) {
-      const list = monthEndValues.get(p.securityId) ?? ends.map(() => 0);
-      ends.forEach((day, k) => {
-        const i = index.get(day);
-        if (i !== undefined) list[k] = (list[k] as number) + (p.valueCents[i] as number);
-      });
-      monthEndValues.set(p.securityId, list);
-    }
+    monthEndValues = monthEndValuesForCosts(series, ends);
   }
 
   // ---- costs and income of 12 months ----

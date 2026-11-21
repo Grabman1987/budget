@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { fireEvent, render, screen } from '@testing-library/react';
 import { expect, it, vi } from 'vitest';
-import { ReportNavigation } from './report-navigation';
+import { adjacentReports, ReportNavigation } from './report-navigation';
 
 vi.mock('../shell/redesign-flag', () => ({ REDESIGN_ENABLED: true }));
 vi.mock('@tanstack/react-router', () => ({
@@ -90,4 +90,9 @@ it('offers the category view of Ausgaben and the wealth and portfolio views as i
   expect(screen.getByRole('link', { name: 'Kosten gesamt' }).getAttribute('href')).toContain(
     '/reports/psteuern?',
   );
+});
+
+it('normalizes the old kosten destination to the Portfolio cost report', () => {
+  expect(adjacentReports('kosten')).toEqual(adjacentReports('psteuern'));
+  expect(adjacentReports('kosten')).not.toEqual(adjacentReports('abos'));
 });
