@@ -9,7 +9,7 @@ export function TransitReconciliation({
   data: PortfolioAllocationView['cashReconciliation'];
 }) {
   useAmountPrivacy();
-  if (!data) return null;
+  if (!data || data.transitCents === 0) return null;
   const money = (value: number | null) => (value === null ? 'nicht ermittelbar' : eur(value));
   return (
     <p className="vnote" data-testid="transit-reconciliation">

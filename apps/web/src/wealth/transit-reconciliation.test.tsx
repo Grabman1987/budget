@@ -35,6 +35,8 @@ it('labels raw cash and the separate signed transit bridge, including missing FX
   );
   expect(line()).toContain('Geld unterwegs: nicht ermittelbar');
   expect(line()).toContain('Wechselkurs fehlt.');
+  rerender(<TransitReconciliation data={{ ...data, transitCents: 0 }} />);
+  expect(screen.queryByTestId('transit-reconciliation')).toBeNull();
   rerender(<TransitReconciliation data={undefined} />);
   expect(screen.queryByTestId('transit-reconciliation')).toBeNull();
 });

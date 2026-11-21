@@ -226,8 +226,10 @@ Status: implemented for review; owner acceptance pending. No other report is mig
 
 Allocation, portfolio summary, depot comparison and whole picture show a read-only
 **Geld unterwegs** cash bridge: raw bank cash, the signed transit difference, and
-cash including transit, with the as-of day and explicit account count. Allocation
-uses its selected universe; summary uses requested reference accounts (otherwise
+cash including transit, with the as-of day and explicit account count.
+The rendered line appears for nonzero transit or unavailable valuation; an exact
+zero keeps the existing compact page. The reader still returns the full bridge.
+Allocation uses its selected universe; summary uses requested reference accounts (otherwise
 investment accounts), depot comparison uses investment accounts, and whole picture
 uses all live household accounts at the selected period end. A subset never claims
 to be household net worth. PP comparison and book inputs expose the same labelled
