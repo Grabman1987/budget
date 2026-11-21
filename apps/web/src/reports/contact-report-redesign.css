@@ -145,6 +145,8 @@
 
 [data-budget-redesign='1'] .r4-contact-rows {
   display: grid;
+  /* Keep the history disclosure's table minimum inside its own scroll wrapper. */
+  grid-template-columns: minmax(0, 1fr);
   gap: 12px;
   min-width: 0;
 }
@@ -194,7 +196,6 @@
 }
 [data-budget-redesign='1'] .r4-contact-settled {
   display: grid;
-  /* An implicit auto column grows with the booking table and widens the page on iOS WebKit. */
   grid-template-columns: minmax(0, 1fr);
   min-width: 0;
   gap: 12px;

@@ -251,6 +251,18 @@ test('1149 all open contacts stay visible and settled history stays closed, incl
   await past.locator(':scope > summary').click();
   await expect(past.getByRole('table')).toHaveClass(/report-table/);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  const historyScroll = past.locator('.report-table-scroll');
+  expect(
+    await historyScroll.evaluate((element) => element.getBoundingClientRect().right <= innerWidth),
+  ).toBe(true);
+  if (page.viewportSize()!.width === 390) {
+    expect(
+      await historyScroll.evaluate((element) => {
+        element.scrollLeft = element.scrollWidth;
+        return element.scrollWidth > element.clientWidth && element.scrollLeft > 0;
+      }),
+    ).toBe(true);
+  }
   const historyBounds = await history.locator('section.r4-contact-sheet').boundingBox();
   expect(historyBounds!.x + historyBounds!.width).toBeLessThanOrEqual(page.viewportSize()!.width);
   for (const theme of ['light', 'dark']) {
