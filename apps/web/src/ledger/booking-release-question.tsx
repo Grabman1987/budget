@@ -13,6 +13,11 @@ export function BookingReleaseQuestion({
   onCancel,
   onConfirm,
   linkedDates,
+  reconciled = !linkedDates,
+  relatedReconciliation = false,
+  reconciliationDates = [],
+  reconciledRepayment = false,
+  reviewedOn = [],
 }: {
   questionRef?: Ref<HTMLDivElement>;
   className?: string;
@@ -20,6 +25,11 @@ export function BookingReleaseQuestion({
   onConfirm: () => void;
   /** Set when the booking is an Auslage that repayments of these dates are allocated to. */
   linkedDates?: string[];
+  reconciled?: boolean;
+  relatedReconciliation?: boolean;
+  reconciliationDates?: string[];
+  reconciledRepayment?: boolean;
+  reviewedOn?: string[];
 }) {
   const reasonId = useId();
   const title = linkedDates ? LINKED_RELEASE_TITLE : BOOKING_RELEASE_TITLE;
@@ -35,20 +45,33 @@ export function BookingReleaseQuestion({
         <strong>{title}</strong>
       </p>
       <p id={reasonId}>
-        {linkedDates ? (
+        {reconciled && (
+          <>
+            {relatedReconciliation ? 'Eine verbundene Umbuchungsseite ist' : 'Diese Buchung ist'}
+            {reconciliationDates.length > 0
+              ? ` am ${reconciliationDates.map(germanDate).join(', ')}`
+              : ''}{' '}
+            abgeglichen. Änderungen oder Löschen können den geprüften Kontostand verändern. Bei
+            Kontaktanteilen kann auch der Kontaktsaldo betroffen sein.{' '}
+          </>
+        )}
+        {reviewedOn.length > 0 && (
+          <>
+            Diese Buchung wurde am {reviewedOn.map(germanDate).join(', ')} in Prüfen bestätigt.
+            Änderungen oder Löschen können den gebuchten Kontostand verändern.{' '}
+          </>
+        )}
+        {linkedDates && (
           <>
             Diese Auslage ist mit einer Rückzahlung vom {linkedDates.map(germanDate).join(', ')}{' '}
             verknüpft. Passt der neue Betrag noch, bleibt die Zuordnung bestehen. Sonst führt der
-            Kontakt den Rest als Guthaben, nichts geht verloren und nichts wird doppelt gezählt. Die
-            Änderung wird protokolliert und kann mit einem Klick rückgängig gemacht werden.
-          </>
-        ) : (
-          <>
-            Diese Buchung ist abgeglichen. Änderungen oder Löschen können den geprüften Kontostand
-            verändern. Bei Kontaktanteilen kann auch der Kontaktsaldo betroffen sein. Die Änderung
-            wird protokolliert und kann rückgängig gemacht werden.
+            Kontakt den Rest als Guthaben, nichts geht verloren und nichts wird doppelt
+            gezählt.{' '}
           </>
         )}
+        {reconciledRepayment &&
+          'Eine verknüpfte Rückzahlung ist abgeglichen. Ihr gebuchter Betrag bleibt erhalten. '}
+        Die Änderung wird protokolliert und kann mit einem Klick rückgängig gemacht werden.
       </p>
       <Button variant="ghost" onClick={onCancel}>
         Abbrechen

@@ -150,6 +150,8 @@ export function CaptureForm({
   requestClose,
   queued,
   initialUnlockReconciled = false,
+  initialUnlockContactLinked = false,
+  initialUnlockLinkedRepayment = false,
 }: {
   state: NonNullable<BookingPanelState>;
   onDone: () => void;
@@ -161,6 +163,8 @@ export function CaptureForm({
   queued?: QueuedBooking;
   /** Explicit confirmation from this editor opening; never persisted across openings. */
   initialUnlockReconciled?: boolean;
+  initialUnlockContactLinked?: boolean;
+  initialUnlockLinkedRepayment?: boolean;
 }) {
   useAmountPrivacy();
   const qc = useQueryClient();
@@ -765,9 +769,15 @@ export function CaptureForm({
         if (Object.keys(built.value).length > 0)
           await writes.patch.mutateAsync({
             id: editing.id,
-            patch: linkedConfirmed.current
-              ? { ...built.value, unlockContactLinked: true }
-              : built.value,
+            patch: initialUnlockContactLinked
+              ? {
+                  ...built.value,
+                  unlockContactLinked: true,
+                  unlockLinkedRepayment: initialUnlockLinkedRepayment,
+                }
+              : linkedConfirmed.current
+                ? { ...built.value, unlockContactLinked: true }
+                : built.value,
             capture: {
               input: {
                 type: 'booking',
@@ -884,7 +894,10 @@ export function CaptureForm({
         id: editing.id,
         unlock,
         previewRevision: preview.revision,
-        ...(linkedConfirmed.current ? { unlockLinked: true } : {}),
+        ...(initialUnlockContactLinked || linkedConfirmed.current ? { unlockLinked: true } : {}),
+        ...(initialUnlockContactLinked
+          ? { unlockLinkedRepayment: initialUnlockLinkedRepayment }
+          : {}),
       });
       onDone();
     } catch (error) {
@@ -903,8 +916,11 @@ export function CaptureForm({
   const canConfirmDelete =
     !!deletion &&
     deletion.selection.items.length > 0 &&
-    (deletion.skipped.length === 0 ||
-      (unlock && deletion.skipped.every((item) => item.reason === 'reconciled_locked')));
+    deletion.skipped.every(
+      (item) =>
+        (unlock && item.reason === 'reconciled_locked') ||
+        (initialUnlockContactLinked && item.id === editing?.id && item.reason === 'linked_contact'),
+    );
   const onKeyDown = (e: KeyboardEvent<HTMLFormElement>) => {
     if (releaseAsking) {
       if (e.key === 'Escape') {
@@ -1678,6 +1694,12 @@ export function CaptureForm({
             <p>
               Alle Seiten der Umbuchung werden gemeinsam gelöscht und mit einem Rückgängig
               wiederhergestellt.
+            </p>
+          )}
+          {canConfirmDelete && initialUnlockContactLinked && (
+            <p>
+              Die Rückzahlung bleibt gebucht. Ihr bisher zugeordneter Betrag wird zu Guthaben beim
+              Kontakt.
             </p>
           )}
           {!canConfirmDelete && (

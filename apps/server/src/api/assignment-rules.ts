@@ -1,14 +1,21 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
-import { assignmentActionsSchema, assignmentRuleSchema, payeeCleanupSchema } from '@budget/domain';
+import {
+  assignmentActionsSchema,
+  assignmentRuleSchema,
+  payeeCleanupSchema,
+  todayInVienna,
+} from '@budget/domain';
 import {
   applyBookingAssignment,
   assignmentFromBooking,
+  getBooking,
   listAssignmentRules,
   listPayeeCleanup,
   previewAssignmentRule,
   readAssignmentCandidate,
   readBookingAssignments,
+  recordBookingReview,
   removeAssignmentRule,
   reorderAssignmentRules,
   saveAssignmentRule,
@@ -18,7 +25,7 @@ import {
 import { ACTOR, readBody } from './http';
 
 /** Same session/origin boundary as ledger writes. Source credentials are never read here. */
-export function assignmentRoutes(db: Db) {
+export function assignmentRoutes(db: Db, today = () => todayInVienna()) {
   const app = new Hono();
   const id = z.string().min(1).max(100);
   app.use('*', async (c, next) => {
@@ -50,14 +57,21 @@ export function assignmentRoutes(db: Db) {
       c,
       z.object({ ruleId: id, revision: z.string().length(64) }).strict(),
     );
+    const bookingId = id.parse(c.req.param('id'));
     return c.json(
-      applyBookingAssignment(
-        db,
-        id.parse(c.req.param('id')),
-        input.ruleId,
-        { actor: ACTOR },
-        input.revision,
-      ),
+      db.transaction((tx) => {
+        const before = getBooking(tx, bookingId)?.status;
+        const result = applyBookingAssignment(
+          tx,
+          bookingId,
+          input.ruleId,
+          { actor: ACTOR },
+          input.revision,
+        );
+        if (before === 'pending' && getBooking(tx, bookingId)?.status === 'confirmed')
+          recordBookingReview(tx, bookingId, today(), { actor: ACTOR, groupId: result.groupId });
+        return result;
+      }),
     );
   });
   app.get('/bookings/:id/learn', (c) =>

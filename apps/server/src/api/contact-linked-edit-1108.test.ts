@@ -90,6 +90,11 @@ it('asks first, keeps the allocation while it fits and one Undo restores every r
   const refused = await call('PATCH', `/bookings/${id}`, { amountCents: -2000 });
   expect(refused.status).toBe(422);
   expect(refused.body).toMatchObject({ error: 'contact_linked', bookingId: id });
+  expect((await call('GET', `/bookings/${id}/edit-protection`)).body).toMatchObject({
+    reconciled: false,
+    reconciliationDates: [],
+    settlementDates: ['2026-09-02'],
+  });
   expect(refused.body.settlementDates).toEqual(['2026-09-02']);
   expect(opened.sqlite.serialize().equals(bytes)).toBe(true);
 

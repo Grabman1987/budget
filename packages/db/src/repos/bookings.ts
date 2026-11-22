@@ -56,6 +56,7 @@ import {
   connectedTransferBookings,
 } from './invariants';
 import { expectedLinkPatches } from './expected-links';
+import { bookingReviewedOn } from './booking-review';
 import { runInTransaction, type Executor } from './types';
 
 /**
@@ -153,10 +154,16 @@ export interface WriteOptions {
 /** Fields of a reconciled booking that stay editable without an unlock (no effect on any figure). */
 const FREE_ON_RECONCILED = new Set(['flag', 'memo']);
 
-function assertUnlocked(rows: readonly BookingRow[], options: WriteOptions): void {
+function assertUnlocked(tx: Executor, rows: readonly BookingRow[], options: WriteOptions): void {
   if (options.unlockReconciled) return;
   const locked = rows.filter((r) => r.status === 'reconciled').map((r) => r.id);
   if (locked.length > 0) throw new ReconciledLockedError(locked);
+  const reviewed = rows.filter((r) => bookingReviewedOn(tx, r.id)).map((r) => r.id);
+  if (reviewed.length > 0)
+    throw new ReconciledLockedError(
+      reviewed,
+      'Diese Buchung wurde in Prüfen bestätigt. Bitte gib sie ausdrücklich frei.',
+    );
 }
 
 export interface BookingReadOptions {
@@ -965,7 +972,7 @@ function updateBookingImpl(
     const touchesLocked = Object.entries(patch).some(
       ([key, value]) => value !== undefined && !FREE_ON_RECONCILED.has(key),
     );
-    if (touchesLocked) assertUnlocked([cur], options);
+    if (touchesLocked) assertUnlocked(tx, [cur], options);
     const curSplits = loadSplits(tx, id);
     // Split-level transfers are changed by deleting and re-creating them, on both sides.
     const splitTransfer =
@@ -1111,7 +1118,7 @@ function updateBookingImpl(
       // Preserve the existing pair lock for date and amount edits.
       // Independently dated bank legs keep their own date, so the partner stays untouched (#1195).
       if ((patch.date !== undefined && !independentDates) || amountChanged)
-        assertUnlocked([partner], options);
+        assertUnlocked(tx, [partner], options);
       const partnerPatch: Record<string, unknown> = {};
       if (patch.date !== undefined && !independentDates) partnerPatch['date'] = patch.date;
       if (amountChanged) {
@@ -1431,6 +1438,7 @@ function deleteBookingImpl(
       });
     for (const leg of legs) assertStatementBookingWrite(tx, leg.id, 'delete');
     assertUnlocked(
+      tx,
       legs.filter((l) => l.deletedAt === null),
       options,
     );

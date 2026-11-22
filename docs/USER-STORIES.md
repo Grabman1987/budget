@@ -316,3 +316,12 @@ A bank line only links automatically if it has one eligible booking and is that 
 In Explorer, the pivot, template tables and original chart rows share a
 register-style layout. I can scroll wide tables from the keyboard or on a phone,
 read figures under sticky headers and open the same booking details.
+## Reviewing protected bookings (#1108)
+
+The edit form opens after a separate confirmation for bookings accepted in Prüfen,
+bookings protected by account reconciliation (including month close), and outlays
+with eligible repayment allocations. The dialog shows recorded review,
+reconciliation or repayment dates. The explicit override is audited with the
+booking change. Repayments keep their bank amounts and any released allocation
+becomes contact credit. A changed reconciliation balance remains visible in
+Prüfen. One Undo restores the booking and its affected links.

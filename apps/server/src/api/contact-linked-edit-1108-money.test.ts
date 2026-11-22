@@ -228,6 +228,14 @@ it.each(['outlay', 'repayment'])(
     expect(locked.status).toBe(409);
     expect(locked.body.error).toBe('reconciled_locked');
     expect(opened.sqlite.serialize().equals(bytes)).toBe(true);
+    const scoped = await call('PATCH', `/bookings/${id}`, {
+      amountCents: -500,
+      unlockContactLinked: true,
+      unlockLinkedRepayment: true,
+    });
+    expect(scoped.status).toBe(which === 'outlay' ? 409 : 200);
+    if (which === 'repayment')
+      expect((await call('POST', '/undo', { groupId: scoped.body.groupId })).status).toBe(200);
     const open = await call('PATCH', `/bookings/${id}`, {
       amountCents: -500,
       unlockContactLinked: true,
@@ -237,6 +245,14 @@ it.each(['outlay', 'repayment'])(
     const s = await statement();
     expect(s.receipts[0]).toMatchObject({ creditCents: 201, allocations: [{ amountCents: 500 }] });
     expectFits(s);
+    const restored = await call('POST', '/undo', { groupId: open.body.groupId });
+    expect(restored.body, JSON.stringify(restored.body)).toMatchObject({
+      groupId: expect.any(String),
+    });
+    expect((await statement()).receipts[0]).toMatchObject({
+      creditCents: 0,
+      allocations: [{ amountCents: 701 }],
+    });
   },
 );
 
