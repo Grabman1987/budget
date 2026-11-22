@@ -29,7 +29,7 @@ export function useAssetWrite() {
     );
   return async (run: () => Promise<{ groupId: string }>, message: string) => {
     const result = await run();
-    await qc.invalidateQueries();
+    void qc.invalidateQueries(); // #1201: never block the dialog close on refetches
     toast.show({ message, actionLabel: 'Rückgängig', onAction: () => reverse(result.groupId) });
   };
 }
