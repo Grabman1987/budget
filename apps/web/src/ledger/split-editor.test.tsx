@@ -261,6 +261,15 @@ it.each([
     for (const hint of hints) expect(group.textContent).toMatch(hint);
     if (!hints.length) expect(group.querySelector('.bk-share-credit')).toBeNull();
     expect(screen.getByText(label)).toBeTruthy();
+    if (credit === 5000) {
+      const choice = within(group).getByRole('checkbox', { name: 'Mit Guthaben verrechnen' });
+      fireEvent.click(choice);
+      expect(group.textContent).toContain('vorher und danach 50,00 €');
+      expect(group.textContent).toContain('Der Anteil bleibt bis zur Rückzahlung offen.');
+      expect(screen.getByText('Kategorie trägt 100,01 € bis zur Rückzahlung')).toBeTruthy();
+      fireEvent.click(choice);
+      expect(screen.getByText(label)).toBeTruthy();
+    }
   },
 );
 

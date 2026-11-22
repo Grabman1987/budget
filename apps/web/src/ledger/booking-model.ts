@@ -21,6 +21,7 @@ export interface SplitDraft {
   /** Not edited in the panel, but kept: an edit must not drop the income type or contact share. */
   contactId: string | null;
   incomeTypeId: string | null;
+  offsetContactCredit?: false | undefined;
 }
 
 export interface ContactShareDraft extends SplitDraft {
@@ -265,6 +266,7 @@ function splitInput(draft: BookingDraft, s: SplitDraft, options: ValidateOptions
       categoryId: s.categoryId || options.advanceCategoryId || null,
       amountCents,
       contactId: s.contactId,
+      ...(s.offsetContactCredit === false ? { offsetContactCredit: false } : {}),
       ...(s.incomeTypeId ? { incomeTypeId: s.incomeTypeId } : {}),
       ...memo,
     };

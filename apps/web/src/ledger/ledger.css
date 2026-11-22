@@ -1980,6 +1980,13 @@ button.kstatus-btn:focus-visible {
   grid-column: 1 / -1;
   margin: 0;
 }
+.bk-share-credit {
+  grid-column: 1 / -1;
+}
+.bk-share-credit > .kcheck {
+  min-height: 44px;
+  width: fit-content;
+}
 .bk-share-value {
   display: grid;
   gap: 4px;

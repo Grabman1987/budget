@@ -168,6 +168,22 @@ export function contactStatementOf(
   };
 }
 
+/** Credit a new booking can use at the end of its date, accounting for already saved later uses. */
+export function getContactCreditAvailability(db: Executor, askedId: string, date: string) {
+  const id = resolveContactRoot(db, askedId);
+  const ids = contactIdentityIds(db, id);
+  const records = contactCreditRecords(db);
+  const movements = actualContactMovements(db, ids, undefined, records);
+  const throughDate = movements.filter((m) => m.date <= date);
+  if (throughDate.some((m) => m.currency !== 'EUR'))
+    throw new BookingInvariantError('Contact statements require EUR movements');
+  const included = new Set(throughDate.map((m) => m.splitId));
+  const settlements = savedContactSettlements(db, ids, undefined, records).filter((s) =>
+    included.has(s.receiptSplitId),
+  );
+  return contactStatement(throughDate, settlements, movements, true).availableCredits ?? [];
+}
+
 export function listContactStatements(db: Executor, asOf: string, history = false) {
   const records = contactCreditRecords(db);
   return db

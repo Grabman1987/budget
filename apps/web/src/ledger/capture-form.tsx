@@ -17,7 +17,6 @@ import {
 } from '@budget/ui';
 import { manualTransferStatus, todayInVienna, type ManualBankStatus } from '@budget/domain';
 import { useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
-import { contactReportQuery } from '../reports/contact-api';
 import {
   CalendarDays,
   Check,
@@ -89,7 +88,13 @@ import {
 import { CAPTURE_SHORTCUT_HINT, SKIP_REASON_LABEL, errorText } from './labels';
 import { nativeCurrency } from './format';
 import { useLedgerWrites } from './mutations';
-import { LEDGER_KEY, accountsQuery, lookupsQuery, payeesQuery } from './queries';
+import {
+  LEDGER_KEY,
+  accountsQuery,
+  contactCreditQuery,
+  lookupsQuery,
+  payeesQuery,
+} from './queries';
 import {
   editQueued,
   readChoices,
@@ -461,10 +466,10 @@ export function CaptureForm({
           ),
         ];
   const creditReports = useQueries({
-    queries: shareContactIds.map((id) => contactReportQuery(id, parsedDate ?? today, true)),
+    queries: shareContactIds.map((id) => contactCreditQuery(id, parsedDate ?? today)),
   });
   const contactCredits = (contactId: string) => {
-    const credits = creditReports[shareContactIds.indexOf(contactId)]?.data?.credits;
+    const credits = creditReports[shareContactIds.indexOf(contactId)]?.data;
     return credits
       ?.filter((c) => !c.targetOutlaySplitId && c.onBudget === from?.onBudget)
       .map((c) => ({ remainingCents: c.remainingCents, categoryId: c.categoryId }));

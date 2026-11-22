@@ -90,6 +90,8 @@ export interface SplitInput {
   memo?: string | null;
   /** Receivable share: paid for or repaid by this contact (concept §3.4). */
   contactId?: string | null;
+  /** New shared purchases only. Omission keeps the automatic offset. */
+  offsetContactCredit?: false;
   /** Income type of an inflow (Gehalt, Sonderzahlung, …). */
   incomeTypeId?: string | null;
   /**
@@ -525,15 +527,45 @@ export function createBooking(
       grouped,
       options.contactModel,
     );
-    if (options.contactModel) recordContactReceipts(tx, id, grouped);
-    applyContactCredit(tx, id, grouped);
+    const parts = loadSplits(tx, id);
+    const shared = sharedContactOutlays(tx, parts);
+    const sharedIds = new Set(shared.map((s) => s.id));
+    const declined = parts.filter((s) => input.splits[s.sortOrder]?.offsetContactCredit === false);
+    if (declined.some((s) => !sharedIds.has(s.id)))
+      throw new BookingInvariantError(
+        'Guthaben kann nur bei einem Ausgabenanteil abgewählt werden.',
+      );
+    const excluded = new Set(declined.map((s) => s.id));
+    // Category-share records pin all outlays in this booking. Exclude standalone lines
+    // from provisional use too, so they cannot reduce what is available to category shares.
+    if (shared.length)
+      for (const s of parts)
+        if (s.contactId && s.amountCents < 0 && !sharedIds.has(s.id)) excluded.add(s.id);
+    if (options.contactModel) recordContactReceipts(tx, id, grouped, excluded);
+    applyContactCredit(tx, id, grouped, { excluded, declined: declined.length > 0 });
     assertLedgerInvariants(tx, relatedTransferBookings(tx, id));
     return id;
   });
 }
 
+function preventCreditOffset<T extends { splitId: string }>(
+  movements: T[],
+  excluded?: ReadonlySet<string>,
+) {
+  return excluded?.size
+    ? movements.map((movement) =>
+        excluded.has(movement.splitId) ? { ...movement, creditAllocations: [] } : movement,
+      )
+    : movements;
+}
+
 /** Manual capture uses the same persisted FIFO allocations as the contact receipt form. */
-function recordContactReceipts(tx: Executor, bookingId: string, ctx: GroupedContext) {
+function recordContactReceipts(
+  tx: Executor,
+  bookingId: string,
+  ctx: GroupedContext,
+  excluded?: ReadonlySet<string>,
+) {
   const cash = loadBooking(tx, bookingId)!;
   const parts = loadSplits(tx, bookingId);
   const receipts = parts.filter((s) => s.contactId && s.amountCents > 0);
@@ -557,7 +589,10 @@ function recordContactReceipts(tx: Executor, bookingId: string, ctx: GroupedCont
   const records = contactCreditRecords(tx);
   for (const receipt of receipts) {
     const statement = contactStatement(
-      actualContactMovements(tx, receipt.contactId!, undefined, records),
+      preventCreditOffset(
+        actualContactMovements(tx, receipt.contactId!, undefined, records),
+        excluded,
+      ),
       savedContactSettlements(tx, receipt.contactId!),
     );
     const plan = statement.receipts.find((r) => r.receiptSplitId === receipt.id)!;
@@ -612,21 +647,30 @@ function recordContactReceipts(tx: Executor, bookingId: string, ctx: GroupedCont
   );
 }
 
-/** A new shared purchase consumes available credit in the same audit group, without cash. */
-function applyContactCredit(tx: Executor, bookingId: string, ctx: GroupedContext) {
-  const parts = loadSplits(tx, bookingId);
-  const shared = parts.filter(
+function sharedContactOutlays(tx: Executor, parts: SplitRow[]) {
+  return parts.filter(
     (s) =>
       s.contactId &&
       s.amountCents < 0 &&
       s.categoryId &&
       tx.select().from(category).where(eq(category.id, s.categoryId)).get()?.kind !== 'advance',
   );
+}
+
+/** A new shared purchase consumes available credit in the same audit group, without cash. */
+function applyContactCredit(
+  tx: Executor,
+  bookingId: string,
+  ctx: GroupedContext,
+  choice?: { excluded: ReadonlySet<string>; declined: boolean },
+) {
+  const parts = loadSplits(tx, bookingId);
+  const shared = sharedContactOutlays(tx, parts);
   if (!shared.length) return;
   const records = contactCreditRecords(tx);
   const uses = [...new Set(shared.map((s) => s.contactId!))].flatMap((id) =>
     contactStatement(
-      actualContactMovements(tx, id, undefined, records),
+      preventCreditOffset(actualContactMovements(tx, id, undefined, records), choice?.excluded),
       savedContactSettlements(tx, id),
     ).creditUses.filter((u) => shared.some((s) => s.id === u.outlaySplitId)),
   );
@@ -657,7 +701,11 @@ function applyContactCredit(tx: Executor, bookingId: string, ctx: GroupedContext
       ),
     );
   }
-  saveContactCreditRecord(tx, { bookingId, uses, refunds }, ctx);
+  saveContactCreditRecord(
+    tx,
+    { bookingId, uses, refunds, ...(choice?.declined ? { creditOffsetDeclined: true } : {}) },
+    ctx,
+  );
 }
 
 /** Internal settlement path: allocations are persisted by its outer transaction before validation. */
@@ -1168,7 +1216,12 @@ function updateBookingImpl(
       )
         recordContactReceipts(tx, id, grouped);
       const existingCredit = contactCreditRecords(tx).find((r) => r.bookingId === id);
-      if (!existingCredit?.uses?.length && !existingCredit?.decision)
+      // An edit without a new credit choice retains the recorded allocations, including none.
+      if (
+        !existingCredit?.uses?.length &&
+        !existingCredit?.decision &&
+        !existingCredit?.creditOffsetDeclined
+      )
         applyContactCredit(tx, id, grouped);
     }
     const touchedBookings = relatedTransferBookings(tx, id);
