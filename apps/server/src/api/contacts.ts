@@ -10,6 +10,7 @@ import {
   chooseContactCredit,
   convertContactOutlayToGift,
   getContactStatement,
+  getContactCreditAvailability,
   getContactRepaymentAllocation,
   reallocateContactRepayment,
   adoptContactRepayment,
@@ -86,6 +87,10 @@ export function contactRoutes(db: Db, today: () => string): Hono {
   app.get('/:id', (c) => {
     const q = readQuery(c, query);
     return c.json(getContactStatement(db, c.req.param('id'), q.asOf ?? today()));
+  });
+  app.get('/:id/credit-availability', (c) => {
+    const { asOf } = readQuery(c, z.object({ asOf: day }));
+    return c.json(getContactCreditAvailability(db, c.req.param('id'), asOf));
   });
   app.patch('/:id', async (c) => {
     const input = await readBody(

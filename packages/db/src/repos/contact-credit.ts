@@ -72,6 +72,7 @@ const contactCreditRecordSchema = z.object({
     )
     .optional(),
   explicitUses: z.boolean().optional(),
+  creditOffsetDeclined: z.literal(true).optional(),
   useHistory: z
     .array(z.object({ date: z.string(), uses: z.array(useSchema), explicitUses: z.boolean() }))
     .optional(),

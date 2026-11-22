@@ -134,6 +134,7 @@ export function contactStatement<T extends ContactMovement>(
   movements: readonly T[],
   settlements: readonly ContactSettlement[] = [],
   allocationTargets: readonly ContactMovement[] = movements,
+  reserveFutureCredit = false,
 ) {
   const ordered = [...movements].sort((a, b) => a.date.localeCompare(b.date));
   const saved = new Map(settlements.map((s) => [s.receiptSplitId, s]));
@@ -146,7 +147,9 @@ export function contactStatement<T extends ContactMovement>(
     m.creditSourceSplitId
       ? [{ receiptSplitId: m.creditSourceSplitId, amountCents: -m.amountCents }]
       : (m.creditAllocations ?? []);
-  for (const m of ordered.filter((m) => m.amountCents < 0))
+  for (const m of (reserveFutureCredit ? allocationTargets : ordered).filter(
+    (m) => m.amountCents < 0,
+  ))
     for (const use of fixedUses(m)) {
       money(use.amountCents);
       reservations.set(
@@ -298,6 +301,17 @@ export function contactStatement<T extends ContactMovement>(
     balanceCents,
     creditCents,
     credits: credits.filter((c) => c.remainingCents > 0),
+    ...(reserveFutureCredit
+      ? {
+          availableCredits: credits
+            .filter((c) => !c.targetOutlaySplitId)
+            .map((c) => ({
+              ...c,
+              remainingCents: c.remainingCents - (reservations.get(c.receiptSplitId) ?? 0),
+            }))
+            .filter((c) => c.remainingCents > 0),
+        }
+      : {}),
     creditUses,
     outlays,
     receipts,

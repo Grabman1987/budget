@@ -150,7 +150,11 @@ export const bookingCreate = z.object({
   flag: flag.nullable().optional(),
   projectId: id.nullable().optional(),
   /** Several splits, or `categoryId` for the common single one (none = uncategorised). */
-  splits: z.array(split).min(1).max(50).optional(),
+  splits: z
+    .array(split.extend({ offsetContactCredit: z.literal(false).optional() }))
+    .min(1)
+    .max(50)
+    .optional(),
   categoryId: id.nullable().optional(),
   ...foreign,
 });
