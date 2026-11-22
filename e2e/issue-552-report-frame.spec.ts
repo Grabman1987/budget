@@ -33,15 +33,10 @@ for (const id of SAMPLE) {
     const redesign = (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
     // Exactly one period preset control; presentation filters are separate.
     await expect(period(page)).toHaveCount(1);
-    // Cashflow/category keep their data filters; ON adds their presentation selectors,
-    // the other presentation views are report-menu entries (#1150).
-    const scopes = id === 'cashflow' || id === 'kategorien' ? 1 : 0;
-    const views = redesign && id === 'kategorien' ? 1 : 0;
-    await expect(page.getByRole('combobox')).toHaveCount(scopes + views);
-    if (redesign && id === 'kategorien')
-      await expect(
-        page.getByRole('combobox', { name: 'Darstellung der Auswertung', exact: true }),
-      ).toHaveValue('category');
+    // The redesigned categories alias opens the spending subview in the report menu.
+    const scopes = id === 'cashflow' || (!redesign && id === 'kategorien') ? 1 : 0;
+    await expect(page.getByRole('combobox')).toHaveCount(scopes);
+    if (redesign && id === 'kategorien') await expectReportMenuView(page, 'Kategorien und Verlauf');
     if (redesign && id === 'vermoegen') await expectReportMenuView(page, 'Vermögensverlauf');
     await expect(page.getByRole('checkbox', { name: 'Trendlinie' })).toHaveCount(0);
     await expect(rangeButton(page)).toBeVisible();
@@ -79,11 +74,16 @@ test('presets, step buttons and the range popover work on one control', async ({
     'aria-pressed',
     'true',
   );
-  // 3 months ending last month (today is 17.09.2026): one step back moves the whole window.
+  const redesign = (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
+  // Redesign includes the running month. One step moves the whole window.
   await page.getByRole('button', { name: 'Voriger Zeitraum' }).click();
-  await expect(page).toHaveURL(/zeitraum=2026-03\.\.2026-05/);
+  await expect(page).toHaveURL(
+    redesign ? /zeitraum=2026-04\.\.2026-06/ : /zeitraum=2026-03\.\.2026-05/,
+  );
   await page.getByRole('button', { name: 'Nächster Zeitraum' }).click();
-  await expect(page).toHaveURL(/zeitraum=2026-06\.\.2026-08/);
+  await expect(page).toHaveURL(
+    redesign ? /zeitraum=2026-07\.\.2026-09/ : /zeitraum=2026-06\.\.2026-08/,
+  );
   await expect(page.getByRole('button', { name: 'Nächster Zeitraum' })).toBeDisabled();
 
   // The popover carries the nine calendar ranges, a custom range and the trend switch.

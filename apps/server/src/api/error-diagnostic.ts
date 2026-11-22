@@ -15,6 +15,17 @@ const SAFE_MESSAGES = new Set([
   'Contact settlement is missing its actual receipt',
   'Invalid contact balance',
   'Contact totals exceed integer range',
+  'A transfer has no second live leg',
+  'Transfer legs fall outside the five-day window',
+  'Saved contact allocations could not be replayed',
+  'Contact movements must retain a live expense or Auslagen category',
+  'A contact with live ledger movements must retain its identity',
+  'Contact receipt and settlement must be undone together',
+  'Contact settlement needs its live EUR cash account and Auslagen category',
+  'Invalid contact settlement cash booking',
+  'Contact allocation has no live settlement',
+  'A contact allocation must point to a live outlay',
+  'Contact allocations exceed the outlay they settle',
 ]);
 const SAFE_NAMES = new Set([
   'Error',
@@ -23,6 +34,7 @@ const SAFE_NAMES = new Set([
   'ReferenceError',
   'SyntaxError',
   'ContactInvariantError',
+  'BookingIntegrityError',
 ]);
 
 /** Correlate a generic 500 with a bounded diagnostic, never the error object or request data. */

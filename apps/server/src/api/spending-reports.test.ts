@@ -19,11 +19,17 @@ import {
   type Db,
   type OpenedDatabase,
 } from '@budget/db';
-import { allocation, fixedCostRatio } from '@budget/domain';
+import {
+  allocation,
+  fixedCostRatio,
+  overviewMonthlyFigures,
+  sumOverviewMonths,
+} from '@budget/domain';
 import { referenceModel } from '@budget/fixtures';
 import { seedDatabase } from '@budget/fixtures/seed';
 import type { Hono } from 'hono';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { overviewData } from '../../../../packages/db/src/repos/report-ledger';
 import { seedBasics } from '../../../../packages/db/src/repos/test-helpers';
 import { createLedgerApi } from './index';
 
@@ -84,6 +90,67 @@ describe('2.1 Ausgabenanalyse on a small ledger', () => {
     expect(body.consumptionCents).toBe(20_000);
     const { status: bad } = await get(app, '/reports/spending/analysis?period=1M&basis=nope');
     expect(bad).toBe(400);
+  });
+
+  it('compares the same number of days when the selected month includes leap day', async () => {
+    spend('2028-02-29', 'essen', 10_001);
+    spend('2027-03-01', 'essen', 2_003);
+    spend('2027-03-02', 'essen', 4_005);
+    const { status, body } = await get(
+      api(opened.db, '2028-03-17'),
+      '/reports/spending/analysis?period=1M&basis=previous-year',
+    );
+    expect(status).toBe(200);
+    expect(body.answerComparison).toMatchObject({
+      days: 29,
+      previousFrom: '2027-02-01',
+      previousTo: '2027-03-01',
+      previousCents: 2_003,
+    });
+  });
+
+  it('compares inclusive custom days through the shared source and leaves the ledger identical', async () => {
+    spend('2026-08-10', 'essen', 20_000);
+    spend('2025-03-02', 'essen', 70_000);
+    spend('2025-03-03', 'essen', 12_345);
+    spend('2025-03-08', 'reise', 2_105);
+    spend('2025-03-09', 'essen', 80_000);
+    const before = opened.sqlite.serialize();
+    const path = '/reports/spending/analysis?period=1M&basis=custom';
+    const response = await get(app, path + '&comparisonFrom=2025-03-03&comparisonTo=2025-03-08');
+    expect(response.status).toBe(200);
+    expect(response.body.consumptionCents).toBe(20_000);
+    expect(response.body.answerComparison).toMatchObject({
+      previousFrom: '2025-03-03',
+      previousTo: '2025-03-08',
+      previousCents: 14_450,
+    });
+    expect(response.body.answerComparison.rows).toEqual(
+      expect.arrayContaining([
+        { id: 'essen', previousCents: 12_345 },
+        { id: 'reise', previousCents: 2_105 },
+      ]),
+    );
+    const source = overviewData(opened.db);
+    const sourceFigures = overviewMonthlyFigures({
+      ...source,
+      splits: source.splits.filter(({ date }) => date >= '2025-03-03' && date <= '2025-03-08'),
+    });
+    expect(sumOverviewMonths(sourceFigures, ['2025-03']).consumptionCents).toBe(
+      response.body.answerComparison.previousCents,
+    );
+    const zero = await get(app, path + '&comparisonFrom=2025-03-04&comparisonTo=2025-03-07');
+    expect(zero.body.answerComparison.previousCents).toBe(0);
+    const missing = await get(app, path + '&comparisonFrom=2023-09-30&comparisonTo=2023-10-01');
+    expect(missing.body.answerComparison.previousCents).toBeNull();
+    for (const suffix of [
+      '&comparisonFrom=2025-03-03',
+      '&comparisonFrom=2025-02-30&comparisonTo=2025-03-08',
+      '&comparisonFrom=2025-03-09&comparisonTo=2025-03-08',
+      '&comparisonFrom=2025-03-03&comparisonTo=2026-09-18',
+    ])
+      expect((await get(app, path + suffix)).status).toBe(400);
+    expect(opened.sqlite.serialize()).toEqual(before);
   });
 
   it('sums Bedarf and Wunsch as consumption, keeps Zukunft apart and nets refunds', async () => {

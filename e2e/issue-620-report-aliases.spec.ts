@@ -43,6 +43,25 @@ const landings = [
 
 async function selectedView(page: Page, target: string, view: string) {
   if (!view) return;
+  if (
+    (await redesignReportsOn(page)) &&
+    target === '/reports/einnahmen-ausgaben' &&
+    (view === 'Einnahmen' || view === 'Cashflow')
+  ) {
+    await expect(
+      page.getByTestId(
+        view === 'Einnahmen' ? 'income-expectations-integrated' : 'income-expense-cashflow',
+      ),
+    ).toBeVisible();
+    await expect(
+      page.getByRole('heading', {
+        name: view === 'Einnahmen' ? 'Erwartet gegen eingegangen' : 'Cashflow',
+        exact: true,
+      }),
+    ).toBeFocused();
+    await expectReportMenuView(page, 'Einnahmen und Ausgaben');
+    return;
+  }
   if ((await redesignReportsOn(page)) && target === '/reports/abos') {
     await expect(page.getByTestId('contracts-report')).toBeVisible();
     await expect(
@@ -85,8 +104,15 @@ for (const [slug, target, view] of landings) {
     await expect(page.locator('.app')).toHaveCount(1);
     const redesign = await redesignReportsOn(page);
     const finanzcheck = slug === 'finanzcheck' && redesign;
-    const expectedTarget =
-      redesign && slug === 'kosten'
+    const spendingView =
+      redesign && (slug === 'vergleich' || slug === 'kategorien')
+        ? slug === 'vergleich'
+          ? 'Gruppen und Kategorien'
+          : 'Kategorien und Verlauf'
+        : undefined;
+    const expectedTarget = spendingView
+      ? '/reports/ausgaben'
+      : redesign && slug === 'kosten'
         ? '/reports/psteuern'
         : redesign && slug === 'kontakte'
           ? '/reports/kontakte'
@@ -105,11 +131,11 @@ for (const [slug, target, view] of landings) {
     expect(new URL(page.url()).searchParams.get('monat')).toBe('2026-08');
     expect(new URL(page.url()).searchParams.get('zeitraum')).toBe('2026-01..2026-08');
     expect(new URL(page.url()).hash).toBe('#details');
-    await selectedView(page, expectedTarget, view);
+    await selectedView(page, expectedTarget, spendingView ?? view);
     const bookmark = page.url();
     await page.reload();
     await expect(page).toHaveURL(bookmark);
-    await selectedView(page, expectedTarget, view);
+    await selectedView(page, expectedTarget, spendingView ?? view);
   });
 }
 
@@ -177,7 +203,9 @@ test('620 browser Back returns to Plan through the replaced alias without a redi
   await page.goto('/plan/monat?monat=2026-08');
   await page.goto('/reports/cashflow?monat=2026-08&zeitraum=3M&trend=true');
   await expect.poll(() => new URL(page.url()).pathname).toBe('/reports/einnahmen-ausgaben');
-  await expect(page.getByTestId('cf-figure')).toBeVisible();
+  await expect(
+    page.getByTestId((await redesignReportsOn(page)) ? 'income-expense-cashflow' : 'cf-figure'),
+  ).toBeVisible();
   await expect(page.getByTestId('report-trend-line').first()).toBeVisible();
   await page.goBack();
   await expect(page).toHaveURL(/\/plan\/monat\?monat=2026-08$/);

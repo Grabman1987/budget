@@ -149,7 +149,7 @@ describe('createBooking', () => {
         }),
         ctx,
       ),
-    ).toThrow(/currency.*account/i);
+    ).toThrow('Die Währung der Buchung muss der Kontowährung entsprechen.');
     expect(listBookings(db, { accountId: 'usd-tracking' })).toHaveLength(1);
   });
 
@@ -194,15 +194,17 @@ describe('createBooking', () => {
     ).toThrow(BookingInvariantError);
     expect(() =>
       createBooking(db, basic({ splits: [{ categoryId: 'essen', amountCents: -1100 }] }), ctx),
-    ).toThrow(/sum to -1100.*-1200/);
+    ).toThrow('Die Summe der Teilbeträge muss dem Buchungsbetrag entsprechen.');
     expect(db.select().from(booking).all()).toHaveLength(0);
   });
 
   it('rejects missing splits, non-integer cents and bad dates', () => {
-    expect(() => createBooking(db, basic({ splits: [] }), ctx)).toThrow(/at least one split/);
+    expect(() => createBooking(db, basic({ splits: [] }), ctx)).toThrow(
+      'Die Buchung braucht mindestens eine Aufteilung.',
+    );
     expect(() =>
       createBooking(db, basic({ amountCents: -12.5, splits: [{ amountCents: -12.5 }] }), ctx),
-    ).toThrow(/integer/);
+    ).toThrow('Der Buchungsbetrag muss in ganzen Cent angegeben werden.');
     expect(() => createBooking(db, basic({ date: '05.01.2026' }), ctx)).toThrow(/YYYY-MM-DD/);
   });
 
@@ -211,7 +213,9 @@ describe('createBooking', () => {
       BookingInvariantError,
     );
     accounts.softDelete(db, 'spar', ctx);
-    expect(() => createBooking(db, basic({ accountId: 'spar' }), ctx)).toThrow(/Account spar/);
+    expect(() => createBooking(db, basic({ accountId: 'spar' }), ctx)).toThrow(
+      'Das ausgewählte Konto ist nicht verfügbar. Bitte ein anderes Konto wählen.',
+    );
   });
 
   it('writes booking and splits in one audit group; undo soft-deletes the booking', () => {
@@ -287,11 +291,21 @@ describe('createTransfer', () => {
   });
 
   it('rejects the same account, non-positive or fractional amounts, and mixed currencies', () => {
-    expect(() => createTransfer(db, t({ toAccountId: 'giro' }), ctx)).toThrow(/same account/);
-    expect(() => createTransfer(db, t({ amountCents: 0 }), ctx)).toThrow(/positive/);
-    expect(() => createTransfer(db, t({ amountCents: -5 }), ctx)).toThrow(/positive/);
-    expect(() => createTransfer(db, t({ amountCents: 1.5 }), ctx)).toThrow(/integer/);
-    expect(() => createTransfer(db, t({ toAccountId: 'usd' }), ctx)).toThrow(/currenc/);
+    expect(() => createTransfer(db, t({ toAccountId: 'giro' }), ctx)).toThrow(
+      'Eine Umbuchung braucht zwei unterschiedliche Konten.',
+    );
+    expect(() => createTransfer(db, t({ amountCents: 0 }), ctx)).toThrow(
+      'Der Umbuchungsbetrag muss größer als null sein.',
+    );
+    expect(() => createTransfer(db, t({ amountCents: -5 }), ctx)).toThrow(
+      'Der Umbuchungsbetrag muss größer als null sein.',
+    );
+    expect(() => createTransfer(db, t({ amountCents: 1.5 }), ctx)).toThrow(
+      'Der Umbuchungsbetrag muss in ganzen Cent angegeben werden.',
+    );
+    expect(() => createTransfer(db, t({ toAccountId: 'usd' }), ctx)).toThrow(
+      'Umbuchungen sind nur zwischen Konten derselben Währung möglich.',
+    );
     expect(db.select().from(booking).all()).toHaveLength(0);
   });
 
@@ -348,7 +362,9 @@ describe('updateBooking', () => {
       },
       ctx,
     );
-    expect(() => updateBooking(db, id, { amountCents: -3000 }, ctx)).toThrow(/splits/);
+    expect(() => updateBooking(db, id, { amountCents: -3000 }, ctx)).toThrow(
+      'Wenn sich der Buchungsbetrag ändert, bitte die Teilbeträge neu angeben.',
+    );
     updateBooking(
       db,
       id,
@@ -393,17 +409,23 @@ describe('updateBooking', () => {
 
   it('refuses to move a booking to an account in another currency', () => {
     const id = createBooking(db, basic(), ctx);
-    expect(() => updateBooking(db, id, { accountId: 'usd' }, ctx)).toThrow(/cannot move.*USD/);
+    expect(() => updateBooking(db, id, { accountId: 'usd' }, ctx)).toThrow(
+      'Eine Buchung in EUR kann nicht auf ein Konto in USD verschoben werden. Bitte dort neu buchen.',
+    );
     expect(getBooking(db, id)).toMatchObject({ accountId: 'giro', currency: 'EUR' });
   });
 
   it('rejects currency-only edits and cross-currency moves even with a matching currency patch', () => {
     usdOffBudget();
     const id = createBooking(db, basic(), ctx);
-    expect(() => updateBooking(db, id, { currency: 'USD' }, ctx)).toThrow(/currency.*account/i);
+    expect(() => updateBooking(db, id, { currency: 'USD' }, ctx)).toThrow(
+      'Die Währung der Buchung muss der Kontowährung entsprechen.',
+    );
     expect(() =>
       updateBooking(db, id, { accountId: 'usd-tracking', currency: 'USD' }, ctx),
-    ).toThrow(/cannot move.*USD/i);
+    ).toThrow(
+      'Eine Buchung in EUR kann nicht auf ein Konto in USD verschoben werden. Bitte dort neu buchen.',
+    );
     expect(getBooking(db, id)).toMatchObject({
       accountId: 'giro',
       currency: 'EUR',
@@ -424,7 +446,7 @@ describe('updateBooking', () => {
         },
         ctx,
       ),
-    ).toThrow(/different currencies/i);
+    ).toThrow('Umbuchungen sind nur zwischen Konten derselben Währung möglich.');
     expect(() =>
       createBooking(
         db,
@@ -434,7 +456,7 @@ describe('updateBooking', () => {
         }),
         ctx,
       ),
-    ).toThrow(/different currencies/i);
+    ).toThrow('Umbuchungen sind nur zwischen Konten derselben Währung möglich.');
     expect(db.select().from(booking).all()).toHaveLength(0);
   });
 
@@ -479,7 +501,7 @@ describe('updateBooking', () => {
         BookingInvariantError,
       );
       expect(() => updateBooking(db, r.fromBookingId, { accountId: 'usd' }, ctx)).toThrow(
-        /transfer/,
+        'Eine Umbuchungsseite kann nicht auf ein anderes Konto verschoben werden.',
       );
       expect(getBooking(db, r.toBookingId)?.amountCents).toBe(5000);
     });
@@ -754,7 +776,7 @@ describe('importBooking', () => {
         }),
         ctx,
       ),
-    ).toThrow(/currency.*account/i);
+    ).toThrow('Die Währung der Buchung muss der Kontowährung entsprechen.');
     expect(listBookings(db, { accountId: 'usd-tracking' })).toHaveLength(0);
   });
 });

@@ -78,6 +78,14 @@ export const aliasPatterns = [
     'cashflow',
   ],
   [
+    '/reports/cashflow-verlauf',
+    'alias',
+    '/reports/einnahmen-ausgaben',
+    { darstellung: 'cashflow' },
+    'sample',
+    'cashflow',
+  ],
+  [
     '/reports/projekte',
     'alias',
     '/reports/einnahmen-ausgaben',
@@ -207,7 +215,6 @@ export const currentHub16 = [
 export const plannedStable16 = [
   ['onepager', '/reports/onepager', 'onepager'],
   ['jahresreport', '/reports/jahresreport', 'yearReport'],
-  ['vergleich', '/reports/vergleich', 'compare'],
   ['kontakte', '/konten/kontakte', 'contacts'],
   ['explorer', '/reports/explorer', 'explorer'],
   ['vermoegen-schulden', '/reports/vermoegen-schulden', 'assetsDebts'],

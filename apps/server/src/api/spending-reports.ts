@@ -21,7 +21,9 @@ import { ApiError, readQuery } from './http';
 
 const periodQuery = z.object({
   period: reportPeriodSchema.default('1J'),
-  basis: z.enum(['previous-period', 'previous-year']).default('previous-period'),
+  basis: z.enum(['previous-period', 'previous-year', 'custom']).default('previous-period'),
+  comparisonFrom: z.iso.date().optional(),
+  comparisonTo: z.iso.date().optional(),
 });
 
 const monthQuery = z.object({
@@ -51,12 +53,33 @@ export function spendingReportRoutes(db: Db, today: () => string): Hono {
 
   // 2.1 Ausgabenanalyse
   app.get('/analysis', (c) => {
-    const { period: rawPeriod, basis } = readQuery(c, periodQuery);
-    const period = checkedReportPeriod(rawPeriod, today());
+    const { period: rawPeriod, basis, comparisonFrom, comparisonTo } = readQuery(c, periodQuery);
+    const asOf = today();
+    const period = checkedReportPeriod(rawPeriod, asOf);
+    if (basis === 'custom') {
+      if (!comparisonFrom || !comparisonTo || comparisonFrom > comparisonTo || comparisonTo > asOf)
+        throw new ApiError(
+          400,
+          'invalid_query',
+          'Der Vergleichszeitraum braucht zwei gültige, aufsteigende Daten bis heute.',
+        );
+      return c.json(
+        guarded(() =>
+          spendingReport(db, asOf, period as (typeof SPENDING_PERIODS)[number], {
+            from: comparisonFrom,
+            to: comparisonTo,
+          }),
+        ),
+      );
+    }
+    if (comparisonFrom !== undefined || comparisonTo !== undefined)
+      throw new ApiError(
+        400,
+        'invalid_query',
+        'Vergleichsdaten sind nur beim eigenen Zeitraum möglich.',
+      );
     return c.json(
-      guarded(() =>
-        spendingReport(db, today(), period as (typeof SPENDING_PERIODS)[number], basis),
-      ),
+      guarded(() => spendingReport(db, asOf, period as (typeof SPENDING_PERIODS)[number], basis)),
     );
   });
 

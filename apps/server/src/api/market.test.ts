@@ -165,6 +165,70 @@ describe('quote cause diagnostics', () => {
       400,
     );
   });
+  it('keeps an automatic warning open until a quote check succeeds', async () => {
+    db.insert(schema.inboxItem)
+      .values({
+        id: 'quote-warning',
+        kind: 'stale_value',
+        title: 'Kurse nicht abrufbar: Synthetischer Welt-ETF',
+        detail: 'Fehlerklasse: empty',
+        refType: 'security',
+        refId: 's1',
+      })
+      .run();
+    const warning = () =>
+      db
+        .select()
+        .from(schema.inboxItem)
+        .all()
+        .find((row) => row.id === 'quote-warning');
+    let hasQuote = false;
+    app = createApp({
+      webDir,
+      auth: signedIn,
+      ledger: {
+        db,
+        today: () => TODAY,
+        market: {
+          quotes: {
+            id: 'yfinance',
+            supports: (ref) => ref.symbol === 'SYN-A',
+            async history() {
+              return hasQuote ? [{ date: TODAY, priceMicro: 82_000_000 }] : [];
+            },
+          },
+          fx: fixtureFxSource({ anchorsFor: () => [] }),
+        },
+      },
+    });
+
+    const preview = await call('POST', '/securities/s1/quote-preview', {});
+    expect(preview.body.attempts).toMatchObject([
+      { source: 'yfinance', error: 'empty', latest: null },
+    ]);
+    expect(warning()).toMatchObject({ resolvedAt: null, resolution: null });
+    const manual = await call('PUT', '/securities/s1/prices/2026-03-30', {
+      priceMicro: 81_500_000,
+    });
+    expect(manual.status).toBe(200);
+    expect(warning()).toMatchObject({ resolvedAt: null, resolution: null });
+    expect((await call('POST', '/market/refresh')).status).toBe(200);
+    expect(warning()).toMatchObject({ resolvedAt: null, resolution: null });
+
+    hasQuote = true;
+    expect((await call('POST', '/market/refresh')).status).toBe(200);
+    expect(warning()).toMatchObject({
+      resolvedAt: expect.any(String),
+      resolution:
+        'Automatisch geschlossen: Kursabruf über yfinance erfolgreich (Stand 31.03.2026).',
+    });
+    const series = await call('GET', '/securities/s1/prices?from=2026-03-30');
+    expect(series.body.prices).toMatchObject([
+      { date: '2026-03-30', priceMicro: 81_500_000, source: 'manual' },
+      { date: TODAY, priceMicro: 82_000_000, source: 'yfinance' },
+    ]);
+  });
+
   it('never exposes free-form currency errors and does not invent missing currency evidence', async () => {
     app = createApp({
       webDir,

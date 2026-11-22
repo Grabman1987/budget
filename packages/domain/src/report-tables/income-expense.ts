@@ -106,6 +106,24 @@ export function incomeExpenseSources(
   );
 }
 
+/** The same cashflow through an inclusive day, using the exact splits behind the monthly net. */
+export function cashflowThroughDay(
+  month: IncomeExpenseMonth,
+  meta: TableMeta,
+  splits: ReadonlyArray<OverviewSplit>,
+  day: string,
+) {
+  const later = incomeExpenseSources(splits, meta, 'net', [month.month]).filter(
+    (split) => split.date > day,
+  );
+  return cents(
+    later.reduce<number>(
+      (net, split) => net + (split.kind === 'spend' ? split.amountCents : -split.amountCents),
+      incomeExpenseNet(month, meta),
+    ),
+  );
+}
+
 export interface CashflowDevelopmentMonth {
   month: string;
   income: number;
@@ -152,6 +170,11 @@ export function cashflowStatement(
   all: ReadonlyArray<IncomeExpenseMonth>,
   window: ReadonlyArray<string>,
   meta: TableMeta,
+  comparisonNet: (
+    month: IncomeExpenseMonth,
+    meta: TableMeta,
+    reference: string,
+  ) => number = incomeExpenseNet,
 ): CashflowPeriodStatement | null {
   if (!window.length) return null;
   const byMonth = new Map(all.map((m) => [m.month, m]));
@@ -161,7 +184,10 @@ export function cashflowStatement(
   const comparisonFor = (kind: 'previous-year' | 'previous-period', by: number) => {
     const keys = window.map((k) => shiftMonth(k, by));
     if (!keys.every((k) => byMonth.has(k))) return null;
-    const previous = sum(keys);
+    const previous = keys.reduce(
+      (total, key, i) => total + comparisonNet(byMonth.get(key)!, meta, window[i]!),
+      0,
+    );
     return { kind, total: cents(previous), delta: cents(total - previous) };
   };
   return {

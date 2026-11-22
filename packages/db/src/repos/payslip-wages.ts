@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import {
+  monthOf,
   normalizeWageLabel,
   type CapturedPayslip,
   type ParsedPayrollDocument,
@@ -9,6 +10,7 @@ import {
 } from '@budget/domain';
 import { and, asc, eq, isNull } from 'drizzle-orm';
 import {
+  booking,
   contact,
   payslip,
   payslipWageLine,
@@ -270,7 +272,10 @@ export function listPayslipWageReads(db: Executor): PayslipWageReadRow[] {
  * resolved through contact merges (#871) and its wage reading when it has a usable one (a
  * `skipped` reading counts as none).
  */
-export function listSalaryPayslips(db: Executor): SalaryPayslip[] {
+export function listSalaryPayslips(
+  db: Executor,
+  monthBasis: 'slip' | 'payout' = 'slip',
+): SalaryPayslip[] {
   const reads = new Map(
     listPayslipWageReads(db)
       .filter((r) => r.lineCheck !== 'skipped')
@@ -287,19 +292,27 @@ export function listSalaryPayslips(db: Executor): SalaryPayslip[] {
     for (let hop = 0; id && merged.get(id) && hop < 16; hop++) id = merged.get(id)!;
     return id;
   };
-  const employers = new Map(
+  const facts = new Map(
     db
-      .select({ id: payslip.id, employerContactId: payslip.employerContactId })
+      .select({
+        id: payslip.id,
+        employerContactId: payslip.employerContactId,
+        payoutDate: booking.date,
+      })
       .from(payslip)
+      .leftJoin(booking, and(eq(booking.id, payslip.bookingId), isNull(booking.deletedAt)))
       .all()
-      .map((r) => [r.id, r.employerContactId]),
+      .map((r) => [r.id, r]),
   );
   return listPayslips(db).map((p) => {
     const read = reads.get(p.id);
     const lineCheck = read?.lineCheck;
+    const linked = facts.get(p.id);
+    const payoutDate = monthBasis === 'payout' ? linked?.payoutDate : null;
     return {
       ...p,
-      employerContactId: resolve(employers.get(p.id) ?? null),
+      month: payoutDate ? monthOf(payoutDate) : p.month,
+      employerContactId: resolve(linked?.employerContactId ?? null),
       wage:
         read && lineCheck && lineCheck !== 'skipped'
           ? {

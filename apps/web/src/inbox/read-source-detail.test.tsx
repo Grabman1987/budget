@@ -2,7 +2,7 @@
 import { cleanup, render, screen } from '@testing-library/react';
 import { afterEach, expect, it } from 'vitest';
 import { setAmountsHidden } from '@budget/ui';
-import { ReadSourceDetail } from './read-source-detail';
+import { ReadSourceDetail, sourceWarningReason } from './read-source-detail';
 import type { SourceOperation } from '@budget/domain';
 
 afterEach(() => {
@@ -28,6 +28,7 @@ it('explains a fiat balance difference with exact snapshot values and the next a
   expect(screen.getByText(/App beim Abgleich: 12,34/)).toBeTruthy();
   expect(screen.getByText(/Differenz .*\+0,01/)).toBeTruthy();
   expect(screen.getByText(/Keine Währung beim Abgleich angegeben/)).toBeTruthy();
+  expect(screen.getByText('Quellreferenz: currency:eur · App-Konto: cash-private-id')).toBeTruthy();
   expect(container.textContent).toContain(
     'Gleiche neue Bewegungen mit dem Hauptbuch ab und führe danach den Abgleich erneut aus.',
   );
@@ -70,7 +71,7 @@ it('shows missing or invalid snapshot values explicitly', () => {
   expect(screen.getByText(/Differenz.*Nicht berechenbar/)).toBeTruthy();
 });
 
-it('hides amounts and raw JSON while amount privacy is enabled', () => {
+it('hides snapshot amounts while amount privacy is enabled', () => {
   setAmountsHidden(true);
   const { container } = render(
     <ReadSourceDetail
@@ -93,11 +94,31 @@ it('hides amounts and raw JSON while amount privacy is enabled', () => {
   expect(container.textContent).not.toContain('currency:private-key');
 });
 
-it('masks amounts in legacy free-text details', () => {
-  setAmountsHidden(true);
-  render(<ReadSourceDetail detail="Quellsaldo 12,34 EUR stimmt nicht überein." />);
+it('shows the known source reference without exposing the stored object or its unknown fields', () => {
+  const { container } = render(
+    <ReadSourceDetail
+      detail={JSON.stringify({
+        id: 'synthetic-operation',
+        reason: 'schema',
+        field: 'transactions.#.amount',
+        unknownField: 'synthetic-raw-field',
+      })}
+    />,
+  );
 
-  expect(screen.getByText('Quellsaldo ••• EUR stimmt nicht überein.')).toBeTruthy();
+  expect(screen.getByText('Quellreferenz: synthetic-operation')).toBeTruthy();
+  expect(screen.getByText('Betroffenes Quellfeld: transactions.#.amount')).toBeTruthy();
+  expect(screen.getByText(/Die Bewegung konnte nicht gelesen werden/)).toBeTruthy();
+  expect(container.textContent).not.toContain('synthetic-raw-field');
+  expect(container.querySelector('pre')).toBeNull();
+});
+
+it('does not echo an unstructured warning in the detail or list', () => {
+  const detail = '{"providerDiagnostic": "synthetic-raw-field"';
+  render(<ReadSourceDetail detail={detail} />);
+  expect(screen.getByText('Keine lesbaren Angaben zum Abgleich gespeichert.')).toBeTruthy();
+  expect(screen.queryByText(/synthetic-raw-field/)).toBeNull();
+  expect(sourceWarningReason(detail, true)).toBe('Datenquelle oder Zuordnung prüfen.');
 });
 
 const reward: SourceOperation = {
@@ -155,6 +176,25 @@ it.each([
     'Summe der Fiatbewegungen laut Quelle (absolut): Nicht verfügbar',
   );
   expect(screen.getByText(/App-Stichtag: 2026-10-02/)).toBeTruthy();
+});
+
+it('labels the current mapping separately from stored operation evidence', () => {
+  render(
+    <ReadSourceDetail
+      detail={JSON.stringify({
+        ...reward,
+        mappings: [
+          { key: 'asset:synthetic-coin', accountId: 'synthetic-depot', securityId: 'synthetic-id' },
+        ],
+      })}
+    />,
+  );
+
+  expect(
+    screen.getByText(
+      'Aktuelle Zuordnung: asset:synthetic-coin · App-Konto: synthetic-depot · App-Instrument: synthetic-id',
+    ),
+  ).toBeTruthy();
 });
 
 it('names the missing funding leg and retains known ledger references without inventing a deposit', () => {

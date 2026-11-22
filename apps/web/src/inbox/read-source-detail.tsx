@@ -43,7 +43,11 @@ const unitsText = (value: unknown, scale: SnapshotScale = 8) => {
   return parsed === null ? 'Nicht verfügbar' : privateAmount(formatScaledInteger(parsed, scale));
 };
 
-function OperationTrace({ op }: { op: SourceOperation & { reconciliation?: OperationVerdict } }) {
+function OperationTrace({
+  op,
+}: {
+  op: SourceOperation & { reconciliation?: OperationVerdict; mappings?: unknown };
+}) {
   const summary = summarizeOperation(op);
   const verdict = op.reconciliation;
   return (
@@ -51,6 +55,17 @@ function OperationTrace({ op }: { op: SourceOperation & { reconciliation?: Opera
       <p>
         Vorgang: {maskMoneyText(op.id)} · {OPERATION_CLASSES[summary.class]}
       </p>
+      {Array.isArray(op.mappings) &&
+        op.mappings.filter(isRecord).map(({ key, accountId, securityId }) =>
+          typeof key === 'string' && typeof accountId === 'string' ? (
+            <p key={key}>
+              Aktuelle Zuordnung: {maskMoneyText(key)} · App-Konto: {privateAmount(accountId)}
+              {typeof securityId === 'string' && (
+                <> · App-Instrument: {maskMoneyText(securityId)}</>
+              )}
+            </p>
+          ) : null,
+        )}
       {summary.assets.map((a) => (
         <p key={a.assetId}>
           Quellinstrument: {maskMoneyText(a.assetId)} · Brutto: {unitsText(a.grossE8)} · Gebühr:{' '}
@@ -162,6 +177,7 @@ function formatScaledInteger(value: bigint, scale: SnapshotScale): string {
 }
 
 function SourceBalanceComparison({ value }: { value: Record<string, unknown> }) {
+  const { key, accountId, cause } = value;
   const scale = value['scale'];
   const validScale = isSnapshotScale(scale);
   const sourceUnits = validScale ? parseScaledDecimal(value['source'], scale) : null;
@@ -189,7 +205,13 @@ function SourceBalanceComparison({ value }: { value: Record<string, unknown> }) 
           SOURCE_REASONS[String(value['reason'])] ??
           SOURCE_REASONS.difference}
       </p>
-      {value['cause'] !== undefined && (
+      {cause === undefined && typeof key === 'string' && (
+        <p>
+          Quellreferenz: {privateAmount(key)}
+          {typeof accountId === 'string' && <> · App-Konto: {privateAmount(accountId)}</>}
+        </p>
+      )}
+      {cause !== undefined && (
         <p>Ursache beim gespeicherten Abgleich; keine bestätigte Bestandskorrektur.</p>
       )}
       <p>
@@ -211,7 +233,7 @@ function SourceBalanceComparison({ value }: { value: Record<string, unknown> }) 
         „Als erledigt markieren“ bestätigt nur deine Entscheidung und repariert die Datenquelle
         nicht.
       </p>
-      {value['cause'] !== undefined && (
+      {cause !== undefined && (
         <>
           <p>
             Offene Bestandswirkung: {unitsText(value['openMovementsE8'])} Einheiten · Vorgänge:{' '}
@@ -246,17 +268,19 @@ function SourceBalanceComparison({ value }: { value: Record<string, unknown> }) 
   );
 }
 
-/** Readable source facts, with the retained normalized record available for reconciliation. */
+/** Show known facts from the stored source record. */
 export function ReadSourceDetail({ detail }: { detail: string | null }) {
   const amountsHidden = useAmountPrivacy();
   if (!detail) return null;
-  let value: unknown;
+  let value: unknown = null;
   try {
     value = JSON.parse(detail) as unknown;
   } catch {
-    return <span>{maskMoneyText(detail)}</span>;
+    // Legacy free text has no allowlisted fields.
   }
-  if (!isRecord(value)) return <span>{maskMoneyText(detail)}</span>;
+  if (!isRecord(value)) return <span>Keine lesbaren Angaben zum Abgleich gespeichert.</span>;
+  const { source, id, reason, field } = value;
+  const reference = id ?? (isRecord(source) ? source['id'] : undefined);
   const op = Array.isArray(value['transactions']) ? (value as unknown as SourceOperation) : null;
   const isBalanceDifference =
     value['reason'] === 'difference' ||
@@ -269,37 +293,34 @@ export function ReadSourceDetail({ detail }: { detail: string | null }) {
       ) : op ? (
         <OperationTrace op={op} />
       ) : (
-        <p>
-          {value['category']
-            ? (SOURCE_FAILURES[String(value['category'])] ?? 'Abruf fehlgeschlagen.')
-            : (SOURCE_REASONS[String(value['reason'])] ?? 'Quelldaten prüfen.')}
-        </p>
+        <>
+          <p>
+            {value['category']
+              ? (SOURCE_FAILURES[String(value['category'])] ?? 'Abruf fehlgeschlagen.')
+              : (SOURCE_REASONS[String(value['reason'])] ?? 'Quelldaten prüfen.')}
+          </p>
+          {typeof reference === 'string' && <p>Quellreferenz: {maskMoneyText(reference)}</p>}
+          {reason === 'schema' && typeof field === 'string' && (
+            <p>Betroffenes Quellfeld: {maskMoneyText(field)}</p>
+          )}
+        </>
       )}
-      <details>
-        <summary>Rohdaten und Zuordnung anzeigen</summary>
-        {amountsHidden ? (
-          <p>Rohdaten und Beträge sind ausgeblendet, solange die Betragsanzeige verborgen ist.</p>
-        ) : (
-          <pre>{JSON.stringify(value, null, 2)}</pre>
-        )}
-      </details>
+      {amountsHidden && <p>Beträge sind ausgeblendet.</p>}
     </div>
   );
 }
 
-export function sourceWarningReason(detail: string | null): string {
+export function sourceWarningReason(detail: string | null, readSource = false): string {
   try {
     const value: unknown = JSON.parse(detail ?? 'null');
-    if (value && typeof value === 'object') {
-      const record = value as Record<string, unknown>;
-      const reason = record['reason'];
-      const category = record['category'];
+    if (isRecord(value)) {
+      const reason = value['reason'];
+      const category = value['category'];
       if (typeof reason === 'string') return SOURCE_REASONS[reason] ?? 'Quelldaten prüfen.';
       if (typeof category === 'string') return SOURCE_FAILURES[category] ?? 'Abruf fehlgeschlagen.';
-      return 'Datenquelle oder Zuordnung prüfen.';
     }
   } catch {
-    /* Legacy warning text remains readable. */
+    if (!readSource && detail) return detail;
   }
-  return detail ?? 'Datenquelle oder Zuordnung prüfen.';
+  return 'Datenquelle oder Zuordnung prüfen.';
 }

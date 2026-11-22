@@ -19,11 +19,10 @@ vi.mock('../shell/app-link', () => ({
 }));
 vi.mock('./saved-explorer-links', () => ({ SavedExplorerLinks: () => <p>Meine Auswertungen</p> }));
 
-it('ON uses the approved identities and 3+2+4+8 groups; every legacy name retains a working source entry', () => {
+it('ON uses the approved identities and 2+2+4+8 groups; every legacy name retains a working source entry', () => {
   expect(HUB_REPORTS.map((report) => report.id)).toEqual([
     'onepager',
     'jahresreport',
-    'vergleich',
     'kontakte',
     'explorer',
     'vermoegen-schulden',
@@ -40,7 +39,7 @@ it('ON uses the approved identities and 3+2+4+8 groups; every legacy name retain
     'inflation',
   ]);
   expect(HUB_REPORTS.map((report) => report.no)).toEqual(
-    Array.from({ length: 17 }, (_, index) => index + 1),
+    Array.from({ length: 16 }, (_, index) => index + 1),
   );
   expect(
     HUB_GROUPS.map((group) => [
@@ -48,7 +47,7 @@ it('ON uses the approved identities and 3+2+4+8 groups; every legacy name retain
       HUB_REPORTS.filter((report) => report.group === group.id).length,
     ]),
   ).toEqual([
-    ['Berichte', 3],
+    ['Berichte', 2],
     ['Auswertungen', 2],
     ['Portfolio', 4],
     ['Einnahmen und Ausgaben', 8],
@@ -78,7 +77,7 @@ it('ON uses the approved identities and 3+2+4+8 groups; every legacy name retain
   for (const name of ['Alle', 'Berichte', 'Auswertungen', 'Portfolio', 'Einnahmen und Ausgaben'])
     expect(screen.queryByRole('button', { name })).toBeNull();
   const rows = rendered.container.querySelectorAll('.report-hub-list > li');
-  expect(rows).toHaveLength(17);
+  expect(rows).toHaveLength(16);
   expect([...rows].map((row) => row.querySelector('a')?.getAttribute('href'))).toEqual(
     HUB_REPORTS.map((report) => `/reports/${report.id}`),
   );
@@ -102,7 +101,7 @@ it('ON uses the approved identities and 3+2+4+8 groups; every legacy name retain
   fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'unbekannt' } });
   expect(screen.getByText('Kein Bericht passt zu dieser Suche.')).toBeTruthy();
   fireEvent.change(screen.getByRole('searchbox'), { target: { value: '' } });
-  expect(rendered.container.querySelectorAll('.report-hub-list > li')).toHaveLength(17);
+  expect(rendered.container.querySelectorAll('.report-hub-list > li')).toHaveLength(16);
 });
 
 it('ON groups bank costs with portfolio costs and leaves contracts on their own', () => {
@@ -112,4 +111,10 @@ it('ON groups bank costs with portfolio costs and leaves contracts on their own'
     group: 'portfolio',
   });
   expect(hubReport('abos')).toMatchObject({ name: 'Verträge und Abos', sources: ['abos'] });
+});
+
+it('ON discovers the archived comparison and category addresses under Ausgaben, with Explorer still present', () => {
+  expect(hubReport('vergleich')?.id).toBe('ausgaben');
+  expect(hubReport('kategorien')?.id).toBe('ausgaben');
+  expect(hubReport('explorer')?.id).toBe('explorer');
 });

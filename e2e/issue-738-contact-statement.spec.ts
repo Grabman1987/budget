@@ -246,7 +246,7 @@ for (const profile of ['desktop', 'phone'] as const)
         const refused = await refusal;
         expect(refused.status()).toBe(422);
         expect((await refused.json()).message).toBe(
-          'Undo the related contact settlement before changing its receipt or allocated outlay',
+          'Diese Auslage ist mit einer Rückzahlung verknüpft. Bitte bestätige den Vorgang.',
         );
         await expect(dialog.getByRole('alert')).toHaveCount(0);
         const linkedQuestion = dialog.getByRole('alertdialog', {

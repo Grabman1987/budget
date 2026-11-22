@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { afterEach, expect, it, vi } from 'vitest';
 import { ToastProvider, setAmountsHidden } from '@budget/ui';
@@ -45,7 +45,7 @@ const preview: QuotePreview = {
   ],
 };
 
-function mount() {
+function mount(detail = 'Fehlerklasse: currency_mismatch') {
   return render(
     <QueryClientProvider
       client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
@@ -54,20 +54,48 @@ function mount() {
         <QuoteCause
           securityId={diagnostics.securityId}
           createdAt="2026-09-15T12:00:00Z"
-          detail="Fehlerklasse: currency_mismatch"
+          detail={detail}
         />
       </ToastProvider>
     </QueryClientProvider>,
   );
 }
 
+it.each(['{"unknown":"synthetic-diagnostic"}', 'Fehlerklasse: synthetic-diagnostic'])(
+  'does not echo an unrecognised stored warning (%s)',
+  async (detail) => {
+    vi.mocked(request).mockResolvedValueOnce(diagnostics);
+    mount(detail);
+    const warning = within(await screen.findByRole('region', { name: 'Gespeicherte Warnung' }));
+    expect(warning.getByText('Fehlerklasse nicht gespeichert.')).toBeTruthy();
+    expect(warning.queryByText(/synthetic-diagnostic/)).toBeNull();
+  },
+);
+
 it('separates historic missing evidence from current mapping and previews each source without offering acknowledgement', async () => {
-  vi.mocked(request).mockResolvedValueOnce(diagnostics).mockResolvedValueOnce(preview);
+  vi.mocked(request)
+    .mockResolvedValueOnce({
+      ...diagnostics,
+      attempts: [
+        {
+          source: 'coingecko',
+          attemptedAt: '2026-09-16T12:00:00Z',
+          outcome: 'timeout',
+          httpStatus: null,
+          detail: null,
+        },
+      ],
+    })
+    .mockResolvedValueOnce(preview);
   mount();
   expect(await screen.findByText(/1,234567/)).toBeTruthy();
   expect(screen.getByText(/1,234567 USD/)).toBeTruthy();
   expect(screen.getByText('Automatischer Kurs in EUR')).toBeTruthy();
-  expect(screen.getByText(/damalige Quellwert/)).toBeTruthy();
+  const warning = within(screen.getByRole('region', { name: 'Gespeicherte Warnung' }));
+  expect(warning.getByText(/damalige Quellwert/)).toBeTruthy();
+  expect(warning.getByText('Die Quelle liefert eine andere Kurswährung')).toBeTruthy();
+  expect(warning.queryByText(/coingecko.*nicht rechtzeitig/)).toBeNull();
+  expect(screen.getByText(/coingecko.*nicht rechtzeitig/)).toBeTruthy();
   expect(screen.getByText(/manueller Kurs repariert/)).toBeTruthy();
   expect(screen.queryByRole('button', { name: 'Als erledigt markieren' })).toBeNull();
   fireEvent.click(screen.getByRole('button', { name: 'Quelle erneut testen (Vorschau)' }));

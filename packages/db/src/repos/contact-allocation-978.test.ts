@@ -102,7 +102,9 @@ it('moves an open outlay across a receipt without changing recorded allocations'
   expect(statement().outlays.find((o) => o.splitId === settled.id)?.remainingCents).toBe(0);
   expect(statement().balanceCents).toBe(701);
   const bytes = opened.sqlite.serialize();
-  expect(() => deleteBooking(opened.db, settled.bookingId, testCtx)).toThrow(/contact settlement/);
+  expect(() => deleteBooking(opened.db, settled.bookingId, testCtx)).toThrow(
+    'Diese Auslage ist mit einer Rückzahlung verknüpft. Bitte bestätige den Vorgang.',
+  );
   expect(opened.sqlite.serialize().equals(bytes)).toBe(true);
 });
 

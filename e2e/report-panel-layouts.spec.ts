@@ -62,7 +62,7 @@ test('secondary report sections follow their main content at full width', async 
     await inspectReport(page, info, item.name);
   }
   await retainExplorerReaders(page);
-  await page.goto('/reports/kategorien?zeitraum=1J');
+  await page.goto('/reports/explorer?vorlage=category&zeitraum=1J');
   await page.getByTestId('template-category').locator('[data-template-column]').first().click();
   const summary = page.getByTestId('template-sources');
   await expect(summary).toBeVisible();

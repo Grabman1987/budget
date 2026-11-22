@@ -52,12 +52,18 @@ source and app units, open net effect, source fetch date and app comparison day.
 Related operations expose source movement/trade references and gross, fee and net
 units through the existing shared calculation. Missing funding names the unmatched
 cash leg and any known ledger counterparts; absent historic diagnostics remain
-explicitly unavailable. Amount privacy also hides the trace amounts and raw JSON.
+explicitly unavailable. Amount privacy hides the comparison and trace amounts.
 Correct the mapping/source evidence through the existing data-source controls and
 run **Abgleich neu ausführen**; an unsuccessful retry retains the warning and a
 successful balance check resolves it. Manual acknowledgement is not source repair.
 This slice creates no bookings, valuations, cost basis or tax values. Owner-approved
 local-copy analysis and money acceptance for #1205 remain pending.
+
+Unreadable movements identify the source reference and failing schema field when available.
+The quote warning separates its stored reason and unavailable historic evidence
+from the current mapping, recorded attempts and read-only preview. A preview or
+manual price leaves the warning open. A successful automatic quote check or an
+explicit source policy that disables the fetch closes it.
 
 ## Disabled quote warnings (#1259)
 
@@ -103,7 +109,14 @@ regular/combined documents explicitly and keeps all special payments in their pa
 month. Literal synthetic browser cases cover separate specials, an unsplit combined slip
 without wage reading, allowances/travel, missing slips, shared frame/inspection and privacy.
 See [the salary story](user-stories/06-reports.md#rp-02--gehaltsreport-mit-bruttonetto-und-jahresvergleich).
-The remaining development UI under RP-03 and owner live acceptance stay open.
+
+RP-03 Fortsetzung (#1066): Im Gehaltsreport sehe ich das letzte belegte Grundgehalt mit
+Stufenverlauf, Jahres- und Vorjahresmonatsvergleiche je Komponente sowie Bonus und
+zuordenbare Abzüge. Fehlende Gehaltszettel, nicht zugeordnete Lohnarten und nicht
+vergleichbare Monate sind benannt. Der Vergleich mit gespeichertem VPI und persönlichem
+Preisindex zeigt Basis, Indexwerte je Monat, reale Änderung und Preisabstand in Euro je Jahr.
+Die Zuordnungsoberfläche, Ereignismarker, Arbeitgeberbeiträge und die Abnahme durch den
+Nutzer sind offen. [Gehaltsentwicklung](user-stories/06-reports.md#rp-03--echte-gehaltsentwicklung)
 
 ## Per-account liquidity (#1228, #1225)
 
@@ -194,6 +207,10 @@ only read on opening, reset after template changes/source refresh/reload, and no
 stale export. The existing Explorer spec checks exact CSV bytes and privacy in
 light/dark at the configured desktop/390 widths. See [RP-09](user-stories/06-reports.md#rp-09--gesamttabelle-explorer-template); CI and owner acceptance remain open.
 
+## Eigener Ausgabenvergleich (#1158)
+
+Als Haushaltsmitglied kann ich in der Ausgabenanalyse einen eigenen Vergleich von Tag bis Tag auswählen und die Adresse erneut öffnen. Die Beträge reichen inklusive bis zu beiden Grenzen und zeigen fehlende Historie an. Die bisherigen Adressen für Kategorien und Zeitraumvergleich führen zur Ausgabenanalyse. Gespeicherte Explorer-Ansichten und Vorlagen bleiben erreichbar.
+
 ## Queue rejection and dialog completion (#1144, #1201)
 
 A server-rejected capture stays on the device as a draft with its safe error message
@@ -213,6 +230,16 @@ hold follow-up reads until after checking that each dialog has closed; writes ar
 confirmed first. Production write latency and physical-device acceptance remain
 owner checks. Booking amounts, balances, allocations and trade data are unchanged.
 Status: implementation and regression coverage for review; publication is pending.
+
+Booking creation and editing now return German 422 messages for invalid splits
+and contact references. A contact movement uses signed whole cents, with a
+negative outlay and a positive receipt. A newly entered contact amount cannot
+be zero. The API accepts cent amounts on every split and rejects missing amounts.
+The client converts percentage and fixed shares to cents before submission. Existing
+account and idempotency conflicts retain their delivery codes. A persisted
+booking or contact inconsistency that prevents saving returns a German HTTP 500
+with a correlation ID. Contact and split validation tests verify rejection
+without partial bookings, allocations, audit entries or delivery records.
 Reports continuation (#1149, contacts slice of #1161): RP-21b's open and historical
 booking tables use the shared report register shell. Enabling settled history keeps
 fully settled contacts inside its closed disclosure, outside the open-contact list.
@@ -222,6 +249,9 @@ repayment returns it to the original category; no extra advance or net-worth cha
 See [RP-21b](user-stories/06-reports.md#rp-21b--kontakte-abrechnung).
 Status: implemented for review; owner acceptance pending. No other report is migrated.
 
+## Integrated income and cashflow (#1159)
+
+Einnahmen und Cashflow in redesign shows income by type, open monthly expectations and the Cashflow section in one report. Cashflow includes all spending, including Zukunft, unlike the former consumption-only development report. Old links carry the selected period, month, project and bookmark into the integrated report. The running month is marked and included. The chart compares monthly cashflow with the corresponding prior-year months where available. Expectations compare the same month of the prior year in a disclosure.
 ## Transit reconciliation (#1195, audit rests 1 and 2)
 
 Allocation, portfolio summary, depot comparison and whole picture show a read-only

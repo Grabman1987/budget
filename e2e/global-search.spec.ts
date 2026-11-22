@@ -243,7 +243,7 @@ test('palette: reports, pages, recent choices, actions and shortcut help', async
   await page.goto('/plan/monat?monat=2026-08');
   let input = await openSearch(page, mobile);
   const redesign = (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
-  const reportLabel = redesign ? '10 Einnahmen und Cashflow' : '1.10 Einnahmen und Cashflow';
+  const reportLabel = redesign ? '9 Einnahmen und Cashflow' : '1.10 Einnahmen und Cashflow';
   await input.fill('1.10 ein');
   await expect(page.getByRole('option', { name: new RegExp(reportLabel) })).toBeVisible();
   await input.press('Enter');

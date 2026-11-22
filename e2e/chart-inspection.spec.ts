@@ -79,7 +79,7 @@ test('report navigation, daily values, keyboard and touch inspection', async ({ 
   const redesign = (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
   if (redesign) {
     await page.getByLabel('Bericht wechseln', { exact: true }).click();
-    await page.getByRole('link', { name: '7. Depots im Vergleich', exact: true }).click();
+    await page.getByRole('link', { name: /^\d+\. Depots im Vergleich$/ }).click();
   } else {
     await page
       .getByRole('button', {

@@ -288,10 +288,14 @@ describe('atomic contact settlement', () => {
     const b = outlay(10000);
     const r = receipt(12000);
     expect(() => updateBooking(opened.db, b, { amountCents: -5000 }, testCtx)).toThrow(
-      /contact settlement/,
+      'Diese Auslage ist mit einer Rückzahlung verknüpft. Bitte bestätige den Vorgang.',
     );
-    expect(() => deleteBooking(opened.db, b, testCtx)).toThrow(/contact settlement/);
-    expect(() => deleteBooking(opened.db, r.bookingId, testCtx)).toThrow(/contact settlement/);
+    expect(() => deleteBooking(opened.db, b, testCtx)).toThrow(
+      'Diese Auslage ist mit einer Rückzahlung verknüpft. Bitte bestätige den Vorgang.',
+    );
+    expect(() => deleteBooking(opened.db, r.bookingId, testCtx)).toThrow(
+      'Bitte die verknüpfte Kontaktabrechnung rückgängig machen, bevor du die Rückzahlung oder Auslage änderst.',
+    );
     expect(() =>
       undo(opened.db, { auditId: history(opened.db, 'contact_settlement', r.id)[0]!.id }, testCtx, {
         force: true,

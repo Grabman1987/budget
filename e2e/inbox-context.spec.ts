@@ -63,8 +63,8 @@ test('inbox periods, repeated causes and warning details preserve context and op
     .getByRole('link', { name: 'Warnung erklären' });
   await detailLink.click();
   await expect(page).toHaveURL(/\/konten\/pruefen\/check-a/);
-  await page.getByText('Rohdaten und Zuordnung anzeigen').click();
-  await expect(page.locator('.source-inbox-detail pre')).toContainText('check-a');
+  await expect(page.getByText('Quellreferenz: check-a')).toBeVisible();
+  await expect(page.locator('.source-inbox-detail pre')).toHaveCount(0);
   await expect(page.getByRole('link', { name: 'Datenquelle prüfen' })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   for (const theme of ['light', 'dark'] as const) {

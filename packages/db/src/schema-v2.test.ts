@@ -103,7 +103,7 @@ describe('C14 YNAB model needs', () => {
     bad(`${CAT} ('kz2', 'Kartenzahlung', 'g', NULL, 'card_payment', NULL, 'karte')`, /UNIQUE/);
     bad(`${CAT} ('x', 'x', 'g', 'need', 'variable', NULL, 'karte')`);
     const spend = booking({ splits: [{ categoryId: 'kz', amountCents: -100 }] });
-    expect(() => createBooking(db, spend, ctx)).toThrow(/filled automatically/);
+    expect(() => createBooking(db, spend, ctx)).toThrow(/Kartenzahlung wird automatisch befüllt/);
   });
 
   it('bookings keep a colour flag; unknown flags are refused', () => {
@@ -172,13 +172,15 @@ describe('C7 foreign currency', () => {
     const id = createBooking(db, fx({ fxFeeCents: -10 }), ctx);
     expect(getBooking(db, id)).toMatchObject({ fxFeeCents: -10, originalAmountCents: -2_000 });
     expect(getBooking(db, createBooking(db, fx({ amountCents: -1_860 }), ctx))?.fxFeeCents).toBe(0);
-    expect(() => createBooking(db, fx(), ctx)).toThrow(/does not match/);
+    expect(() => createBooking(db, fx(), ctx)).toThrow(/Buchungsbetrag passt nicht/);
   });
 
   it('all fields or none, and the original is signed like the amount', () => {
-    expect(() => createBooking(db, fx({ fxRateMicro: null }), ctx)).toThrow(/together/);
+    expect(() => createBooking(db, fx({ fxRateMicro: null }), ctx)).toThrow(
+      /Originalbetrag, Originalwährung und Wechselkurs gemeinsam erforderlich/,
+    );
     const fee = booking({ fxFeeCents: -5, splits: [{ categoryId: 'essen', amountCents: -5 }] });
-    expect(() => createBooking(db, fee, ctx)).toThrow(/FX fee/);
+    expect(() => createBooking(db, fee, ctx)).toThrow(/Eine Wechselgebühr braucht/);
     const id = createBooking(db, fx({ fxFeeCents: -10 }), ctx);
     bad(`UPDATE booking SET original_amount_cents = 2000 WHERE id = '${id}'`);
     bad(`UPDATE booking SET fx_fee_cents = NULL WHERE id = '${id}'`);

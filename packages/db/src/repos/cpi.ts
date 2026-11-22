@@ -62,16 +62,20 @@ export function currentCpiSeries(db: Executor): string | null {
   );
 }
 
+const storedCpiRows = (db: Executor, series: string) =>
+  db.select().from(consumerPriceIndex).where(eq(consumerPriceIndex.series, series)).all();
+
+/** Exact stored index levels for calculations that rebase an index. */
+export function cpiIndexPoints(db: Executor, series: string): CpiRow[] {
+  return storedCpiRows(db, series).map(({ month, indexMicro }) => ({ month, indexMicro }));
+}
+
 /** Index number per month (a plain number: the index is a ratio, not money). */
 export function cpiMonths(
   db: Executor,
   series: string,
 ): { months: Record<string, number>; fetchedAt: string | null; source: string | null } {
-  const rows = db
-    .select()
-    .from(consumerPriceIndex)
-    .where(eq(consumerPriceIndex.series, series))
-    .all();
+  const rows = storedCpiRows(db, series);
   return {
     months: Object.fromEntries(rows.map((r) => [r.month, r.indexMicro / 1_000_000])),
     fetchedAt: rows.map((r) => r.fetchedAt).sort()[rows.length - 1] ?? null,

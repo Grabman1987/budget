@@ -221,7 +221,7 @@ test.describe('1.6 Kategorie im Verlauf', () => {
             ],
       );
       const overview = categoryOverview(data.months, data, window, data.lastFullMonth);
-      await open(page, `/reports/kategorien?zeitraum=${period}`);
+      await open(page, `/reports/explorer?vorlage=category&zeitraum=${period}`);
       const selected = overview.rows.slice(0, 6);
       expect(selected.some((row) => row.category.name === 'Miete')).toBe(true);
       for (const expected of selected) {
@@ -272,7 +272,7 @@ test.describe('1.6 Kategorie im Verlauf', () => {
     const highest = first.history.reduce((a, h) =>
       (h.spentCents ?? 0) > (a.spentCents ?? 0) ? h : a,
     );
-    await open(page, '/reports/kategorien?zeitraum=1J');
+    await open(page, '/reports/explorer?vorlage=category&zeitraum=1J');
     const picker = page.getByRole('combobox', { name: 'Kategorie', exact: true });
     await picker.selectOption(first.category.id);
     await picker.focus();
@@ -297,7 +297,10 @@ test.describe('1.6 Kategorie im Verlauf', () => {
   }) => {
     const data = await facts(page);
     const id = data.categories[0]!.id;
-    await open(page, `/reports/kategorien?kategorien=${encodeURIComponent(JSON.stringify([id]))}`);
+    await open(
+      page,
+      `/reports/explorer?vorlage=category&kategorien=${encodeURIComponent(JSON.stringify([id]))}`,
+    );
     for (const period of ['1J', 'Alles'] as const) {
       await page
         .getByRole('group', { name: 'Zeitraum', exact: true })
@@ -518,12 +521,13 @@ test.describe('states', () => {
   };
 
   for (const id of ['jahresansicht', 'kategorien', 'sparquote', 'gesamttabelle']) {
+    const path = id === 'kategorien' ? '/reports/explorer?vorlage=category' : `/reports/${id}`;
     test(`${id}: says honestly that there is no data`, async ({ page }) => {
       await page.route('**/api/report-tables/months*', (route) => route.fulfill({ json: empty }));
       await page.route('**/api/report-tables/income-expense*', (route) =>
         route.fulfill({ json: empty }),
       );
-      await page.goto(`/reports/${id}`);
+      await page.goto(path);
       if (id === 'gesamttabelle')
         await page.getByText('Alle Monate: Nettovermögen und CSV', { exact: true }).click();
       await expect(
@@ -546,7 +550,7 @@ test.describe('states', () => {
         (route) =>
           fail ? route.fulfill({ status: 500, json: { error: 'internal' } }) : route.continue(),
       );
-      await page.goto(`/reports/${id}`);
+      await page.goto(path);
       if (id === 'gesamttabelle')
         await page.getByText('Alle Monate: Nettovermögen und CSV', { exact: true }).click();
       await expect(page.getByRole('alert')).toContainText(
@@ -609,7 +613,7 @@ test.describe('states', () => {
       await new Promise((resolve) => setTimeout(resolve, 600));
       await route.continue();
     });
-    await page.goto('/reports/kategorien');
+    await page.goto('/reports/explorer?vorlage=category');
     await expect(
       page.getByRole('status').filter({ hasText: 'Vorlage werden geladen' }),
     ).toBeVisible({ timeout: 20_000 });

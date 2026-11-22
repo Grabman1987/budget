@@ -1,13 +1,32 @@
 import {
+  accounts,
+  addExpectedVersion,
+  categories,
+  categoryGroup,
+  createBooking,
+  createEntity,
+  createExpectedPayment,
   createTestDatabase,
+  matchOccurrences,
+  refreshOccurrences,
+  inflationReport,
+  INCOME_TYPES,
+  payee,
   savePayslip,
   saveWageComponentMapping,
   deletePayslip,
   sqliteOf,
+  storeCpi,
   storePayslipWageRead,
   type OpenedDatabase,
 } from '@budget/db';
-import type { PayslipInput, SalaryComponent } from '@budget/domain';
+import {
+  monthsBetween,
+  personalIndexMicro,
+  realDevelopment,
+  type PayslipInput,
+  type SalaryComponent,
+} from '@budget/domain';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createLedgerApi } from './index';
 import type { readSalaryDevelopment } from './salary-development';
@@ -47,6 +66,7 @@ function slip(
     benefit?: number;
     reimbursement?: number;
     noReading?: boolean;
+    bookingId?: string;
   } = {},
 ) {
   const variable = options.variable ?? 0;
@@ -60,7 +80,7 @@ function slip(
     svCents: 10000,
     taxCents: 20000,
     netCents: baseCents + variable - 30000 + reimbursement,
-    bookingId: null,
+    bookingId: options.bookingId ?? null,
     receiptId: null,
     lines: [
       ...(benefit
@@ -148,6 +168,46 @@ async function report(query = ''): Promise<Report> {
 }
 
 describe('salary development read API (#1066)', () => {
+  it('keeps a linked combined payslip whole in the actual payout month', async () => {
+    const accountId = 'synthetic-payroll-account';
+    accounts.create(
+      opened.db,
+      {
+        id: accountId,
+        name: 'Synthetic payroll account',
+        type: 'checking',
+        role: 'budget',
+        onBudget: true,
+        openingDate: '2026-01-01',
+      },
+      ctx,
+    );
+    const bookingId = createBooking(
+      opened.db,
+      {
+        accountId,
+        date: '2026-06-02',
+        amountCents: 310_003,
+        splits: [{ amountCents: 310_003, incomeTypeId: INCOME_TYPES.salary.id }],
+      },
+      ctx,
+    );
+    map('100', 'base');
+    map('200', 'variable');
+    const payslipId = slip('2026-05', 300_001, { variable: 40_002, bookingId });
+    const before = sqliteOf(opened.db).serialize();
+    expect((await report('?throughMonth=2026-05')).months).toEqual([]);
+    expect((await report()).months).toMatchObject([
+      {
+        month: '2026-06',
+        payslipIds: [payslipId],
+        grossCents: 340_003,
+        components: { base: 300_001, variable: 40_002 },
+      },
+    ]);
+    expect(sqliteOf(opened.db).serialize()).toEqual(before);
+  });
+
   it('returns an explicit empty report and validates the month and query keys', async () => {
     expect(await report()).toMatchObject({
       throughMonth: '2026-06',
@@ -237,6 +297,156 @@ describe('salary development read API (#1066)', () => {
         deltaCents: 30000,
         deltaBp: 909,
       }),
+    );
+  });
+
+  it('uses the exact stored VPI and existing personal price index for both salary series', async () => {
+    const day = '2026-06-15';
+    accounts.create(
+      opened.db,
+      {
+        id: 'cpi-account',
+        name: 'Synthetic account',
+        type: 'checking',
+        role: 'budget',
+        onBudget: true,
+        openingDate: '2025-01-01',
+      },
+      ctx,
+    );
+    createEntity(opened.db, categoryGroup, { id: 'cpi-group', name: 'Synthetic group' }, ctx);
+    createEntity(opened.db, payee, { id: 'rent-payee', name: 'Synthetic rent payee' }, ctx);
+    categories.create(
+      opened.db,
+      {
+        id: 'rent-category',
+        groupId: 'cpi-group',
+        name: 'Synthetic rent',
+        kind: 'fixed',
+        class: 'need',
+        inflationTrailingMean: false,
+      },
+      ctx,
+    );
+    createExpectedPayment(
+      opened.db,
+      {
+        id: 'rent',
+        name: 'Synthetic rent',
+        categoryId: 'rent-category',
+        payeeId: 'rent-payee',
+        kind: 'outflow',
+        rhythm: 'monthly',
+        dueDay: 3,
+        startDate: '2025-01-01',
+      },
+      { validFrom: '2025-01-01', amountCents: 10000 },
+      ctx,
+      day,
+    );
+    addExpectedVersion(
+      opened.db,
+      'rent',
+      { validFrom: '2026-04-01', amountCents: 12000 },
+      ctx,
+      day,
+    );
+    for (const month of monthsBetween('2025-01', '2026-05')) {
+      const amountCents = month < '2026-04' ? -10000 : -12000;
+      createBooking(
+        opened.db,
+        {
+          accountId: 'cpi-account',
+          date: `${month}-03`,
+          payeeId: 'rent-payee',
+          amountCents,
+          splits: [{ categoryId: 'rent-category', amountCents }],
+        },
+        ctx,
+      );
+    }
+    refreshOccurrences(opened.db, day, ctx);
+    matchOccurrences(opened.db, day, ctx);
+    storeCpi(
+      opened.db,
+      'synthetic-vpi',
+      [
+        { month: '2026-02', indexMicro: 100_000_000 },
+        { month: '2026-03', indexMicro: 100_000_000 },
+        { month: '2026-04', indexMicro: 105_000_000 },
+      ],
+      `${day}T00:00:00Z`,
+    );
+    storeCpi(
+      opened.db,
+      'vpi:synthetic-subindex',
+      [{ month: '2026-05', indexMicro: 299_000_000 }],
+      `${day}T00:00:00Z`,
+    );
+    map('100', 'base');
+    map('200', 'variable');
+    slip('2026-02', 300001);
+    slip('2026-03', 300001);
+    slip('2026-04', 330001);
+    slip('2026-05', 330001, { variable: 20000 });
+
+    const source = inflationReport(opened.db, day);
+    expect(source.points.slice(-2)).toMatchObject([
+      { month: '2026-04', index: 120 },
+      { month: '2026-05', index: 120 },
+    ]);
+    const before = sqliteOf(opened.db).serialize();
+    const result = await report();
+    expect(Buffer.compare(sqliteOf(opened.db).serialize(), before)).toBe(0);
+    expect(result.base.levels).toEqual([
+      { month: '2026-02', cents: 300001 },
+      { month: '2026-03', cents: 300001 },
+      { month: '2026-04', cents: 330001 },
+      { month: '2026-05', cents: 330001 },
+    ]);
+    expect(result.real.official).toMatchObject({
+      available: true,
+      base: {
+        startMonth: '2026-02',
+        years: [
+          { year: '2026', months: 3, gapCents: 15000, realChangeBp: 476, lastMonth: '2026-04' },
+        ],
+      },
+    });
+    expect(result.real.official.base?.points.slice(-3)).toMatchObject([
+      {
+        month: '2026-04',
+        nominalIndexMicro: 1_100_000,
+        priceIndexMicro: 1_050_000,
+        realIndexMicro: 1_047_619,
+      },
+      { month: '2026-05', valueCents: 330001, realIndexMicro: null, gapCents: null },
+      { month: '2026-06', valueCents: null, realIndexMicro: null, gapCents: null },
+    ]);
+    expect(result.real.official.total).toEqual(
+      result.real.official.base && {
+        ...result.real.official.base,
+        points: result.real.official.base.points.map((p) =>
+          p.month === '2026-05' ? { ...p, valueCents: 350001 } : p,
+        ),
+      },
+    );
+    expect(result.real.personal.base).toEqual(
+      realDevelopment({
+        values: result.base.levels,
+        index: personalIndexMicro(source.points),
+        startMonth: '2026-02',
+        endMonth: '2026-06',
+      }),
+    );
+    expect(result.real.personal.base?.years).toEqual([
+      { year: '2026', months: 4, gapCents: -60000, realChangeBp: -833, lastMonth: '2026-05' },
+    ]);
+    expect(result.real.personal.total?.years).toEqual([
+      { year: '2026', months: 4, gapCents: -40000, realChangeBp: -278, lastMonth: '2026-05' },
+    ]);
+    expect((await report('?throughMonth=2026-04')).real.personal.base?.points.at(-1)?.month).toBe(
+      '2026-04',
     );
   });
 

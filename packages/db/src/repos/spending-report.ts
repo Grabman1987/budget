@@ -1,5 +1,6 @@
 import {
   addDays,
+  addMonths,
   daysBetween,
   isCalendarRange,
   analyseSpending,
@@ -136,8 +137,14 @@ export interface SpendingReport extends SpendingAnalysis {
   };
 }
 
-/** Which window the answer comparison uses: the equally long period before, or the same days a year earlier. */
-export type SpendingComparisonBasis = 'previous-period' | 'previous-year';
+export interface SpendingComparisonWindow {
+  from: string;
+  to: string;
+}
+
+/** The immediately preceding period, an equally long window from last year's start, or inclusive custom dates. */
+export type SpendingComparisonBasis =
+  'previous-period' | 'previous-year' | SpendingComparisonWindow;
 
 const firstDay = (month: string) => `${month}-01`;
 const lastDay = lastDayOfMonth;
@@ -150,29 +157,27 @@ function answerComparison(
   basis: SpendingComparisonBasis = 'previous-period',
 ): SpendingReport['answerComparison'] {
   const days = from && to && to >= from ? daysBetween(from, to) + 1 : 0;
-  // Previous year: the same calendar days one year earlier (29 February falls back to 28 February).
-  const yearEarlier = (day: string) => {
-    const shifted = `${Number(day.slice(0, 4)) - 1}${day.slice(4)}`;
-    return Number.isNaN(Date.parse(shifted)) || addDays(shifted, 0) !== shifted
-      ? `${Number(day.slice(0, 4)) - 1}-02-28`
-      : shifted;
-  };
+  // The selected window starts on the first of a month. Shift that anchor and preserve
+  // the number of included days even when the window crosses a leap day.
+  const previousYearStart = from && days ? firstDay(addMonths(monthOf(from), -12)) : null;
   const before =
-    basis === 'previous-year'
-      ? to && days
-        ? yearEarlier(to)
-        : null
-      : from && days
-        ? addDays(from, -1)
-        : null;
+    typeof basis === 'object'
+      ? basis.to
+      : basis === 'previous-year'
+        ? previousYearStart
+          ? addDays(previousYearStart, days - 1)
+          : null
+        : from && days
+          ? addDays(from, -1)
+          : null;
   const start =
-    basis === 'previous-year'
-      ? from && days
-        ? yearEarlier(from)
-        : null
-      : before
-        ? addDays(before, 1 - days)
-        : null;
+    typeof basis === 'object'
+      ? basis.from
+      : basis === 'previous-year'
+        ? previousYearStart
+        : before
+          ? addDays(before, 1 - days)
+          : null;
   const first = db
     .select({ day: account.openingDate, onBudget: account.onBudget })
     .from(account)
@@ -183,7 +188,7 @@ function answerComparison(
     .sort()[0];
   const eligible = categories.filter((c) => c.class !== 'future');
   // A covered period with no movements is a valid zero, unlike unavailable ledger history.
-  if (!start || !before || !first || start < first)
+  if (!from || !to || !start || !before || !first || start > before || start < first)
     return {
       from,
       to,

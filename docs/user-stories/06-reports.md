@@ -108,15 +108,15 @@ keyboard/touch inspection, privacy and both themes at 1440/390. Read-only inspec
 captured slips and annual totals unchanged. Full development views remain under RP-03;
 owner live acceptance is pending.
 
-### RP-03 – Echte Gehaltsentwicklung (geplant)
+### RP-03 – Echte Gehaltsentwicklung
 - **Story:** Als Nutzer möchte ich Grundgehalt, Sonderzahlungen und Bonus getrennt und real gegen Inflation sehen, damit ich erkenne, ob ich wirklich mehr verdiene oder nur die Preise gestiegen sind.
 - **Ausgangslage:** Mehrere Gehaltszettel liegen vor; jede Lohnart ist einer von fünf Komponenten zugeordnet.
-- **Ablauf:** (geplant, nach Ticket)
+- **Ablauf:**
   1. Reports › Gehaltsreport: Lohnarten einmal den fünf Komponenten zuordnen (Grundgehalt, Sonderzahlungen, variable Bezüge, Sachbezüge, Erstattungen); nicht zugeordnete Lohnarten sind aufgelistet und sperren den betroffenen Monat für Vergleiche.
   2. Leitwert „Grundgehalt brutto pro Monat“ als Stufenlinie mit jeder Erhöhung (Datum, Betrag, Prozent).
   3. Jahresvergleich und Monatsvergleich je Komponente; Monate mit Sonderzahlung oder Bonus sind markiert; Bonus je Jahr mit Anteil am Grundgehalt.
   4. „Real gegen nominal“: Index gegen VPI und persönliche Inflation, kumuliert in Prozent und Euro.
-  5. Technischer Zwischenstand für die spätere Ansicht: Die angemeldete Sitzung kann die nominale Entwicklung bis zu einem gewählten Monat über `GET /api/payslips/development?throughMonth=YYYY-MM` lesen; ohne Auswahl gilt der aktuelle Monat. In Reports › Gehaltsreport zeigen die Karten „Grundgehalt · Erhöhungen“ und „Gehaltsentwicklung je Jahr“ (Summe inklusive Sonderzahlungen und Bonus) diese Daten.
+  5. In Reports › Gehaltsreport › Gehaltsentwicklung stehen der letzte belegte Grundgehaltsbetrag mit Monat, Stufen, Jahreswerte, der Vergleich gleicher Kalendermonate, Bonus mit separat zuordenbarer SV und Lohnsteuer sowie Datenlücken und nicht zugeordnete Lohnarten. Preisvergleiche zeigen je Reihe ihren gemeinsamen Ausgangsmonat mit Basis 100, Indexwerte je Monat sowie Preisabstand in Euro und reale Änderung je Jahr. Ohne Monatswahl gilt der aktuelle Monat.
 - **Ergebnis:** Ich sehe den echten Zuwachs und Kaufkraftverlust.
 - **Abnahmekriterien:**
   - Sachbezüge und Spesen verzerren die Entwicklung nicht; sie stehen getrennt.
@@ -124,8 +124,8 @@ owner live acceptance is pending.
   - Der Inflationsvergleich nutzt VPI und den vorhandenen Warenkorb (Persönliche Inflation).
   - Randfall: Eine Lohnart ohne Zuordnung blockiert nur ihren Monat und wird genannt.
   - Der nominale Datenpfad verwendet gespeicherte Lohnzeilen und Komponenten-Zuordnungen sowie die gemeinsame Rechenlogik. Spätere und gelöschte Gehaltszettel sind ausgeschlossen; Lesen verändert weder Daten noch Buchungen.
-- **Status:** teilweise implementiert für Review (Lohnzeilen/Komponentenmodell aus #1082; nominaler Lese-Endpunkt in dieser Fortsetzung), Erhöhungen und Jahresvergleich in der Oberfläche, Monatsvergleich, Bonus und Real-gegen-nominal offen · **Verweis:** #1066
-  Fehlt noch: Zuordnungsoberfläche und Schreib-Endpunkte, Ansichten, Vorschau/Bestätigung des expliziten PDF-Neulesens, Anbindung des vorhandenen VPI und der persönlichen Inflation, Ereignismarker und gedruckte Arbeitgeberbeiträge.
+- **Status:** Nominale und reale Entwicklung zur Durchsicht implementiert · **Verweis:** #1066
+  Offen: Zuordnungsoberfläche und Designabnahme, Vorschau/Bestätigung des expliziten PDF-Neulesens, Ereignismarker und gedruckte Arbeitgeberbeiträge.
 
 ### RP-02a – Netto der letzten 24 Monate mit Sonderzahlungen
 - **Story:** Als Nutzer möchte ich je Monat das laufende Netto und die Sonderzahlungen getrennt, aber mit korrekter Monatssumme sehen, damit ein Bonusmonat das laufende Gehalt nicht scheinbar einbrechen lässt.
@@ -173,7 +173,7 @@ owner live acceptance is pending.
   - Randfall: Keine Einnahmen im Zeitraum: „Keine Einnahmen im Zeitraum.“; ohne erwartete Einnahmen: „Für diesen Monat sind keine Einnahmen erwartet.“
   - Randfall: Noch nicht zugeordnete Vorkommen zeigen „nicht zugeordnet“.
 - **#1159 first slice criteria:** Pending, missing, overdue, unlinked and deviating expectations remain visible at the top. Received and unplanned entries remain available in a collapsed disclosure. Empty, fully received and unavailable project expectations are distinct. Existing domain amounts, privacy masking and the OFF reader are preserved.
-- **#1159 status:** First slice ready for review, not live-accepted. Report consolidation, previous-year comparison and indented project navigation remain open; RP-05b and RP-15b retain their current readers until that continuation.
+- **#1159 status:** First slice ready for review, not live-accepted. The integrated reader and prior-year comparison continue in RP-05b.
 - **Acknowledgment continuation (#1109, P-09a):** In Plan's income detail, “Bereits erhalten” removes an unlinked occurrence from open expectations without displaying a shortfall or reducing the booked monthly result. The retained amount is a “Planwert”; no extra received income is invented. Undo restores the open expectation. Expected totals remain received household income plus genuinely open remainders.
 - **Receipt-link continuation (#1109):** Plan additionally offers a one-click explicit link to an unclaimed same-payer EUR receipt in the same month/window, with the same income type and an amount within the existing range/tolerance. Server-side revalidation and grouped Undo preserve the original receipt and received total. A stale proposal leaves the expectation open. The existing report body remains unchanged.
 - **Continuation status:** Acknowledgment wording and the bounded receipt-link continuation are ready for review after local verification; broader receipt linking, combined/payslip settlement and contact compensation expectations remain open. The existing report body is unchanged and this continuation is not live-accepted.
@@ -191,9 +191,10 @@ owner live acceptance is pending.
 - **Ergebnis:** Ich sehe das Monatsergebnis und kann jede Zahl bis zur Buchung verfolgen.
 - **Abnahmekriterien:**
   - Die Summe der Buchungen einer Zelle entspricht dem Zellwert.
-  - Cashflow je Monat stimmt mit dem Cashflow-Verlauf überein; „kumuliert“ ist die laufende Summe des monatlichen Cashflows (keine zweite Formel). Die alten Adressen /reports/cashflow führen hierher.
+  - Cashflow verwendet die Summe der Haushaltseinnahmen abzüglich aller Ausgaben, einschließlich Zukunft. Der frühere Verlauf zog nur Bedarf und Wunsch ab. „Kumuliert“ summiert die Monatswerte. Die alten Cashflow-Adressen öffnen diesen Abschnitt und erhalten den URL-Kontext.
   - Die CSV enthält dieselben Zeilen und Spalten wie die Tabelle.
   - Randfall: Eine Zelle außerhalb des Zeitraums meldet „Diese Zelle ist im Reportzeitraum nicht verfügbar.“; eine leere Zelle „Keine Buchungen in dieser Zelle.“
+- **#1159 continuation:** Redesign combines period income by type, monthly expectations, and Cashflow in one report. The development chart plots the matching full prior-year months where recorded. Open expectations come first, with received entries and the same month of the preceding year in separate disclosures. The projects entry remains indented.
 - **Status:** live · **Verweis:** 1.10
 
 ### RP-06 – Geldfluss
@@ -317,7 +318,7 @@ owner live acceptance is pending.
   - Erstattungen sind gegen ihre Kategorie gerechnet; Zukunft steht getrennt und ist kein Konsum.
   - Randfall: Für „Alles“ gibt es keinen gleich langen Vorzeitraum („Kein gleich langer Vorzeitraum verfügbar.“); ohne Monatsdaten „Noch keine Monatsdaten“.
 - **Continuation criteria (#1158):** In ON, `vergleich=vorjahr` compares with the same days one year earlier and survives reload and period changes; the default is the equally long previous period. In ON, `darstellung=kategorien` reopens the category reader after reload; selected categories and period survive switching among all three views. Existing group/payee figures and the OFF view set remain unchanged.
-- **Status:** existing body live; first consolidation slice implemented for review (#1158). Comparison mode Vorperiode/Vorjahr is delivered (address `vergleich=vorjahr`, same figures, only the comparison window differs; Empfänger is a view of the same report). The comparison section also shows the chain “Vorzeitraum + Mehr − Weniger = Jetzt” (per-category changes of the existing figures; hidden unless it adds up to the cent). Remaining: custom comparison window (needs a reader parameter) and final legacy-address consolidation. **Verweis:** 2.1
+- **Status:** existing body live; first consolidation slice implemented for review (#1158). Comparison mode Vorperiode/Vorjahr is delivered (address `vergleich=vorjahr`, same figures, only the comparison window differs; Empfänger is a view of the same report). The comparison section also shows the chain “Vorzeitraum + Mehr − Weniger = Jetzt” (per-category changes of the existing figures; hidden unless it adds up to the cent). Der eigene Vergleich akzeptiert ein Von- und ein Bis-Datum, zählt beide Tage mit und zeigt fehlende Buchungshistorie an. Die alten Kategorien- und Vergleichsadressen führen zur Ausgabenanalyse. **Verweis:** 2.1
 
 ### RP-12b – Empfänger-Analyse
 - **Story:** Als Nutzer möchte ich sehen, bei wem ich das meiste Geld lasse und wie oft ich dort zahle, damit ich Gewohnheiten und Verträge mit Händlern prüfe.
@@ -404,7 +405,8 @@ owner live acceptance is pending.
   - Randfall: Ohne größere Buchungen „Im Prognosezeitraum stehen keine größeren Buchungen an.“
 - **Status:** existing Plan flow retained; catalog cleanup implemented for review (#1156), CI and owner acceptance pending · **Verweis:** 3.1
 
-### RP-15b – Cashflow-Verlauf
+### RP-15b – Cashflow-Verlauf (legacy presentation)
+- **Redesign:** The old addresses open the Cashflow section in RP-05b. The legacy reader remains available with the redesign flag off.
 - **Story:** Als Nutzer möchte ich sehen, ob ich mehr verdiene als ich ausgebe, damit ich weiß, ob der Haushalt wirklich Überschuss erzeugt.
 - **Ausgangslage:** Mindestens ein abgeschlossener Monat.
 - **Ablauf:**
@@ -413,7 +415,7 @@ owner live acceptance is pending.
   3. Tabelle „Je Monat“ ansehen; Kapitalerträge (separat) sind eine eigene Serie.
 - **Ergebnis:** Ich kenne den Nettocashflow je Monat.
 - **Abnahmekriterien:**
-  - Der Nettocashflow entspricht Einnahmen minus Ausgaben in Einnahmen und Cashflow.
+  - Im bisherigen Verlauf ist der Nettocashflow das Haushaltseinkommen abzüglich Bedarf und Wunsch. Der integrierte Cashflow (RP-05b) zieht alle Ausgaben ab, einschließlich Zukunft.
   - Umbuchungen, Erstattungen und Kontaktrückzahlungen zählen nie als Einnahmen; Kapitalerträge stehen nicht im Netto.
   - Randfall: Ein laufender Monat ist als unvollständig gekennzeichnet; leere Monate bleiben Lücken.
 - **Status:** live · **Verweis:** 3.2
@@ -686,7 +688,7 @@ Status: implemented for review; CI and owner acceptance pending. Other reports i
   - „Summe Konsum · alle Kategorien“ stimmt mit der Ausgabenanalyse beider Zeiträume überein.
   - Kapitalerträge stehen getrennt von Einkommen und Sparquote.
   - Randfall: Die Vergleichsart steht nicht in der Adresse; Monate werden paarweise verglichen und fehlende Monate nicht erfunden.
-- **Status:** existing comparison live; integration as an Ausgaben mode with URL-selected comparison and custom periods remains open under #1158. **Verweis:** 5.5
+- **Status:** Im Redesign wählen Leser Vorperiode, Vorjahr oder eigene Tage in der Ausgabenanalyse. Die alte Adresse öffnet den letzten vollen Monat mit Vorjahresvergleich, sofern das Lesezeichen keine Zeitraumwahl enthält. Die oben beschriebenen vier Arten bleiben in der älteren Darstellung verfügbar. **Verweis:** 5.5
 
 ### RP-23b – Gesamtübersicht
 - **Story:** Als Nutzer möchte ich sehen, was Sparen und Markt zum Vermögen beigetragen haben, damit ich weiß, ob mein Fortschritt von mir oder vom Markt kommt.

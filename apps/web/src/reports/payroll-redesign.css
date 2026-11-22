@@ -20,6 +20,25 @@
   color: var(--ink-2);
   cursor: pointer;
 }
+[data-r8-detail='payroll-development'] > .mr-card + .mr-card {
+  margin-block-start: 12px;
+}
+[data-r8-detail='payroll-development'] th small {
+  font-weight: 400;
+}
+.payroll-base-period {
+  color: var(--ink-2);
+  font-size: var(--fs-meta);
+  font-weight: 400;
+  letter-spacing: normal;
+  white-space: nowrap;
+}
+.payroll-index-details > summary {
+  min-height: 44px;
+  align-content: center;
+  color: var(--ink-2);
+  cursor: pointer;
+}
 [data-budget-redesign='1'] .r9-meta {
   color: var(--ink-2);
   font-size: var(--fs-meta);

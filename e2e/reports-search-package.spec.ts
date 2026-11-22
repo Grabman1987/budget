@@ -34,7 +34,7 @@ test('everyday terms keep function routes, data kinds and global actions distinc
       redesign ? '/reports/psteuern' : '/reports/abos',
       'bankkosten',
     ],
-    ['Budgettreue', redesign ? '15 Budgettreue' : '2.2 Budgettreue', '/reports/budgettreue', ''],
+    ['Budgettreue', redesign ? '14 Budgettreue' : '2.2 Budgettreue', '/reports/budgettreue', ''],
   ]) {
     const input = await open();
     await input.fill(term!);

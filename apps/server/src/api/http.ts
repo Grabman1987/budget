@@ -1,6 +1,8 @@
 import {
   AuditError,
   AccountInvariantError,
+  BookingContactArchivedError,
+  BookingIntegrityError,
   BookingInvariantError,
   ContactLinkedError,
   CategoryRuleError,
@@ -91,6 +93,10 @@ export function errorAnswer(
   error: unknown,
   request?: { method: string; route: string },
 ): ErrorAnswer {
+  const route = request?.route.replace(/^\/api(?=\/)/, '');
+  const bookingWrite =
+    (request?.method === 'POST' && route === '/bookings') ||
+    (request?.method === 'PATCH' && route === '/bookings/:id');
   if (error instanceof ApiError) {
     return answer({ error: error.code, message: error.message, ...error.extra }, error.status);
   }
@@ -126,7 +132,7 @@ export function errorAnswer(
   if (error instanceof ContactArchivedError)
     return answer(
       { error: 'contact_archived', message: error.message, contactId: error.contactId },
-      409,
+      error instanceof BookingContactArchivedError ? 422 : 409,
     );
   if (error instanceof ContactBlockedError)
     return answer(
@@ -153,7 +159,12 @@ export function errorAnswer(
       },
       422,
     );
-  if (error instanceof BookingInvariantError) {
+  // An attempted undo can intentionally exercise a later ledger dependency. Its status
+  // remains 422; for a validated booking write an integrity failure is unexpected.
+  if (
+    error instanceof BookingInvariantError &&
+    !(bookingWrite && error instanceof BookingIntegrityError)
+  ) {
     return answer({ error: 'invariant', message: error.message }, 422);
   }
   if (error instanceof ContactAllocationError) {
@@ -201,7 +212,15 @@ export function errorAnswer(
     return answer({ error: 'category_rule', message: error.message }, 422);
   if (error instanceof RangeError) return answer({ error: 'invalid', message: error.message }, 400);
   if (isSqliteConstraint(error)) {
-    return answer({ error: 'constraint', message: 'The data violates a rule of the ledger' }, 422);
+    return answer(
+      {
+        error: 'constraint',
+        message: bookingWrite
+          ? 'Die Buchung verletzt eine Buchungsregel. Bitte die Angaben prüfen.'
+          : 'The data violates a rule of the ledger',
+      },
+      422,
+    );
   }
   const errorId = logUnhandledError(error, request);
   return answer(

@@ -1,5 +1,5 @@
 import { ReportBodyDisclosure } from './report-body-disclosure';
-import { cents } from '@budget/domain';
+import { addMonths, cents } from '@budget/domain';
 import { useAmountPrivacy } from '@budget/ui';
 import type { ReactNode } from 'react';
 import { ReportProjectScopeNote } from './report-project-scope';
@@ -19,7 +19,13 @@ import { EmptyNote, ErrorNote, LoadingNote } from '../ledger/states';
 import type { PageMeta } from '../nav/pages';
 import type { ReportEntry } from '../nav/reports-catalog';
 import { incomeReportQuery, type IncomeReportData } from './month-api';
-import { MonthReportFrame, monthTitle, shortMonth, useReportMonth } from './month-frame';
+import {
+  MonthControl,
+  MonthReportFrame,
+  monthTitle,
+  shortMonth,
+  useReportMonth,
+} from './month-frame';
 import { StackedMonthsChart, monthWithYear, type MonthSeries } from './month-charts';
 
 /** Fill class and name per income type (ink steps; hatching is reserved for the classes). */
@@ -129,7 +135,13 @@ export function IncomeReport({
   );
 }
 
-function IncomeBody({ data }: { data: IncomeReportData }) {
+function IncomeBody({
+  data,
+  showExpectations = true,
+}: {
+  data: IncomeReportData;
+  showExpectations?: boolean;
+}) {
   useAmountPrivacy();
   const { income, expected, window } = data;
   const parts = eurParts(income.earnedCents);
@@ -146,7 +158,7 @@ function IncomeBody({ data }: { data: IncomeReportData }) {
   )}: ${eur(income.earnedCents)} im gewählten Monat.`;
   return (
     <>
-      {REDESIGN_ENABLED && <IncomeExpectations data={data} />}
+      {showExpectations && REDESIGN_ENABLED && <IncomeExpectations data={data} />}
       <section className="mr-card" aria-labelledby="inc-title">
         <div className="tbd-head">
           <h2 id="inc-title">Einnahmen {title}</h2>
@@ -234,7 +246,7 @@ function IncomeBody({ data }: { data: IncomeReportData }) {
         </section>
       )}
 
-      {!REDESIGN_ENABLED && <IncomeExpectations data={data} />}
+      {showExpectations && !REDESIGN_ENABLED && <IncomeExpectations data={data} />}
       <ReportBodyDisclosure id="income-types" label="Einnahmen nach Art und Monat">
         <section className="mr-card mr-wide" aria-labelledby="inc-type-title">
           <div className="tbd-head">
@@ -353,11 +365,19 @@ function CapitalSection({ data }: { data: IncomeReportData }) {
 /** Presentation only: unresolved domain statuses stay visible; no receipt is inferred. */
 export function IncomeExpectations({
   data,
+  controls,
+  comparison,
+  fallback,
 }: {
-  data: Pick<IncomeReportData, 'expected' | 'expectedMaterialised' | 'foreignCurrencyCount'>;
+  data?:
+    | Pick<IncomeReportData, 'expected' | 'expectedMaterialised' | 'foreignCurrencyCount'>
+    | undefined;
+  controls?: ReactNode;
+  comparison?: ReactNode;
+  fallback?: ReactNode;
 }) {
   useAmountPrivacy();
-  const { expected } = data;
+  const expected = data?.expected ?? null;
   const open =
     expected?.lines.filter(
       (line) => !REDESIGN_ENABLED || (line.status !== 'ok' && line.status !== 'unplanned'),
@@ -367,9 +387,14 @@ export function IncomeExpectations({
   return (
     <section className="mr-card" aria-labelledby="inc-exp-title">
       <div className="tbd-head">
-        <h2 id="inc-exp-title">Erwartet gegen eingegangen</h2>
+        <h2 id="inc-exp-title" tabIndex={REDESIGN_ENABLED ? -1 : undefined}>
+          Erwartet gegen eingegangen
+        </h2>
+        {controls}
       </div>
-      {expected === null ? (
+      {!data ? (
+        fallback
+      ) : expected === null ? (
         <p className="vnote">
           Erwartete Zahlungen sind keinem Projekt zugeordnet. Für diesen Projektfilter sind
           Erwartungswerte und Fehlend-Status daher nicht verfügbar; tatsächliche Einnahmen bleiben
@@ -394,6 +419,7 @@ export function IncomeExpectations({
               <ExpectedIncomeTable lines={received} />
             </ReportBodyDisclosure>
           )}
+          {comparison}
           <p className="vnote">
             {data.expectedMaterialised
               ? 'Wiederkehrende Zahlungen ordnet der Nachtlauf automatisch zu; Abweichungen landen unter Prüfen.'
@@ -408,7 +434,98 @@ export function IncomeExpectations({
   );
 }
 
+/** Monthly expectations keep their existing income source inside the period report. */
+export function IntegratedIncomeExpectations({
+  month,
+  currentMonth,
+  firstMonth,
+  projectId,
+  setMonth,
+}: {
+  month: string;
+  currentMonth: string;
+  firstMonth: string;
+  projectId?: string | undefined;
+  setMonth: (month: string) => void;
+}) {
+  const query = useQuery(incomeReportQuery(month, projectId));
+  const data = query.isSuccess && (!projectId || !query.isFetching) ? query.data : undefined;
+  const previousMonth = addMonths(month, -12);
+  const hasPrevious = !projectId && previousMonth >= firstMonth;
+  const previous = useQuery({ ...incomeReportQuery(previousMonth), enabled: hasPrevious });
+  const controls = (
+    <MonthControl
+      month={month}
+      shift={(by) => setMonth(addMonths(month, by))}
+      current={currentMonth}
+      firstMonth={firstMonth}
+    />
+  );
+  const comparison = hasPrevious && (
+    <ReportBodyDisclosure
+      id="income-previous-year"
+      label={`Vorjahr · ${shortMonth(previousMonth)}`}
+    >
+      {previous.isPending ? (
+        <LoadingNote what="Erwartete Einnahmen im Vorjahr" />
+      ) : previous.isError ? (
+        <ErrorNote
+          what="Erwartete Einnahmen im Vorjahr"
+          error={previous.error}
+          onRetry={() => void previous.refetch()}
+        />
+      ) : previous.data.expected?.lines.length ? (
+        <>
+          <ExpectedIncomeTable lines={previous.data.expected.lines} />
+          {!previous.data.expectedMaterialised && (
+            <p className="vnote">
+              Die Erwartungen im Vorjahr stammen aus dem Zahlungsplan. Für diesen Monat liegt keine
+              Zuordnung vor.
+            </p>
+          )}
+        </>
+      ) : (
+        <p className="vnote">
+          Für diesen Vorjahresmonat sind keine erwarteten oder eingegangenen Einnahmen erfasst.
+        </p>
+      )}
+    </ReportBodyDisclosure>
+  );
+  const loaded = data && !data.beforeRecords ? data : undefined;
+  return (
+    <div className="mrep income-report" data-testid="income-expectations-integrated">
+      <IncomeExpectations
+        data={loaded}
+        controls={controls}
+        comparison={comparison}
+        fallback={
+          query.isError ? (
+            <ErrorNote
+              what="Erwartete Einnahmen"
+              error={query.error}
+              onRetry={() => void query.refetch()}
+            />
+          ) : query.isPending || (projectId && query.isFetching) ? (
+            <LoadingNote what="Erwartete Einnahmen" />
+          ) : (
+            <EmptyNote>Für diesen Monat gibt es keine Aufzeichnungen.</EmptyNote>
+          )
+        }
+      />
+      {loaded && (
+        <ReportBodyDisclosure
+          id="income-month-facts"
+          label="Einnahmen des gewählten Monats und Verlauf"
+        >
+          <IncomeBody data={loaded} showExpectations={false} />
+        </ReportBodyDisclosure>
+      )}
+    </div>
+  );
+}
+
 function ExpectedIncomeTable({ lines }: { lines: ExpectedIncomeLine[] }) {
+  useAmountPrivacy();
   return (
     <div
       className="mr-scroll"

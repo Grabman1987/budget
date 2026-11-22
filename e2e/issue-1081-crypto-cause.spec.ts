@@ -94,10 +94,10 @@ test('crypto warning exposes stored cause, exact unit trace and missing funding 
   await withShellControls(page, async ({ privacy }) => {
     await privacy.click();
   });
+  await expect(detail.getByText('Rohdaten und Zuordnung anzeigen')).toHaveCount(0);
   await expect(detail).not.toContainText('0,00000008');
   await expect(detail).not.toContainText('0,00000006');
   await expect(detail).not.toContainText('12,34');
-  await detail.getByText('Rohdaten und Zuordnung anzeigen').click();
   await expect(detail.locator('pre')).toHaveCount(0);
   await expect(detail).toContainText('Beträge sind ausgeblendet');
 });
