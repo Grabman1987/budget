@@ -745,7 +745,7 @@
   outline-offset: -2px;
 }
 .bank-editable-row .bank-suggestion-pill {
-  min-height: 44px;
+  min-height: var(--touch);
   text-align: start;
   background: transparent;
   font-family: inherit;
@@ -961,7 +961,9 @@
     display: flex;
     flex-wrap: wrap;
     align-items: start;
-    gap: var(--space-sm);
+    gap: var(--space-xs) var(--space-sm);
+    padding-block: var(--space-sm);
+    border-width: var(--stroke-hairline);
   }
   .kinbox-v1
     .bank-v1-table
@@ -981,6 +983,7 @@
     order: 2;
     display: flex;
     flex-wrap: wrap;
+    align-items: baseline;
     gap: 0 var(--space-xs);
     flex-basis: 100%;
     min-width: 0;
@@ -988,24 +991,33 @@
     color: var(--ink-2);
     font-size: var(--fs-label);
   }
+  .bank-editable-row .bank-v1-meta > :is(span, small) {
+    margin: 0;
+    font-size: inherit;
+    line-height: inherit;
+  }
+  .bank-editable-row .bank-v1-meta small {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
   .bank-editable-row :is(.bank-suggestion-pill, .bank-row-editor) {
     order: 3;
     max-width: 100%;
   }
   .kinbox-v1 .bank-v1-table .bank-editable-row .bank-v1-action {
     order: 4;
-    flex: 1 0 calc(100% - 52px);
+    flex: 1 0 calc(100% - var(--touch) - var(--space-sm));
   }
   .kinbox-v1 .bank-editable-row .inbox-row-actions {
     justify-content: flex-end;
     gap: var(--space-sm);
   }
   .bank-editable-row .kstatus-btn {
-    min-width: 44px;
-    min-height: 44px;
+    min-width: var(--touch);
+    min-height: var(--touch);
   }
   .kinbox-v1 .bank-v1-table .bank-editable-row .bank-v1-more {
     order: 5;
-    flex: 0 0 44px;
+    flex: 0 0 var(--touch);
   }
 }

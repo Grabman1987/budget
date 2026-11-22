@@ -1,3 +1,4 @@
+import { bankTransitReconciliation } from './bank-transfer-transit';
 import {
   addDays,
   cashflowWindow,
@@ -198,6 +199,11 @@ export function wholePicture(db: Executor, today: string, period: Period = '1J')
       otherCents: sum('otherCents'),
     };
     return {
+      cashReconciliation: bankTransitReconciliation(
+        db,
+        to,
+        accounts.map((a) => a.id),
+      ),
       period,
       asOf: to,
       today,

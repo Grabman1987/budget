@@ -69,6 +69,30 @@ it.each(baseline.responses)(
       expect(payload).toHaveProperty('accountLiquidity');
       delete payload.accountLiquidity;
       body = Buffer.from(JSON.stringify(payload));
+    } else if (
+      path === '/portfolio?period=1J' ||
+      path === '/portfolio/depots' ||
+      path.startsWith('/overview/whole-picture?')
+    ) {
+      const payload = JSON.parse(body.toString('utf8'));
+      const report =
+        path === '/portfolio?period=1J'
+          ? payload.portfolio
+          : path === '/portfolio/depots'
+            ? payload.depots
+            : payload;
+      const reconciliation = report.cashReconciliation;
+      expect(reconciliation).toMatchObject({
+        label: 'Geld unterwegs',
+        asOf: report.asOf,
+        transitCents: 0,
+        missingFxAccountIds: [],
+      });
+      expect(Number.isSafeInteger(reconciliation.rawCashCents)).toBe(true);
+      expect(reconciliation.cashIncludingTransitCents).toBe(reconciliation.rawCashCents);
+      // #1195 adds this read-only bridge. Retain the original digest for all other bytes.
+      delete report.cashReconciliation;
+      body = Buffer.from(JSON.stringify(payload));
     }
     expect(`${body.length}:${createHash('sha256').update(body).digest('hex')}`).toBe(digest);
   },

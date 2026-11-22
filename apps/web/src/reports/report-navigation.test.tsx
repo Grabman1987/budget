@@ -2,6 +2,9 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { ReportNavigation, adjacentReports } from './report-navigation';
+// The redesigned catalog has its own navigation suite and order.
+vi.mock('../shell/redesign-flag', () => ({ REDESIGN_ENABLED: false }));
+
 const canonical = [
   'einnahmen-ausgaben',
   'ausgaben',

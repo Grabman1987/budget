@@ -47,6 +47,7 @@ describe('yearInvestments (Jahresreport)', () => {
       gainCents: report.gainCents,
       ttwror: report.ttwror,
       moneyWeighted: report.moneyWeighted,
+      xirr: report.xirr,
     });
     expect(year.performance!.gainCents).toBe(
       year.performance!.endValueCents -
@@ -54,6 +55,7 @@ describe('yearInvestments (Jahresreport)', () => {
         year.performance!.contributionsCents,
     );
     expect(year.performance!.ttwror).not.toBeNull();
+    expect(year.performance!.xirr).not.toBeNull();
   });
 
   it('takes income, fees and taxes of the months from the Vermögen helpers', () => {
@@ -210,5 +212,55 @@ describe('yearReportRead slice 2', () => {
       expect.objectContaining({ name: 'Gehalt', cents: 300_000 }),
     ]);
     expect(read.debt).toEqual({ startCents: 0, endCents: 0 });
+  });
+});
+
+it('splits signed sale results and compares complete position closures for aligned months', () => {
+  opened.sqlite.exec(`
+    UPDATE account SET opening_date = '2025-01-01' WHERE id = 'depot-a';
+    INSERT INTO security (id, name, kind, currency) VALUES ('prior', 'Synthetic prior', 'stock', 'EUR');
+    INSERT INTO trade (id, security_id, account_id, date, kind, units_e8, amount_cents, fee_cents, tax_cents) VALUES
+      ('prior-buy', 'prior', 'depot-a', '2025-07-01', 'buy', 100000000, 1000, 0, 0),
+      ('prior-sell', 'prior', 'depot-a', '2025-08-31', 'sell', -100000000, 1750, 0, 0),
+      ('prior-outside-buy', 'prior', 'depot-a', '2025-09-01', 'buy', 100000000, 1500, 0, 0),
+      ('prior-outside-loss', 'prior', 'depot-a', '2025-09-02', 'sell', -100000000, 1000, 0, 0),
+      ('close-div', 'div', 'depot-a', '2026-08-31', 'sell', -1500000000, 60000, 0, 0),
+      ('close-coin', 'coin', 'depot-b', '2026-08-31', 'sell', -1008000000, 80000, 0, 0);
+  `);
+  const before = opened.sqlite.serialize();
+  const { trading } = yearInvestments(opened.db, MONTHS)!;
+  expect(opened.sqlite.serialize()).toEqual(before);
+  expect(trading.results).toEqual({
+    gainsCents: 23000,
+    lossesCents: -7500,
+    salesComplete: true,
+    closedCount: 2,
+    profitableCount: 1,
+    closuresComplete: true,
+    hitRateBp: 5000,
+  });
+  expect(trading.previousResults).toEqual({
+    gainsCents: 750,
+    lossesCents: 0,
+    salesComplete: true,
+    closedCount: 1,
+    profitableCount: 1,
+    closuresComplete: true,
+    hitRateBp: 10000,
+  });
+  expect(trading.realizedGainCents).toBe(15500);
+});
+
+it('keeps an unknown basis out of a closed-position hit rate', () => {
+  opened.sqlite.exec(`
+    UPDATE holding SET cost_basis_cents = NULL WHERE id = 'h-div';
+    UPDATE trade SET units_e8 = -2000000000 WHERE id = 'sell-1';
+  `);
+  expect(yearInvestments(opened.db, MONTHS)?.trading.results).toMatchObject({
+    salesComplete: false,
+    closedCount: 1,
+    profitableCount: 0,
+    closuresComplete: false,
+    hitRateBp: null,
   });
 });

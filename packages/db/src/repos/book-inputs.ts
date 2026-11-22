@@ -1,3 +1,4 @@
+import { bankTransitReconciliation } from './bank-transfer-transit';
 import {
   addMonths,
   addDays,
@@ -65,7 +66,7 @@ export function bookInputs(
   ref: string,
   nw: NetWorth,
   preview = false,
-): BookRuleInputs {
+): BookRuleInputs & { cashReconciliation: ReturnType<typeof bankTransitReconciliation> } {
   const db = f.db;
   const accounts = f.accounts.filter((a) => a.openingDate <= asOf);
   const investment = new Set(accounts.filter((a) => a.role === 'investment').map((a) => a.id));
@@ -270,6 +271,7 @@ export function bookInputs(
       .map((r) => ({ month: r.month, cents: r.amountCents })),
     birthMonth: settings.birthMonth || null,
     netWorthCents: nw.totalCents,
+    cashReconciliation: bankTransitReconciliation(db, asOf, [...inside]),
     sideIncome: incomeOf(INCOME_TYPES.side.id),
     capitalIncome: incomeOf(INCOME_TYPES.capital.id),
     assignments,

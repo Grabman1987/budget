@@ -1,3 +1,4 @@
+import { bankTransitReconciliation } from './bank-transfer-transit';
 import {
   allocationQuality,
   defaultAllocationIncluded,
@@ -216,6 +217,7 @@ export function allocationInputsAsOf(db: Executor, asOf: string) {
     quality,
     unavailable,
     exposureEvidence,
+    cashReconciliation: bankTransitReconciliation(db, asOf, [...accounts.keys()]),
     valueCents:
       quality.valuationQuality === 'incomplete'
         ? null

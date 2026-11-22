@@ -1,3 +1,4 @@
+import { bankTransitReconciliation } from '../../../../packages/db/src/repos/bank-transfer-transit';
 /* eslint-disable @typescript-eslint/no-explicit-any -- task answers are asserted as plain JSON */
 import {
   account,
@@ -142,6 +143,15 @@ describe('stage, dry run, commit', () => {
     const settled = live(trade).filter((t) => t.bookingId !== null).length;
     expect(settled).toBeGreaterThan(0);
     const report = body['report'];
+    expect(report.cashReconciliation).toEqual(
+      bankTransitReconciliation(
+        db,
+        TODAY,
+        apps.map((a) => a.id),
+      ),
+    );
+    expect(report.cashReconciliation.label).toBe('Geld unterwegs');
+    expect(report.cashReconciliation.transitCents).toBe(0);
     expect(report.differences.positionUnits).toBe(0);
     expect(report.differences.positionValues).toBe(0);
     expect(report.differences.positionCosts).toBe(0);

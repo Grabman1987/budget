@@ -1,3 +1,4 @@
+import { bankTransitReconciliation } from '../../../../packages/db/src/repos/bank-transfer-transit';
 import {
   account,
   booking,
@@ -215,6 +216,7 @@ export interface DepotPerformance {
 }
 
 export interface Gate3Report {
+  cashReconciliation: ReturnType<typeof bankTransitReconciliation>;
   asOf: string;
   costMethod: CostMethod;
   days: string[];
@@ -485,6 +487,7 @@ export function gate3Report(db: Executor, input: Gate3Input): Gate3Report {
       appSecurities: appSecurities.size,
     },
     accounts: accountLines,
+    cashReconciliation: bankTransitReconciliation(db, today, [...targetIds]),
     platforms: platformLines,
     flowMatches: matches,
     positions: positionLines,

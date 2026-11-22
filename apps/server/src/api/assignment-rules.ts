@@ -88,6 +88,7 @@ export const bankConfirmSchema = z
     payeeId: z.string().min(1).max(100).nullable().optional(),
     ruleId: z.string().min(1).max(100).optional(),
     revision: z.string().length(64).optional(),
+    verifyNewTransfer: z.boolean().optional(),
     candidateRevision: z.string().length(64).optional(),
     actions: assignmentActionsSchema.optional(),
     // Optional "Alle Felder" additions (#1048). Omitted fields keep the previous behavior.

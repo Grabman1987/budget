@@ -2,6 +2,7 @@ import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { and, eq, gt, gte, isNull, lte, or, sql } from 'drizzle-orm';
 import {
   bookedBalance,
+  candidateMatches,
   ConflictError,
   createBooking,
   assignmentPatch,
@@ -38,6 +39,7 @@ import {
   bankFetchFrom,
   addDays,
   BANK_AUTO_LINK_DAYS,
+  BANK_MATCH_DAYS,
   type BankLineMatch,
   matchBankLines,
   cents,
@@ -64,7 +66,10 @@ const {
 const MAX_CONSENT_SECONDS = 15_552_000;
 /** ISO 4217 "no currency": a multi-currency account (e.g. PayPal); each line carries its own. */
 const MULTI_CURRENCY = 'XXX';
-const AMBIGUOUS_NOTE = ' · Mehrere passende vorhandene Buchungen, bitte eine auswählen';
+const AMBIGUOUS_NOTE = ' · Mehrdeutige Zuordnung, bitte eine Buchung auswählen';
+const LEGACY_AMBIGUOUS_NOTE = ' · Mehrere passende vorhandene Buchungen, bitte eine auswählen';
+const needsAmbiguousReview = (detail: string | null) =>
+  detail?.endsWith(AMBIGUOUS_NOTE) || detail?.endsWith(LEGACY_AMBIGUOUS_NOTE);
 const hash = (value: string) => createHash('sha256').update(value).digest('hex');
 const system = { actor: 'bank-sync' };
 // Standalone protocol/status writes need the same atomic row+audit contract as grouped ledger writes.
@@ -107,10 +112,16 @@ export class BankSync {
    * Ambiguity leaves the line open in the inbox for the owner. Separates the replayable ledger
    * audit from the irreversible provider protocol history.
    */
-  private postBooked(tx: Executor, ids: readonly string[], sourceId: string) {
-    // Without the opt-in a line is still tied to a booking that already exists, but never posted.
-    const post = this.bookedToLedger(tx, sourceId);
-    const ctx = withGroup(system);
+  private postBooked(
+    tx: Executor,
+    ids: readonly string[],
+    sourceId: string,
+    options: { audit?: { actor: string; groupId: string }; maxBookings?: number } = {},
+  ) {
+    // An explicit operator replay overrides the connection policy, never the matching rules.
+    const post = options.audit !== undefined || this.bookedToLedger(tx, sourceId);
+    const ctx = withGroup(options.audit ?? system);
+    let created = 0;
     const resolve = (id: string, resolution: string) =>
       updateTracked(
         tx,
@@ -163,22 +174,24 @@ export class BankSync {
     }
     for (const row of fresh) {
       const match = matches.get(row.id) ?? { kind: 'none' as const };
+      const item = tx.select().from(inboxItem).where(eq(inboxItem.id, row.id)).get()!;
+      const needsReview = needsAmbiguousReview(item.detail);
+      // A later sync cannot resolve a previously ambiguous claim on the owner's behalf.
+      if (needsReview) continue;
       if (match.kind === 'linked') {
         linked.add(row.id);
         linkBankReference(tx, match.bookingId, row, ctx);
         resolve(row.id, 'Mit vorhandener Buchung verknüpft: ' + match.bookingId);
       } else if (match.kind === 'ambiguous') {
         // Stays open: the owner picks the booking (inbox: "Passende Buchung").
-        const item = tx.select().from(inboxItem).where(eq(inboxItem.id, row.id)).get()!;
-        if (!(item.detail ?? '').endsWith(AMBIGUOUS_NOTE))
-          updateTracked(
-            tx,
-            inboxItem,
-            [row.id],
-            { detail: (item.detail ?? '') + AMBIGUOUS_NOTE },
-            ctx,
-          );
-      } else if (post) {
+        updateTracked(
+          tx,
+          inboxItem,
+          [row.id],
+          { detail: (item.detail ?? '') + AMBIGUOUS_NOTE },
+          ctx,
+        );
+      } else if (post && created < (options.maxBookings ?? Infinity)) {
         const result = importBooking(
           tx,
           {
@@ -187,6 +200,9 @@ export class BankSync {
             amountCents: row.amountCents,
             currency: row.currency,
             memo: row.memo,
+            bankRawText: row.memo,
+            bankRawPayee: row.rawPayee,
+            bankSourceId: row.sourceId,
             source: 'bank',
             importKey: 'bank-sync:' + row.dedupeKey,
             status: 'pending',
@@ -195,11 +211,91 @@ export class BankSync {
           },
           ctx,
         );
+        if (result.created) created++;
         // The unchecked booking is itself the open task (inbox booking row with confirm / merge).
         resolve(row.id, 'Als ungeprüfte Buchung angelegt, bitte prüfen: ' + result.id);
       }
     }
     return linked;
+  }
+
+  /** Operator-only recovery of old BOOK candidates; never contacts the provider or changes policy. */
+  postExistingBooked(options: { apply?: boolean; maxBookings?: number; sourceId?: string } = {}) {
+    const maxBookings = options.maxBookings ?? 25;
+    if (!Number.isSafeInteger(maxBookings) || maxBookings < 1)
+      throw new Error('--max-bookings must be a positive safe integer');
+    if (writesHeld(this.db))
+      throw new ConflictError('Schreibzugriffe sind vorübergehend gesperrt.');
+    const ctx = withGroup({ actor: 'operator' });
+    type Result = {
+      created: number;
+      linked: number;
+      resolved: number;
+      remaining: number;
+      groupId: string;
+    };
+    class DryRun extends Error {
+      constructor(readonly result: Result) {
+        super('dry run');
+      }
+    }
+    try {
+      return this.db.transaction((tx) => {
+        if (options.sourceId && !tx.select().from(link).where(eq(link.id, options.sourceId)).get())
+          throw new EntityNotFoundError('bank_sync_account', options.sourceId);
+        const rows = tx
+          .select({ row: candidate, leaseUntil: consent.leaseUntil })
+          .from(candidate)
+          .innerJoin(inboxItem, eq(inboxItem.id, candidate.id))
+          .innerJoin(account, eq(account.id, candidate.accountId))
+          .innerJoin(
+            link,
+            and(eq(link.id, candidate.sourceId), eq(link.accountId, candidate.accountId)),
+          )
+          .innerJoin(consent, eq(consent.id, link.consentId))
+          .where(
+            and(
+              eq(candidate.bankStatus, 'booked'),
+              eq(candidate.currency, account.currency),
+              eq(inboxItem.refType, 'bank-sync-candidate'),
+              eq(inboxItem.refId, candidate.id),
+              isNull(inboxItem.resolvedAt),
+              isNull(account.deletedAt),
+              isNull(account.closedAt),
+              ...(options.sourceId ? [eq(candidate.sourceId, options.sourceId)] : []),
+            ),
+          )
+          .orderBy(candidate.date, candidate.id)
+          .all();
+        if (rows.some((r) => r.leaseUntil && r.leaseUntil > this.clock().toISOString()))
+          throw new ConflictError('Der Abruf läuft noch.');
+        const ids = rows.map((r) => r.row.id);
+        const linked = this.postBooked(tx, ids, '', { audit: ctx, maxBookings });
+        const audit = tx
+          .select()
+          .from(schema.auditLog)
+          .where(eq(schema.auditLog.groupId, ctx.groupId))
+          .all();
+        const created = audit.filter(
+          (a) => a.entityType === 'booking' && a.action === 'create',
+        ).length;
+        const remaining = ids.filter(
+          (id) => !tx.select().from(inboxItem).where(eq(inboxItem.id, id)).get()?.resolvedAt,
+        ).length;
+        const result: Result = {
+          created,
+          linked: linked.size,
+          resolved: ids.length - remaining,
+          remaining,
+          groupId: audit.length ? ctx.groupId : '',
+        };
+        if (!options.apply) throw new DryRun({ ...result, groupId: '' });
+        return result;
+      });
+    } catch (error) {
+      if (error instanceof DryRun) return error.result;
+      throw error;
+    }
   }
 
   /**
@@ -345,7 +441,7 @@ export class BankSync {
       createEntity(
         tx,
         schema.appSetting,
-        { id: 'bank.booked_to_ledger:' + id, value: 'false' },
+        { id: 'bank.booked_to_ledger:' + id, value: 'true' },
         ctx,
       );
     });
@@ -825,7 +921,12 @@ export class BankSync {
                         tx,
                         inboxItem,
                         [existing.id],
-                        { title: 'Bankumsatz geändert – prüfen', detail },
+                        {
+                          title: 'Bankumsatz geändert – prüfen',
+                          detail: needsAmbiguousReview(item.detail)
+                            ? detail + AMBIGUOUS_NOTE
+                            : detail,
+                        },
                         ctx,
                       );
                     }
@@ -1090,6 +1191,7 @@ export class BankSync {
       ruleId?: string | undefined;
       revision?: string | undefined;
       candidateRevision?: string | undefined;
+      verifyNewTransfer?: boolean | undefined;
       actions?: AssignmentActions | undefined;
       memo?: string | null | undefined;
       projectId?: string | null | undefined;
@@ -1167,6 +1269,27 @@ export class BankSync {
             payeeId: options.payeeId === undefined ? review.cleanup.payeeId : options.payeeId,
           },
       );
+      if (options.verifyNewTransfer && actions.transferAccountId) {
+        const matches = candidateMatches(tx, id);
+        const counterpart = tx
+          .select({ id: booking.id })
+          .from(booking)
+          .where(
+            and(
+              eq(booking.accountId, actions.transferAccountId),
+              gte(booking.date, addDays(row.date, -BANK_MATCH_DAYS)),
+              lte(booking.date, addDays(row.date, BANK_MATCH_DAYS)),
+              eq(booking.amountCents, -row.amountCents),
+              eq(booking.currency, row.currency),
+              isNull(booking.deletedAt),
+            ),
+          )
+          .get();
+        if (counterpart || matches.merge.length || matches.link.length)
+          throw new ConflictError(
+            'Eine passende Buchung besteht bereits. Bitte im Formular prüfen.',
+          );
+      }
       const assigned = assignmentPatch(row.amountCents, actions);
       if (actions.accountId && actions.accountId !== row.accountId)
         throw new ConflictError('Das Bankkonto bleibt an seine Datenquelle gebunden.');

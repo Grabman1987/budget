@@ -221,3 +221,62 @@ Four columns, gross open shares, separate credit, unchanged domain balances and
 repayment returns it to the original category; no extra advance or net-worth charge.
 See [RP-21b](user-stories/06-reports.md#rp-21b--kontakte-abrechnung).
 Status: implemented for review; owner acceptance pending. No other report is migrated.
+
+## Transit reconciliation (#1195, audit rests 1 and 2)
+
+Allocation, portfolio summary, depot comparison and whole picture show a read-only
+**Geld unterwegs** cash bridge: raw bank cash, the signed transit difference, and
+cash including transit, with the as-of day and explicit account count.
+The rendered line appears for nonzero transit or unavailable valuation; an exact
+zero keeps the existing compact page. The reader still returns the full bridge.
+Allocation uses its selected universe; summary uses requested reference accounts (otherwise
+investment accounts), depot comparison uses investment accounts, and whole picture
+uses all live household accounts at the selected period end. A subset never claims
+to be household net worth. PP comparison and book inputs expose the same labelled
+bridge for their target/reference universe. Missing FX withholds the bridge.
+Security values, manual valuations and decision denominators keep their existing
+definitions; the line reconciles cash only. Bookings, allocations, trades, raw
+balances, performance and net worth remain unchanged.
+
+Independent-date transit supports whole equal-amount, same-currency transfers
+between **checking/savings** accounts, with existing opening-date and five-day
+guards. Brokerage, crypto and P2P eligibility needs an owner policy decision;
+this slice neither broadens eligibility nor invents settlement rules. Cash/bank
+transfers retain their separate contract. Deleting through either single leg
+deletes the connected pair; Undo restores both original legs and redo deletes both.
+
+Evidence: `transit-readers-1195.test.ts` covers days 0–4, reversed dates, selected
+scope, missing FX, unchanged snapshots and single-leg delete/Undo/redo.
+`invest.test.ts` pins literal German update/delete/restore refusal messages.
+`issue-1195-transit.spec.ts` covers four rendered readers, raw cash versus net
+worth, privacy, themes and responsive layout. Status: prepared for review;
+publication and owner acceptance pending. #1195 stays open for the account-type
+decision. Already-delivered items 3/4 remain unchanged.
+## Bank posting and observed balance (#1267)
+
+New bank connections follow SPEC decision 41: fetched BOOK lines without a match
+become unchecked, uncategorized register bookings and count in the existing account
+balance. PDNG stays in review. An explicit confirmation-first connection policy
+remains supported. Matching, source identity, tombstones and grouped Undo remain.
+The account register head shows the stored bank observation and fetch time; a
+nonzero difference to the current app balance links to Prüfen. Privacy mode masks
+both amounts. This information never creates an adjustment or changes a balance
+formula. The operator-only recovery of older BOOK candidates is documented in
+`docs/ops.md`; it defaults to dry-run and is not a migration.
+Status: implementation for review; production recovery and owner acceptance pending.
+## Reports: calendar-year costs (#1160)
+
+In Reports › Portfolio › Kosten und Steuern › Kosten gesamt, select a calendar year to see the shared reporting dates, full cost breakdown, closing-value cost ratio and estimate labels. The year stays in the URL, and the report lists all years newest first with partial coverage marked. Turning on amount privacy hides all amounts and ratios.
+## Reports: investment return in the Jahresreport (#1118)
+
+The Investments section displays the same annualised XIRR as the securities performance report for the included months. If the dated cash flows do not yield a rate, the report explains why the figure is unavailable. The existing amount privacy toggle hides the rate.
+The trading section shows realised gains and signed losses from the shared sale results, including fees and taxes. A position counts as closed when its account position returns to zero through a sale. The hit rate is the share of those closed positions that produced a positive result, including earlier partial sales. Results compare the same calendar months of the previous year. Figures without a documented basis are marked unavailable.
+## Heute: direct guided distribution (#1055)
+
+When „Zu verteilen“ is positive or over-assigned, „Verteilen“ under „Als Nächstes“ opens the same guided flow as Plan for the selected month. At zero the action is absent. The link opens the flow without writing an assignment.
+## Prüfen: recurring bank transfers (#1266)
+
+A matching transfer rule or two consecutive confirmed bank occurrences to the same own account prefill the destination. The row displays a single transfer choice. The owner confirms it explicitly, and the existing transfer path uses an eligible counterpart and records the action as one Undo group.
+## Prüfen: ambiguous bank matches (#516)
+
+A bank line only links automatically if it has one eligible booking and is that booking’s only bank-line claim. All other matches stay open for manual review. The default suggestion uses the latest known confirmation, then closest booking date and stable identity. The owner sees the number of alternatives and confirms or changes the selection.

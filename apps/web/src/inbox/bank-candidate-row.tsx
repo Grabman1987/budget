@@ -20,7 +20,12 @@ import type { InboxStored } from './api';
 import { BankCandidate, type PreparedBankSuggestion } from './bank-candidate';
 import { bankRowMissing } from './bank-row-model';
 
-type Match = { id: string; accountName: string; date: string };
+type Match = {
+  id: string;
+  accountId?: string;
+  accountName: string;
+  date: string;
+};
 type Matches = { merge: Match[]; link?: Match[]; transfers: Match[] };
 type Draft = {
   payeeId?: string | undefined;
@@ -97,7 +102,10 @@ export const BankCandidateRow = memo(function BankCandidateRow({
   const data = (active ? review.data : undefined) ?? preparation?.assignment;
   const matchData = (active ? matches.data : undefined) ?? preparation?.matches;
   const suggestions = data?.suggestions ?? [];
-  const first = suggestions.find((suggestion) => !suggestion.unavailable);
+  const availableRules = suggestions.filter((suggestion) => !suggestion.unavailable);
+  const transferRules = availableRules.filter((suggestion) => suggestion.actions.transferAccountId);
+  const transferTargets = new Set(transferRules.map((entry) => entry.actions.transferAccountId));
+  const first = transferTargets.size === 1 ? transferRules[0] : availableRules[0];
   const ruleId = draft?.ruleId === undefined ? first?.id : draft.ruleId;
   const rule = suggestions.find((suggestion) => suggestion.id === ruleId);
   const targets = useMemo(
@@ -111,11 +119,18 @@ export const BankCandidateRow = memo(function BankCandidateRow({
     ],
     [matchData],
   );
-  const target = targets.find((match) => `${match.action}:${match.id}` === draft?.target);
   const payeeId = draft?.payeeId ?? rule?.actions.payeeId ?? data?.cleanup.payeeId ?? '';
   const payee = payees.data?.payees.find((payee) => payee.id === payeeId);
+  const transferId =
+    rule?.actions.transferAccountId ??
+    (!rule && !draft && transferTargets.size === 0 ? data?.recurringTransferAccountId : undefined);
   const needsHistory =
-    active && payees.isSuccess && Boolean(payeeId) && !payee?.defaultCategoryId && !rule;
+    !transferId &&
+    active &&
+    payees.isSuccess &&
+    Boolean(payeeId) &&
+    !payee?.defaultCategoryId &&
+    !rule;
   const history = useQuery({
     ...bookingsQuery({ payeeId, sort: 'date', direction: 'desc' }, undefined, 1),
     enabled: needsHistory,
@@ -139,8 +154,23 @@ export const BankCandidateRow = memo(function BankCandidateRow({
       ((item.bankCandidate?.amountCents ?? 0) >= 0 || category.kind !== 'income'),
   );
   const category = categories.find((category) => category.id === categoryId);
-  const transferId = rule?.actions.transferAccountId;
   const counterAccount = accounts.data?.accounts.find((account) => account.id === transferId);
+  const matchingCounterparts = counterAccount
+    ? targets.filter(
+        (match) => match.action === 'transfer' && match.accountId === counterAccount.id,
+      )
+    : [];
+  const target = draft?.target
+    ? targets.find((match) => `${match.action}:${match.id}` === draft.target)
+    : !draft &&
+        !matchData?.merge.length &&
+        !matchData?.link?.length &&
+        matchingCounterparts.length === 1
+      ? matchingCounterparts[0]
+      : undefined;
+  const transferring = Boolean(counterAccount || target?.action === 'transfer');
+  const canPrefillTransfer =
+    counterAccount && (draft?.ruleId !== undefined || transferTargets.size <= 1);
   const ready =
     (active
       ? review.isSuccess && matches.isSuccess && !review.isFetching && !matches.isFetching
@@ -162,18 +192,25 @@ export const BankCandidateRow = memo(function BankCandidateRow({
       ? 'Vorschläge konnten nicht geladen werden. Bitte im Formular erneut prüfen.'
       : draft && draft.revision !== data?.candidateRevision
         ? 'Bankumsatz hat sich geändert. Bitte im Formular erneut prüfen.'
-        : data?.existingTransfer || (hasMatches && (!target || targets.length !== 1))
+        : data?.existingTransfer ||
+            (hasMatches &&
+              (!canPrefillTransfer ||
+                Boolean(matchData?.merge.length || matchData?.link?.length)) &&
+              (!target || targets.length !== 1))
           ? targets.length === 1 && !data?.existingTransfer
             ? 'Gegenbuchung unter Vorschlag wählen.'
             : 'Mehrere mögliche Gegenbuchungen. Bitte im Formular prüfen.'
-          : rule?.unavailable
-            ? 'Regel nicht verfügbar. Bitte im Formular prüfen.'
-            : rule &&
-                draft?.ruleId === undefined &&
-                (!rule.automatic ||
-                  suggestions.filter((suggestion) => !suggestion.unavailable).length !== 1)
-              ? 'Regelvorschlag bitte im Formular prüfen.'
-              : undefined;
+          : matchingCounterparts && matchingCounterparts.length > 1
+            ? 'Mehrere mögliche Gegenbuchungen. Bitte im Formular prüfen.'
+            : rule?.unavailable
+              ? 'Regel nicht verfügbar. Bitte im Formular prüfen.'
+              : rule &&
+                  draft?.ruleId === undefined &&
+                  !canPrefillTransfer &&
+                  (!rule.automatic ||
+                    suggestions.filter((suggestion) => !suggestion.unavailable).length !== 1)
+                ? 'Regelvorschlag bitte im Formular prüfen.'
+                : undefined;
   const missing = bankRowMissing({
     ready: ready || Boolean(blocked),
     blocked,
@@ -200,6 +237,7 @@ export const BankCandidateRow = memo(function BankCandidateRow({
     !hasMatches &&
     !ruleOverrides &&
     rule?.automatic &&
+    !rule.actions.transferAccountId &&
     suggestions.filter((suggestion) => suggestion.automatic && !suggestion.unavailable).length === 1
       ? rule
       : undefined;
@@ -343,35 +381,36 @@ export const BankCandidateRow = memo(function BankCandidateRow({
       </td>
       <td className="bank-v1-payee">
         <strong>{item.bankCandidate?.payeeName || item.bankCandidate?.memo || item.title}</strong>
-        {editing === 'payee' ? (
-          <div className="bank-row-editor">
-            <Select
-              aria-label="Empfänger"
-              value=""
-              onChange={(event) =>
-                choose({
-                  payeeId: event.target.value,
-                  ruleId: null,
-                  target: undefined,
-                })
-              }
-            >
-              <option value="" disabled hidden>
-                Empfänger wählen
-              </option>
-              {payee && <option value={payee.id}>{payee.name} · Vorschlag</option>}
-              {payees.data?.payees
-                .filter((entry) => !entry.systemKind && entry.id !== payeeId)
-                .map((payee) => (
-                  <option key={payee.id} value={payee.id}>
-                    {payee.name}
-                  </option>
-                ))}
-            </Select>
-          </div>
-        ) : (
-          pill('payee', payee?.name ?? 'Empfänger fehlt', draft?.payeeId !== undefined)
-        )}
+        {!transferring &&
+          (editing === 'payee' ? (
+            <div className="bank-row-editor">
+              <Select
+                aria-label="Empfänger"
+                value=""
+                onChange={(event) =>
+                  choose({
+                    payeeId: event.target.value,
+                    ruleId: null,
+                    target: undefined,
+                  })
+                }
+              >
+                <option value="" disabled hidden>
+                  Empfänger wählen
+                </option>
+                {payee && <option value={payee.id}>{payee.name} · Vorschlag</option>}
+                {payees.data?.payees
+                  .filter((entry) => !entry.systemKind && entry.id !== payeeId)
+                  .map((payee) => (
+                    <option key={payee.id} value={payee.id}>
+                      {payee.name}
+                    </option>
+                  ))}
+              </Select>
+            </div>
+          ) : (
+            pill('payee', payee?.name ?? 'Empfänger fehlt', draft?.payeeId !== undefined)
+          ))}
         <div className="bank-v1-meta">
           <span>{item.bankCandidate ? shortDay(item.bankCandidate.date) : ''}</span>
           <small className="bank-v1-phone-source">
@@ -441,57 +480,64 @@ export const BankCandidateRow = memo(function BankCandidateRow({
         ) : (
           pill(
             'suggestion',
-            target
-              ? `${target.action === 'transfer' ? 'Umbuchung' : 'Zusammenführen'}: ${target.accountName}`
-              : rule
-                ? `Regel: ${rule.name}`
-                : active && ready
-                  ? 'Manuell zuordnen'
-                  : (item.bankCandidate?.suggestion?.label ?? 'Vorschläge prüfen'),
+            target?.action === 'transfer' || counterAccount
+              ? `Überweisung an ${target?.accountName ?? counterAccount?.name}`
+              : target
+                ? `Zusammenführen: ${target.accountName}`
+                : rule
+                  ? `Regel: ${rule.name}`
+                  : active && ready
+                    ? 'Manuell zuordnen'
+                    : item.bankCandidate?.suggestion?.label?.startsWith('Kategorie prüfen')
+                      ? 'Vorschläge prüfen'
+                      : (item.bankCandidate?.suggestion?.label ?? 'Vorschläge prüfen'),
             draft?.ruleId !== undefined,
           )
         )}
       </td>
       <td className="bank-v1-category">
-        {editing === 'category' ? (
-          <div className="bank-row-editor">
-            <CategoryCombobox
-              label="Kategorie"
-              categories={categories.filter((entry) => entry.id !== category?.id)}
-              capturePicker
-              overlayAvoid=".konten-inbox-safe-slot:has(.inbox-safe-action), .tabbar, .toast.is-open"
-              allowCreate
-              selectedName={category?.name ?? ''}
-              leading={category ? [{ id: category.id, label: `${category.name} · Vorschlag` }] : []}
-              onSelect={(id) =>
-                choose({ categoryId: id, ruleId: null, payeeId, target: undefined })
-              }
-            />
-          </div>
-        ) : (
-          pill(
-            'category',
-            target
-              ? target.accountName
-              : transferId
-                ? (counterAccount?.name ?? 'Gegenkonto fehlt')
-                : (category?.name ??
-                  (rule?.actions.splits
-                    ? 'Aufteilung laut Regel'
-                    : rule?.actions.incomeTypeId
-                      ? 'Einkommen laut Regel'
-                      : 'Kategorie fehlt')),
-            draft?.categoryId !== undefined ||
-              Boolean(
-                draft?.ruleId &&
-                (target ||
-                  transferId ||
-                  rule?.actions.categoryId ||
-                  rule?.actions.splits ||
-                  rule?.actions.incomeTypeId),
-              ),
-          )
-        )}
+        {!transferring &&
+          (editing === 'category' ? (
+            <div className="bank-row-editor">
+              <CategoryCombobox
+                label="Kategorie"
+                categories={categories.filter((entry) => entry.id !== category?.id)}
+                capturePicker
+                overlayAvoid=".konten-inbox-safe-slot:has(.inbox-safe-action), .tabbar, .toast.is-open"
+                allowCreate
+                selectedName={category?.name ?? ''}
+                leading={
+                  category ? [{ id: category.id, label: `${category.name} · Vorschlag` }] : []
+                }
+                onSelect={(id) =>
+                  choose({ categoryId: id, ruleId: null, payeeId, target: undefined })
+                }
+              />
+            </div>
+          ) : (
+            pill(
+              'category',
+              target
+                ? target.accountName
+                : transferId
+                  ? (counterAccount?.name ?? 'Gegenkonto fehlt')
+                  : (category?.name ??
+                    (rule?.actions.splits
+                      ? 'Aufteilung laut Regel'
+                      : rule?.actions.incomeTypeId
+                        ? 'Einkommen laut Regel'
+                        : 'Kategorie fehlt')),
+              draft?.categoryId !== undefined ||
+                Boolean(
+                  draft?.ruleId &&
+                  (target ||
+                    transferId ||
+                    rule?.actions.categoryId ||
+                    rule?.actions.splits ||
+                    rule?.actions.incomeTypeId),
+                ),
+            )
+          ))}
       </td>
       <td className="bank-v1-amount num">
         {item.bankCandidate
@@ -515,11 +561,16 @@ export const BankCandidateRow = memo(function BankCandidateRow({
                       'POST',
                       `/api/bank-sync/candidates/${encodeURIComponent(id)}/${target?.action ?? 'confirm'}`,
                       target
-                        ? { bookingId: target.id }
+                        ? {
+                            bookingId: target.id,
+                            ...(!draft &&
+                              counterAccount && { candidateRevision: data.candidateRevision }),
+                          }
                         : rule
                           ? {
                               categoryId: null,
                               candidateRevision: data.candidateRevision,
+                              ...(counterAccount && { verifyNewTransfer: true }),
                               ...(ruleOverrides
                                 ? {
                                     actions: {
@@ -530,11 +581,18 @@ export const BankCandidateRow = memo(function BankCandidateRow({
                                   }
                                 : { ruleId: rule.id, revision: rule.revision }),
                             }
-                          : {
-                              categoryId,
-                              candidateRevision: data.candidateRevision,
-                              actions: { categoryId, payeeId },
-                            },
+                          : counterAccount
+                            ? {
+                                categoryId: null,
+                                candidateRevision: data.candidateRevision,
+                                verifyNewTransfer: true,
+                                actions: { transferAccountId: counterAccount.id },
+                              }
+                            : {
+                                categoryId,
+                                candidateRevision: data.candidateRevision,
+                                actions: { categoryId, payeeId },
+                              },
                     ),
                   () => 'Bankumsatz als Buchung bestätigt.',
                 )

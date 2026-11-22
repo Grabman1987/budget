@@ -1,3 +1,4 @@
+import { TransitReconciliation } from './transit-reconciliation';
 import { REDESIGN_ENABLED } from '../shell/redesign-flag';
 import { AllocationV3 } from './allocation-v3';
 import { WealthReadStatus, useAssetType } from './redesign-frame';
@@ -73,6 +74,7 @@ export function PortfolioAllocation() {
         )}
         {view && (
           <>
+            {!REDESIGN_ENABLED && <TransitReconciliation data={view.cashReconciliation} />}
             {view.policy.wealthStage && (
               <p className="vnote">
                 Aktive Vermögensstufe: ab {eurWhole(view.policy.wealthStage.fromCents)}
@@ -382,7 +384,12 @@ export function PortfolioAllocation() {
       {query.isError && (
         <ErrorNote what="Aufteilung" error={query.error} onRetry={() => void query.refetch()} />
       )}
-      {view && <AllocationV3 view={view} art={art} />}
+      {view && (
+        <>
+          <TransitReconciliation data={view.cashReconciliation} />
+          <AllocationV3 view={view} art={art} />
+        </>
+      )}
       <WealthReadStatus
         fetching={query.isFetching}
         paused={query.isPaused}

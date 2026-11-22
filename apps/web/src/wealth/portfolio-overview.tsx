@@ -1,3 +1,4 @@
+import { TransitReconciliation } from './transit-reconciliation';
 import { ChartSvg, Line, LineLegend, Segmented, useAmountPrivacy } from '@budget/ui';
 import { useId, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
@@ -118,6 +119,9 @@ export function PortfolioOverview() {
         Wertpapiere ohne Depot-Bargeld ·{' '}
         {performance ? longDay(performance.to) : 'noch keine Bewertung'}
       </p>
+      {!query.isError && !query.isFetching && (
+        <TransitReconciliation data={query.data?.portfolio.cashReconciliation} />
+      )}
       {query.isPending && <LoadingNote what="Portfolioentwicklung" />}
       {query.isError && (
         <ErrorNote

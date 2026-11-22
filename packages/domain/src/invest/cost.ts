@@ -15,13 +15,14 @@ export type ProductTrade = SeriesTrade;
 const COST_KINDS = new Set(['buy', 'sell', 'delivery_in', 'delivery_out', 'split']);
 
 /** Trades that move units, oldest first; on one day buys and deliveries in come before sales. */
-function costTrades(trades: ReadonlyArray<ProductTrade>): CostTrade[] {
+function costTrades(trades: ReadonlyArray<ProductTrade>): (CostTrade & { date: string })[] {
   const rank = (t: ProductTrade) => (t.kind === 'buy' || t.kind === 'delivery_in' ? 0 : 1);
   return trades
     .map((t, i) => ({ t, i }))
     .filter(({ t }) => COST_KINDS.has(t.kind))
     .sort((a, b) => a.t.date.localeCompare(b.t.date) || rank(a.t) - rank(b.t) || a.i - b.i)
     .map(({ t }) => ({
+      date: t.date,
       kind: t.kind as CostTrade['kind'],
       unitsE8: t.unitsE8,
       amountCents: t.amountCents,
@@ -44,11 +45,17 @@ export function costOf(
   return method === 'fifo' ? fifoCost(opening, list) : averageCost(opening, list);
 }
 
+/** Observations from the same cost-basis replay that serves realised gain. */
+export type RealizedMovement =
+  | { kind: 'sale'; date: string; gainCents: number; complete: boolean; closes: boolean }
+  | { kind: 'reset'; date: string };
+
 /** Documented realised subtotal, with explicit incompleteness instead of invented zero costs. */
 function documentedCostReplay(
   trades: readonly ProductTrade[],
   opening: { unitsE8: number; costBasisCents: number | null } = { unitsE8: 0, costBasisCents: 0 },
   method: CostMethod = 'average',
+  movements?: RealizedMovement[],
 ) {
   const knownOpening =
     opening.costBasisCents === null
@@ -59,15 +66,30 @@ function documentedCostReplay(
   let complete = true;
   let unknownAveragePool = method === 'average' && unknownUnits > 0;
   const backed: CostTrade[] = [];
+  const observed = movements
+    ? new Map<CostTrade, Extract<RealizedMovement, { kind: 'sale' }>>()
+    : null;
   for (const t of costTrades(trades)) {
     // Unknown average cost affects every unit in that pool. FIFO consumes the older unknown lot.
     if (unknownAveragePool) {
-      if (t.kind === 'sell' && t.unitsE8 !== 0) complete = false;
+      if (t.kind === 'sell' && t.unitsE8 !== 0) {
+        complete = false;
+        movements?.push({
+          kind: 'sale',
+          date: t.date,
+          gainCents: 0,
+          complete: false,
+          closes: Math.abs(t.unitsE8) >= unknownUnits,
+        });
+      }
       if (t.kind === 'buy' || t.kind === 'delivery_in') unknownUnits += Math.abs(t.unitsE8);
       else if (t.kind === 'sell' || t.kind === 'delivery_out')
         unknownUnits = Math.max(0, unknownUnits - Math.abs(t.unitsE8));
       else if (t.kind === 'split') unknownUnits += t.unitsE8;
-      if (unknownUnits === 0) unknownAveragePool = false;
+      if (unknownUnits === 0) {
+        unknownAveragePool = false;
+        if (t.kind !== 'sell') movements?.push({ kind: 'reset', date: t.date });
+      }
       continue;
     }
     if (t.kind === 'buy' || t.kind === 'delivery_in') {
@@ -79,15 +101,32 @@ function documentedCostReplay(
       unknownUnits -= unknownTaken;
       const taken = Math.min(knownUnits, requested - unknownTaken);
       knownUnits -= taken;
-      if (t.kind === 'sell' && (unknownTaken > 0 || taken < requested)) complete = false;
+      const sale = t.kind === 'sell' && requested > 0;
+      const saleComplete = unknownTaken === 0 && taken === requested;
+      if (t.kind === 'sell' && !saleComplete) complete = false;
+      const movement =
+        sale && movements
+          ? {
+              kind: 'sale' as const,
+              date: t.date,
+              gainCents: 0,
+              complete: saleComplete,
+              closes: requested > 0 && knownUnits + unknownUnits === 0 && taken + unknownTaken > 0,
+            }
+          : undefined;
+      if (movement) movements!.push(movement);
+      if (!sale && knownUnits + unknownUnits === 0)
+        movements?.push({ kind: 'reset', date: t.date });
       if (taken > 0) {
-        backed.push({
+        const backedTrade = {
           ...t,
           unitsE8: t.unitsE8 < 0 ? -taken : taken,
           amountCents: mulDivRound(t.amountCents, taken, requested),
           feeCents: mulDivRound(t.feeCents, taken, requested),
           taxCents: mulDivRound(t.taxCents ?? 0, taken, requested),
-        });
+        };
+        backed.push(backedTrade);
+        if (movement) observed?.set(backedTrade, movement);
       }
     } else {
       const allUnits = unknownUnits + knownUnits;
@@ -95,10 +134,18 @@ function documentedCostReplay(
       unknownUnits += t.unitsE8 - knownExtra;
       knownUnits += knownExtra;
       if (knownExtra !== 0) backed.push({ ...t, unitsE8: knownExtra });
+      if (allUnits > 0 && knownUnits + unknownUnits === 0)
+        movements?.push({ kind: 'reset', date: t.date });
     }
   }
-  const result =
-    method === 'fifo' ? fifoCost(knownOpening, backed) : averageCost(knownOpening, backed);
+  const onSale = observed
+    ? (trade: CostTrade, gainCents: number) => {
+        const movement = observed.get(trade);
+        if (movement) movement.gainCents = gainCents;
+      }
+    : undefined;
+  const cost = method === 'fifo' ? fifoCost : averageCost;
+  const result = cost(knownOpening, backed, onSale);
   return { cost: result, complete, unknownUnits };
 }
 
@@ -110,6 +157,16 @@ export function documentedRealizedGain(
 ): { cents: number; complete: boolean } {
   const result = documentedCostReplay(trades, opening, method);
   return { cents: result.cost.realizedGainCents, complete: result.complete };
+}
+
+export function documentedRealizedMovements(
+  trades: readonly ProductTrade[],
+  opening: { unitsE8: number; costBasisCents: number | null } | undefined,
+  method: CostMethod,
+) {
+  const movements: RealizedMovement[] = [];
+  const { cost, complete } = documentedCostReplay(trades, opening, method, movements);
+  return { cents: cost.realizedGainCents, complete, movements };
 }
 
 /** Remaining cost is unavailable while any unit of the method's unknown pool remains. */
