@@ -95,6 +95,9 @@ for (const view of ['allocation', 'summary', 'depots', 'whole'])
     for (const theme of ['light', 'dark']) {
       await page.evaluate((value) => {
         document.documentElement.dataset['theme'] = value;
+        // Settle theme color transitions so axe never samples a half-blended button.
+        getComputedStyle(document.body).color;
+        document.getAnimations().forEach((animation) => animation.finish());
       }, theme);
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
         true,
