@@ -17,6 +17,7 @@ import {
   type ExplorerChartUnit,
 } from './explorer-chart-model-626';
 import { explorerChartValue626 } from './explorer-table-inspector-626';
+import { ReportTable } from './report-table';
 
 export function ExplorerViewToggle626({
   value,
@@ -240,41 +241,44 @@ export function ExplorerChart626({ data }: { data: ExplorerChartModel }) {
           </p>
           <details className="ex-chart-originals">
             <summary>Weitere: ursprüngliche Zeilen und eigene Summen</summary>
-            <div className="ex-chart-original-scroll">
-              <table>
-                <caption>Originalwerte der übrigen angezeigten Zeilen</caption>
-                <thead>
-                  <tr>
-                    <th scope="col">Zeile</th>
-                    {data.columns.map((column) => (
-                      <th key={column.key} scope="col">
-                        {column.label}
-                      </th>
+            <ReportTable
+              caption="Originalwerte der übrigen angezeigten Zeilen"
+              regionLabel="Originalwerte der übrigen angezeigten Zeilen"
+            >
+              <thead>
+                <tr>
+                  <th scope="col">Zeile</th>
+                  {data.columns.map((column) => (
+                    <th key={column.key} scope="col" className="n">
+                      {column.label}
+                    </th>
+                  ))}
+                  {data.summaryColumns.map((column) => (
+                    <th key={column.key} scope="col" className="n">
+                      {column.label}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              {/* Original chart values use neutral ink and retain the source figures. */}
+              <tbody>
+                {remaining.sourceRows.map((row) => (
+                  <tr key={row.key}>
+                    <th scope="row">{row.label}</th>
+                    {row.values.map((value, index) => (
+                      <td key={data.columns[index]?.key ?? index} className="n">
+                        {explorerChartValue626(value, unit)}
+                      </td>
                     ))}
                     {data.summaryColumns.map((column) => (
-                      <th key={column.key} scope="col">
-                        {column.label}
-                      </th>
+                      <td key={column.key} className="n">
+                        {explorerChartValue626(row[column.key], unit)}
+                      </td>
                     ))}
                   </tr>
-                </thead>
-                <tbody>
-                  {remaining.sourceRows.map((row) => (
-                    <tr key={row.key}>
-                      <th scope="row">{row.label}</th>
-                      {row.values.map((value, index) => (
-                        <td key={data.columns[index]?.key ?? index}>
-                          {explorerChartValue626(value, unit)}
-                        </td>
-                      ))}
-                      {data.summaryColumns.map((column) => (
-                        <td key={column.key}>{explorerChartValue626(row[column.key], unit)}</td>
-                      ))}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                ))}
+              </tbody>
+            </ReportTable>
           </details>
         </>
       )}

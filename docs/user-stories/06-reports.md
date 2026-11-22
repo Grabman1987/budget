@@ -717,3 +717,8 @@ Status: implemented for review; CI and owner acceptance pending. Other reports i
   - Das Ziel ist per Tastatur und Touch (mindestens 44 px) bedienbar.
   - Randfall: Am Handy deckt der Hinweis die Zahl nicht dauerhaft ab.
 - **Status:** live · **Verweis:** E2
+## Explorer tables (#1161)
+
+- As a household member, I can read the Explorer pivot, template values and the original rows behind “Weitere” in the same register-style tables. On a phone, I can open the retained full table and scroll inside it. The headers stay visible and figures align to the right.
+- Positive values have no plus prefix. Negative values keep their minus sign. Above-average expenses use the unfavorable color, above-average income uses the favorable color, and original chart rows use neutral ink.
+- The same source values, booking links, period selection, saved views, CSV and amount masking remain available.

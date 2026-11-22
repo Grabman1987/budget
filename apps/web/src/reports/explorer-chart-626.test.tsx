@@ -117,6 +117,20 @@ describe('626 actual-width original-value line geometry', () => {
     );
     const before = structuredClone(data);
     const mounted = render(<ExplorerChart626 data={customChartModel(data)} />);
+    const originals = mounted.container.querySelector<HTMLDetailsElement>('.ex-chart-originals')!;
+    originals.open = true;
+    const table = screen.getByRole('table', { name: /Originalwerte/ });
+    expect(table.closest('.report-table-scroll')?.getAttribute('tabindex')).toBe('0');
+    const ninth = screen.getByRole('rowheader', { name: 'Neunte' }).closest('tr')!;
+    expect([...ninth.querySelectorAll('td')].map((cell) => cell.textContent)).toEqual([
+      '9,01 €',
+      '−1,01 €',
+      '0,00 €',
+      '90,02 €',
+    ]);
+    await act(async () => setAmountsHidden(true));
+    expect(ninth.textContent).not.toMatch(/9,01|1,01|90,02/);
+    await act(async () => setAmountsHidden(false));
     expect(screen.getByRole('list', { name: 'Reihenlegende' }).querySelectorAll('li')).toHaveLength(
       9,
     );

@@ -175,6 +175,9 @@ async function proof(
   await expect(tableButton).toHaveAttribute('aria-pressed', 'true');
   await expect(chartButton).toHaveAttribute('aria-pressed', 'false');
   const region = page.locator(view === 'custom' ? '.ex-scroll' : '.ex-template-scroll');
+  await expect(region).toHaveClass(/\breport-table-scroll\b/);
+  await expect(table.locator('thead th').first()).toHaveCSS('position', 'sticky');
+  await expect(table.locator('tbody td').first()).toHaveCSS('text-align', 'right');
   const regionSize = await region.evaluate((e) => ({
     width: e.clientWidth,
     scrollWidth: e.scrollWidth,
@@ -200,18 +203,22 @@ async function proof(
   }
   const originalCell = sourceRow.locator('td[data-chart-point]').first();
   if (view === 'custom' && regionSize.scrollWidth > regionSize.width) {
-    // Centre the SAME January cell vertically without changing its native horizontal pan.
+    // Centre the same January cell in the table and page while retaining the native horizontal pan.
     // Measure after scrolling; move the real pointer without another automatic scroll.
     const exposed = await originalCell.evaluate((cell) => {
+      const scroller = cell.closest('.ex-scroll')!;
+      const initialCell = cell.getBoundingClientRect();
+      const initialScroll = scroller.getBoundingClientRect();
+      scroller.scrollTop +=
+        initialCell.top + initialCell.height / 2 - (initialScroll.top + scroller.clientHeight / 2);
       const before = cell.getBoundingClientRect();
       window.scrollBy({
         top: before.top + before.height / 2 - innerHeight / 2,
         behavior: 'instant',
       });
-      const scroller = cell.closest('.ex-scroll')!;
       const box = cell.getBoundingClientRect();
       const scrollBox = scroller.getBoundingClientRect();
-      const sticky = cell.parentElement!.querySelector('th.ex-first')!.getBoundingClientRect();
+      const sticky = cell.parentElement!.querySelector('th.rg-first')!.getBoundingClientRect();
       const left = Math.max(box.left, scrollBox.left + scroller.clientLeft, sticky.right, 0);
       const right = Math.min(
         box.right,
@@ -298,6 +305,11 @@ async function proof(
     await expect(chart.locator('.ex-chart-originals')).toContainText('Kategorie 10');
     const originals = chart.locator('.ex-chart-originals');
     await originals.locator('summary').click();
+    await expect(originals.getByRole('region', { name: /Originalwerte/ })).toHaveAttribute(
+      'tabindex',
+      '0',
+    );
+    await expect(originals.locator('thead th').first()).toHaveCSS('position', 'sticky');
     await expect(
       originals.getByRole('rowheader', { name: 'Kategorie 09', exact: true }),
     ).toBeVisible();

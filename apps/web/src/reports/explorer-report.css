@@ -88,11 +88,8 @@
 .ex-table {
   min-width: 640px;
 }
-.ex-table .ex-first {
-  position: sticky;
-  left: 0;
-  z-index: 1;
-  background: var(--surface);
+.ex-table .rg-first {
+  min-width: 0;
   white-space: nowrap;
   max-width: 220px;
   overflow: hidden;
@@ -109,21 +106,20 @@
   color: var(--ink);
   text-decoration-color: var(--line-2);
 }
-.ex-table td.n,
-.ex-table th.n {
-  padding-right: 10px;
+.ex-table tr.is-total > :is(th, td) {
+  border-top: 1px solid var(--line-2);
+  font-weight: 640;
 }
 .ex-template-scroll {
-  position: relative;
-  max-width: 100%;
-  overflow-x: auto;
   scroll-padding-inline-start: 190px;
+}
+.ex-scroll:focus-visible {
+  outline: 2px solid var(--line);
+  outline-offset: 3px;
 }
 .ex-template-table {
   --ex-heat-plus: color-mix(in srgb, var(--plus-ink) 40%, var(--surface));
   --ex-heat-minus: color-mix(in srgb, var(--minus-ink) 40%, var(--surface));
-  width: 100%;
-  white-space: nowrap;
 }
 .ex-template-table .rg-first {
   width: 190px;
@@ -131,12 +127,6 @@
   max-width: 190px;
   white-space: normal;
   overflow-wrap: anywhere;
-}
-.ex-template-table [data-level='1'] > th {
-  padding-inline-start: 20px;
-}
-.ex-template-table [data-level='2'] > th {
-  padding-inline-start: 28px;
 }
 .ex-template-table td[data-heat='good'] {
   background: color-mix(
@@ -197,7 +187,7 @@
   .ex-bar {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
-  .ex-table .ex-first {
+  .ex-table .rg-first {
     max-width: 150px;
   }
   .ex-template-table .rg-first {
@@ -288,23 +278,6 @@
   min-height: var(--touch);
   cursor: pointer;
 }
-.ex-chart-original-scroll {
-  max-width: 100%;
-  overflow-x: auto;
-}
-.ex-chart-original-scroll table {
-  border-collapse: collapse;
-  width: max-content;
-  min-width: 100%;
-  font-size: var(--fs-table);
-  line-height: var(--lh-table);
-}
-.ex-chart-original-scroll th,
-.ex-chart-original-scroll td {
-  padding: 8px 12px;
-  border-bottom: var(--stroke-hairline) solid var(--rule);
-  text-align: right;
-}
 .ex-custom-query {
   min-width: 0;
   margin: 0;
@@ -312,9 +285,6 @@
   border: 0;
 }
 
-.ex-chart-original-scroll th:first-child {
-  text-align: left;
-}
 .ex-template-sources .ex-cell-bookings tfoot :is(th, td) {
   border-top: 1px solid var(--line-2);
   border-bottom: 0;
