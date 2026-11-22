@@ -12,6 +12,7 @@ import { ClassSwatch, useAmountPrivacy } from '@budget/ui';
 import { useId, useMemo, useRef, useState, type CSSProperties, type MouseEvent } from 'react';
 import { eur } from '../ledger/format';
 import { ReportCellBookings } from './report-cell-bookings';
+import { ReportTable } from './report-table';
 import { ExplorerTemplateTrend } from './explorer-template-trend';
 import { monthLong, monthShort, percentWhole } from './table-format';
 import './table-reports.css';
@@ -103,134 +104,127 @@ export function ExplorerTemplates({
                     Für diese Auswahl sind keine vollständigen Monatswerte verfügbar.
                   </p>
                 ) : (
-                  <div
-                    className="rscroll rsticky ex-template-scroll"
-                    role="region"
-                    aria-label={`${model.title}, bei Bedarf horizontal verschiebbar`}
-                    // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- Native horizontal table scrolling is also keyboard accessible.
-                    tabIndex={0}
+                  <ReportTable
+                    className="rtable ex-template-table"
+                    scrollClassName="ex-template-scroll"
+                    caption={`${model.title}: Monatswerte in Euro; Betrag öffnet die zugehörigen Buchungen`}
+                    regionLabel={`${model.title}, bei Bedarf horizontal verschiebbar`}
                   >
-                    <table className="rtable ex-template-table">
-                      <caption className="sr-only">
-                        {model.title}: Monatswerte in Euro; Betrag öffnet die zugehörigen Buchungen
-                      </caption>
-                      <thead>
-                        <tr>
-                          <th scope="col" className="rg-first">
-                            Position
+                    <thead>
+                      <tr>
+                        <th scope="col" className="rg-first">
+                          Position
+                        </th>
+                        {model.months.map((month) => (
+                          <th scope="col" key={month} className="n" title={monthLong(month)}>
+                            {monthShort(month, true)}
+                            {month === model.partialMonth ? '*' : ''}
                           </th>
-                          {model.months.map((month) => (
-                            <th scope="col" key={month} className="n" title={monthLong(month)}>
-                              {monthShort(month, true)}
-                              {month === model.partialMonth ? '*' : ''}
+                        ))}
+                        {model.total && (
+                          <th scope="col" className="n">
+                            Summe
+                          </th>
+                        )}
+                        {model.average && (
+                          <th scope="col" className="n">
+                            Ø Monat
+                          </th>
+                        )}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {model.rows.map((row, rowIndex) => {
+                        const stats = tableHeatStats(row.vals);
+                        const summaries = chartData.rows[rowIndex]!;
+                        return (
+                          <tr
+                            key={row.key}
+                            className={`rk-${row.kind} lv-${row.level}`}
+                            data-template-row={row.key}
+                            data-level={row.level}
+                          >
+                            <th scope="row" className="rg-first">
+                              {row.swatch && (
+                                <ClassSwatch kind={row.swatch === 'income' ? 'open' : row.swatch} />
+                              )}
+                              {row.label}
                             </th>
-                          ))}
-                          {model.total && (
-                            <th scope="col" className="n">
-                              Summe
-                            </th>
-                          )}
-                          {model.average && (
-                            <th scope="col" className="n">
-                              Ø Monat
-                            </th>
-                          )}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {model.rows.map((row, rowIndex) => {
-                          const stats = tableHeatStats(row.vals);
-                          const summaries = chartData.rows[rowIndex]!;
-                          return (
-                            <tr
-                              key={row.key}
-                              className={`rk-${row.kind} lv-${row.level}`}
-                              data-template-row={row.key}
-                              data-level={row.level}
-                            >
-                              <th scope="row" className="rg-first">
-                                {row.swatch && (
-                                  <ClassSwatch
-                                    kind={row.swatch === 'income' ? 'open' : row.swatch}
-                                  />
-                                )}
-                                {row.label}
-                              </th>
-                              {row.vals.map((amount, index) => {
-                                const month = model.months[index]!;
-                                const heat =
-                                  row.kind === 'pct' ? null : heatForCell(amount, stats, row.good);
-                                return (
-                                  <td
-                                    key={month}
-                                    data-chart-point={rowIndex * cellsPerRow + index}
-                                    className="n"
-                                    data-heat={heat?.tone}
-                                    style={
-                                      heat
-                                        ? ({ '--h': heat.strength.toFixed(2) } as CSSProperties)
-                                        : undefined
-                                    }
-                                  >
-                                    {amount === null || row.kind === 'pct' ? (
-                                      number(row, amount)
-                                    ) : (
-                                      <button
-                                        type="button"
-                                        className="table-cell-open"
-                                        data-template-column={month}
-                                        aria-label={`${row.label} · ${monthLong(month)} · ${eur(amount)}${heat ? (amount > stats.mean ? ' · über dem Zeilenmittel' : ' · unter dem Zeilenmittel') : ''}`}
-                                        onClick={(event) => open(event, row.key, month)}
-                                      >
-                                        {eur(amount)}
-                                        {heat && (
-                                          <span aria-hidden="true">
-                                            {amount > stats.mean ? ' ↑' : ' ↓'}
-                                          </span>
-                                        )}
-                                      </button>
-                                    )}
-                                  </td>
-                                );
-                              })}
-                              {model.total && (
+                            {row.vals.map((amount, index) => {
+                              const month = model.months[index]!;
+                              // Higher expenses are unfavorable; higher income is favorable.
+                              const heat =
+                                row.kind === 'pct' ? null : heatForCell(amount, stats, row.good);
+                              return (
                                 <td
+                                  key={month}
+                                  data-chart-point={rowIndex * cellsPerRow + index}
                                   className="n"
-                                  data-chart-point={rowIndex * cellsPerRow + model.months.length}
+                                  data-heat={heat?.tone}
+                                  style={
+                                    heat
+                                      ? ({ '--h': heat.strength.toFixed(2) } as CSSProperties)
+                                      : undefined
+                                  }
                                 >
-                                  {summaries.total === null ? (
-                                    '–'
+                                  {amount === null || row.kind === 'pct' ? (
+                                    number(row, amount)
                                   ) : (
                                     <button
                                       type="button"
                                       className="table-cell-open"
-                                      data-template-column="summe"
-                                      aria-label={`${row.label} · Summe · ${eur(summaries.total)}`}
-                                      onClick={(event) => open(event, row.key, 'summe')}
+                                      data-template-column={month}
+                                      aria-label={`${row.label} · ${monthLong(month)} · ${eur(amount)}${heat ? (amount > stats.mean ? ' · über dem Zeilenmittel' : ' · unter dem Zeilenmittel') : ''}`}
+                                      onClick={(event) => open(event, row.key, month)}
                                     >
-                                      <strong>{eur(summaries.total)}</strong>
+                                      {eur(amount)}
+                                      {heat && (
+                                        <span aria-hidden="true">
+                                          {amount > stats.mean ? ' ↑' : ' ↓'}
+                                        </span>
+                                      )}
                                     </button>
                                   )}
                                 </td>
-                              )}
-                              {model.average && (
-                                <td
-                                  className="n"
-                                  data-chart-point={
-                                    rowIndex * cellsPerRow +
-                                    model.months.length +
-                                    (model.total ? 1 : 0)
-                                  }
-                                >
-                                  {number(row, summaries.average)}
-                                </td>
-                              )}
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
+                              );
+                            })}
+                            {model.total && (
+                              <td
+                                className="n"
+                                data-chart-point={rowIndex * cellsPerRow + model.months.length}
+                              >
+                                {summaries.total === null ? (
+                                  '–'
+                                ) : (
+                                  <button
+                                    type="button"
+                                    className="table-cell-open"
+                                    data-template-column="summe"
+                                    aria-label={`${row.label} · Summe · ${eur(summaries.total)}`}
+                                    onClick={(event) => open(event, row.key, 'summe')}
+                                  >
+                                    <strong>{eur(summaries.total)}</strong>
+                                  </button>
+                                )}
+                              </td>
+                            )}
+                            {model.average && (
+                              <td
+                                className="n"
+                                data-chart-point={
+                                  rowIndex * cellsPerRow +
+                                  model.months.length +
+                                  (model.total ? 1 : 0)
+                                }
+                              >
+                                {number(row, summaries.average)}
+                              </td>
+                            )}
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </ReportTable>
                 )}
               </ExplorerTableInspector626>
             </ExplorerTableDetails>

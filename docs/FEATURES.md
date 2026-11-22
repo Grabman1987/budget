@@ -217,6 +217,12 @@ separate credit, source dialog, copy and pagination retain their existing figure
 Both directions use quiet ink; no plus prefixes. Other bespoke report tables and
 chart-generated tables under #1161 remain outside this contacts-only slice.
 
+Explorer slice (#1161): the custom pivot, retained template grids and original
+rows behind “Weitere” use the shared register table with sticky headers, tabular
+figures and an independently scrollable region. Expense and income rows retain
+their domain-defined color direction. Original chart rows use neutral ink.
+Displayed signs, source values, drilldowns, CSV and privacy retain the same rules.
+
 Issue #1160, total view: `darstellung=gesamt` lists combined bank and interest costs, portfolio fees, estimated TER and booked broker taxes by calendar year, newest first. A selected year is shareable with `jahr`. Each year's amounts and closing portfolio valuation use the same dates, with partial years marked. Trade fees are counted once and the fee-and-TER ratio excludes household costs and taxes. Amount privacy also masks the ratios.
 
 Issue #1158, first consolidation slice (review pending): the redesign spending report

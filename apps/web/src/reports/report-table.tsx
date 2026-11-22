@@ -4,12 +4,19 @@ import './report-table.css';
 /** Shared register-style table. Callers keep semantic headers, figures and drilldowns. */
 export const ReportTable = forwardRef<
   HTMLDivElement,
-  ComponentPropsWithoutRef<'table'> & { caption: string; regionLabel: string }
->(function ReportTable({ caption, regionLabel, className = '', children, ...props }, ref) {
+  ComponentPropsWithoutRef<'table'> & {
+    caption: string;
+    regionLabel: string;
+    scrollClassName?: string;
+  }
+>(function ReportTable(
+  { caption, regionLabel, className = '', scrollClassName = '', children, ...props },
+  ref,
+) {
   return (
     <div
       ref={ref}
-      className="report-table-scroll rscroll rsticky"
+      className={`report-table-scroll rscroll rsticky ${scrollClassName}`}
       role="region"
       aria-label={regionLabel}
       // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- Keyboard users scroll the complete table.
