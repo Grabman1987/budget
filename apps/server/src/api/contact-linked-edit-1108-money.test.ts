@@ -240,8 +240,9 @@ it.each(['outlay', 'repayment'])(
       amountCents: -500,
       unlockContactLinked: true,
       unlockReconciled: true,
+      unlockLinkedRepayment: which === 'repayment',
     });
-    expect(open.status).toBe(200);
+    expect(open.status, JSON.stringify(open.body)).toBe(200);
     const s = await statement();
     expect(s.receipts[0]).toMatchObject({ creditCents: 201, allocations: [{ amountCents: 500 }] });
     expectFits(s);

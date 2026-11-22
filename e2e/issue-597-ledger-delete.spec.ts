@@ -168,6 +168,13 @@ test('597 immediate delete, protected explanation, paired bulk preview and exact
     name: 'Verknüpfte Auslage wirklich bearbeiten?',
   });
   await expect(linkedRelease).toBeVisible();
+  const cancelRelease = linkedRelease.getByRole('button', { name: 'Abbrechen', exact: true });
+  await expect(cancelRelease).toBeFocused();
+  await cancelRelease.press('Enter');
+  await expect(linkedRelease).toBeHidden();
+  await expect.poll(readRows).toEqual(before);
+  await page.locator(`tr[data-booking="${linked.id}"] .kname-btn`).click();
+  await expect(linkedRelease).toBeVisible();
   await expect(edit).not.toBeVisible();
   await expect.poll(readRows).toEqual(before);
   await linkedRelease.getByRole('button', { name: 'Bearbeitung bestätigen', exact: true }).click();

@@ -1,6 +1,6 @@
 import './booking-edit.css';
 import { FormDialog } from '@budget/ui';
-import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { CaptureForm } from './capture-form';
 import type { ListedBooking } from './types';
@@ -189,7 +189,7 @@ export function BookingPanel({
   const reviewedOn = protection?.reviewedOn ?? [];
   const needsRelease =
     !checking && (reconciled || !!linkedDates || reviewedOn.length > 0) && !shown?.released;
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (needsRelease && state !== null)
       focusScope.current?.querySelector<HTMLElement>('[role="alertdialog"] button')?.focus();
   }, [needsRelease, shown?.n, state]);

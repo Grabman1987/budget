@@ -457,7 +457,8 @@ export function bookingRoutes(db: Db, today = () => todayInVienna()): Hono {
         );
       if (unlockContactLinked)
         releaseLinkedAllocations(tx, id, patch, ctx, today(), {
-          unlockReconciled: unlockLinkedRepayment ?? unlockReconciled ?? false,
+          unlockOutlay: unlockReconciled ?? false,
+          unlockRepayments: unlockLinkedRepayment ?? unlockReconciled ?? false,
           ...(overrideReason ? { reason: overrideReason } : {}),
         });
       updateBooking(tx, id, patch, ctx, {
@@ -511,7 +512,8 @@ export function bookingRoutes(db: Db, today = () => todayInVienna()): Hono {
         );
       if (unlockLinked !== undefined)
         releaseLinkedAllocations(tx, id, 'delete', ctx, today(), {
-          unlockReconciled:
+          unlockOutlay: unlock !== undefined,
+          unlockRepayments:
             unlockLinkedRepayment === undefined
               ? unlock !== undefined
               : unlockLinkedRepayment === '1',
