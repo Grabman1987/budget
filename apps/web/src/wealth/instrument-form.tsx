@@ -199,7 +199,7 @@ export function InstrumentForm({
         values,
       );
       qc.setQueryData(instrumentQuery(result.security.id).queryKey, { security: result.security });
-      await qc.invalidateQueries();
+      void qc.invalidateQueries(); // #1201: close on the write, refetch in the background
       onDirty(false);
       onSaved(result.security);
       toast.show({
