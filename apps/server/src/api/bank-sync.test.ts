@@ -1,3 +1,4 @@
+import { eq } from 'drizzle-orm';
 import { createHash, randomUUID } from 'node:crypto';
 import { createTestDatabase, createBooking, schema, type OpenedDatabase } from '@budget/db';
 import { Hono } from 'hono';
@@ -160,6 +161,23 @@ describe('bank API security boundary', () => {
         .all()
         .some((a) => a.entityType === 'app_setting'),
     ).toBe(true);
+    const key = 'bank.booked_to_ledger:' + connectionId;
+    const stored = () =>
+      opened.db.select().from(schema.appSetting).where(eq(schema.appSetting.id, key)).get()?.value;
+    expect(stored()).toBe('false');
+    // Switching back to "immediately" must update the stored setting and audit it again.
+    const audits = () =>
+      opened.db
+        .select()
+        .from(schema.auditLog)
+        .all()
+        .filter((a) => a.entityType === 'app_setting').length;
+    const auditsBefore = audits();
+    expect(
+      (await call(policy, { bookedToLedger: true }, 'https://budget.example', 'PUT')).status,
+    ).toBe(200);
+    expect(stored()).toBe('true');
+    expect(audits()).toBeGreaterThan(auditsBefore);
   });
   it('protects candidate decisions by session/origin, validates bodies and returns audited undo groups', async () => {
     const id = randomUUID();
