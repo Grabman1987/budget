@@ -100,7 +100,7 @@ it.each(baseline.responses)(
 
 /** Rows each table returned to one request (a structural budget, independent of machine speed). */
 async function rowsRead(path: string) {
-  const rows = { price: 0, fxRate: 0, auditReplays: 0, auditRows: 0, statements: 0 };
+  const rows = { price: 0, priceScans: 0, fxRate: 0, auditReplays: 0, auditRows: 0, statements: 0 };
   const prepare = opened.sqlite.prepare.bind(opened.sqlite);
   const spy = vi.spyOn(opened.sqlite, 'prepare').mockImplementation(((sql: string) => {
     const statement = prepare(sql);
@@ -113,7 +113,11 @@ async function rowsRead(path: string) {
     statement.all = ((...params: unknown[]) => {
       rows.statements++;
       const result = all(...params) as unknown[];
-      if (/ (?:from|join) "price"/.test(sql)) rows.price += result.length;
+      if (/ (?:from|join) "price"/.test(sql)) {
+        rows.price += result.length;
+        const plan = prepare(`EXPLAIN QUERY PLAN ${sql}`).all(...params) as { detail: string }[];
+        rows.priceScans += plan.filter(({ detail }) => /^SCAN price\b/.test(detail)).length;
+      }
       if (/ from "fx_rate"/.test(sql)) rows.fxRate += result.length;
       if (/"before_json" IS NOT NULL AND json_extract/.test(sql)) {
         rows.auditReplays++;
@@ -141,6 +145,7 @@ it('reads the price and rate history at most once per Heute request', async () =
   const rows = await rowsRead('/heute?period=month');
   // Before #956: about 243k price rows (two full scans) and 10 full rate reads.
   expect(rows.price).toBeLessThan(5_000);
+  expect(rows.priceScans).toBe(0);
   expect(rows.fxRate).toBeLessThanOrEqual(fxRows);
   // The account review chronology (audit log replay) once, not again for the inbox count.
   expect(rows.auditReplays).toBe(1);
