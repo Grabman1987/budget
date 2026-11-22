@@ -143,7 +143,7 @@ describe('trade with counter booking on the Verrechnungskonto (#1099)', () => {
       TradeRuleError,
     );
     expect(() => createTradeWithCashTransfer(opened.db, buy(), 'usd', testCtx)).toThrow(
-      /different currencies/,
+      /nur zwischen Konten derselben Währung/,
     );
     opened.db.update(account).set({ closedAt: '2026-11-01' }).where(eq(account.id, 'spar')).run();
     expect(() => createTradeWithCashTransfer(opened.db, buy(), 'spar', testCtx)).toThrow(/closed/);

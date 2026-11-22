@@ -125,14 +125,19 @@ it('refuses gift conversion of an allocated source with the existing dependency 
   expect(receipt.status).toBe(201);
   const before = await read(id);
   const bytes = opened.sqlite.serialize();
-  const rejected = await call<{ message: string }>('PATCH', `/bookings/${id}`, {
+  const rejected = await call('PATCH', `/bookings/${id}`, {
     splits: [
       { categoryId: 'gift', amountCents: -4000, contactId: null, memo: 'Kontaktanteil' },
       { categoryId: 'essen', amountCents: -1500, memo: 'Unveränderter Eigenanteil' },
     ],
   });
   expect(rejected.status).toBe(422);
-  expect(rejected.body.message).toContain('Undo the related contact settlement');
+  expect(rejected.body).toMatchObject({
+    error: 'contact_linked',
+    message: 'Diese Auslage ist mit einer Rückzahlung verknüpft. Bitte bestätige den Vorgang.',
+    bookingId: id,
+    settlementDates: ['2026-10-02'],
+  });
   expect(await read(id)).toEqual(before);
   expect((await contact()).body.balanceCents).toBe(2500);
   expect(opened.sqlite.serialize().equals(bytes)).toBe(true);
