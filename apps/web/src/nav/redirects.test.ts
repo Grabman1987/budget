@@ -34,6 +34,7 @@ const reportLandings = [
   ],
   ['liquiditaet', '/plan/prognose', {}],
   ['cashflow', '/reports/einnahmen-ausgaben', { darstellung: 'cashflow' }],
+  ['cashflow-verlauf', '/reports/einnahmen-ausgaben', { darstellung: 'cashflow' }],
   ['vermoegen', '/reports/vermoegen-schulden', { darstellung: 'verlauf' }],
   ['vorschau', '/plan/erwartet', {}],
   ['sparziele', '/plan/sparziele', {}],
@@ -192,6 +193,7 @@ it('retains recipient and contact identity and supports return to a Heute/Plan e
   const router = await open('/plan/monat?monat=2026-08');
   await router.navigate({ to: '/reports/cashflow', search: { monat: '2026-08', trend: true } });
   expect(router.state.location.pathname).toBe('/reports/einnahmen-ausgaben');
+  expect(router.state.location.hash).toBe(REDESIGN_ENABLED ? 'cashflow' : '');
   router.history.back();
   await router.load();
   expect(router.state.location.pathname).toBe('/plan/monat');

@@ -563,15 +563,18 @@ for (const [slug, legacyPath, legacyIntent, view, legacyBody] of reportAliases)
       : finanzcheck
         ? 'darstellung=finanzcheck'
         : legacyIntent;
+    const integrated = on && ['einnahmen', 'cashflow'].includes(slug);
     const body = spending
       ? slug === 'kategorien'
         ? 'spendingCategories'
         : 'spending'
-      : finanzcheck
-        ? 'finanzcheck'
-        : (await flag(page)) && slug === 'kontakte'
-          ? 'contactReport'
-          : legacyBody;
+      : integrated
+        ? 'incomeExpense'
+        : finanzcheck
+          ? 'finanzcheck'
+          : (await flag(page)) && slug === 'kontakte'
+            ? 'contactReport'
+            : legacyBody;
     await probes.plan(page);
     await page.goto(
       `/reports/${slug}?monat=2026-08&period=month&zeitraum=2026-01..2026-08#details`,
@@ -595,7 +598,7 @@ for (const [slug, legacyPath, legacyIntent, view, legacyBody] of reportAliases)
           (await redesignReportsOn(page)) &&
           ['/reports/einnahmen-ausgaben', '/reports/ausgaben'].includes(path)
         ) {
-          await expectReportMenuView(page, selectedView);
+          await expectReportMenuView(page, integrated ? 'Einnahmen und Ausgaben' : selectedView);
         } else if ((await redesignReportsOn(page)) && path === '/reports/explorer') {
           await expect(
             page

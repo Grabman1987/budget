@@ -78,6 +78,14 @@ export const aliasPatterns = [
     'cashflow',
   ],
   [
+    '/reports/cashflow-verlauf',
+    'alias',
+    '/reports/einnahmen-ausgaben',
+    { darstellung: 'cashflow' },
+    'sample',
+    'cashflow',
+  ],
+  [
     '/reports/projekte',
     'alias',
     '/reports/einnahmen-ausgaben',

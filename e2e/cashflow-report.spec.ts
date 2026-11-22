@@ -1,6 +1,8 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect as baseExpect, type Page, type TestInfo } from '@playwright/test';
-import type { CashflowReport } from '@budget/db';
+import type { CashflowReport, IncomeExpenseReportData } from '@budget/db';
+import { cashflowDevelopment, reportPeriodMonths, type Period } from '@budget/domain';
+import { redesignReportsOn } from './report-frame';
 import { eur } from '../apps/web/src/ledger/format';
 import { sampleTest as test } from './sample';
 
@@ -12,6 +14,24 @@ async function api(page: Page, period: string) {
   const res = await page.request.get(`/api/cashflow?period=${period}`);
   expect(res.status()).toBe(200);
   return (await res.json()) as CashflowReport;
+}
+
+async function expectIntegratedCashflow(page: Page, period: Period) {
+  const response = await page.request.get('/api/report-tables/income-expense');
+  expect(response.ok()).toBe(true);
+  const data = (await response.json()) as IncomeExpenseReportData;
+  const months = reportPeriodMonths(period, data.currentMonth, data.firstMonth!);
+  const values = cashflowDevelopment(
+    data.months.filter((month) => months.includes(month.month)),
+    data,
+  );
+  const section = page.getByTestId('income-expense-cashflow');
+  const rows = section.locator('tbody tr');
+  await expect(rows).toHaveCount(values.length);
+  await expect(section.locator('tfoot td').nth(2)).toHaveText(eur(values.at(-1)!.cumulative));
+  await expect(rows.first().locator('td').nth(2)).toHaveText(eur(values[0]!.cashflow));
+  await expect(rows.last().locator('td').nth(2)).toHaveText(eur(values.at(-1)!.cashflow));
+  await expect(section.getByTestId('cashflow-development-chart')).toBeVisible();
 }
 
 async function inspect(page: Page, info: TestInfo, label: string) {
@@ -52,6 +72,11 @@ test('figure, chain, Kapitalerträge line, charts and table agree with the cashf
   const t = data.totals;
   expect(t.incomeCents - t.consumptionCents).toBe(t.netCents);
   await page.goto('/reports/cashflow?zeitraum=1J');
+  if (await redesignReportsOn(page)) {
+    await expectIntegratedCashflow(page, '1J');
+    await inspect(page, info, 'cashflow');
+    return;
+  }
   await expect(
     page.getByRole('heading', { name: /Nettocashflow · letzte 12 Monate/ }),
   ).toBeVisible();
@@ -88,6 +113,10 @@ test('a shorter Zeitraum changes the figures and keeps the chart at six months o
   await page.goto('/reports/cashflow');
   await page.getByRole('button', { name: '3M', exact: true }).click();
   await expect(page).toHaveURL(/zeitraum=3M/);
+  if (await redesignReportsOn(page)) {
+    await expectIntegratedCashflow(page, '3M');
+    return;
+  }
   await expect(page.getByTestId('cf-figure')).toHaveText(eur(three.totals.netCents));
   await expect(page.getByTestId('cf-table').locator('tbody tr')).toHaveCount(4);
 });

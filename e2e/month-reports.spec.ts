@@ -20,6 +20,7 @@ sampleTest.beforeEach(async ({ page }) => {
   await page.addInitScript(() => {
     for (const id of [
       'income-expected',
+      'income-month-facts',
       'income-types',
       'income-capital',
       'flow-definition',
@@ -95,9 +96,13 @@ sampleTest('Einnahmen: the page shows the figures of the sample ledger', async (
   await expect(types.locator('tbody tr').last()).toContainText(
     flat(money(data.window.totalCents, true)),
   );
-  await expect(page.getByTestId('income-expected').locator('tbody tr')).toHaveCount(
-    data.expected.lines.length,
-  );
+  await expect(
+    page
+      .getByTestId('income-expected')
+      .locator(
+        ':scope > .mr-scroll tbody tr, :scope > [data-r8-detail="income-received"] tbody tr',
+      ),
+  ).toHaveCount(data.expected.lines.length);
   await expect(page.getByTestId('income-chart')).toBeVisible();
   await expect(page.getByTestId('income-capital-chart')).toBeVisible();
   await inspect(page, info, 'einnahmen');
@@ -130,7 +135,9 @@ sampleTest(
     // match status. The page shows whichever the API reports.
     const unlinked = data.expected.lines.filter((l) => l.status === 'unlinked').length;
     if (!data.expectedMaterialised) expect(unlinked).toBe(1);
-    const rows = page.locator('tr[data-status="unlinked"]');
+    const rows = page
+      .getByTestId('income-expected')
+      .locator(':scope > .mr-scroll tr[data-status="unlinked"]');
     await expect(rows).toHaveCount(unlinked);
     if (unlinked > 0) {
       await expect(rows).toContainText('nicht zugeordnet');

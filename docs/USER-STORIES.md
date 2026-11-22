@@ -248,3 +248,7 @@ Four columns, gross open shares, separate credit, unchanged domain balances and
 repayment returns it to the original category; no extra advance or net-worth charge.
 See [RP-21b](user-stories/06-reports.md#rp-21b--kontakte-abrechnung).
 Status: implemented for review; owner acceptance pending. No other report is migrated.
+
+## Integrated income and cashflow (#1159)
+
+Einnahmen und Cashflow in redesign shows income by type, open monthly expectations and the Cashflow section in one report. Cashflow includes all spending, including Zukunft, unlike the former consumption-only development report. Old links carry the selected period, month, project and bookmark into the integrated report. The running month is marked and included. The chart compares monthly cashflow with the corresponding prior-year months where available. Expectations compare the same month of the prior year in a disclosure.

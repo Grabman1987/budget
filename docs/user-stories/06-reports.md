@@ -173,7 +173,7 @@ owner live acceptance is pending.
   - Randfall: Keine Einnahmen im Zeitraum: „Keine Einnahmen im Zeitraum.“; ohne erwartete Einnahmen: „Für diesen Monat sind keine Einnahmen erwartet.“
   - Randfall: Noch nicht zugeordnete Vorkommen zeigen „nicht zugeordnet“.
 - **#1159 first slice criteria:** Pending, missing, overdue, unlinked and deviating expectations remain visible at the top. Received and unplanned entries remain available in a collapsed disclosure. Empty, fully received and unavailable project expectations are distinct. Existing domain amounts, privacy masking and the OFF reader are preserved.
-- **#1159 status:** First slice ready for review, not live-accepted. Report consolidation, previous-year comparison and indented project navigation remain open; RP-05b and RP-15b retain their current readers until that continuation.
+- **#1159 status:** First slice ready for review, not live-accepted. The integrated reader and prior-year comparison continue in RP-05b.
 - **Acknowledgment continuation (#1109, P-09a):** In Plan's income detail, “Bereits erhalten” removes an unlinked occurrence from open expectations without displaying a shortfall or reducing the booked monthly result. The retained amount is a “Planwert”; no extra received income is invented. Undo restores the open expectation. Expected totals remain received household income plus genuinely open remainders.
 - **Receipt-link continuation (#1109):** Plan additionally offers a one-click explicit link to an unclaimed same-payer EUR receipt in the same month/window, with the same income type and an amount within the existing range/tolerance. Server-side revalidation and grouped Undo preserve the original receipt and received total. A stale proposal leaves the expectation open. The existing report body remains unchanged.
 - **Continuation status:** Acknowledgment wording and the bounded receipt-link continuation are ready for review after local verification; broader receipt linking, combined/payslip settlement and contact compensation expectations remain open. The existing report body is unchanged and this continuation is not live-accepted.
@@ -191,9 +191,10 @@ owner live acceptance is pending.
 - **Ergebnis:** Ich sehe das Monatsergebnis und kann jede Zahl bis zur Buchung verfolgen.
 - **Abnahmekriterien:**
   - Die Summe der Buchungen einer Zelle entspricht dem Zellwert.
-  - Cashflow je Monat stimmt mit dem Cashflow-Verlauf überein; „kumuliert“ ist die laufende Summe des monatlichen Cashflows (keine zweite Formel). Die alten Adressen /reports/cashflow führen hierher.
+  - Cashflow verwendet die Summe der Haushaltseinnahmen abzüglich aller Ausgaben, einschließlich Zukunft. Der frühere Verlauf zog nur Bedarf und Wunsch ab. „Kumuliert“ summiert die Monatswerte. Die alten Cashflow-Adressen öffnen diesen Abschnitt und erhalten den URL-Kontext.
   - Die CSV enthält dieselben Zeilen und Spalten wie die Tabelle.
   - Randfall: Eine Zelle außerhalb des Zeitraums meldet „Diese Zelle ist im Reportzeitraum nicht verfügbar.“; eine leere Zelle „Keine Buchungen in dieser Zelle.“
+- **#1159 continuation:** Redesign combines period income by type, monthly expectations, and Cashflow in one report. The development chart plots the matching full prior-year months where recorded. Open expectations come first, with received entries and the same month of the preceding year in separate disclosures. The projects entry remains indented.
 - **Status:** live · **Verweis:** 1.10
 
 ### RP-06 – Geldfluss
@@ -404,7 +405,8 @@ owner live acceptance is pending.
   - Randfall: Ohne größere Buchungen „Im Prognosezeitraum stehen keine größeren Buchungen an.“
 - **Status:** existing Plan flow retained; catalog cleanup implemented for review (#1156), CI and owner acceptance pending · **Verweis:** 3.1
 
-### RP-15b – Cashflow-Verlauf
+### RP-15b – Cashflow-Verlauf (legacy presentation)
+- **Redesign:** The old addresses open the Cashflow section in RP-05b. The legacy reader remains available with the redesign flag off.
 - **Story:** Als Nutzer möchte ich sehen, ob ich mehr verdiene als ich ausgebe, damit ich weiß, ob der Haushalt wirklich Überschuss erzeugt.
 - **Ausgangslage:** Mindestens ein abgeschlossener Monat.
 - **Ablauf:**
@@ -413,7 +415,7 @@ owner live acceptance is pending.
   3. Tabelle „Je Monat“ ansehen; Kapitalerträge (separat) sind eine eigene Serie.
 - **Ergebnis:** Ich kenne den Nettocashflow je Monat.
 - **Abnahmekriterien:**
-  - Der Nettocashflow entspricht Einnahmen minus Ausgaben in Einnahmen und Cashflow.
+  - Im bisherigen Verlauf ist der Nettocashflow das Haushaltseinkommen abzüglich Bedarf und Wunsch. Der integrierte Cashflow (RP-05b) zieht alle Ausgaben ab, einschließlich Zukunft.
   - Umbuchungen, Erstattungen und Kontaktrückzahlungen zählen nie als Einnahmen; Kapitalerträge stehen nicht im Netto.
   - Randfall: Ein laufender Monat ist als unvollständig gekennzeichnet; leere Monate bleiben Lücken.
 - **Status:** live · **Verweis:** 3.2

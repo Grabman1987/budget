@@ -13,11 +13,7 @@ const periodViews: Record<string, readonly { value: string; label: string }[]> =
     { value: 'druckblatt', label: 'A4 Druckblatt · Monat' },
   ],
   jahresreport: [{ value: 'druckblatt', label: 'A4 Druckblatt · Jahr' }],
-  'einnahmen-ausgaben': [
-    { value: 'income', label: 'Einnahmen' },
-    { value: 'cashflow', label: 'Cashflow' },
-    { value: 'projekte', label: 'Projekte und Nebeneinkünfte' },
-  ],
+  'einnahmen-ausgaben': [{ value: 'projekte', label: 'Projekte und Nebeneinkünfte' }],
   ausgaben: [
     { value: 'kategorien', label: 'Kategorien und Verlauf' },
     { value: 'empfaenger', label: 'Empfänger' },

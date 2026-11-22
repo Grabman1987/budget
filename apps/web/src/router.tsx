@@ -169,6 +169,7 @@ const redirectRoute = (
       }),
   intent: Readonly<Record<string, string>> = {},
   fallbackPeriod?: Period,
+  fallbackHash?: string,
 ) =>
   createRoute({
     getParentRoute: () => shellRoute,
@@ -183,6 +184,7 @@ const redirectRoute = (
         target.searchParams.set(key, value);
       if (fallbackPeriod && !isZeitraum(search.zeitraum))
         target.searchParams.set('zeitraum', fallbackPeriod);
+      if (!target.hash && fallbackHash) target.hash = fallbackHash;
       throw redirect({
         href: `${target.pathname}${target.search}${target.hash}`,
         replace: true,
@@ -726,8 +728,22 @@ const settingsIndexRoute = createRoute({
 });
 const redirects = [
   redirectRoute('/reports/liquiditaet', '/plan/prognose'),
-  redirectRoute('/reports/einnahmen', '/reports/einnahmen-ausgaben', { darstellung: 'income' }),
-  redirectRoute('/reports/cashflow', '/reports/einnahmen-ausgaben', { darstellung: 'cashflow' }),
+  redirectRoute(
+    '/reports/einnahmen',
+    '/reports/einnahmen-ausgaben',
+    { darstellung: 'income' },
+    undefined,
+    REDESIGN_ENABLED ? 'inc-exp-title' : undefined,
+  ),
+  ...['/reports/cashflow', '/reports/cashflow-verlauf'].map((path) =>
+    redirectRoute(
+      path,
+      '/reports/einnahmen-ausgaben',
+      { darstellung: 'cashflow' },
+      undefined,
+      REDESIGN_ENABLED ? 'cashflow' : undefined,
+    ),
+  ),
   redirectRoute('/reports/projekte', '/reports/einnahmen-ausgaben', { darstellung: 'projekte' }),
   redirectRoute('/reports/empfaenger', '/reports/ausgaben', { darstellung: 'empfaenger' }),
   redirectRoute('/reports/planungstreue', '/reports/budgettreue', { darstellung: 'budget' }),

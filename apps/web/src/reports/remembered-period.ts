@@ -1,11 +1,13 @@
 import { isReportPeriod, type Period } from '@budget/domain';
 import { findReport } from '../nav/reports-catalog';
+import { REDESIGN_ENABLED } from '../shell/redesign-flag';
 
 const KEY = 'budget.reports.period';
 
 /** Only readers with a freely selectable report period share this device preference. */
 export function supportsReportPeriod(id: string, search: Record<string, unknown>): boolean {
-  if (id === 'einnahmen-ausgaben' && search['darstellung'] === 'income') return false;
+  if (!REDESIGN_ENABLED && id === 'einnahmen-ausgaben' && search['darstellung'] === 'income')
+    return false;
   if (
     id === 'vermoegen-schulden' &&
     ['freiheit', 'verteilung'].includes(String(search['darstellung']))

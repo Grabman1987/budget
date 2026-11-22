@@ -33,7 +33,9 @@ it('does not apply or adopt periods from fixed, monthly, annual or saved-view re
     expect(rememberedReportPeriod(id, {})).toBeUndefined();
     expect(supportsReportPeriod(id, {})).toBe(false);
   }
-  expect(supportsReportPeriod('einnahmen-ausgaben', { darstellung: 'income' })).toBe(false);
+  expect(supportsReportPeriod('einnahmen-ausgaben', { darstellung: 'income' })).toBe(
+    import.meta.env.VITE_BUDGET_REDESIGN === '1',
+  );
   expect(supportsReportPeriod('vermoegen-schulden', { darstellung: 'freiheit' })).toBe(false);
   expect(supportsReportPeriod('vermoegen-schulden', { darstellung: 'verteilung' })).toBe(false);
   expect(supportsReportPeriod('explorer', { ansicht: 'synthetic-view' })).toBe(false);
