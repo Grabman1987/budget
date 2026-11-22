@@ -9,6 +9,7 @@ export * from './operator-payslips';
 export * from './operator-instrument-facts';
 export * from './operator-owner-config';
 export * from './bookings';
+export * from './booking-review';
 export {
   assertLedgerInvariants,
   relatedTransferBookings,
@@ -50,6 +51,7 @@ export * from './planning-accuracy';
 export * from './contacts';
 export * from './contact-identity';
 export * from './contact-linked-edit';
+export { assertContactBookingWrite, linkedRepayments } from './contact-invariants';
 export * from './contact-merge';
 export * from './contact-label';
 export * from './portfolio-positions';

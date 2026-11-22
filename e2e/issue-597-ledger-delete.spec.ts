@@ -164,11 +164,18 @@ test('597 immediate delete, protected explanation, paired bulk preview and exact
   await expect(edit).not.toBeVisible();
 
   await page.locator(`tr[data-booking="${linked.id}"] .kname-btn`).click();
+  const linkedRelease = page.getByRole('alertdialog', {
+    name: 'Verknüpfte Auslage wirklich bearbeiten?',
+  });
+  await expect(linkedRelease).toBeVisible();
+  await expect(edit).not.toBeVisible();
+  await expect.poll(readRows).toEqual(before);
+  await linkedRelease.getByRole('button', { name: 'Bearbeitung bestätigen', exact: true }).click();
   await edit.getByRole('button', { name: 'Löschen', exact: true }).click();
   await expect(blocked).toContainText('Kontakt');
   await expect(
     blocked.getByRole('button', { name: 'Löschen bestätigen', exact: true }),
-  ).toHaveCount(0);
+  ).toBeVisible();
   await expect.poll(readRows).toEqual(before);
   await blocked.getByRole('button', { name: 'Weiter bearbeiten', exact: true }).click();
   await captureCloseControl(edit).click();

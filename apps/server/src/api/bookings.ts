@@ -3,6 +3,7 @@ import {
   account,
   linkBookings,
   bookingDelivery,
+  bookingReviewedOn,
   category,
   payee,
   createBooking,
@@ -14,6 +15,7 @@ import {
   getBooking,
   queryBookings,
   readBookingBulkSelection,
+  recordBookingReview,
   type BookingBulkItem,
   type BookingBulkReason,
   ReconciledLockedError,
@@ -36,6 +38,7 @@ import { z, ZodError, type ZodType } from 'zod';
 import { Hono, type Context } from 'hono';
 import { filteredBookingCsv } from './booking-csv';
 import { readBookingInspector } from './booking-inspector';
+import { auditBookingOverride, readBookingEditProtection } from './booking-edit-protection';
 import {
   bookingFieldPreview,
   bookingNotePreview,
@@ -245,6 +248,13 @@ export function bookingRoutes(db: Db, today = () => todayInVienna()): Hono {
 
   app.get('/:id/inspector', (c) => c.json(readBookingInspector(db, c.req.param('id'), today())));
 
+  app.get('/:id/edit-protection', (c) => {
+    const protection = readBookingEditProtection(db, c.req.param('id'));
+    if (!protection) throw new ApiError(404, 'not_found', 'Die Buchung wurde nicht gefunden.');
+    c.header('Cache-Control', 'no-store');
+    return c.json(protection);
+  });
+
   app.get('/:id', (c) => {
     const [found] = read([c.req.param('id')]);
     if (!found) throw new ApiError(404, 'not_found', 'Booking not found');
@@ -371,7 +381,16 @@ export function bookingRoutes(db: Db, today = () => todayInVienna()): Hono {
   app.patch('/:id', async (c) => {
     const id = c.req.param('id');
     const body = await readBookingBody(c, bookingPatch);
-    const { repeat, unlockReconciled, unlockContactLinked, overrideReason, splits, ...rest } = body;
+    const {
+      repeat,
+      unlockReconciled,
+      unlockContactLinked,
+      unlockLinkedRepayment,
+      overrideReason,
+      acceptInReview,
+      splits,
+      ...rest
+    } = body;
     const key = c.req.header('Idempotency-Key');
     if (key !== undefined && !/^[a-zA-Z0-9-]{16,80}$/.test(key))
       throw new ApiError(400, 'invalid', 'Ungültiger Sendeschlüssel.');
@@ -407,10 +426,26 @@ export function bookingRoutes(db: Db, today = () => todayInVienna()): Hono {
             }
           : {}),
       };
-      if (repeat && getBooking(tx, id)?.status === 'reconciled' && !unlockReconciled)
-        throw new ReconciledLockedError([id]);
       const previous = getBooking(tx, id);
       if (!previous) throw new ApiError(404, 'not_found', 'Die Buchung wurde nicht gefunden.');
+      if (
+        acceptInReview &&
+        (previous.status !== 'pending' ||
+          patch.status !== 'confirmed' ||
+          Object.keys(patch).length !== 1 ||
+          repeat)
+      )
+        throw new ApiError(
+          409,
+          'invalid_review_acceptance',
+          'Nur eine vorgemerkte Buchung kann hier bestätigt werden.',
+        );
+      if (
+        repeat &&
+        !unlockReconciled &&
+        (previous.status === 'reconciled' || bookingReviewedOn(tx, id))
+      )
+        throw new ReconciledLockedError([id]);
       if (
         (patch.date ?? previous.date) > today() &&
         (patch.splits ?? previous.splits).some((s) => s.contactId && s.amountCents > 0)
@@ -422,15 +457,31 @@ export function bookingRoutes(db: Db, today = () => todayInVienna()): Hono {
         );
       if (unlockContactLinked)
         releaseLinkedAllocations(tx, id, patch, ctx, today(), {
-          unlockReconciled: unlockReconciled ?? false,
+          unlockReconciled: unlockLinkedRepayment ?? unlockReconciled ?? false,
           ...(overrideReason ? { reason: overrideReason } : {}),
         });
       updateBooking(tx, id, patch, ctx, {
-        unlockReconciled: unlockReconciled ?? false,
+        // A validated, status-only Prüfen acceptance can re-accept a previously released row.
+        unlockReconciled: unlockReconciled === true || acceptInReview === true,
         contactModel: true,
         unlockContactLinked: unlockContactLinked ?? false,
       });
       if (repeat) repeatFrom(tx, id, repeat, ctx);
+      if (acceptInReview) recordBookingReview(tx, id, today(), ctx);
+      if (
+        unlockReconciled &&
+        (repeat || Object.keys(patch).some((field) => field !== 'flag' && field !== 'memo'))
+      )
+        auditBookingOverride(
+          tx,
+          ctx,
+          'update',
+          overrideReason?.trim() || undefined,
+          (repeat || patch.splits) &&
+            (previous.status === 'reconciled' || bookingReviewedOn(tx, id))
+            ? { id, reconciled: previous.status === 'reconciled' }
+            : undefined,
+        );
       const response = {
         bookings: read([id]),
         groupId: ctx.groupId,
@@ -447,10 +498,8 @@ export function bookingRoutes(db: Db, today = () => todayInVienna()): Hono {
 
   app.delete('/:id', (c) => {
     const id = c.req.param('id');
-    const { unlock, unlockLinked, overrideReason, previewRevision } = readQuery(
-      c,
-      bookingDeleteQuery,
-    );
+    const { unlock, unlockLinked, unlockLinkedRepayment, overrideReason, previewRevision } =
+      readQuery(c, bookingDeleteQuery);
     if (!getBooking(db, id)) throw new ApiError(404, 'not_found', 'Booking not found');
     const ctx = audit();
     runInTransaction(db, (tx) => {
@@ -462,13 +511,18 @@ export function bookingRoutes(db: Db, today = () => todayInVienna()): Hono {
         );
       if (unlockLinked !== undefined)
         releaseLinkedAllocations(tx, id, 'delete', ctx, today(), {
-          unlockReconciled: unlock !== undefined,
+          unlockReconciled:
+            unlockLinkedRepayment === undefined
+              ? unlock !== undefined
+              : unlockLinkedRepayment === '1',
           ...(overrideReason ? { reason: overrideReason } : {}),
         });
       deleteBooking(tx, id, ctx, {
         unlockReconciled: unlock !== undefined,
         unlockContactLinked: unlockLinked !== undefined,
       });
+      if (unlock !== undefined)
+        auditBookingOverride(tx, ctx, 'delete', overrideReason?.trim() || undefined);
     });
     return c.json({ deleted: id, groupId: ctx.groupId });
   });

@@ -278,6 +278,11 @@ describe('assignment API and owner confirmation', () => {
     const booked = opened.db.select().from(schema.booking).all();
     expect(booked).toHaveLength(5);
     expect(booked.every((b) => b.status === 'confirmed' && b.amountCents === -1201)).toBe(true);
+    const reviewed = await call('GET', `/bookings/${booked[0]!.id}/edit-protection`);
+    expect(reviewed.body).toMatchObject({ reconciled: false, reviewedOn: [today] });
+    const refused = await call('PATCH', `/bookings/${booked[0]!.id}`, { amountCents: -1401 });
+    expect(refused.body).toMatchObject({ error: 'reconciled_locked' });
+    expect(getBooking(opened.db, booked[0]!.id)?.amountCents).toBe(-1201);
     undo(opened.db, { groupId: result.body.groupId }, { actor: 'test' });
     expect(
       opened.db
@@ -628,6 +633,8 @@ describe('assignment API and owner confirmation', () => {
       categoryId: 'reise',
       incomeTypeId: 'income-a',
     });
+    const accepted = await call('GET', `/bookings/${second}/edit-protection`);
+    expect(accepted.body).toMatchObject({ reviewedOn: [today] });
   });
   it('keeps bank source accounts and rejects unavailable learned targets without writing', async () => {
     const first = candidate();

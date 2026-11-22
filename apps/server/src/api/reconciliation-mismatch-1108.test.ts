@@ -4,6 +4,7 @@ import {
   createTestDatabase,
   reconcileAccount,
   schema,
+  undo,
   type OpenedDatabase,
 } from '@budget/db';
 import { seedBasics, testCtx } from '../../../../packages/db/src/repos/test-helpers';
@@ -69,10 +70,83 @@ const snapshot = () =>
     opened.sqlite.prepare('SELECT * FROM inbox_item ORDER BY rowid').all(),
   ]);
 
+it('protects a booking explicitly accepted in Prüfen and allows one audited correction', async () => {
+  const pending = createBooking(
+    opened.db,
+    {
+      accountId: 'giro',
+      date: '2026-09-03',
+      amountCents: -1001,
+      status: 'pending',
+      splits: [{ categoryId: 'essen', amountCents: -1001 }],
+    },
+    testCtx,
+  );
+  const path = `/bookings/${pending}`;
+  const accepted = await request<{ groupId: string }>(path, 'PATCH', {
+    status: 'confirmed',
+    acceptInReview: true,
+  });
+  expect(await request(`${path}/edit-protection`)).toMatchObject({
+    reconciled: false,
+    reviewedOn: ['2026-09-17'],
+  });
+  const before = snapshot();
+  expect(await request(path, 'PATCH', { amountCents: -1201 }, 409)).toMatchObject({
+    error: 'reconciled_locked',
+  });
+  expect(await request(path, 'DELETE', undefined, 409)).toMatchObject({
+    error: 'reconciled_locked',
+  });
+  expect(snapshot()).toBe(before);
+  const changed = await request<{ groupId: string }>(path, 'PATCH', {
+    amountCents: -1201,
+    unlockReconciled: true,
+  });
+  expect(await request(path)).toMatchObject({
+    booking: { amountCents: -1201, status: 'confirmed' },
+  });
+  const audit = opened.sqlite
+    .prepare(
+      `SELECT id, after_json FROM audit_log WHERE group_id = ? AND entity_type = 'app_setting'`,
+    )
+    .get(changed.groupId) as { id: string; after_json: string };
+  expect(JSON.parse(JSON.parse(audit.after_json).value)).toMatchObject({
+    bookingIds: [pending],
+    reason: 'In Prüfen bestätigt, Änderung bestätigt',
+  });
+  expect(() => undo(opened.db, { auditId: audit.id }, testCtx, { force: true })).toThrow(
+    /gesamte Aktion/,
+  );
+  await request('/undo', 'POST', { groupId: changed.groupId });
+  expect(await request(path)).toMatchObject({
+    booking: { amountCents: -1001, status: 'confirmed' },
+  });
+  expect(await findings()).toEqual([]);
+  const revertedToPending = await request<{ groupId: string }>(path, 'PATCH', {
+    status: 'pending',
+    unlockReconciled: true,
+  });
+  const acceptedAgain = await request<{ groupId: string }>(path, 'PATCH', {
+    status: 'confirmed',
+    acceptInReview: true,
+  });
+  await request('/undo', 'POST', { groupId: acceptedAgain.groupId });
+  await request('/undo', 'POST', { groupId: revertedToPending.groupId });
+  await request('/undo', 'POST', { groupId: accepted.groupId });
+  expect(await request(`${path}/edit-protection`)).toMatchObject({ reviewedOn: [] });
+  expect(await request(path)).toMatchObject({ booking: { amountCents: -1001, status: 'pending' } });
+});
+
 it('rejects an implicit edit, derives an exact mismatch after override, and removes it on one Undo', async () => {
   const initial = await queue();
   expect(await findings()).toEqual([]);
   const before = snapshot();
+  expect(await request(`/bookings/${id}/edit-protection`)).toMatchObject({
+    reconciled: true,
+    reconciliationDates: ['2026-09-02'],
+    settlementDates: [],
+  });
   expect(await request(`/bookings/${id}`, 'PATCH', { amountCents: -1101 }, 409)).toMatchObject({
     error: 'reconciled_locked',
   });
@@ -80,6 +154,18 @@ it('rejects an implicit edit, derives an exact mismatch after override, and remo
   const changed = await request<{ groupId: string }>(`/bookings/${id}`, 'PATCH', {
     amountCents: -1101,
     unlockReconciled: true,
+  });
+  const override = opened.sqlite
+    .prepare(
+      `SELECT actor, ts, after_json FROM audit_log
+      WHERE group_id = ? AND entity_type = 'app_setting'`,
+    )
+    .get(changed.groupId) as { actor: string; ts: string; after_json: string };
+  expect(override).toMatchObject({ actor: 'owner', ts: expect.any(String) });
+  expect(JSON.parse(JSON.parse(override.after_json).value)).toMatchObject({
+    bookingIds: [id],
+    operation: 'update',
+    reason: 'Kontostand abgeglichen, Änderung bestätigt',
   });
   const afterWrite = snapshot();
   const [finding] = await findings();
@@ -117,6 +203,28 @@ it('detects deletion and date/status moves out of the checked balance, without r
   await request('/undo', 'POST', { groupId: removed.groupId });
   expect(await findings()).toEqual([]);
 });
+
+it.each([{ splits: [{ categoryId: null, amountCents: -1000 }] }, { repeat: 'monthly' }])(
+  'audits a protected split or repeat even when the booking amount does not change (%j)',
+  async (patch) => {
+    const path = `/bookings/${id}`;
+    await request(path, 'PATCH', patch, 409);
+    const changed = await request<{ groupId: string }>(path, 'PATCH', {
+      ...patch,
+      unlockReconciled: true,
+    });
+    expect(
+      opened.sqlite
+        .prepare(
+          `SELECT entity_id FROM audit_log WHERE group_id = ? AND entity_type = 'app_setting'`,
+        )
+        .all(changed.groupId),
+    ).toEqual([{ entity_id: `ledger.reconciled-override.${changed.groupId}` }]);
+    expect(await request(path)).toMatchObject({ booking: { amountCents: -1000 } });
+    expect(await findings()).toEqual([]);
+    await request('/undo', 'POST', { groupId: changed.groupId });
+  },
+);
 
 it('ignores metadata and later bookings, uses only the latest check and restores its finding on Undo', async () => {
   await request(`/bookings/${id}`, 'PATCH', { memo: 'Synthetic note' });

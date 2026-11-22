@@ -293,6 +293,7 @@ test('Kontostand prüfen: doppelt, Ausgleich, geprüft sperrt, undo', async ({ p
     });
     await expect(edit).toBeHidden();
     await expect(page.getByLabel('Betrag', { exact: true })).toHaveCount(0);
+    await expect(release).toHaveAccessibleDescription(/am \d{2}\.\d{2}\.\d{4} abgeglichen/);
     await expect(release.getByRole('button', { name: 'Abbrechen' })).toBeFocused();
     await page.keyboard.press('Escape');
     await expect(release).toBeHidden();

@@ -28,6 +28,7 @@ import { assertNoActiveAlias, contactIdentityIds, normalizeContactLabel } from '
 import { memoizedShared } from './request-memo';
 import type { Executor } from './types';
 import { CONTACT_LINKED_OVERRIDE_PREFIX, CONTACT_UNLOCK_PREFIX } from './contact-allocation-lock';
+import { BOOKING_OVERRIDE_PREFIX } from './booking-review';
 
 /** Check only the changed identity: legacy contacts are not renamed or merged implicitly. */
 export function assertContactName(tx: Executor, id: string) {
@@ -423,10 +424,10 @@ function linkedOverrideCovers(tx: Executor, groupId: string, bookingId: string):
   }
 }
 
-/** Dates of the live repayments that allocate this booking's outlay splits, oldest first. */
-export function linkedSettlementDates(tx: Executor, bookingId: string): string[] {
+/** Live repayments that allocate this booking's outlay splits. */
+export function linkedRepayments(tx: Executor, bookingId: string) {
   return tx
-    .selectDistinct({ date: booking.date, id: contactSettlement.id })
+    .selectDistinct({ date: booking.date, id: contactSettlement.id, status: booking.status })
     .from(contactAllocation)
     .innerJoin(bookingSplit, eq(bookingSplit.id, contactAllocation.outlaySplitId))
     .innerJoin(contactSettlement, eq(contactSettlement.id, contactAllocation.settlementId))
@@ -438,7 +439,11 @@ export function linkedSettlementDates(tx: Executor, bookingId: string): string[]
         isNull(contactSettlement.deletedAt),
       ),
     )
-    .all()
+    .all();
+}
+
+function linkedSettlementDates(tx: Executor, bookingId: string): string[] {
+  return linkedRepayments(tx, bookingId)
     .map((r) => r.date)
     .sort();
 }
@@ -560,15 +565,20 @@ export function assertContactUndoDependencies(
         for (const id of marker.bookingIds ?? []) if (typeof id === 'string') unlocked.add(id);
     }
   }
-  // An allocation authorization never grants permission to undo bank facts.
-  if (
-    unlocked.size &&
-    entries.some(
-      (e) =>
-        e.entityType === 'booking' && [e.before, e.after].some((s) => s && s.amount_cents !== 0),
-    )
-  )
-    unlocked.clear();
+  // Keep allocation-only permission on unchanged receipts in a grouped outlay edit. Cash edits
+  // require a separate, explicit booking override for that same booking.
+  for (const e of entries)
+    if (e.entityType === 'booking' && [e.before, e.after].some((s) => s && s.amount_cents !== 0))
+      unlocked.delete(e.entityId);
+  for (const e of entries) {
+    if (e.entityType !== 'app_setting' || !e.entityId.startsWith(BOOKING_OVERRIDE_PREFIX)) continue;
+    for (const snapshot of [e.before, e.after]) {
+      if (typeof snapshot?.value !== 'string') continue;
+      const marker = JSON.parse(snapshot.value) as { reconciledBookingIds?: unknown[] };
+      for (const id of marker.reconciledBookingIds ?? [])
+        if (typeof id === 'string') unlocked.add(id);
+    }
+  }
   if (records.length) {
     for (const record of records) {
       for (const adopted of record.adoptedRepayments ?? []) {

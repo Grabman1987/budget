@@ -1,5 +1,4 @@
 import { captureSaveControl } from './ledger-helpers';
-import { captureCloseControl } from './ledger-helpers';
 import AxeBuilder from '@axe-core/playwright';
 import { expect } from '@playwright/test';
 import { writeFile } from 'node:fs/promises';
@@ -226,51 +225,41 @@ for (const profile of ['desktop', 'phone'] as const)
         expect(writes).toEqual([]);
         await expect(page).toHaveURL(new RegExp(`/konten/kontakte/${contact.id}\\?verlauf=1$`));
 
-        // #1108 keeps the server guard and asks for explicit confirmation before retry.
-        await region
-          .getByRole('button', { name: /Ursprungsbuchung öffnen.*Ältere offene Auslage/ })
-          .click();
-        await expect(
-          dialog.getByRole('combobox', { name: 'Kategorie', exact: true }),
-        ).toBeEnabled();
-        await dialog
-          .getByRole('combobox', { name: 'Kategorie', exact: true })
-          .fill('Synthetisches Geschenk');
-        await dialog.getByRole('option', { name: /Synthetisches Geschenk/ }).click();
-        const refusal = page.waitForResponse(
-          (r) =>
-            r.request().method() === 'PATCH' &&
-            new URL(r.url()).pathname === `/api/bookings/${older.id}`,
-        );
-        await captureSaveControl(dialog).click();
-        const refused = await refusal;
-        expect(refused.status()).toBe(422);
-        expect((await refused.json()).message).toBe(
-          'Diese Auslage ist mit einer Rückzahlung verknüpft. Bitte bestätige den Vorgang.',
-        );
-        await expect(dialog.getByRole('alert')).toHaveCount(0);
-        const linkedQuestion = dialog.getByRole('alertdialog', {
+        const openOlder = region.getByRole('button', {
+          name: /Ursprungsbuchung öffnen.*Ältere offene Auslage/,
+        });
+        const linkedQuestion = page.getByRole('alertdialog', {
           name: 'Verknüpfte Auslage wirklich bearbeiten?',
         });
-        await expect(linkedQuestion).toBeVisible();
-        await expect(linkedQuestion).toHaveAccessibleDescription(
-          'Diese Auslage ist mit einer Rückzahlung vom 02.09.2026 verknüpft. Passt der neue Betrag noch, bleibt die Zuordnung bestehen. Sonst führt der Kontakt den Rest als Guthaben, nichts geht verloren und nichts wird doppelt gezählt. Die Änderung wird protokolliert und kann mit einem Klick rückgängig gemacht werden.',
-        );
-        await expect(
-          linkedQuestion.getByRole('button', { name: 'Bearbeitung bestätigen' }),
-        ).toBeVisible();
-        // Cancel preserves the ledger and the draft without a second PATCH.
-        await linkedQuestion.getByRole('button', { name: 'Abbrechen', exact: true }).click();
-        await expect(linkedQuestion).toHaveCount(0);
-        await expect(dialog.getByRole('combobox', { name: 'Kategorie', exact: true })).toHaveValue(
-          'Synthetisches Geschenk',
-        );
+        await openOlder.click();
+        await expect(linkedQuestion).toHaveAccessibleDescription(/Rückzahlung vom 02\.09\.2026/);
+        await expect(dialog).toBeHidden();
+        await expect(linkedQuestion.getByRole('button', { name: 'Abbrechen' })).toBeFocused();
+        await page.keyboard.press('Escape');
+        await expect(linkedQuestion).toBeHidden();
+        await expect(dialog).toBeHidden();
+        expect(writes).toEqual([]);
         expect(
           (await (await request.get(`${origin}/api/bookings/${older.id}`)).json()).booking,
         ).toEqual(older);
-        await captureCloseControl(dialog).click();
-        await page.getByRole('button', { name: 'Verwerfen', exact: true }).click();
-        await expect(dialog).not.toBeVisible();
+
+        await openOlder.click();
+        await expect(linkedQuestion.getByRole('button', { name: 'Abbrechen' })).toBeFocused();
+        await page.keyboard.press('Tab');
+        await expect(
+          linkedQuestion.getByRole('button', { name: 'Bearbeitung bestätigen' }),
+        ).toBeFocused();
+        await page.keyboard.press('Enter');
+        await expect(dialog).toBeVisible();
+        await dialog.getByRole('button', { name: 'Löschen', exact: true }).click();
+        await page.getByRole('button', { name: 'Löschen bestätigen', exact: true }).click();
+        await expect(dialog).toBeHidden();
+        await expect(region.locator('.contacts-balance')).toHaveText('Schuldet dir 30,00 €');
+        await page.getByRole('button', { name: 'Rückgängig', exact: true }).click();
+        await expect(region.locator('.contacts-balance')).toHaveText('Schuldet dir 60,00 €');
+        expect(
+          (await (await request.get(`${origin}/api/bookings/${older.id}`)).json()).booking,
+        ).toEqual(older);
 
         // Change only the unallocated contact line through the actual category picker and Save.
         await open.click();
@@ -302,7 +291,9 @@ for (const profile of ['desktop', 'phone'] as const)
           (await (await request.get(`${origin}/api/bookings/${source.id}`)).json()).booking,
         ).toEqual(source);
         expect(writes).toEqual([
-          { method: 'PATCH', path: `/api/bookings/${older.id}` },
+          { method: 'POST', path: '/api/bookings/delete-preview' },
+          { method: 'DELETE', path: `/api/bookings/${older.id}` },
+          { method: 'POST', path: '/api/undo' },
           { method: 'PATCH', path: `/api/bookings/${source.id}` },
           { method: 'POST', path: '/api/undo' },
         ]);

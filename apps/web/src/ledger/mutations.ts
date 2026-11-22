@@ -168,12 +168,14 @@ export function useLedgerWrites() {
       unlock,
       previewRevision,
       unlockLinked,
+      unlockLinkedRepayment,
     }: {
       id: string;
       unlock?: boolean;
       previewRevision?: string;
       unlockLinked?: boolean;
-    }) => deleteBooking(id, unlock, previewRevision, unlockLinked),
+      unlockLinkedRepayment?: boolean;
+    }) => deleteBooking(id, unlock, previewRevision, unlockLinked, unlockLinkedRepayment),
     onMutate: ({ id }) => optimistic(qc, (b) => (b.id === id ? null : b)),
     onError: (error, _vars, snapshot) => {
       rollback(qc, snapshot);

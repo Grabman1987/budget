@@ -37,6 +37,8 @@ import * as schema from '../schema';
 import { auditLog, type AUDIT_ACTIONS } from '../schema';
 import { AuditError, EntityNotFoundError } from './errors';
 import { expectedLinkPatches } from './expected-links';
+import { BOOKING_OVERRIDE_PREFIX, BOOKING_REVIEW_PREFIX } from './booking-review';
+import { CONTACT_LINKED_OVERRIDE_PREFIX } from './contact-allocation-lock';
 import { assertLedgerInvariants, assertTradeSettlementInvariants } from './invariants';
 import { assertAccountBookingCurrencies, assertEurBudgetAccounts } from './account-invariants';
 import { runInTransaction, type Executor } from './types';
@@ -678,6 +680,27 @@ export function undo(
     }
     if ('auditId' in target) {
       const [entry] = originals as [AuditEntry];
+      if (
+        entry.groupId &&
+        tx
+          .select()
+          .from(auditLog)
+          .where(
+            and(
+              eq(auditLog.groupId, entry.groupId),
+              eq(auditLog.entityType, 'app_setting'),
+              or(
+                sql`instr(${auditLog.entityId}, ${BOOKING_REVIEW_PREFIX}) = 1`,
+                sql`instr(${auditLog.entityId}, ${CONTACT_LINKED_OVERRIDE_PREFIX}) = 1`,
+                sql`instr(${auditLog.entityId}, ${BOOKING_OVERRIDE_PREFIX}) = 1`,
+              ),
+            ),
+          )
+          .get()
+      )
+        throw new AuditError(
+          'Eine Buchungsfreigabe oder Prüfung nur als gesamte Aktion rückgängig machen.',
+        );
       if (
         entry.groupId &&
         tx

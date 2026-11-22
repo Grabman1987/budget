@@ -203,11 +203,22 @@ export interface BookingPatch {
   projectId?: string | null;
   splits?: SplitInput[];
   unlockReconciled?: boolean;
+  acceptInReview?: true;
   /** Owner confirmed editing an outlay that a contact repayment allocates (#1108). */
   unlockContactLinked?: boolean;
+  unlockLinkedRepayment?: boolean;
 }
 
 export type BookingSaveResult = { bookings: ListedBooking[]; savedAt?: string } & WriteResult;
+
+export const readBookingEditProtection = (id: string) =>
+  request<{
+    reconciled: boolean;
+    reconciliationDates: string[];
+    settlementDates: string[];
+    reconciledRepayment: boolean;
+    reviewedOn: string[];
+  }>('GET', `/api/bookings/${encodeURIComponent(id)}/edit-protection`);
 
 export const readBookingDelivery = (
   key: string,
@@ -243,10 +254,13 @@ export const deleteBooking = (
   unlock = false,
   previewRevision?: string,
   unlockLinked = false,
+  unlockLinkedRepayment?: boolean,
 ) => {
   const query = new URLSearchParams();
   if (unlock) query.set('unlock', '1');
   if (unlockLinked) query.set('unlockLinked', '1');
+  if (unlockLinkedRepayment !== undefined)
+    query.set('unlockLinkedRepayment', unlockLinkedRepayment ? '1' : '0');
   if (previewRevision) query.set('previewRevision', previewRevision);
   return request<WriteResult>(
     'DELETE',
