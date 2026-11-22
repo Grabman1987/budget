@@ -1,4 +1,10 @@
 import {
+  addDays,
+  combinedCosts,
+  ExchangeRateUnavailableError,
+  PriceUnavailableError,
+  taxBreakdownInRange,
+  terOf,
   COST_RATE_TARGET_BP,
   KEST_RATE_BP,
   feeBreakdownLast12Months,
@@ -12,9 +18,20 @@ import {
   type TaxBreakdown,
   mulDivRound,
 } from '@budget/domain';
-import { isNull } from 'drizzle-orm';
-import { security } from '../schema';
-import { portfolioSummary, ratesAsOf, tradesInEur, tradesUpTo } from './portfolio-summary';
+import { and, asc, isNull, lte } from 'drizzle-orm';
+import { account, security } from '../schema';
+import {
+  lastTwelveMonthEnds,
+  monthEndValuesForCosts,
+  portfolioSummary,
+  ratesAsOf,
+  tradesInEur,
+  tradesUpTo,
+} from './portfolio-summary';
+import { MissingFxRateError } from './errors';
+import { namedNotes, runWithValuationNotes, withValuationRange } from './valuation-notes';
+import { bankCostsReport } from './bank-costs-report';
+import { holdingValuesAsOf, valuationSeries } from './portfolio';
 import type { Executor } from './types';
 
 export interface CostsTaxesProduct {
@@ -164,3 +181,92 @@ export function costsTaxesReport(db: Executor, options: { today: string }): Cost
     products,
   };
 }
+
+/** The same holding values, TER samples and booked tax calculation as the rolling report. */
+function portfolioCostsInRange(db: Executor, from: string, to: string) {
+  const valuation = valuationSeries(db, { from, to });
+  const ends = lastTwelveMonthEnds(to).filter((day) => day >= from);
+  const samples = monthEndValuesForCosts(valuation, ends);
+  const securities = db
+    .select({ id: security.id, terBp: security.terBp })
+    .from(security)
+    .where(isNull(security.deletedAt))
+    .all();
+  const traded = tradesUpTo(db, to).filter(
+    (t) => t.date >= from && (t.taxCents !== 0 || t.kind === 'tax'),
+  );
+  const trades = tradesInEur(
+    traded.map((t) => ({
+      ...t,
+      amountCents: t.kind === 'tax' ? t.amountCents : 0,
+      feeCents: 0,
+    })),
+    ratesAsOf(db, to),
+  );
+  return {
+    terCents: securities.reduce((sum, sec) => sum + terOf(samples.get(sec.id) ?? [], sec.terBp), 0),
+    taxes: taxBreakdownInRange(trades, { from: addDays(from, -1), to }),
+    valueCents: holdingValuesAsOf(db, to).reduce((sum, position) => sum + position.valueCents, 0),
+  };
+}
+
+/** Calendar years measured against security values at each year's reporting cut-off. */
+export function annualCostsReport(db: Executor, today: string) {
+  const first =
+    db
+      .select({ date: account.openingDate })
+      .from(account)
+      .where(and(isNull(account.deletedAt), lte(account.openingDate, today)))
+      .orderBy(asc(account.openingDate))
+      .limit(1)
+      .get()?.date ?? today;
+  const years = [];
+  for (let year = Number(today.slice(0, 4)); year >= Number(first.slice(0, 4)); year--) {
+    const yearStart = `${year}-01-01`;
+    const yearEnd = `${year}-12-31`;
+    const from = first > yearStart ? first : yearStart;
+    const to = today < yearEnd ? today : yearEnd;
+    const bank = bankCostsReport(db, to, { from, to });
+    const valuation = runWithValuationNotes((notes) => {
+      try {
+        const portfolio = withValuationRange(from, to, () => portfolioCostsInRange(db, from, to));
+        return { portfolio, notes: namedNotes(db, notes()), unavailable: null };
+      } catch (error) {
+        if (error instanceof MissingFxRateError || error instanceof ExchangeRateUnavailableError)
+          return { portfolio: null, notes: [], unavailable: 'Wechselkurs fehlt' };
+        if (error instanceof PriceUnavailableError)
+          return { portfolio: null, notes: [], unavailable: 'Wertpapierkurs fehlt' };
+        throw error;
+      }
+    });
+    const { portfolio } = valuation;
+    const tradingFeeCents = bank.rows.find((row) => row.key === 'orders')?.cents ?? 0;
+    const total =
+      portfolio &&
+      combinedCosts({
+        bankCents: bank.totalCents,
+        portfolioFeeCents: tradingFeeCents + bank.portfolioAccountFeeCents,
+        terCents: portfolio.terCents,
+        taxCents: portfolio.taxes.totalCents,
+        valueCents: portfolio.valueCents,
+      });
+    years.push({
+      year,
+      from,
+      to,
+      partial: from !== yearStart || to !== yearEnd,
+      total,
+      valuationNotes: valuation.notes,
+      portfolioUnavailable: valuation.unavailable,
+      bankParts: bank.rows.map(({ key, name, cents }) => ({ key, name, cents })),
+      incomplete: {
+        modeledInterestMissingFxPeriods: bank.modeledInterestMissingFxPeriods,
+        skippedForeignTrades: bank.skippedForeignTrades,
+        skippedForeignBookings: bank.skippedForeignBookings,
+      },
+    });
+  }
+  return years;
+}
+
+export type AnnualCostYear = ReturnType<typeof annualCostsReport>[number];

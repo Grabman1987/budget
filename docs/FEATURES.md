@@ -217,7 +217,7 @@ separate credit, source dialog, copy and pagination retain their existing figure
 Both directions use quiet ink; no plus prefixes. Other bespoke report tables and
 chart-generated tables under #1161 remain outside this contacts-only slice.
 
-Issue #1160, total view: `darstellung=gesamt` in the cost report adds one annual "Kosten gesamt" figure (`combinedCosts` in the domain: bank and interest costs + TER + broker taxes, trading fees counted once, ratio against the portfolio value). No new calculation of the parts; windows of the two readers stay named. No migration.
+Issue #1160, total view: `darstellung=gesamt` lists combined bank and interest costs, portfolio fees, estimated TER and booked broker taxes by calendar year, newest first. A selected year is shareable with `jahr`. Each year's amounts and closing portfolio valuation use the same dates, with partial years marked. Trade fees are counted once and the fee-and-TER ratio excludes household costs and taxes. Amount privacy also masks the ratios.
 
 Issue #1158, first consolidation slice (review pending): the redesign spending report
 adds `darstellung=kategorien`, reusing the existing monthly category table and trend.

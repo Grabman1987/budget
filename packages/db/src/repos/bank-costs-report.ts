@@ -14,6 +14,7 @@ import {
   lastDayOfMonth,
   monthHouseholdIncome,
   monthOf,
+  monthsBetween,
   payoffPlan,
   PaymentBelowInterestError,
   type CostPart,
@@ -127,8 +128,15 @@ const add = (map: Record<string, number>, month: string, value: number) => {
   map[month] = cents((map[month] ?? 0) + value);
 };
 
-export function bankCostsReport(db: Executor, today: string): BankCostsReport {
-  const { available } = reportMonths(db, today);
+export function bankCostsReport(
+  db: Executor,
+  today: string,
+  range?: { from: string; to: string },
+): BankCostsReport {
+  const available = range
+    ? monthsBetween(monthOf(range.from), monthOf(range.to))
+    : reportMonths(db, today).available;
+  const includesDay = (day: string) => !range || (day >= range.from && day <= range.to);
   const inWindow = new Set(available);
   const last12 = new Set(available.slice(-12));
   const first = available[0];
@@ -181,7 +189,13 @@ export function bankCostsReport(db: Executor, today: string): BankCostsReport {
     .all();
   const rows = entries.filter(({ b, systemKind }) => {
     const a = accountById.get(b.accountId);
-    return a && b.date >= a.openingDate && inWindow.has(monthKey(b.date)) && systemKind === null;
+    return (
+      a &&
+      b.date >= a.openingDate &&
+      includesDay(b.date) &&
+      inWindow.has(monthKey(b.date)) &&
+      systemKind === null
+    );
   });
   let foreignFeeBookings = 0;
   for (const { b } of rows) {
@@ -216,6 +230,7 @@ export function bankCostsReport(db: Executor, today: string): BankCostsReport {
     (t) =>
       (t.kind === 'dividend' || t.kind === 'interest') &&
       !t.bookingId &&
+      includesDay(t.date) &&
       inWindow.has(monthKey(t.date)) &&
       accountById.has(t.accountId),
   );
@@ -311,6 +326,7 @@ export function bankCostsReport(db: Executor, today: string): BankCostsReport {
     }
     for (const month of available) {
       if (
+        (range && (`${month}-01` < range.from || lastDayOfMonth(month) > range.to)) ||
         explicitMonths.has(`${a.id}:${month}`) ||
         checkingInterestMonths.has(month) ||
         (a.closedAt && a.closedAt.slice(0, 7) < month) ||
@@ -348,7 +364,7 @@ export function bankCostsReport(db: Executor, today: string): BankCostsReport {
   for (const t of liveTrades) {
     const month = monthKey(t.date);
     const a = accountById.get(t.accountId);
-    if (!a || !inWindow.has(month) || t.date < a.openingDate) continue;
+    if (!a || !inWindow.has(month) || !includesDay(t.date) || t.date < a.openingDate) continue;
     const cost = convert(t.feeCents + (t.kind === 'fee' ? t.amountCents : 0), a.currency, t.date);
     if (cost === null) {
       skippedForeignTrades++;
@@ -486,8 +502,8 @@ export function bankCostsReport(db: Executor, today: string): BankCostsReport {
       earningsCents: earnings[month] ?? 0,
     })),
     asOf: today,
-    from: first ? `${first}-01` : null,
-    to: last ? lastDayOfMonth(last) : null,
+    from: range?.from ?? (first ? `${first}-01` : null),
+    to: range?.to ?? (last ? lastDayOfMonth(last) : null),
     partLabels: Object.fromEntries(parts.map((p) => [p.key, p.name])),
     creditLines,
     loan,

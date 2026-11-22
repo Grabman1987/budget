@@ -1,3 +1,4 @@
+import { TransitReconciliation } from '../wealth/transit-reconciliation';
 import { cents } from '@budget/domain';
 import { BenchmarkChoices } from './portfolio-benchmark-settings';
 import { PerformanceChart } from './performance-chart';
@@ -125,6 +126,9 @@ export function PortfolioDepotsReport({ report, meta }: { report: ReportEntry; m
       ]}
     >
       <div className="prep portfolio-depots-report">
+        {data && !query.isError && !query.isFetching && (
+          <TransitReconciliation data={data.cashReconciliation} />
+        )}
         {query.isPending && <LoadingNote what="Depots" />}
         {query.isError && (
           <ReportUnavailable

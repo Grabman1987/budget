@@ -1,3 +1,4 @@
+import { TransitReconciliation } from '../wealth/transit-reconciliation';
 import { useMemo, type ReactNode } from 'react';
 import {
   addMonths,
@@ -243,6 +244,7 @@ function Body({ data }: { data: Data }) {
   };
   return (
     <>
+      <TransitReconciliation data={data.cashReconciliation} />
       <section className="card whole-section" aria-label="Maßkette im Zeitraum">
         <h2>Vom Anfang zum Ende {estimated(t) ? '≈' : ''}</h2>
         <DimensionChain

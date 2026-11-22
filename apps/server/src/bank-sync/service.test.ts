@@ -3,6 +3,8 @@ import { eq } from 'drizzle-orm';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   bookedBalance,
+  candidateMatches,
+  mergeBankCandidate,
   createBooking,
   createExpectedPayment,
   createTestDatabase,
@@ -204,11 +206,15 @@ describe('bank sync workflow', () => {
     expect(readBankSyncRecap(opened.db, '2026-10-01').accounts[0]).toMatchObject({ open: null });
   });
 
-  it('requires confirmation for a newly authorized connection without changing legacy policy', async () => {
-    opened.db.delete(schema.appSetting).run();
+  it('defaults new connections to decision 41 while preserving explicit confirmation-first policy', async () => {
     await service.start('Bank A', 'AT', 'new-owner-session');
     const fresh = service.status().connections.find((c) => c.id !== consentId)!;
-    expect(fresh.bookedToLedger).toBe(false);
+    expect(fresh.bookedToLedger).toBe(true);
+    expect(service.status().connections.find((c) => c.id === consentId)?.bookedToLedger).toBe(
+      false,
+    );
+    // A connection with no stored override also follows decision 41.
+    opened.db.delete(schema.appSetting).run();
     expect(service.status().connections.find((c) => c.id === consentId)?.bookedToLedger).toBe(true);
   });
 
@@ -348,6 +354,9 @@ describe('bank sync workflow', () => {
   });
   it('counts BOOK immediately by default, leaves PDNG as a candidate, and never assigns a category', async () => {
     opened.db.delete(schema.appSetting).run();
+    expect(
+      accountBalances(opened.db, '2026-10-01').find((a) => a.accountId === 'giro')?.balanceCents,
+    ).toBe(100000);
     vi.mocked(provider.transactions).mockResolvedValue(
       batch([row, { ...row, reference: 'pending-a', bankStatus: 'pending', amountCents: -301 }]),
     );
@@ -554,6 +563,49 @@ describe('bank sync workflow', () => {
       accountBalances(opened.db, '2026-10-01').find((a) => a.accountId === 'giro')?.balanceCents,
     ).toBe(98799);
     expect(redo.entries.length).toBeGreaterThan(0);
+  });
+  it('undoes all BOOK postings from a fetch together without changing PDNG or the bank observation', async () => {
+    opened.db.delete(schema.appSetting).run();
+    vi.mocked(provider.transactions).mockResolvedValue(
+      batch([
+        row,
+        { ...row, reference: 'booked-b', amountCents: -2302 },
+        { ...row, reference: 'pending-b', bankStatus: 'pending', amountCents: -401 },
+      ]),
+    );
+    await service.tick();
+    expect(
+      accountBalances(opened.db, '2026-10-01').find((a) => a.accountId === 'giro')?.balanceCents,
+    ).toBe(96497);
+    const postingGroups = opened.db
+      .select()
+      .from(schema.auditLog)
+      .all()
+      .filter((a) => a.entityType === 'booking' && a.actor === 'bank-sync')
+      .map((a) => a.groupId!);
+    expect(postingGroups).toHaveLength(2);
+    expect(new Set(postingGroups).size).toBe(1);
+    const observation = opened.db.select().from(schema.bankSyncAccount).get()!;
+    undo(opened.db, { groupId: postingGroups[0]! }, { actor: 'owner' });
+    expect(
+      accountBalances(opened.db, '2026-10-01').find((a) => a.accountId === 'giro')?.balanceCents,
+    ).toBe(100000);
+    expect(candidates()).toHaveLength(3);
+    expect(candidates().find((c) => c.bankStatus === 'pending')?.amountCents).toBe(-401);
+    expect(opened.db.select().from(schema.bankSyncAccount).get()).toEqual(observation);
+    nextDay();
+    await service.tick();
+    expect(
+      accountBalances(opened.db, '2026-10-02').find((a) => a.accountId === 'giro')?.balanceCents,
+    ).toBe(100000);
+    expect(opened.db.select().from(schema.booking).all()).toHaveLength(2);
+    expect(
+      opened.db
+        .select()
+        .from(schema.booking)
+        .all()
+        .every((b) => b.deletedAt !== null),
+    ).toBe(true);
   });
   it('does not double count a pending candidate confirmed before it becomes BOOK', async () => {
     service.setPolicy(consentId, true);
@@ -1218,31 +1270,61 @@ describe('matching bank lines against existing bookings', () => {
   it('posts without a match as an unchecked booking that stays visible in the inbox', async () => {
     service.setPolicy(consentId, true);
     await service.tick();
-    expect(bookings()).toMatchObject([{ status: 'pending', source: 'bank' }]);
+    expect(bookings()).toMatchObject([
+      {
+        status: 'pending',
+        source: 'bank',
+        bankSourceId: linkId,
+        bankRawText: row.memo,
+      },
+    ]);
     expect(item(candidates()[0]!.id).resolution).toMatch(/^Als ungeprüfte Buchung angelegt/);
     expect(
       readInbox(opened.db, '2026-10-01').entries.filter((i) => i.type === 'booking'),
     ).toHaveLength(1);
   });
-  it('leaves several candidates open for the owner and creates nothing', async () => {
+  it('leaves one ambiguous BOOK line open with immediate posting enabled', async () => {
     service.setPolicy(consentId, true);
-    existing('2026-09-29');
-    existing('2026-10-01');
+    const recent = existing('2026-09-29');
+    const older = existing('2026-10-01');
+    for (const [id, ts] of [
+      [older, '2026-10-01T01:00:00Z'],
+      [recent, '2026-10-01T02:00:00Z'],
+    ] as const) {
+      opened.db.update(schema.auditLog).set({ ts }).where(eq(schema.auditLog.entityId, id)).run();
+    }
+    const before = bookings();
     await service.tick();
-    expect(bookings()).toHaveLength(2);
-    expect(bookings().every((b) => b.bankSourceId === null)).toBe(true);
-    const open = item(candidates()[0]!.id);
+    expect(bookings()).toEqual(before);
+    expect(bookedBalance(opened.db, 'giro', '2026-10-01')).toBe(97598);
+    expect(candidates()).toHaveLength(1);
+    const [candidate] = candidates();
+    expect(candidate).toMatchObject({ bankStatus: 'booked', amountCents: -1201 });
+    const open = item(candidate!.id);
     expect(open.resolvedAt).toBeNull();
-    expect(open.detail).toContain('Mehrere passende vorhandene Buchungen');
+    expect(open.detail).toContain('Mehrdeutige Zuordnung');
+    expect(candidateMatches(opened.db, candidate!.id)).toMatchObject({
+      preferredBookingId: recent,
+      alternativeCount: 1,
+    });
     nextDay();
     await service.tick();
-    expect(item(candidates()[0]!.id).detail?.match(/Mehrere passende/g)).toHaveLength(1);
-    expect(bookings()).toHaveLength(2);
+    expect(item(candidate!.id).detail?.match(/Mehrdeutige Zuordnung/g)).toHaveLength(1);
+    expect(item(candidate!.id).resolvedAt).toBeNull();
+    expect(bookings()).toEqual(before);
+    expect(bookedBalance(opened.db, 'giro', '2026-10-01')).toBe(97598);
   });
-  it('pairs two identical bank lines with two identical bookings and never uses one twice', async () => {
+  it('keeps identical groups open, ranks by confirmation, and restores a choice with one Undo', async () => {
     service.setPolicy(consentId, true);
-    existing('2026-09-30');
-    existing('2026-09-30');
+    const old = existing('2026-09-30');
+    const recent = existing('2026-09-29');
+    for (const [id, ts] of [
+      [old, '2026-09-30T01:00:00Z'],
+      [recent, '2026-09-30T02:00:00Z'],
+    ] as const) {
+      opened.db.update(schema.auditLog).set({ ts }).where(eq(schema.auditLog.entityId, id)).run();
+    }
+    const before = bookings();
     vi.mocked(provider.transactions).mockResolvedValue(
       batch([
         { ...row, reference: 'a' },
@@ -1250,9 +1332,36 @@ describe('matching bank lines against existing bookings', () => {
       ]),
     );
     await service.tick();
-    expect(bookings()).toHaveLength(2);
-    expect(new Set(bookings().map((b) => b.importKey)).size).toBe(2);
-    expect(bookings().every((b) => b.bankSourceId === linkId)).toBe(true);
+    expect(bookings()).toEqual(before);
+    expect(bookedBalance(opened.db, 'giro', '2026-10-01')).toBe(97598);
+    const [a, b] = candidates();
+    expect(candidates()).toHaveLength(2);
+    for (const candidate of [a!, b!]) {
+      expect(item(candidate.id).resolvedAt).toBeNull();
+      expect(candidateMatches(opened.db, candidate.id)).toMatchObject({
+        preferredBookingId: recent,
+        alternativeCount: 1,
+      });
+    }
+    const confirmed = mergeBankCandidate(
+      opened.db,
+      a!.id,
+      old,
+      { actor: 'owner' },
+      now.toISOString(),
+    );
+    expect(confirmed.bookingId).toBe(old);
+    expect(item(a!.id).resolvedAt).not.toBeNull();
+    expect(() =>
+      mergeBankCandidate(opened.db, b!.id, old, { actor: 'owner' }, now.toISOString()),
+    ).toThrow();
+    nextDay();
+    await service.tick();
+    expect(item(b!.id).resolvedAt).toBeNull();
+    expect(bookedBalance(opened.db, 'giro', '2026-10-01')).toBe(97598);
+    undo(opened.db, { groupId: confirmed.groupId }, { actor: 'owner' });
+    expect(bookings()).toEqual(before);
+    expect([item(a!.id).resolvedAt, item(b!.id).resolvedAt]).toEqual([null, null]);
   });
   it.each(['different target dates', 'competing source groups'])(
     '%s stay open without changing money or provenance',
@@ -1279,7 +1388,7 @@ describe('matching bank lines against existing bookings', () => {
       expect(bookedBalance(opened.db, 'giro', '2026-10-01')).toBe(97598);
       for (const candidate of candidates()) {
         expect(item(candidate.id).resolvedAt).toBeNull();
-        expect(item(candidate.id).detail).toContain('Mehrere passende vorhandene Buchungen');
+        expect(item(candidate.id).detail).toContain('Mehrdeutige Zuordnung');
       }
       nextDay();
       await service.tick();
@@ -1341,7 +1450,7 @@ describe('matching bank lines against existing bookings', () => {
     expect(bookings()).toEqual(before);
     expect(item(candidates()[0]!.id).resolvedAt).toBeNull();
   });
-  it('creates one new booking when two identical lines meet a single existing booking', async () => {
+  it('keeps both singleton claims open without adding or altering money', async () => {
     service.setPolicy(consentId, true);
     existing('2026-09-30');
     vi.mocked(provider.transactions).mockResolvedValue(
@@ -1351,9 +1460,43 @@ describe('matching bank lines against existing bookings', () => {
       ]),
     );
     await service.tick();
-    expect(bookings()).toHaveLength(2);
-    expect(bookings().filter((b) => b.source === 'bank')).toHaveLength(1);
-    expect(bookings().filter((b) => b.bankSourceId === linkId)).toHaveLength(1);
+    expect(bookings()).toHaveLength(1);
+    expect(bookings()[0]).toMatchObject({ source: 'manual', bankSourceId: null });
+    expect(candidates()).toHaveLength(2);
+    expect(candidates().map(({ id }) => item(id).resolvedAt)).toEqual([null, null]);
+    expect(bookedBalance(opened.db, 'giro', '2026-10-01')).toBe(98799);
+  });
+  it('keeps an ambiguous candidate open when a provider revision would leave one match', async () => {
+    service.setPolicy(consentId, true);
+    existing('2026-09-30');
+    existing('2026-09-30');
+    const other = createBooking(
+      opened.db,
+      {
+        accountId: 'giro',
+        date: '2026-09-30',
+        amountCents: -2402,
+        splits: [{ amountCents: -2402 }],
+        status: 'confirmed',
+      },
+      { actor: 'owner' },
+    );
+    await service.tick();
+    const [candidate] = candidates();
+    expect(item(candidate!.id).resolvedAt).toBeNull();
+    expect(item(candidate!.id).detail).toContain('Mehrdeutige Zuordnung');
+    nextDay();
+    vi.mocked(provider.transactions).mockResolvedValue(
+      batch([{ ...row, amountCents: -2402, memo: 'Synthetic revision' }]),
+    );
+    await service.tick();
+    expect(item(candidate!.id).resolvedAt).toBeNull();
+    expect(item(candidate!.id).detail).toContain('Mehrdeutige Zuordnung');
+    expect(candidateMatches(opened.db, candidate!.id)).toMatchObject({
+      preferredBookingId: other,
+      alternativeCount: 0,
+    });
+    expect(bookedBalance(opened.db, 'giro', '2026-10-01')).toBe(95196);
   });
   it('matches an open candidate of an earlier fetch on the next fetch', async () => {
     await service.tick();

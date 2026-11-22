@@ -1,3 +1,4 @@
+import { bankTransitReconciliation } from './bank-transfer-transit';
 import { withValuationRange } from './valuation-notes';
 import { portfolioBenchmarks, type PortfolioBenchmarkSeries } from './portfolio-benchmarks';
 import { allocationInputsAsOf } from './allocation-inputs';
@@ -11,6 +12,8 @@ import {
   clusterRisk,
   documentedCostOf,
   documentedRealizedGain,
+  documentedRealizedMovements,
+  type RealizedMovement,
   ExchangeRateUnavailableError,
   fxOn,
   fundCosts,
@@ -138,6 +141,7 @@ export interface PlatformShare {
 }
 
 export interface PortfolioSummary {
+  cashReconciliation?: ReturnType<typeof bankTransitReconciliation>;
   valuationProvenance?: ValuationProvenance;
   quality: AllocationQuality;
   asOf: string;
@@ -402,6 +406,7 @@ function realizedByPosition(
   liveSecurityIds: ReadonlySet<string>,
   rates: RateTable,
   method: CostMethod,
+  includeMovements = false,
 ) {
   const pairs = new Map<string, { accountId: string; securityId: string }>();
   for (const row of [...snapshots, ...trades])
@@ -410,7 +415,10 @@ function realizedByPosition(
         accountId: row.accountId,
         securityId: row.securityId,
       });
-  const gains = new Map<string, { cents: number; complete: boolean }>();
+  const gains = new Map<
+    string,
+    { cents: number; complete: boolean; movements?: RealizedMovement[] }
+  >();
   for (const { accountId, securityId } of pairs.values()) {
     const key = `${accountId}\0${securityId}`;
     const mine = trades
@@ -424,6 +432,7 @@ function realizedByPosition(
     );
     let total = 0;
     let complete = true;
+    const movements = includeMovements ? ([] as RealizedMovement[]) : undefined;
     let opening:
       | { unitsE8: number; costBasisCents: number | null; currency: string; asOf: string }
       | undefined;
@@ -435,7 +444,11 @@ function realizedByPosition(
         (t) => (after === undefined || t.date > after) && (until === undefined || t.date <= until),
       );
       const hasSale = intervalTrades.some((t) => t.kind === 'sell');
-      if (hasSale) {
+      if (
+        hasSale ||
+        (movements &&
+          intervalTrades.some(({ kind }) => kind === 'delivery_out' || kind === 'split'))
+      ) {
         const costTrades = intervalTrades.filter((t) =>
           ['buy', 'sell', 'delivery_in', 'delivery_out', 'split'].includes(t.kind),
         );
@@ -449,11 +462,18 @@ function realizedByPosition(
                   : centsInEur(opening.costBasisCents, opening.currency, opening.asOf, rates),
             }
           : undefined;
-        const result = documentedRealizedGain(eurTrades, eurOpening, method);
-        total += result.cents;
-        complete &&= result.complete;
+        const result = movements
+          ? documentedRealizedMovements(eurTrades, eurOpening, method)
+          : documentedRealizedGain(eurTrades, eurOpening, method);
+        if (hasSale) {
+          total += result.cents;
+          complete &&= result.complete;
+        }
+        if (movements && 'movements' in result)
+          movements.push(...(result.movements as RealizedMovement[]));
       }
       if (snapshot) {
+        if (snapshot.unitsE8 === 0) movements?.push({ kind: 'reset', date: snapshot.asOf });
         after = snapshot.asOf;
         opening = {
           unitsE8: snapshot.unitsE8,
@@ -463,7 +483,7 @@ function realizedByPosition(
         };
       }
     }
-    gains.set(key, { cents: total, complete });
+    gains.set(key, { cents: total, complete, ...(movements && { movements }) });
   }
   return gains;
 }
@@ -706,13 +726,31 @@ export function firstDay(db: Executor, today: string): string | null {
 }
 
 /** Month-end days of the 12 months up to `today` (the last one is `today` itself). */
-function lastTwelveMonthEnds(today: string): string[] {
+export function lastTwelveMonthEnds(today: string): string[] {
   const out: string[] = [];
   for (let i = 11; i >= 0; i--) {
     const end = lastDayOfMonth(addMonths(monthOf(today), -i));
     out.push(end < today ? end : today);
   }
   return out;
+}
+
+/** Sum the existing closing valuations per security for the shared TER calculation. */
+export function monthEndValuesForCosts(
+  series: ReturnType<typeof valuationSeries>,
+  ends: readonly string[],
+): Map<string, number[]> {
+  const monthEndValues = new Map<string, number[]>();
+  const index = new Map(series.days.map((d, i) => [d, i]));
+  for (const p of series.positions) {
+    const list = monthEndValues.get(p.securityId) ?? ends.map(() => 0);
+    ends.forEach((day, k) => {
+      const i = index.get(day);
+      if (i !== undefined) list[k] = (list[k] as number) + (p.valueCents[i] as number);
+    });
+    monthEndValues.set(p.securityId, list);
+  }
+  return monthEndValues;
 }
 
 /**
@@ -811,6 +849,27 @@ export function realizedGainAsOf(
   };
 }
 
+/** Sale results and actual closures, replayed from the same documented basis as realised gain. */
+export function realizedMovementsByPosition(db: Executor, to: string) {
+  const loaded = load(db);
+  const snapshots = db
+    .select()
+    .from(holding)
+    .where(and(isNull(holding.deletedAt), lte(holding.asOf, to)))
+    .all();
+  return [
+    ...realizedByPosition(
+      snapshots,
+      tradesUpTo(db, to),
+      loaded.accountCurrency,
+      new Set(loaded.securities.keys()),
+      ratesAsOf(db, to),
+      investmentPreferences(db).costMethod,
+      true,
+    ).values(),
+  ].map((result) => result.movements ?? []);
+}
+
 function portfolioSummaryInRange(
   db: Executor,
   options: PortfolioOptions,
@@ -860,7 +919,7 @@ function portfolioSummaryInRange(
   let performanceHistory: PortfolioPerformanceHistory | null = null;
   let benchmark: PortfolioSummary['benchmark'] = null;
   let benchmarks: PortfolioBenchmarkSeries[] = [];
-  const monthEndValues = new Map<string, number[]>();
+  let monthEndValues = new Map<string, number[]>();
   let contributionHistory: ContributionHistory | null | undefined =
     options.includeContributionHistory ? null : undefined;
   if (start !== null) {
@@ -1084,15 +1143,7 @@ function portfolioSummaryInRange(
 
     // Month-end values per security for the TER (from the same series).
     const ends = lastTwelveMonthEnds(today);
-    const index = new Map(days.map((d, i) => [d, i]));
-    for (const p of series.positions) {
-      const list = monthEndValues.get(p.securityId) ?? ends.map(() => 0);
-      ends.forEach((day, k) => {
-        const i = index.get(day);
-        if (i !== undefined) list[k] = (list[k] as number) + (p.valueCents[i] as number);
-      });
-      monthEndValues.set(p.securityId, list);
-    }
+    monthEndValues = monthEndValuesForCosts(series, ends);
   }
 
   // ---- costs and income of 12 months ----
@@ -1166,6 +1217,11 @@ function portfolioSummaryInRange(
   return {
     asOf: today,
     costMethod,
+    cashReconciliation: bankTransitReconciliation(
+      db,
+      today,
+      options.referenceAccounts ?? investmentAccounts,
+    ),
     period,
     view,
     valueCents,

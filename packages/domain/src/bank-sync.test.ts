@@ -145,20 +145,23 @@ describe('matchBankLines', () => {
       ),
     ).toEqual({ a: { kind: 'ambiguous', bookingIds: ['near', 'far'] } });
   });
-  it('never gives one booking to two lines: the nearest line wins, the other is new', () => {
+  it('keeps competing singleton claims ambiguous even when one is nearer', () => {
     expect(
       result([line('a', '2026-10-02'), line('b', '2026-09-30')], [booking('x', '2026-09-30')]),
-    ).toEqual({ a: { kind: 'none' }, b: { kind: 'linked', bookingId: 'x' } });
+    ).toEqual({
+      a: { kind: 'ambiguous', bookingIds: ['x'] },
+      b: { kind: 'ambiguous', bookingIds: ['x'] },
+    });
   });
-  it('pairs identical lines with as many identical bookings, in order', () => {
+  it('keeps isolated identical groups open without ordered pairing', () => {
     expect(
       result(
         [line('a', '2026-09-30'), line('b', '2026-09-30')],
         [booking('x', '2026-09-30'), booking('y', '2026-09-30')],
       ),
     ).toEqual({
-      a: { kind: 'linked', bookingId: 'x' },
-      b: { kind: 'linked', bookingId: 'y' },
+      a: { kind: 'ambiguous', bookingIds: ['x', 'y'] },
+      b: { kind: 'ambiguous', bookingIds: ['x', 'y'] },
     });
   });
   it('keeps identical lines ambiguous when there are more bookings than lines', () => {

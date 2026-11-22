@@ -53,6 +53,15 @@ it.each([
       marketCents: 0,
     }));
     const data: WholePicture & WithValuationNotes = {
+      cashReconciliation: {
+        label: 'Geld unterwegs',
+        asOf: '2026-09-30',
+        accountIds: [],
+        rawCashCents: 0,
+        transitCents: 0,
+        cashIncludingTransitCents: 0,
+        missingFxAccountIds: [],
+      },
       period: '2026-08..2026-09',
       asOf: '2026-09-30',
       today: '2026-10-01',

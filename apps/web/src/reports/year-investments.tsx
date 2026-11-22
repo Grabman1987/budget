@@ -1,6 +1,6 @@
 import { privateAmount, useAmountPrivacy } from '@budget/ui';
 import { eur } from '../ledger/format';
-import { percentText } from '../pages/portfolio-report-shared';
+import { percentText, ppText } from '../pages/portfolio-report-shared';
 import type { YearReportRead } from './overview-api';
 import { bpText, monthLong } from './overview-format';
 
@@ -21,6 +21,21 @@ export function YearInvestments({ data }: { data: YearReportRead }) {
     `${money(c.deltaCents)} · ${c.changeBp === null ? NA : privateAmount(bpText(c.changeBp, { sign: true }))}`;
   const sub = (cents: number | null, bp: number | null) =>
     cents === null || bp === null ? NA : `${money(cents)} · ${bpText(bp)}`;
+  const current = t?.results;
+  const previous = t?.previousResults;
+  const compareMoney = (key: 'gainsCents' | 'lossesCents') => {
+    if (!current?.salesComplete) return `${NA} · Einstand oder Kurs fehlt`;
+    const value = eur(current[key]);
+    if (!previous) return `${value} · Vorjahr: ${NA} · kein Vergleichszeitraum`;
+    if (!previous.salesComplete) return `${value} · Vorjahr: ${NA} · Einstand oder Kurs fehlt`;
+    return `${value} · Vorjahr: ${eur(previous[key])} · Differenz: ${eur(current[key] - previous[key], { sign: true })}`;
+  };
+  const hitRate = (result: typeof current) => {
+    if (!result) return `${NA} · Kurs fehlt`;
+    if (result.hitRateBp === null)
+      return `${NA} · ${result.closuresComplete ? 'keine geschlossenen Positionen' : 'Einstand fehlt'}`;
+    return privateAmount(bpText(result.hitRateBp));
+  };
   return (
     <div data-testid="yr-investments">
       {lastMonth && (
@@ -96,8 +111,12 @@ export function YearInvestments({ data }: { data: YearReportRead }) {
               <td className="n">{percentText(perf.ttwror, { sign: true })}</td>
             </tr>
             <tr>
-              <th scope="row">Rendite (kapitalgewichtet, Dietz)</th>
-              <td className="n">{percentText(perf.moneyWeighted, { sign: true })}</td>
+              <th scope="row">Rendite (XIRR p. a.)</th>
+              <td className="n">
+                {perf.xirr === null
+                  ? `${NA} · keine berechenbare Zahlungsreihe im Zeitraum`
+                  : privateAmount(percentText(perf.xirr, { sign: true }))}
+              </td>
             </tr>
             <tr>
               <th scope="row">
@@ -137,6 +156,24 @@ export function YearInvestments({ data }: { data: YearReportRead }) {
                   </td>
                 </tr>
                 <tr>
+                  <th scope="row">Realisierte Gewinne</th>
+                  <td className="n">{compareMoney('gainsCents')}</td>
+                </tr>
+                <tr>
+                  <th scope="row">Realisierte Verluste</th>
+                  <td className="n">{compareMoney('lossesCents')}</td>
+                </tr>
+                <tr>
+                  <th scope="row">Trefferquote geschlossener Positionen</th>
+                  <td className="n">
+                    {hitRate(current)} · Vorjahr:{' '}
+                    {previous ? hitRate(previous) : `${NA} · kein Vergleichszeitraum`}
+                    {current?.hitRateBp != null &&
+                      previous?.hitRateBp != null &&
+                      ` · Differenz: ${privateAmount(ppText((current.hitRateBp - previous.hitRateBp) / 10000))}`}
+                  </td>
+                </tr>
+                <tr>
                   <th scope="row">Gebühren / Steuern</th>
                   <td className="n">
                     {money(t.feesCents)} / {money(t.taxesCents)}
@@ -149,8 +186,8 @@ export function YearInvestments({ data }: { data: YearReportRead }) {
       )}
       <p className="ov-sheet-note">
         Depot-Erträge können vom gebuchten Kapitalertrag abweichen (Buchungsdatum, Zinsen auf
-        Konten). Werte wie im Portfolio-Report für denselben Zeitraum. Trefferquote geschlossener
-        Positionen fehlt, weil kein Gewinn je Position vorliegt.
+        Konten). Werte wie im Portfolio-Report für denselben Zeitraum. Die Trefferquote zählt
+        Positionen, die durch einen Verkauf vollständig geschlossen wurden.
       </p>
       <table className="ov-table ov-sheet-table" data-testid="yr-debt-income">
         <caption className="sr-only">Schulden und Einkommensquellen</caption>

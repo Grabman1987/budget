@@ -55,6 +55,7 @@ function spendingComparisonSearch(search: Record<string, unknown>) {
 export const validateReportSearch = (search: Record<string, unknown>) => ({
   ...(REDESIGN_ENABLED
     ? {
+        jahr: /^\d{4}$/.test(String(search['jahr'] ?? '')) ? Number(search['jahr']) : undefined,
         kontakteansicht: search['kontakteansicht'] === 'offen' ? 'offen' : undefined,
         ...spendingComparisonSearch(search),
         verlauf: search['verlauf'] === 1 || search['verlauf'] === '1' ? 1 : undefined,

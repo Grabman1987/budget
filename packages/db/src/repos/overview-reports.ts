@@ -227,7 +227,7 @@ export function yearReportRead(db: Executor, year: number, today: string): YearR
   let investments: YearInvestments | null = null;
   let investmentsUnavailable: string | null = null;
   try {
-    investments = yearInvestments(db, months);
+    investments = yearInvestments(db, months, data.firstMonth);
   } catch (error) {
     if (!(
       error instanceof PriceUnavailableError ||

@@ -520,10 +520,10 @@ function ConnectionCard({
                 )
               }
             >
-              <option value="false">
-                Erst nach Bestätigung zählen (Standard für neue Verbindungen)
+              <option value="false">Erst nach Bestätigung zählen</option>
+              <option value="true">
+                Sofort zum Kontostand zählen (Standard für neue Verbindungen)
               </option>
-              <option value="true">Sofort zum Kontostand zählen</option>
             </Select>
           )}
         </Field>

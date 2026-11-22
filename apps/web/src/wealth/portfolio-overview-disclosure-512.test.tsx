@@ -189,7 +189,10 @@ it('does not infer selected-period return quality from unrelated current cash FX
   expect(data.portfolio.quality.missingFxAccountIds).toEqual(['unrelated-usd-cash']);
   const { region } = await mount(data);
   expect(within(region).getByText(/Allokationsstand.*20\.09\.2026/)).toBeTruthy();
-  expect(within(region).getByText(/Wechselkurs fehlt/)).toBeTruthy();
+  expect(within(region.querySelector('details')!).getByText(/Wechselkurs fehlt/)).toBeTruthy();
+  expect(within(region).getByTestId('transit-reconciliation').textContent).toContain(
+    'Wechselkurs fehlt.',
+  );
   expect(region.querySelector('summary')?.textContent).not.toContain('≈');
   expect(region.textContent).not.toContain('USD/EUR vom');
 });
