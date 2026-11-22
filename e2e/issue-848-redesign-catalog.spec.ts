@@ -1,4 +1,4 @@
-import { HUB_REPORT_COUNT } from './report-menu';
+import { hubReportCount } from './report-menu';
 import AxeBuilder from '@axe-core/playwright';
 import { sampleTest as test, expect } from './sample';
 
@@ -31,7 +31,7 @@ test('catalog preserves the sixteen ON destinations, legacy names and usable fal
     await expect(page.locator('.report-hub')).toBeVisible();
     const redesign = (await page.locator('[data-budget-redesign="1"]').count()) > 0;
     await expect(page.locator('.report-hub-v2')).toHaveCount(redesign ? 1 : 0);
-    await expect(page.locator('.report-hub-list > li')).toHaveCount(HUB_REPORT_COUNT);
+    await expect(page.locator('.report-hub-list > li')).toHaveCount(await hubReportCount(page));
     if (!redesign) continue;
     expect(
       await page

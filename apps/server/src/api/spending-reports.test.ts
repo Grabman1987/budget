@@ -92,6 +92,23 @@ describe('2.1 Ausgabenanalyse on a small ledger', () => {
     expect(bad).toBe(400);
   });
 
+  it('compares the same number of days when the selected month includes leap day', async () => {
+    spend('2028-02-29', 'essen', 10_001);
+    spend('2027-03-01', 'essen', 2_003);
+    spend('2027-03-02', 'essen', 4_005);
+    const { status, body } = await get(
+      api(opened.db, '2028-03-17'),
+      '/reports/spending/analysis?period=1M&basis=previous-year',
+    );
+    expect(status).toBe(200);
+    expect(body.answerComparison).toMatchObject({
+      days: 29,
+      previousFrom: '2027-02-01',
+      previousTo: '2027-03-01',
+      previousCents: 2_003,
+    });
+  });
+
   it('compares inclusive custom days through the shared source and leaves the ledger identical', async () => {
     spend('2026-08-10', 'essen', 20_000);
     spend('2025-03-02', 'essen', 70_000);

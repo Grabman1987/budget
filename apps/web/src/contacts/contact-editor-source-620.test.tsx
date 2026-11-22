@@ -185,17 +185,16 @@ it.each(['discard', 'save'] as const)(
     category.focus();
     view.block();
     fireEvent.click(within(dialog).getByRole('button', { name: 'Speichern' }));
+    const refusal =
+      'Diese Auslage ist mit einer Rückzahlung verknüpft. Bitte bestätige den Vorgang.';
     await waitFor(() =>
       expect(view.refusals).toEqual([
         {
           status: 422,
-          message:
-            'Undo the related contact settlement before changing its receipt or allocated outlay',
+          message: refusal,
         },
       ]),
     );
-    const refusal =
-      'Undo the related contact settlement before changing its receipt or allocated outlay';
     const confirmation = await within(dialog).findByRole('alertdialog', {
       name: 'Verknüpfte Auslage wirklich bearbeiten?',
     });

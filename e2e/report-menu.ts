@@ -1,4 +1,5 @@
 import { expect, type Page } from '@playwright/test';
+import { redesignReportsOn } from './report-frame';
 
 /** Views that are the report itself (not an indented sub-report): the numbered menu entry of the parent. */
 const PARENTS: Record<string, RegExp> = {
@@ -59,5 +60,4 @@ export const chooseReportMenuValue = (page: Page, value: string) =>
 export const expectReportMenuValue = (page: Page, value: string) =>
   expectReportMenuView(page, labelFor(page, value));
 
-/** Both presentations list sixteen reports. */
-export const HUB_REPORT_COUNT = 16;
+export const hubReportCount = async (page: Page) => ((await redesignReportsOn(page)) ? 16 : 17);

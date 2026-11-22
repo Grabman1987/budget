@@ -10,6 +10,7 @@ import {
   matchOccurrences,
   refreshOccurrences,
   inflationReport,
+  INCOME_TYPES,
   payee,
   savePayslip,
   saveWageComponentMapping,
@@ -65,6 +66,7 @@ function slip(
     benefit?: number;
     reimbursement?: number;
     noReading?: boolean;
+    bookingId?: string;
   } = {},
 ) {
   const variable = options.variable ?? 0;
@@ -78,7 +80,7 @@ function slip(
     svCents: 10000,
     taxCents: 20000,
     netCents: baseCents + variable - 30000 + reimbursement,
-    bookingId: null,
+    bookingId: options.bookingId ?? null,
     receiptId: null,
     lines: [
       ...(benefit
@@ -166,6 +168,46 @@ async function report(query = ''): Promise<Report> {
 }
 
 describe('salary development read API (#1066)', () => {
+  it('keeps a linked combined payslip whole in the actual payout month', async () => {
+    const accountId = 'synthetic-payroll-account';
+    accounts.create(
+      opened.db,
+      {
+        id: accountId,
+        name: 'Synthetic payroll account',
+        type: 'checking',
+        role: 'budget',
+        onBudget: true,
+        openingDate: '2026-01-01',
+      },
+      ctx,
+    );
+    const bookingId = createBooking(
+      opened.db,
+      {
+        accountId,
+        date: '2026-06-02',
+        amountCents: 310_003,
+        splits: [{ amountCents: 310_003, incomeTypeId: INCOME_TYPES.salary.id }],
+      },
+      ctx,
+    );
+    map('100', 'base');
+    map('200', 'variable');
+    const payslipId = slip('2026-05', 300_001, { variable: 40_002, bookingId });
+    const before = sqliteOf(opened.db).serialize();
+    expect((await report('?throughMonth=2026-05')).months).toEqual([]);
+    expect((await report()).months).toMatchObject([
+      {
+        month: '2026-06',
+        payslipIds: [payslipId],
+        grossCents: 340_003,
+        components: { base: 300_001, variable: 40_002 },
+      },
+    ]);
+    expect(sqliteOf(opened.db).serialize()).toEqual(before);
+  });
+
   it('returns an explicit empty report and validates the month and query keys', async () => {
     expect(await report()).toMatchObject({
       throughMonth: '2026-06',

@@ -45,7 +45,7 @@ const preview: QuotePreview = {
   ],
 };
 
-function mount() {
+function mount(detail = 'Fehlerklasse: currency_mismatch') {
   return render(
     <QueryClientProvider
       client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
@@ -54,12 +54,23 @@ function mount() {
         <QuoteCause
           securityId={diagnostics.securityId}
           createdAt="2026-09-15T12:00:00Z"
-          detail="Fehlerklasse: currency_mismatch"
+          detail={detail}
         />
       </ToastProvider>
     </QueryClientProvider>,
   );
 }
+
+it.each(['{"unknown":"synthetic-diagnostic"}', 'Fehlerklasse: synthetic-diagnostic'])(
+  'does not echo an unrecognised stored warning (%s)',
+  async (detail) => {
+    vi.mocked(request).mockResolvedValueOnce(diagnostics);
+    mount(detail);
+    const warning = within(await screen.findByRole('region', { name: 'Gespeicherte Warnung' }));
+    expect(warning.getByText('Fehlerklasse nicht gespeichert.')).toBeTruthy();
+    expect(warning.queryByText(/synthetic-diagnostic/)).toBeNull();
+  },
+);
 
 it('separates historic missing evidence from current mapping and previews each source without offering acknowledgement', async () => {
   vi.mocked(request)

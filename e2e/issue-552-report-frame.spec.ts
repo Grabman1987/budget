@@ -33,14 +33,10 @@ for (const id of SAMPLE) {
     const redesign = (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
     // Exactly one period preset control; presentation filters are separate.
     await expect(period(page)).toHaveCount(1);
-    // Cashflow/category keep their data filters; ON has a presentation selector for categories.
-    const scopes = id === 'cashflow' || id === 'kategorien' ? 1 : 0;
-    const views = redesign && id === 'kategorien' ? 1 : 0;
-    await expect(page.getByRole('combobox')).toHaveCount(scopes + views);
-    if (redesign && id === 'kategorien')
-      await expect(
-        page.getByRole('combobox', { name: 'Darstellung der Auswertung', exact: true }),
-      ).toHaveValue('category');
+    // The redesigned categories alias opens the spending subview in the report menu.
+    const scopes = id === 'cashflow' || (!redesign && id === 'kategorien') ? 1 : 0;
+    await expect(page.getByRole('combobox')).toHaveCount(scopes);
+    if (redesign && id === 'kategorien') await expectReportMenuView(page, 'Kategorien und Verlauf');
     if (redesign && id === 'vermoegen') await expectReportMenuView(page, 'Vermögensverlauf');
     await expect(page.getByRole('checkbox', { name: 'Trendlinie' })).toHaveCount(0);
     await expect(rangeButton(page)).toBeVisible();

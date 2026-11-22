@@ -2,7 +2,7 @@
 import { cleanup, render, screen } from '@testing-library/react';
 import { afterEach, expect, it } from 'vitest';
 import { setAmountsHidden } from '@budget/ui';
-import { ReadSourceDetail } from './read-source-detail';
+import { ReadSourceDetail, sourceWarningReason } from './read-source-detail';
 import type { SourceOperation } from '@budget/domain';
 
 afterEach(() => {
@@ -113,11 +113,12 @@ it('shows the known source reference without exposing the stored object or its u
   expect(container.querySelector('pre')).toBeNull();
 });
 
-it('masks amounts in legacy free-text details', () => {
-  setAmountsHidden(true);
-  render(<ReadSourceDetail detail="Quellsaldo 12,34 EUR stimmt nicht überein." />);
-
-  expect(screen.getByText('Quellsaldo ••• EUR stimmt nicht überein.')).toBeTruthy();
+it('does not echo an unstructured warning in the detail or list', () => {
+  const detail = '{"providerDiagnostic": "synthetic-raw-field"';
+  render(<ReadSourceDetail detail={detail} />);
+  expect(screen.getByText('Keine lesbaren Angaben zum Abgleich gespeichert.')).toBeTruthy();
+  expect(screen.queryByText(/synthetic-raw-field/)).toBeNull();
+  expect(sourceWarningReason(detail, true)).toBe('Datenquelle oder Zuordnung prüfen.');
 });
 
 const reward: SourceOperation = {

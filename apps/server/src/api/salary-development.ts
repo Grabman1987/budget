@@ -29,7 +29,7 @@ import { readQuery } from './http';
 
 /** Read-only development on the stored wage amounts and the existing price series. */
 export function readSalaryDevelopment(db: Db, throughMonth: string, today: string) {
-  const payslips = listSalaryPayslips(db).filter((p) => p.month <= throughMonth);
+  const payslips = listSalaryPayslips(db, 'payout').filter((p) => p.month <= throughMonth);
   const rules = wageComponentRules(db);
   const months = salaryMonthlySeries({ payslips, rules, to: throughMonth });
   const baseLevels = baseSalaryValues(months);

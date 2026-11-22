@@ -1,4 +1,5 @@
-import { Button, Field, TextInput, maskMoneyText, useAmountPrivacy, useToast } from '@budget/ui';
+import { MARKET_ERROR_KINDS } from '@budget/market';
+import { Button, Field, TextInput, useAmountPrivacy, useToast } from '@budget/ui';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { request } from '../api/http';
@@ -71,7 +72,17 @@ const ERRORS: Record<string, string> = {
 };
 
 const diagnosticFailureText = (error: string, currency?: string, sourceCurrency?: string) =>
-  ERRORS[error] ?? quoteFailureText(error, currency, sourceCurrency);
+  MARKET_ERROR_KINDS.some((kind) => kind === error)
+    ? (ERRORS[error] ?? quoteFailureText(error, currency, sourceCurrency))
+    : 'Kursabruf fehlgeschlagen.';
+
+export const storedQuoteWarningText = (detail: string | null) => {
+  const prefix = 'Fehlerklasse: ';
+  const kind = detail?.startsWith(prefix) ? detail.slice(prefix.length) : undefined;
+  return kind && MARKET_ERROR_KINDS.some((known) => known === kind)
+    ? diagnosticFailureText(kind)
+    : 'Fehlerklasse nicht gespeichert.';
+};
 
 const attemptText = (a: QuoteAttempt, currency: string): string =>
   a.outcome === 'ok'
@@ -160,11 +171,7 @@ export function QuoteCause({
     <section className="quote-cause" aria-label="Kursursache">
       <section aria-label="Gespeicherte Warnung">
         <h3>Warnung vom {longDay(createdAt.slice(0, 10))}</h3>
-        <p>
-          {detail?.startsWith('Fehlerklasse: ')
-            ? diagnosticFailureText(detail.slice('Fehlerklasse: '.length))
-            : maskMoneyText(detail ?? 'Fehlerklasse nicht gespeichert.')}
-        </p>
+        <p>{storedQuoteWarningText(detail)}</p>
         <p>Der damalige Quellwert und die antwortende Quelle wurden nicht gespeichert.</p>
       </section>
       <h3>Aktuelle Zuordnung · Stand {longDay(data.asOf)}</h3>

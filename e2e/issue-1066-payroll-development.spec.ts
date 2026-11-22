@@ -170,67 +170,67 @@ function seedPrices(db: Db) {
   );
 }
 
-test('1066 salary development keeps exact component changes, deductions and both real series', async ({
-  page,
-  request,
-  isolatedLedger,
-}, info) => {
-  const opened = openDatabase(isolatedLedger.databasePath);
-  try {
-    seedPay(opened.db);
-    seedPrices(opened.db);
-  } finally {
-    opened.close();
-  }
-  const result = await request.get('/api/payslips/development?throughMonth=2026-12');
-  expect(result.ok()).toBe(true);
-  const report = await result.json();
-  expect(
-    report.years.find((row: { year: string }) => row.year === '2026').development.change,
-  ).toMatchObject({
-    base: { deltaCents: 360000, deltaBp: 1000 },
-    special: { deltaCents: 10000, deltaBp: 2000 },
-    variable: { deltaCents: 2345, deltaBp: 2345 },
-    total: { deltaCents: 372345 },
-  });
-  expect(report.variablePay).toMatchObject([
-    {
-      year: '2025',
-      grossCents: 10000,
-      attributable: { svCents: 1000, taxCents: 2000, netCents: 7000 },
-    },
-    { year: '2026', grossCents: 12345, attributable: null },
-  ]);
-  expect(report.real.official.base.years[1]).toMatchObject({
-    months: 11,
-    gapCents: 165000,
-    realChangeBp: 476,
-  });
-  expect(report.real.personal.base.years[1]).toMatchObject({
-    months: 11,
-    gapCents: -330000,
-    realChangeBp: -833,
-  });
+for (const theme of ['light', 'dark'] as const) {
+  test(`1066 salary development keeps exact component changes, deductions and both real series (${theme})`, async ({
+    page,
+    request,
+    isolatedLedger,
+  }, info) => {
+    const opened = openDatabase(isolatedLedger.databasePath);
+    try {
+      seedPay(opened.db);
+      seedPrices(opened.db);
+    } finally {
+      opened.close();
+    }
+    const result = await request.get('/api/payslips/development?throughMonth=2026-12');
+    expect(result.ok()).toBe(true);
+    const report = await result.json();
+    expect(
+      report.years.find((row: { year: string }) => row.year === '2026').development.change,
+    ).toMatchObject({
+      base: { deltaCents: 360000, deltaBp: 1000 },
+      special: { deltaCents: 10000, deltaBp: 2000 },
+      variable: { deltaCents: 2345, deltaBp: 2345 },
+      total: { deltaCents: 372345 },
+    });
+    expect(report.variablePay).toMatchObject([
+      {
+        year: '2025',
+        grossCents: 10000,
+        attributable: { svCents: 1000, taxCents: 2000, netCents: 7000 },
+      },
+      { year: '2026', grossCents: 12345, attributable: null },
+    ]);
+    expect(report.real.official.base.years[1]).toMatchObject({
+      months: 11,
+      gapCents: 165000,
+      realChangeBp: 476,
+    });
+    expect(report.real.personal.base.years[1]).toMatchObject({
+      months: 11,
+      gapCents: -330000,
+      realChangeBp: -833,
+    });
 
-  await page.goto('/reports/gehalt?monat=2026-12');
-  expect(await redesignReportsOn(page)).toBe(true);
-  const development = page.locator('[data-r8-detail="payroll-development"]');
-  await development.locator(':scope > summary').click();
-  const base = development.getByTestId('payroll-base-steps');
-  const chart = base.getByRole('group', { name: /Monatliches Grundgehalt brutto/ });
-  const tooltip = page.locator('.chart-tooltip[role="status"]');
-  const years = development.getByRole('table', { name: 'Gehaltsentwicklung je Jahr' });
-  const sameMonth = development.getByRole('table', { name: 'Gleicher Monat im Vorjahr' });
-  const bonus = development.getByRole('table', { name: 'Bonus und Abzüge' });
-  const uncertainty = development.getByRole('table', { name: 'Lücken und unsichere Monate' });
-  const official = development.locator('section').filter({
-    has: page.getByRole('heading', { name: 'Kaufkraft · Verbraucherpreisindex', exact: true }),
-  });
-  const personal = development.locator('section').filter({
-    has: page.getByRole('heading', { name: 'Kaufkraft · Persönlicher Preisindex', exact: true }),
-  });
+    await page.goto('/reports/gehalt?monat=2026-12');
+    expect(await redesignReportsOn(page)).toBe(true);
+    const development = page.locator('[data-r8-detail="payroll-development"]');
+    await development.locator(':scope > summary').click();
+    const base = development.getByTestId('payroll-base-steps');
+    const chart = base.getByRole('group', { name: /Monatliches Grundgehalt brutto/ });
+    const tooltip = page.locator('.chart-tooltip[role="status"]');
+    const years = development.getByRole('table', { name: 'Gehaltsentwicklung je Jahr' });
+    const sameMonth = development.getByRole('table', { name: 'Gleicher Monat im Vorjahr' });
+    const bonus = development.getByRole('table', { name: 'Bonus und Abzüge' });
+    const uncertainty = development.getByRole('table', { name: 'Lücken und unsichere Monate' });
+    const official = development.locator('section').filter({
+      has: page.getByRole('heading', { name: 'Kaufkraft · Verbraucherpreisindex', exact: true }),
+    });
+    const personal = development.locator('section').filter({
+      has: page.getByRole('heading', { name: 'Kaufkraft · Persönlicher Preisindex', exact: true }),
+    });
 
-  for (const theme of ['light', 'dark'] as const) {
     await setTheme(page, theme);
     await expect(base.locator('.tbd-fig')).toContainText('3.300,01 €');
     await expect(base.getByRole('row', { name: /Jän 2026/ })).toContainText('+300,00 €');
@@ -330,14 +330,14 @@ test('1066 salary development keeps exact component changes, deductions and both
     await development.screenshot({ path: info.outputPath(`salary-development-${theme}.png`) });
     await official.locator('summary').first().click();
     await personal.locator('summary').first().click();
-  }
-  await withShellControls(page, async ({ privacy }) => privacy.click());
-  await expect(base.locator('.tbd-fig')).toContainText('•••');
-  await expect(development).not.toContainText(/3\.300,01|1\.650,00|4,76 %/);
-  await chart.focus();
-  await page.keyboard.press('ArrowRight');
-  await page.keyboard.press('ArrowRight');
-  await page.keyboard.press('ArrowRight');
-  await expect(tooltip).toContainText('•••');
-  await expect(tooltip).not.toContainText('3.000,01');
-});
+    await withShellControls(page, async ({ privacy }) => privacy.click());
+    await expect(base.locator('.tbd-fig')).toContainText('•••');
+    await expect(development).not.toContainText(/3\.300,01|1\.650,00|4,76 %/);
+    await chart.focus();
+    await page.keyboard.press('ArrowRight');
+    await page.keyboard.press('ArrowRight');
+    await page.keyboard.press('ArrowRight');
+    await expect(tooltip).toContainText('•••');
+    await expect(tooltip).not.toContainText('3.000,01');
+  });
+}

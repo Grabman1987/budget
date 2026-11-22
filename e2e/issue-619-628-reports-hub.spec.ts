@@ -1,4 +1,4 @@
-import { HUB_REPORT_COUNT } from './report-menu';
+import { hubReportCount } from './report-menu';
 import { openCustomExplorer, retainExplorerReaders } from './explorer-controls';
 import { withShellControls } from './shell-actions';
 import AxeBuilder from '@axe-core/playwright';
@@ -20,11 +20,11 @@ async function inspect(page: Page, phone: boolean) {
   }
 }
 
-test('619 sixteen-report hub has searchable groups, three session recents and a keyboard report switcher', async ({
-  page,
-}, info) => {
-  const phone = info.project.name !== 'desktop';
-  for (const theme of ['light', 'dark']) {
+for (const theme of ['light', 'dark'] as const) {
+  test(`619 report hub has searchable groups, three session recents and a keyboard report switcher (${theme})`, async ({
+    page,
+  }, info) => {
+    const phone = info.project.name !== 'desktop';
     for (const id of ['ausgaben', 'budgettreue', 'vergleich', 'explorer']) {
       await page.goto(`/reports/${id}`);
       await expect(page.locator('.report-switcher')).toBeVisible();
@@ -35,12 +35,12 @@ test('619 sixteen-report hub has searchable groups, three session recents and a 
     await page.evaluate((value) => {
       document.documentElement.dataset['theme'] = value;
     }, theme);
-    await expect(page.locator('.report-hub-list > li')).toHaveCount(HUB_REPORT_COUNT);
+    await expect(page.locator('.report-hub-list > li')).toHaveCount(await hubReportCount(page));
     expect(
       await page
         .locator('.report-hub-list > li')
         .evaluateAll((rows) => rows.map((row) => row.getAttribute('value'))),
-    ).toEqual(Array.from({ length: HUB_REPORT_COUNT }, (_, index) => String(index + 1)));
+    ).toEqual(Array.from({ length: await hubReportCount(page) }, (_, index) => String(index + 1)));
     const first = await page.locator('.report-hub-list > li').nth(0).boundingBox();
     const next = await page.locator('.report-hub-list > li').nth(1).boundingBox();
     const link = await page
@@ -111,7 +111,7 @@ test('619 sixteen-report hub has searchable groups, three session recents and a 
     await expect(page.locator('.report-hub-list > li')).toHaveCount(1);
     await expect(page.locator('.report-hub-list strong')).toHaveText('Gehalt');
     await search.clear();
-    await expect(page.locator('.report-hub-list > li')).toHaveCount(HUB_REPORT_COUNT);
+    await expect(page.locator('.report-hub-list > li')).toHaveCount(await hubReportCount(page));
     await search.fill('Ausgabenanalyse');
     await page.locator('.report-hub-list > li > a').click();
     await expect(page).toHaveURL(
@@ -159,8 +159,8 @@ test('619 sixteen-report hub has searchable groups, three session recents and a 
     await chooser.press('Escape');
     await expect(switcher).toBeFocused();
     await expect(page.locator('.report-switcher')).not.toHaveAttribute('open', '');
-  }
-});
+  });
+}
 
 test('619 supported maximum saved views remain keyboard reachable beside three recents and the complete catalog', async ({
   page,
@@ -205,7 +205,7 @@ test('619 supported maximum saved views remain keyboard reachable beside three r
       .getByRole('navigation', { name: 'Zuletzt geöffnete Berichte', exact: true })
       .getByRole('link'),
   ).toHaveCount(3);
-  await expect(page.locator('.report-hub-list > li')).toHaveCount(HUB_REPORT_COUNT);
+  await expect(page.locator('.report-hub-list > li')).toHaveCount(await hubReportCount(page));
   for (const theme of ['light', 'dark']) {
     await page.evaluate((value) => {
       document.documentElement.dataset['theme'] = value;
@@ -290,74 +290,74 @@ test('619 supported maximum saved views remain keyboard reachable beside three r
   }
 });
 
-test('628 saved-view chips reload across contexts and resolve only the current server view by ID', async ({
-  page,
-  browser,
-  isolatedLedger,
-}, info) => {
-  const opened = openDatabase(isolatedLedger.databasePath);
-  try {
-    opened.sqlite.exec(
-      "INSERT INTO account (id,name,type,role,on_budget,opening_date) VALUES ('budget','Synthetic report','checking','budget',1,'2026-09-01'); INSERT INTO category_group (id,name) VALUES ('g','Synthetic group'); INSERT INTO category (id,group_id,name,class,kind) VALUES ('want','g','Synthetic want','want','variable');",
-    );
-    createBooking(
-      opened.db,
-      {
-        accountId: 'budget',
-        date: '2026-09-15',
-        amountCents: -12345,
-        splits: [{ categoryId: 'want', amountCents: -12345 }],
-      },
-      { actor: 'synthetic-fixture' },
-    );
-  } finally {
-    opened.close();
-  }
-  const second = await browser.newContext({
-    baseURL: isolatedLedger.origin,
-    storageState: isolatedLedger.storageState,
-    viewport: page.viewportSize(),
-    isMobile: info.project.name !== 'desktop',
-    hasTouch: info.project.name !== 'desktop',
-    serviceWorkers: 'block',
-  });
-  try {
-    const other = await second.newPage();
-    await retainExplorerReaders(other);
-    await other.goto('/reports');
-    await expect(other.locator('.report-hub')).toBeVisible();
-    // Redesign hides the empty bookmark block and keeps only the create entry point.
-    if ((await other.locator('[data-budget-redesign="1"]').count()) > 0) {
-      await expect(other.getByRole('link', { name: 'Auswertung erstellen' })).toBeVisible();
-      await expect(
-        other.getByRole('navigation', { name: 'Meine Auswertungen', exact: true }),
-      ).toHaveCount(0);
-    } else {
-      await expect(
-        other.getByText('Noch keine eigene Auswertung gespeichert.', { exact: false }),
-      ).toBeVisible();
+for (const theme of ['light', 'dark'] as const) {
+  test(`628 saved-view chips reload across contexts and resolve only the current server view by ID (${theme})`, async ({
+    page,
+    browser,
+    isolatedLedger,
+  }, info) => {
+    const opened = openDatabase(isolatedLedger.databasePath);
+    try {
+      opened.sqlite.exec(
+        "INSERT INTO account (id,name,type,role,on_budget,opening_date) VALUES ('budget','Synthetic report','checking','budget',1,'2026-09-01'); INSERT INTO category_group (id,name) VALUES ('g','Synthetic group'); INSERT INTO category (id,group_id,name,class,kind) VALUES ('want','g','Synthetic want','want','variable');",
+      );
+      createBooking(
+        opened.db,
+        {
+          accountId: 'budget',
+          date: '2026-09-15',
+          amountCents: -12345,
+          splits: [{ categoryId: 'want', amountCents: -12345 }],
+        },
+        { actor: 'synthetic-fixture' },
+      );
+    } finally {
+      opened.close();
     }
-    await openCustomExplorer(page);
-    await page.getByLabel('Spalten', { exact: true }).selectOption('jahr');
-    await page.getByLabel('Kennzahl', { exact: true }).selectOption('avg');
-    await page.getByLabel('Ansicht speichern', { exact: true }).fill('Synthetic 123,45 €');
-    await page.getByRole('button', { name: 'Speichern', exact: true }).click();
-    await expect(
-      page.getByRole('button', { name: 'Synthetic 123,45 €', exact: true }),
-    ).toBeVisible();
-    const state = (await (
-      await page.request.get('/api/reports/saved-queries')
-    ).json()) as ExplorerViewsState;
-    expect(state.views).toHaveLength(1);
-    const id = state.views[0]!.id;
-    expect(state.views[0]!.query).toEqual({
-      dim: 'kategorie',
-      cls: 'want',
-      cols: 'jahr',
-      period: '3J',
-      meas: 'avg',
+    const second = await browser.newContext({
+      baseURL: isolatedLedger.origin,
+      storageState: isolatedLedger.storageState,
+      viewport: page.viewportSize(),
+      isMobile: info.project.name !== 'desktop',
+      hasTouch: info.project.name !== 'desktop',
+      serviceWorkers: 'block',
     });
-    for (const theme of ['light', 'dark']) {
+    try {
+      const other = await second.newPage();
+      await retainExplorerReaders(other);
+      await other.goto('/reports');
+      await expect(other.locator('.report-hub')).toBeVisible();
+      // Redesign hides the empty bookmark block and keeps only the create entry point.
+      if ((await other.locator('[data-budget-redesign="1"]').count()) > 0) {
+        await expect(other.getByRole('link', { name: 'Auswertung erstellen' })).toBeVisible();
+        await expect(
+          other.getByRole('navigation', { name: 'Meine Auswertungen', exact: true }),
+        ).toHaveCount(0);
+      } else {
+        await expect(
+          other.getByText('Noch keine eigene Auswertung gespeichert.', { exact: false }),
+        ).toBeVisible();
+      }
+      await openCustomExplorer(page);
+      await page.getByLabel('Spalten', { exact: true }).selectOption('jahr');
+      await page.getByLabel('Kennzahl', { exact: true }).selectOption('avg');
+      await page.getByLabel('Ansicht speichern', { exact: true }).fill('Synthetic 123,45 €');
+      await page.getByRole('button', { name: 'Speichern', exact: true }).click();
+      await expect(
+        page.getByRole('button', { name: 'Synthetic 123,45 €', exact: true }),
+      ).toBeVisible();
+      const state = (await (
+        await page.request.get('/api/reports/saved-queries')
+      ).json()) as ExplorerViewsState;
+      expect(state.views).toHaveLength(1);
+      const id = state.views[0]!.id;
+      expect(state.views[0]!.query).toEqual({
+        dim: 'kategorie',
+        cls: 'want',
+        cols: 'jahr',
+        period: '3J',
+        meas: 'avg',
+      });
       await other.goto('/reports');
       await other.evaluate((value) => {
         document.documentElement.dataset['theme'] = value;
@@ -416,64 +416,64 @@ test('628 saved-view chips reload across contexts and resolve only the current s
       await expect(other.getByLabel('Kennzahl', { exact: true })).toHaveValue('avg');
       await expect(other.getByTestId('ex-table')).toBeVisible();
       expect((await new AxeBuilder({ page: other }).analyze()).violations).toEqual([]);
+      // Edit in the first context while the second retains its earlier cached entry.
+      await page
+        .getByRole('button', { name: 'Ansicht Synthetic 123,45 € bearbeiten', exact: true })
+        .click();
+      await page.getByLabel('Kennzahl', { exact: true }).selectOption('anzahl');
+      await page.getByRole('button', { name: 'Speichern', exact: true }).click();
+      await expect
+        .poll(
+          async () =>
+            (
+              (await (
+                await page.request.get('/api/reports/saved-queries')
+              ).json()) as ExplorerViewsState
+            ).views[0]!.query.meas,
+        )
+        .toBe('anzahl');
+      await other.goto(`/reports/explorer?ansicht=${encodeURIComponent(id)}`);
+      await expect(other.getByLabel('Kennzahl', { exact: true })).toHaveValue('anzahl');
+      await other.reload();
+      await expect(other.getByLabel('Kennzahl', { exact: true })).toHaveValue('anzahl');
+      await page
+        .getByRole('button', { name: 'Ansicht Synthetic 123,45 € löschen', exact: true })
+        .click();
+      await expect(
+        page.getByRole('button', { name: 'Synthetic 123,45 €', exact: true }),
+      ).toHaveCount(0);
+      await expect
+        .poll(
+          async () =>
+            (
+              (await (
+                await page.request.get('/api/reports/saved-queries')
+              ).json()) as ExplorerViewsState
+            ).views,
+        )
+        .toEqual([]);
+      await other.reload();
+      await expect(
+        other.getByText(
+          'Diese gespeicherte Auswertung ist nicht mehr verfügbar. Es wird keine andere Auswahl geladen.',
+          { exact: true },
+        ),
+      ).toBeVisible();
+      await expect(other.getByTestId('ex-table')).toHaveCount(0);
+      await expect(other.getByRole('button', { name: 'Speichern', exact: true })).toBeDisabled();
+      await other.getByRole('button', { name: 'Eigene Auswertung öffnen', exact: true }).click();
+      await expect(other).not.toHaveURL(/ansicht=/);
+      await expect(other.getByLabel('Kennzahl', { exact: true })).toBeEnabled();
+      await retainExplorerReaders(other);
+      await other.goto('/reports/explorer?vorlage=heatmap&exakt=true&zeitraum=2026-09..2026-09');
+      await expect(
+        other.getByRole('button', { name: 'Heatmap Ausgaben', exact: true }),
+      ).toHaveAttribute('aria-pressed', 'true');
+      expect(new URL(other.url()).searchParams.get('exakt')).toBe('true');
+      await other.getByRole('button', { name: 'Jahresansicht', exact: true }).click();
+      await expect(other).not.toHaveURL(/exakt=|ansicht=/);
+    } finally {
+      await second.close();
     }
-    // Edit in the first context while the second retains its earlier cached entry.
-    await page
-      .getByRole('button', { name: 'Ansicht Synthetic 123,45 € bearbeiten', exact: true })
-      .click();
-    await page.getByLabel('Kennzahl', { exact: true }).selectOption('anzahl');
-    await page.getByRole('button', { name: 'Speichern', exact: true }).click();
-    await expect
-      .poll(
-        async () =>
-          (
-            (await (
-              await page.request.get('/api/reports/saved-queries')
-            ).json()) as ExplorerViewsState
-          ).views[0]!.query.meas,
-      )
-      .toBe('anzahl');
-    await other.goto(`/reports/explorer?ansicht=${encodeURIComponent(id)}`);
-    await expect(other.getByLabel('Kennzahl', { exact: true })).toHaveValue('anzahl');
-    await other.reload();
-    await expect(other.getByLabel('Kennzahl', { exact: true })).toHaveValue('anzahl');
-    await page
-      .getByRole('button', { name: 'Ansicht Synthetic 123,45 € löschen', exact: true })
-      .click();
-    await expect(page.getByRole('button', { name: 'Synthetic 123,45 €', exact: true })).toHaveCount(
-      0,
-    );
-    await expect
-      .poll(
-        async () =>
-          (
-            (await (
-              await page.request.get('/api/reports/saved-queries')
-            ).json()) as ExplorerViewsState
-          ).views,
-      )
-      .toEqual([]);
-    await other.reload();
-    await expect(
-      other.getByText(
-        'Diese gespeicherte Auswertung ist nicht mehr verfügbar. Es wird keine andere Auswahl geladen.',
-        { exact: true },
-      ),
-    ).toBeVisible();
-    await expect(other.getByTestId('ex-table')).toHaveCount(0);
-    await expect(other.getByRole('button', { name: 'Speichern', exact: true })).toBeDisabled();
-    await other.getByRole('button', { name: 'Eigene Auswertung öffnen', exact: true }).click();
-    await expect(other).not.toHaveURL(/ansicht=/);
-    await expect(other.getByLabel('Kennzahl', { exact: true })).toBeEnabled();
-    await retainExplorerReaders(other);
-    await other.goto('/reports/explorer?vorlage=heatmap&exakt=true&zeitraum=2026-09..2026-09');
-    await expect(
-      other.getByRole('button', { name: 'Heatmap Ausgaben', exact: true }),
-    ).toHaveAttribute('aria-pressed', 'true');
-    expect(new URL(other.url()).searchParams.get('exakt')).toBe('true');
-    await other.getByRole('button', { name: 'Jahresansicht', exact: true }).click();
-    await expect(other).not.toHaveURL(/exakt=|ansicht=/);
-  } finally {
-    await second.close();
-  }
-});
+  });
+}

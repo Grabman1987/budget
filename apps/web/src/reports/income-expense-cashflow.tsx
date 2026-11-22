@@ -1,4 +1,11 @@
-import { addMonths, cashflowDevelopment, cashflowStatement } from '@budget/domain';
+import {
+  addMonths,
+  cashflowDevelopment,
+  cashflowStatement,
+  cashflowThroughDay,
+  incomeExpenseNet,
+  type IncomeExpenseMonth,
+} from '@budget/domain';
 import type { IncomeExpenseReportData } from '@budget/db';
 import {
   AxisLine,
@@ -14,9 +21,26 @@ import { eur } from '../ledger/format';
 import { REDESIGN_ENABLED } from '../shell/redesign-flag';
 import { monthShort } from './table-format';
 
+function comparisonCashflow(
+  data: IncomeExpenseReportData,
+  month: IncomeExpenseMonth,
+  reference: string,
+) {
+  return reference === data.currentMonth && reference !== data.lastFullMonth
+    ? cashflowThroughDay(month, data, data.splits, month.month + data.asOf.slice(7))
+    : incomeExpenseNet(month, data);
+}
+
 /** The statement sentence of the period (at most 140 characters, the verdict contract): cashflow, average, comparison; says if the running month counts. */
 export function cashflowStatementLine(data: IncomeExpenseReportData, months: string[]): string {
-  const statement = cashflowStatement(data.months, months, data);
+  const statement = cashflowStatement(
+    data.months,
+    months,
+    data,
+    REDESIGN_ENABLED
+      ? (month, _meta, reference) => comparisonCashflow(data, month, reference)
+      : undefined,
+  );
   const running = data.currentMonth && months.includes(data.currentMonth);
   return `Cashflow${running ? ' inkl. laufendem Monat' : ''}: ${statement ? eur(statement.total) : '—'}, durchschnittlich ${statement ? eur(statement.averagePerMonth) : '—'} pro Monat${
     statement?.comparison
@@ -37,19 +61,14 @@ export function IncomeExpenseCashflow({
   const selected = data.months.filter((m) => months.includes(m.month));
   if (!selected.length) return null;
   const rows = cashflowDevelopment(selected, data);
-  const previousMonths = new Set(rows.map((r) => addMonths(r.month, -12)));
-  const previous = new Map(
-    (REDESIGN_ENABLED
-      ? cashflowDevelopment(
-          data.months.filter((m) => previousMonths.has(m.month)),
-          data,
-        )
-      : []
-    ).map((r) => [r.month, r.cashflow]),
-  );
-  const priorValues = rows.map((r) => previous.get(addMonths(r.month, -12)));
+  const byMonth = new Map(data.months.map((m) => [m.month, m]));
+  const priorValues = rows.map((r) => {
+    const prior = REDESIGN_ENABLED ? byMonth.get(addMonths(r.month, -12)) : undefined;
+    return prior && comparisonCashflow(data, prior, r.month);
+  });
+  const previous = priorValues.filter((value) => value !== undefined);
   const values = rows.flatMap((r) => [r.cashflow, r.cumulative]);
-  values.push(...previous.values());
+  values.push(...previous);
   const lo = Math.min(0, ...values);
   const hi = Math.max(1, ...values);
   const left = 64;
@@ -88,7 +107,7 @@ export function IncomeExpenseCashflow({
       <ChartSvg
         width={760}
         height={190}
-        label={`Monatlicher Cashflow als Säulen um die Nulllinie und kumulierter Cashflow als Linie${previous.size ? ', mit monatlichem Cashflow im Vorjahr' : ''}`}
+        label={`Monatlicher Cashflow als Säulen um die Nulllinie und kumulierter Cashflow als Linie${previous.length ? ', mit monatlichem Cashflow im Vorjahr' : ''}`}
         testId="cashflow-development-chart"
         points={chartPoints(
           rows.map((r) => r.month),
@@ -96,7 +115,7 @@ export function IncomeExpenseCashflow({
           [
             { name: 'Cashflow', values: rows.map((r) => r.cashflow) },
             { name: 'Kumuliert', values: rows.map((r) => r.cumulative), color: 'var(--future)' },
-            ...(previous.size ? [{ name: 'Cashflow Vorjahr', values: priorValues }] : []),
+            ...(previous.length ? [{ name: 'Cashflow Vorjahr', values: priorValues }] : []),
           ],
         )}
       >
@@ -144,7 +163,7 @@ export function IncomeExpenseCashflow({
       <LineLegend
         items={[
           { kind: 'actual', label: 'Kumulierter Cashflow' },
-          ...(previous.size ? [{ kind: 'previous' as const, label: 'Cashflow Vorjahr' }] : []),
+          ...(previous.length ? [{ kind: 'previous' as const, label: 'Cashflow Vorjahr' }] : []),
         ]}
       />
       <p className="r8-scope">
@@ -157,8 +176,8 @@ export function IncomeExpenseCashflow({
             Cashflow = Einnahmen − Ausgaben. Als Ausgaben zählen auch kategorisierte
             Zukunft-Umbuchungen sowie Ausgaben ohne Kategorie. Der frühere Cashflow-Verlauf zog nur
             Bedarf und Wunsch ab.{' '}
-            {previous.size > 0 &&
-              'Die Vorjahreslinie zeigt den monatlichen Cashflow der entsprechenden vollen Monate.'}
+            {previous.length > 0 &&
+              'Die Vorjahreslinie zeigt den monatlichen Cashflow, im laufenden Monat bis zum gleichen Kalendertag.'}
           </>
         ) : (
           <> Zukunft-Umbuchungen sind als Ausgaben enthalten (siehe Hinweis zur Datenbasis).</>

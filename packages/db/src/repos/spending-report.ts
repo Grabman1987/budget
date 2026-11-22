@@ -1,5 +1,6 @@
 import {
   addDays,
+  addMonths,
   daysBetween,
   isCalendarRange,
   analyseSpending,
@@ -141,7 +142,7 @@ export interface SpendingComparisonWindow {
   to: string;
 }
 
-/** The immediately preceding period, the same days last year, or inclusive custom dates. */
+/** The immediately preceding period, an equally long window from last year's start, or inclusive custom dates. */
 export type SpendingComparisonBasis =
   'previous-period' | 'previous-year' | SpendingComparisonWindow;
 
@@ -156,19 +157,15 @@ function answerComparison(
   basis: SpendingComparisonBasis = 'previous-period',
 ): SpendingReport['answerComparison'] {
   const days = from && to && to >= from ? daysBetween(from, to) + 1 : 0;
-  // Previous year: the same calendar days one year earlier (29 February falls back to 28 February).
-  const yearEarlier = (day: string) => {
-    const shifted = `${Number(day.slice(0, 4)) - 1}${day.slice(4)}`;
-    return Number.isNaN(Date.parse(shifted)) || addDays(shifted, 0) !== shifted
-      ? `${Number(day.slice(0, 4)) - 1}-02-28`
-      : shifted;
-  };
+  // The selected window starts on the first of a month. Shift that anchor and preserve
+  // the number of included days even when the window crosses a leap day.
+  const previousYearStart = from && days ? firstDay(addMonths(monthOf(from), -12)) : null;
   const before =
     typeof basis === 'object'
       ? basis.to
       : basis === 'previous-year'
-        ? to && days
-          ? yearEarlier(to)
+        ? previousYearStart
+          ? addDays(previousYearStart, days - 1)
           : null
         : from && days
           ? addDays(from, -1)
@@ -177,9 +174,7 @@ function answerComparison(
     typeof basis === 'object'
       ? basis.from
       : basis === 'previous-year'
-        ? from && days
-          ? yearEarlier(from)
-          : null
+        ? previousYearStart
         : before
           ? addDays(before, 1 - days)
           : null;

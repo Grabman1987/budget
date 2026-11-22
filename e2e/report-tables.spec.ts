@@ -521,12 +521,13 @@ test.describe('states', () => {
   };
 
   for (const id of ['jahresansicht', 'kategorien', 'sparquote', 'gesamttabelle']) {
+    const path = id === 'kategorien' ? '/reports/explorer?vorlage=category' : `/reports/${id}`;
     test(`${id}: says honestly that there is no data`, async ({ page }) => {
       await page.route('**/api/report-tables/months*', (route) => route.fulfill({ json: empty }));
       await page.route('**/api/report-tables/income-expense*', (route) =>
         route.fulfill({ json: empty }),
       );
-      await page.goto(`/reports/${id}`);
+      await page.goto(path);
       if (id === 'gesamttabelle')
         await page.getByText('Alle Monate: Nettovermögen und CSV', { exact: true }).click();
       await expect(
@@ -549,7 +550,7 @@ test.describe('states', () => {
         (route) =>
           fail ? route.fulfill({ status: 500, json: { error: 'internal' } }) : route.continue(),
       );
-      await page.goto(`/reports/${id}`);
+      await page.goto(path);
       if (id === 'gesamttabelle')
         await page.getByText('Alle Monate: Nettovermögen und CSV', { exact: true }).click();
       await expect(page.getByRole('alert')).toContainText(

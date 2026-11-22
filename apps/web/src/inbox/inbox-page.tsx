@@ -33,8 +33,7 @@ import {
 import { InboxTypeIcon } from './type-icon';
 import { ReadSourceDetail, sourceWarningReason } from './read-source-detail';
 import { ReconciliationChanges } from './reconciliation-changes';
-import { QuoteCause } from './quote-cause';
-import { quoteFailureText } from '../wealth/quote-source';
+import { QuoteCause, storedQuoteWarningText } from './quote-cause';
 import { ReadSourceSummaries } from './read-source-summaries';
 import { AutoResolvedHistory } from './auto-resolved-history';
 import { inboxCause, type InboxSegment } from '@budget/domain';
@@ -1311,7 +1310,7 @@ function InboxBodyContent({
                                   {item.type === 'stored'
                                     ? groupByTitle
                                       ? item.title
-                                      : `${item.title} · ${maskMoneyText(sourceWarningReason(item.detail))}`
+                                      : `${item.title} · ${maskMoneyText(sourceWarningReason(item.detail, item.refType === 'read_source'))}`
                                     : 'Datenprüfung'}{' '}
                                   · {total} Aufgaben ·{' '}
                                   {expanded ? 'Einzelpunkte ausblenden' : 'Einzelpunkte anzeigen'}
@@ -1507,7 +1506,7 @@ function InboxRow({
         ) : item.type === 'stored' && item.kind === 'import' && !detailView ? (
           <span>
             {longDay(item.createdAt.slice(0, 10))} ·{' '}
-            {maskMoneyText(sourceWarningReason(item.detail))}
+            {maskMoneyText(sourceWarningReason(item.detail, item.refType === 'read_source'))}
           </span>
         ) : item.type === 'stored' &&
           item.kind === 'stale_value' &&
@@ -1525,8 +1524,8 @@ function InboxRow({
                 ? `${longDay(item.date)} · ${item.accountName} · Ausführung anhand der Abrechnung prüfen`
                 : item.type === 'stored' &&
                     item.refType === 'security' &&
-                    item.detail?.startsWith('Fehlerklasse: ')
-                  ? quoteFailureText(item.detail.slice('Fehlerklasse: '.length))
+                    item.kind === 'stale_value'
+                  ? storedQuoteWarningText(item.detail)
                   : maskMoneyText(item.detail ?? '')}
           </span>
         )}

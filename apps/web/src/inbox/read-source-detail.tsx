@@ -272,11 +272,11 @@ function SourceBalanceComparison({ value }: { value: Record<string, unknown> }) 
 export function ReadSourceDetail({ detail }: { detail: string | null }) {
   const amountsHidden = useAmountPrivacy();
   if (!detail) return null;
-  let value: unknown;
+  let value: unknown = null;
   try {
     value = JSON.parse(detail) as unknown;
   } catch {
-    return <span>{maskMoneyText(detail)}</span>;
+    // Legacy free text has no allowlisted fields.
   }
   if (!isRecord(value)) return <span>Keine lesbaren Angaben zum Abgleich gespeichert.</span>;
   const { source, id, reason, field } = value;
@@ -310,7 +310,7 @@ export function ReadSourceDetail({ detail }: { detail: string | null }) {
   );
 }
 
-export function sourceWarningReason(detail: string | null): string {
+export function sourceWarningReason(detail: string | null, readSource = false): string {
   try {
     const value: unknown = JSON.parse(detail ?? 'null');
     if (isRecord(value)) {
@@ -320,7 +320,7 @@ export function sourceWarningReason(detail: string | null): string {
       if (typeof category === 'string') return SOURCE_FAILURES[category] ?? 'Abruf fehlgeschlagen.';
     }
   } catch {
-    return detail ?? 'Datenquelle oder Zuordnung prüfen.';
+    if (!readSource && detail) return detail;
   }
   return 'Datenquelle oder Zuordnung prüfen.';
 }

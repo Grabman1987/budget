@@ -26,6 +26,7 @@ test('1159 YTD keeps the running month and the include-Zukunft cashflow from the
       ['2025-01-10', 60_000, 'salary'],
       ['2025-02-10', -10_000, 'need'],
       ['2025-03-10', 20_000, 'salary'],
+      ['2025-03-16', 9_999, 'salary'],
       ['2026-01-10', 100_000, 'salary'],
       ['2026-01-10', -20_000, 'need'],
       ['2026-01-10', -10_000, 'future'],
@@ -80,6 +81,7 @@ test('1159 YTD keeps the running month and the include-Zukunft cashflow from the
       'Cashflow inkl. laufendem Monat: 399,99 €, durchschnittlich 133,33 € pro Monat',
     );
     await expect(page.getByTestId('cashflow-statement')).toContainText('Vorjahr 700,00 €');
+    await expect(section).toContainText('im laufenden Monat bis zum gleichen Kalendertag');
     await expect(section).toContainText('Cashflow = Einnahmen − Ausgaben');
     await expect(section).toContainText(
       'Der frühere Cashflow-Verlauf zog nur Bedarf und Wunsch ab.',

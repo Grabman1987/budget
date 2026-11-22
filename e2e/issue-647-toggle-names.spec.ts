@@ -5,11 +5,11 @@ import { sampleTest as test, expect } from './sample';
 /**
  * #647 (follow-up of #640): every report section toggle has its own accessible name, the generic
  * action followed by the section title (aria-labelledby), so voice control can tell them apart.
- * One sample report (Einnahmen), Axe clean in light and dark.
+ * Geldfluss has multiple top-level sections in both presentations.
  */
 test.describe.configure({ timeout: 90_000 });
 
-const MONTH = '/reports/einnahmen?monat=2026-08';
+const MONTH = '/reports/geldfluss?monat=2026-08';
 const ACTION = 'Abschnitt ein- oder ausklappen';
 
 test('each section toggle is named by the action and its own section title', async ({
