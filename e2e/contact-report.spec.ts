@@ -158,8 +158,13 @@ test('fixed EUR report preserves credit, running history, source links and recei
   );
   await page.keyboard.press('Enter');
   await sourceRead;
-  await expect(page.getByRole('dialog')).toBeVisible();
-  await expect(page.getByRole('dialog')).toContainText(data.account.name);
+  const release = page.getByRole('alertdialog', {
+    name: 'Verknüpfte Auslage wirklich bearbeiten?',
+  });
+  await expect(release).toBeVisible();
+  await release.getByRole('button', { name: 'Bearbeitung bestätigen', exact: true }).click();
+  const editor = page.getByRole('dialog', { name: 'Buchung bearbeiten', exact: true });
+  await expect(editor).toContainText(data.account.name);
   await page.keyboard.press('Escape');
   await expect(page.getByRole('dialog')).toHaveCount(0);
   expect(writes).toEqual([]);

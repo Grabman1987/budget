@@ -81,6 +81,7 @@ for (const theme of ['light', 'dark'] as const)
   test(`740 original PDF links, cancellation and real group Undo/Redo in ${theme}`, async ({
     page,
     isolatedLedger,
+    hasTouch,
   }, info) => {
     const { origin, databasePath } = isolatedLedger,
       opened = openDatabase(databasePath);
@@ -206,8 +207,8 @@ for (const theme of ['light', 'dark'] as const)
       await second.check();
       const save = panel.getByRole('button', { name: 'Verknüpfungen speichern', exact: true });
       geometry.push(await hit(save));
-      await save.focus();
-      await page.keyboard.press('Enter');
+      if (hasTouch) await save.tap();
+      else await save.press('Enter');
       await expect(
         panel.getByText(
           'Verknüpfungen gespeichert. Beträge und Buchungsdaten bleiben unverändert.',
@@ -248,6 +249,8 @@ for (const theme of ['light', 'dark'] as const)
       await expect(panel).not.toContainText('57,49');
       await page.keyboard.press('Control+Shift+H');
       await expect(panel).toContainText('12,51');
+      // Scan the visible Undo toast after its entrance transition reaches full contrast.
+      await expect(dialog.locator('.toast.is-open .toast-body')).toHaveCSS('opacity', '1');
       expect((await new AxeBuilder({ page }).include('dialog[open]').analyze()).violations).toEqual(
         [],
       );

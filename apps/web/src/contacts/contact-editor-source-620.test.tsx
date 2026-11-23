@@ -79,7 +79,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-async function mount(page: 'list' | 'statement') {
+async function mount(page: 'list' | 'statement', simulateStaleProtection = false) {
   const opened = createTestDatabase();
   databases.push(opened);
   seedBasics(opened.db);
@@ -110,6 +110,10 @@ async function mount(page: 'list' | 'statement') {
   });
   expect(created.status, await created.clone().text()).toBe(201);
   const older = (await created.json()).bookings[0];
+  // Model a repayment arriving after the editor's protection read, before the first write.
+  const staleProtection = simulateStaleProtection
+    ? await api.request(`/bookings/${older.id}/edit-protection`)
+    : null;
   const settled = await post('/contacts/k1/settlements', {
     accountId: 'giro',
     date: '2026-09-02',
@@ -128,6 +132,8 @@ async function mount(page: 'list' | 'statement') {
     'fetch',
     vi.fn(async (path: string, init?: RequestInit) => {
       if (init?.method && init.method !== 'GET') writes.push(`${init.method} ${path}`);
+      if (path === `/api/bookings/${older.id}/edit-protection` && staleProtection)
+        return staleProtection.clone();
       if (blocked?.(path))
         return new Promise<Response>((done) => {
           release = done;
@@ -171,7 +177,7 @@ async function mount(page: 'list' | 'statement') {
 it.each(['discard', 'save'] as const)(
   'retains the real booking draft and linked-edit confirmation through read failure, then clears the reverted refusal on %s',
   async (finish) => {
-    const view = await mount('statement');
+    const view = await mount('statement', true);
     const original = (await (await view.api.request(`/bookings/${view.older.id}`)).json()).booking;
     fireEvent.click(
       screen.getByRole('button', { name: /Ursprungsbuchung öffnen.*Ältere offene Auslage/ }),

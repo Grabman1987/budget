@@ -421,47 +421,53 @@ export function BookingsPage() {
             if (!pending) setSelected(new Set());
           }}
           outcome={outcome}
-          extra={(facts) => (
-            <>
-              {canLink && (
+          extra={(facts) => {
+            const offerLink =
+              canLink &&
+              facts?.items.length === 2 &&
+              facts.items.every((item) => item.reason !== 'reconciled_locked');
+            return (
+              <>
+                {offerLink && (
+                  <Button
+                    className="bank-link-action"
+                    size="sm"
+                    variant="ghost"
+                    disabled={pending}
+                    onClick={() => {
+                      setLinking(true);
+                      void write(
+                        () =>
+                          request<{ groupId: string }>('POST', '/api/bookings/link-transfer', {
+                            ids,
+                          }),
+                        () => 'Als Umbuchung verbunden; Kategorien entfernt.',
+                      )
+                        .then((result) => {
+                          if (result) bulkDone();
+                        })
+                        .finally(() => setLinking(false));
+                    }}
+                  >
+                    Als Umbuchung verbinden
+                  </Button>
+                )}
+                {offerLink && (
+                  <span className="kmeta">
+                    Kategorien werden entfernt. Beide Buchungstage bleiben erhalten.
+                  </span>
+                )}
                 <Button
-                  className="bank-link-action"
-                  size="sm"
                   variant="ghost"
-                  disabled={pending}
-                  onClick={() => {
-                    setLinking(true);
-                    void write(
-                      () =>
-                        request<{ groupId: string }>('POST', '/api/bookings/link-transfer', {
-                          ids,
-                        }),
-                      () => 'Als Umbuchung verbunden; Kategorien entfernt.',
-                    )
-                      .then((result) => {
-                        if (result) bulkDone();
-                      })
-                      .finally(() => setLinking(false));
-                  }}
+                  size="sm"
+                  disabled={pending || !facts}
+                  onClick={() => setConfirmDelete(true)}
                 >
-                  Als Umbuchung verbinden
+                  Löschen
                 </Button>
-              )}
-              {canLink && (
-                <span className="kmeta">
-                  Kategorien werden entfernt. Beide Buchungstage bleiben erhalten.
-                </span>
-              )}
-              <Button
-                variant="ghost"
-                size="sm"
-                disabled={pending || !facts}
-                onClick={() => setConfirmDelete(true)}
-              >
-                Löschen
-              </Button>
-            </>
-          )}
+              </>
+            );
+          }}
         />
       </div>
       <BookingPanel key={filterKey} state={panel} onClose={() => setPanel(null)} />

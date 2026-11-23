@@ -355,7 +355,10 @@ async function scene(
   expect(await get<{ booking: unknown }>(page, `/api/bookings/${ids.purchaseId}`)).toEqual(
     purchaseBefore,
   );
-  expect(sourceReads).toEqual([`/api/bookings/${ids.purchaseId}`]);
+  expect(sourceReads).toEqual([
+    `/api/bookings/${ids.purchaseId}`,
+    `/api/bookings/${ids.purchaseId}/edit-protection`,
+  ]);
   expect(writes).toEqual([]);
   expect(snapshot(databasePath)).toEqual(before);
 }

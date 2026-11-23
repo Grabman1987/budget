@@ -76,7 +76,15 @@ test('learned inbox assignment needs one owner click and can be removed in setti
   await expect(row).toBeVisible();
   await expect(row.getByRole('button', { name: 'Übernehmen', exact: true })).toHaveCount(0);
   for (const id of [first.id, second.id, third.id]) {
-    expect((await request.delete('/api/bookings/' + id, { headers })).ok()).toBe(true);
+    const path = '/api/bookings/' + id;
+    const deletion = await request.delete(path, { headers });
+    if (id === second.id) {
+      expect(deletion.status()).toBe(409);
+      const released = await request.delete(path + '?unlock=1', { headers });
+      expect(released.ok(), await released.text()).toBe(true);
+    } else {
+      expect(deletion.ok(), await deletion.text()).toBe(true);
+    }
   }
 });
 
