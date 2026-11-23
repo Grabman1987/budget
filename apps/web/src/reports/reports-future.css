@@ -645,6 +645,14 @@
   position: relative;
 }
 
+/* Forecast tools remain mounted while folded, retaining local drafts and existing write paths. */
+.repay-invest > summary {
+  min-height: 44px;
+  padding: 12px 24px;
+  cursor: pointer;
+  font-weight: 620;
+}
+
 /* Forecast disclosures share the same layout and target size. */
 :is(.rf-tools, .rf-backtest) > summary {
   display: flex;
@@ -689,6 +697,7 @@
   padding: 4px;
 }
 @media (max-width: 767px) {
+  .repay-invest > summary,
   :is(.rf-tools, .rf-backtest) > summary {
     padding-inline: 12px;
   }

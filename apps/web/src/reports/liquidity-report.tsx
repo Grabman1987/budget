@@ -56,6 +56,7 @@ import { salaryDay, upcomingEvents, useLiquiditySelection } from './liquidity-se
 import { ForecastRedesign } from './forecast-redesign';
 import { ForecastBacktestSection } from './forecast-backtest';
 import { AccountLiquidityTable } from './account-liquidity';
+import { RepayInvest } from './repay-invest';
 import { ReportTable } from './report-table';
 import { PlanPageFrame } from '../budget/plan-page-frame';
 import type { PageFrameProps } from '../pages/placeholder-page';
@@ -155,6 +156,7 @@ export function LiquidityReportPage({ report, meta }: { report: ReportEntry; met
               stale={query.isFetching}
             />
             <AccountLiquidityTable result={view.accountLiquidity} />
+            {REDESIGN_ENABLED && <RepayInvest horizon={horizon} levers={levers} />}
             <details
               className="card rf-tools rf-wide"
               open={toolsOpen}

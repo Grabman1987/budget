@@ -6,6 +6,7 @@ import {
   accountLiquidityForecast,
   horizonDays,
   liquidityReport,
+  monthOf,
   PriceUnavailableError,
   plannedEventOccurrences,
   versionOn,
@@ -13,12 +14,15 @@ import {
   type LiquidityHorizon,
   type LiquidityLeverId,
   type LiquidityReport,
+  type RepaymentTarget,
 } from '@budget/domain';
 import { asc, isNull } from 'drizzle-orm';
 import { account, category, expectedPayment, incomePause, plannedEvent } from '../schema';
 import { withGroup, type AuditContext } from './audit';
 import { createEntity, getEntity, restoreEntity, softDeleteEntity, updateEntity } from './entities';
 import { CategoryRuleError, EntityNotFoundError, MissingFxRateError } from './errors';
+import { investableAmountAsOf } from './heute';
+import { listLoanRateChanges } from './loan-planning';
 import { netWorthValuationAsOf } from './portfolio';
 import { forecastInputs, loadFacts, scheduled, type RuleFacts } from './rule-inputs';
 import { runInTransaction, type Executor } from './types';
@@ -56,6 +60,10 @@ export interface PlannedEventView {
 
 export interface LiquidityReportView {
   accountLiquidity: ReturnType<typeof accountLiquidityForecast> | null;
+  repaymentComparison?: {
+    funding: ReturnType<typeof investableAmountAsOf>;
+    debts: RepaymentTarget[];
+  };
   asOf: string;
   /** False without a budget account: there is nothing to forecast. */
   available: boolean;
@@ -97,6 +105,7 @@ export interface IncomePauseView {
 export interface LiquidityReportOptions {
   horizon: LiquidityHorizon;
   levers: ReadonlyArray<LiquidityLeverId>;
+  includeRepaymentComparison?: boolean;
 }
 
 function incomePausesView(
@@ -307,15 +316,47 @@ export function liquidityReportView(
     horizon: options.horizon,
     levers: options.levers,
   });
+  const accountLiquidity = inputs.accountLiquidity.accounts.some((a) => a.paymentAccount)
+    ? accountLiquidityForecast(
+        inputs.accountLiquidity,
+        daysBetween(asOf, addDays(nextPayday(asOf).day, 30)),
+      )
+    : null;
+  const repaymentComparison =
+    options.includeRepaymentComparison && accountLiquidity && !accountLiquidity.incomplete
+      ? {
+          funding: investableAmountAsOf(db, asOf, { facts, valuation, forecast: inputs }),
+          debts: live.flatMap((a): RepaymentTarget[] => {
+            const balance = valuation.byAccount[a.id];
+            if (a.currency !== 'EUR' || a.closedAt !== null || balance == null || balance >= 0)
+              return [];
+            const debt = { id: a.id, name: a.name, owedCents: -balance };
+            if (a.type === 'checking' && a.role !== 'reserve')
+              return [{ ...debt, kind: 'overdraft', rateBp: a.interestRateBp }];
+            if (a.type !== 'loan') return [];
+            const terms =
+              a.interestRateBp !== null && a.installmentCents && a.monthlyFeeCents !== null
+                ? {
+                    balanceCents: debt.owedCents,
+                    startMonth: monthOf(asOf),
+                    rateBp: a.interestRateBp,
+                    installmentCents: a.installmentCents,
+                    monthlyFeeCents: a.monthlyFeeCents,
+                    rateChanges: listLoanRateChanges(db, a.id).map((change) => ({
+                      month: monthOf(change.validFrom),
+                      rateBp: change.rateBp,
+                    })),
+                  }
+                : null;
+            return [{ ...debt, kind: 'loan', terms }];
+          }),
+        }
+      : undefined;
   return {
     asOf,
     available: true,
-    accountLiquidity: inputs.accountLiquidity.accounts.some((a) => a.paymentAccount)
-      ? accountLiquidityForecast(
-          inputs.accountLiquidity,
-          daysBetween(asOf, addDays(nextPayday(asOf).day, 30)),
-        )
-      : null,
+    accountLiquidity,
+    ...(repaymentComparison ? { repaymentComparison } : {}),
     report,
     events,
     incomePauses: incomePausesView(db, facts, asOf, hDays, report.verdictEnd),

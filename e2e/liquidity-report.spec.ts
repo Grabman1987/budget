@@ -39,6 +39,75 @@ async function inspect(page: Page, info: TestInfo, label: string) {
 }
 
 isolatedTest(
+  'Plan compares a loan repayment and investment without changing ledger cash',
+  async ({ page, baseURL }) => {
+    const headers = { origin: baseURL! };
+    const source = await page.request.post('/api/accounts', {
+      headers,
+      data: {
+        name: 'Synthetic payment account',
+        type: 'checking',
+        openingDate: '2026-10-02',
+        openingBalanceCents: 20_000,
+      },
+    });
+    expect(source.status()).toBe(201);
+    const { account } = (await source.json()) as { account: { id: string } };
+    const loan = await page.request.post('/api/accounts', {
+      headers,
+      data: {
+        name: 'Synthetic loan',
+        type: 'loan',
+        openingDate: '2026-10-02',
+        openingBalanceCents: -30_000,
+        interestRateBp: 1_200,
+        installmentCents: 10_000,
+        monthlyFeeCents: 0,
+      },
+    });
+    expect(loan.status()).toBe(201);
+    const event = await page.request.post('/api/liquidity/events', {
+      headers,
+      data: {
+        name: 'Synthetic obligation',
+        date: '2026-10-04',
+        amountCents: -5_000,
+        accountId: account.id,
+      },
+    });
+    expect(event.status()).toBe(201);
+    const before = await api(page, '/api/liquidity?horizon=35d');
+    await page.goto('/plan/prognose');
+    if (!(await redesignEnabled(page))) {
+      await expect(page.getByText('Tilgen oder investieren', { exact: true })).toHaveCount(0);
+      return;
+    }
+    await page.getByText('Tilgen oder investieren', { exact: true }).click();
+    const amount = page.getByLabel('Vergleichsbetrag');
+    const repay = page.getByRole('region', { name: 'Tilgen', exact: true });
+    const invest = page.getByRole('region', { name: 'Investieren', exact: true });
+    await expect(amount).toHaveValue('150,00');
+    await expect(repay).toContainText('Tiefpunkt: 0,00 € am 04.10.2026');
+    await expect(repay).toContainText('Synthetic payment account');
+    await expect(repay).toContainText('Zinsersparnis: 4,12 €');
+    await expect(repay).toContainText('Rücklagen bleiben gedeckt.');
+    await expect(invest).toContainText('−3,00 € bis 4,50 €');
+    await page.getByLabel('Rendite bis (%)').fill('5,00');
+    await expect(invest).toContainText('−3,00 € bis 7,50 €');
+    await amount.fill('150,01');
+    for (const option of [repay, invest]) {
+      await expect(option).toContainText('Tiefpunkt: −0,01 €');
+      await expect(option).toContainText('Nicht ratsam.');
+      await expect(option).toContainText('Im Budget fehlt Geld für geplante Zahlungen.');
+    }
+    expect(await api(page, '/api/liquidity?horizon=35d')).toEqual(before);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
+      true,
+    );
+  },
+);
+
+isolatedTest(
   'liquidity forecast labels the assumptions-only baseline and keeps later events out of scope',
   async ({ page, baseURL }, info) => {
     const origin = baseURL!;

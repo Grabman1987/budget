@@ -34,6 +34,7 @@ const query = z.object({
   horizon: horizon.default('6m'),
   /** Comma separated lever ids. */
   levers: z.string().max(200).default(''),
+  compare: z.literal('1').optional(),
 });
 const eventCreate = z.object({
   name: z.string().trim().min(1).max(80),
@@ -134,6 +135,7 @@ export function liquidityRoutes(db: Db, today: () => string): Hono {
       liquidityReportView(db, today(), {
         horizon: q.horizon as (typeof LIQUIDITY_HORIZONS)[number],
         levers,
+        includeRepaymentComparison: q.compare === '1',
       }),
     );
   });

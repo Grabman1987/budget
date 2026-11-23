@@ -45,14 +45,21 @@ export const plannedEventsQuery = () =>
 export const liquidityQuery = (
   horizon: LiquidityHorizon,
   levers: ReadonlyArray<LiquidityLeverId>,
+  includeRepaymentComparison = false,
 ) =>
   queryOptions({
-    queryKey: [...LEDGER_KEY, 'liquidity-report', horizon, [...levers].sort().join(',')],
+    queryKey: [
+      ...LEDGER_KEY,
+      'liquidity-report',
+      horizon,
+      [...levers].sort().join(','),
+      includeRepaymentComparison,
+    ],
     retry: false,
     queryFn: () =>
       request<LiquidityReportView>(
         'GET',
-        `/api/liquidity?horizon=${horizon}${levers.length ? `&levers=${[...levers].sort().join(',')}` : ''}`,
+        `/api/liquidity?horizon=${horizon}${levers.length ? `&levers=${[...levers].sort().join(',')}` : ''}${includeRepaymentComparison ? '&compare=1' : ''}`,
       ),
   });
 

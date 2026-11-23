@@ -343,3 +343,12 @@ When money is between two bank accounts, I see the signed difference on its own
 **Geld unterwegs** line. The cash reconciliation covers the selected checking and
 savings accounts. Brokerage, crypto and P2P cash keeps its own valuation, outside
 the bank cash shown on that line. The display creates no bookings or adjustments.
+## Plan: repayment versus investment (#1291)
+
+In Plan › Prognose, I can start with the investable amount, select a payment account
+and an open EUR loan or overdraft, and edit the amount and return assumptions. I
+see each option's lowest payment-account balance, account and date, and whether
+committed reserves stay covered through payday plus 30 days. A negative low or
+reserve shortfall marks the option as inadvisable. First-year interest saved and
+the assumed investment return range are shown separately from the cash forecast.
+The comparison leaves bookings and Undo history untouched.
