@@ -1,4 +1,5 @@
 import type {
+  ForecastBacktest,
   IncomePauseView,
   IncomePauseInput,
   IncomePausePatch,
@@ -19,6 +20,13 @@ import type { AccountRow, WriteResult } from '../ledger/types';
  */
 
 export type { IncomePauseView, LiquidityReportView, PlannedEventView };
+export const forecastBacktestQuery = () =>
+  queryOptions({
+    queryKey: [...LEDGER_KEY, 'liquidity-backtest'],
+    retry: false,
+    queryFn: () => request<ForecastBacktest>('GET', '/api/liquidity/backtest'),
+  });
+
 export const plannedEventsQuery = () =>
   queryOptions({
     queryKey: [...LEDGER_KEY, 'planned-events'],

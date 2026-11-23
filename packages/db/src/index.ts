@@ -19,3 +19,4 @@ export * from './repos/account-preview';
 export { databaseStamp, runInReadSnapshot } from './repos/request-memo';
 export * from './repos/booking-views';
 export * from './repos/operator-contact-allocate';
+export { forecastBacktest, type ForecastBacktest } from './repos/forecast-backtest';

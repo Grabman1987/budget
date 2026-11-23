@@ -3,6 +3,7 @@ import {
   createIncomePause,
   deleteIncomePause,
   deletePlannedEvent,
+  forecastBacktest,
   listIncomePauses,
   liquidityReportView,
   plannedEventsView,
@@ -119,6 +120,8 @@ export function liquidityRoutes(db: Db, today: () => string): Hono {
   });
 
   app.get('/income-pauses', (c) => c.json({ pauses: listIncomePauses(db).map(incomePauseView) }));
+
+  app.get('/backtest', (c) => c.json(forecastBacktest(db, today())));
 
   app.get('/', (c) => {
     const q = readQuery(c, query);
