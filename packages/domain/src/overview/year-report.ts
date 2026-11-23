@@ -319,8 +319,7 @@ export function yearWealthColumns(netWorth: YearNetWorth | null) {
 }
 
 /**
- * Sparquote split into the part that flowed into investments (net contributions of the portfolio
- * report) and the rest that stayed on cash. The cash part is the remainder, so the parts add up
+ * Sparquote split into net transfers to investments and the cash remainder. The parts add up
  * to the Sparquote of the report exactly, in cents and in basis points.
  */
 export function yearSavingsSplit(input: {
