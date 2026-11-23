@@ -188,30 +188,52 @@ function mergeTargets(db: Executor, row: MatchBooking) {
   );
 }
 
-export function candidateMatches(db: Executor, id: string) {
-  const row = openCandidate(db, id);
+/** A classified inflow may be a refund; keep it out of booked funding suggestions. */
+function isFundingLeg(db: Executor, row: NonNullable<ReturnType<typeof getBooking>>) {
+  const split = row.splits[0];
+  return (
+    row.splits.length === 1 &&
+    split &&
+    split.incomeTypeId === null &&
+    (row.amountCents < 0 || split.categoryId === null) &&
+    openAccount(db, row.accountId).onBudget
+  );
+}
+
+function transferTargets(db: Executor, row: MatchBooking, fundingOnly = false) {
   const rows = db
-    .select()
+    .select({ booking, accountName: account.name })
     .from(booking)
+    .innerJoin(account, eq(account.id, booking.accountId))
     .where(
       and(
         isNull(booking.deletedAt),
+        isNull(booking.transferId),
         eq(booking.currency, row.currency),
         gte(booking.date, addDays(row.date, -5)),
         lte(booking.date, addDays(row.date, 5)),
-        or(eq(booking.amountCents, row.amountCents), eq(booking.amountCents, -row.amountCents)),
+        eq(booking.amountCents, -row.amountCents),
+        ...(fundingOnly ? [eq(account.onBudget, true)] : []),
       ),
     )
-    .all()
-    .filter((b) => {
-      try {
-        linkable(db, b.id);
-        return true;
-      } catch {
-        return false;
-      }
-    })
-    .map((b) => ({ ...b, accountName: openAccount(db, b.accountId).name }));
+    .all();
+  const matching = bankMatches(
+    row,
+    rows.map(({ booking, accountName }) => ({ ...booking, accountName })),
+    true,
+  ).filter((b) => {
+    try {
+      const target = linkable(db, b.id);
+      return !fundingOnly || isFundingLeg(db, target);
+    } catch {
+      return false;
+    }
+  });
+  return preferLatestConfirmed(db, row.date, matching);
+}
+
+export function candidateMatches(db: Executor, id: string) {
+  const row = openCandidate(db, id);
   const merge = mergeTargets(db, row);
   const taken = new Set(merge.map((b) => b.id));
   /** Bookings that cannot take over the bank date (migrated, locked) can still be linked. */
@@ -223,7 +245,19 @@ export function candidateMatches(db: Executor, id: string) {
       )
       .map((b) => ({ ...b, accountName: openAccount(db, b.accountId).name })),
   );
-  const matching = [...merge, ...link];
+  const matching = preferLatestConfirmed(db, row.date, [...merge, ...link]);
+  return {
+    merge,
+    link,
+    preferredBookingId: matching[0]?.id ?? null,
+    alternativeCount: Math.max(0, matching.length - 1),
+    transfers: transferTargets(db, row),
+  };
+}
+
+function preferLatestConfirmed<
+  T extends Pick<typeof booking.$inferSelect, 'id' | 'date' | 'status'>,
+>(db: Executor, date: string, matching: T[]): T[] {
   const confirmed = new Map<string, string>();
   if (matching.length > 1) {
     const eligibleIds = matching
@@ -244,7 +278,7 @@ export function candidateMatches(db: Executor, id: string) {
       .all()) {
       if (!confirmed.has(entry.id)) confirmed.set(entry.id, entry.ts);
     }
-    const gap = (date: string) => Math.abs(Date.parse(date) - Date.parse(row.date));
+    const gap = (day: string) => Math.abs(Date.parse(day) - Date.parse(date));
     matching.sort(
       (a, b) =>
         (confirmed.get(b.id) ?? '').localeCompare(confirmed.get(a.id) ?? '') ||
@@ -252,13 +286,7 @@ export function candidateMatches(db: Executor, id: string) {
         a.id.localeCompare(b.id),
     );
   }
-  return {
-    merge,
-    link,
-    preferredBookingId: matching[0]?.id ?? null,
-    alternativeCount: Math.max(0, matching.length - 1),
-    transfers: bankMatches(row, rows, true),
-  };
+  return matching;
 }
 
 /** The manual booking keeps its identity; it takes over the bank date, source and stable reference. */
@@ -384,10 +412,23 @@ function mergeableBankBooking(db: Executor, id: string) {
   return row;
 }
 
-/** Manual bookings an unchecked bank booking can be merged into; throws when it is not eligible. */
+/** Suggestions for an unchecked bank booking; opening the review never writes. */
 export function bankBookingMatches(db: Executor, id: string) {
   const row = mergeableBankBooking(db, id);
-  return { merge: mergeTargets(db, row) };
+  const transfers =
+    isFundingLeg(db, row) && !bookingReviewedOn(db, id) ? transferTargets(db, row, true) : [];
+  return { merge: mergeTargets(db, row), transfers };
+}
+
+/** Revalidate the suggestion before the existing grouped transfer write. */
+export function linkBookedFunding(db: Executor, id: string, bookingId: string, ctx: AuditContext) {
+  return runInTransaction(db, (tx) => {
+    const row = mergeableBankBooking(tx, id);
+    const target = linkable(tx, bookingId);
+    if (!isFundingLeg(tx, row) || !isFundingLeg(tx, target))
+      throw new ConflictError('Die Gegenbuchung passt nicht mehr.');
+    return linkBookings(tx, [id, bookingId], ctx);
+  });
 }
 
 /**

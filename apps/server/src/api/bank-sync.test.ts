@@ -1,6 +1,12 @@
 import { eq } from 'drizzle-orm';
 import { createHash, randomUUID } from 'node:crypto';
-import { createTestDatabase, createBooking, schema, type OpenedDatabase } from '@budget/db';
+import {
+  createTestDatabase,
+  createBooking,
+  updateBooking,
+  schema,
+  type OpenedDatabase,
+} from '@budget/db';
 import { Hono } from 'hono';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createApp, type AuthGate } from '../app';
@@ -269,6 +275,83 @@ describe('bank API security boundary', () => {
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({ bookingId: own, groupId: expect.any(String) });
     expect((await call('/bookings/' + posted + '/merge', { bookingId: own })).status).toBe(404);
+  });
+  it('suggests the latest confirmed funding counterpart without linking either booking', async () => {
+    const { db } = opened;
+    const posted = createBooking(
+      db,
+      {
+        accountId: 'giro',
+        date: '2026-10-01',
+        amountCents: -1703,
+        source: 'bank',
+        importKey: 'bank-sync:synthetic-funding',
+        status: 'pending',
+        splits: [{ amountCents: -1703 }],
+      },
+      { actor: 'tester' },
+    );
+    function counterpart(date: string, confirmedAt: string) {
+      vi.useFakeTimers();
+      try {
+        vi.setSystemTime(new Date(confirmedAt));
+        return createBooking(
+          db,
+          {
+            accountId: 'spar',
+            date,
+            amountCents: 1703,
+            status: 'confirmed',
+            splits: [{ amountCents: 1703 }],
+          },
+          { actor: 'tester' },
+        );
+      } finally {
+        vi.useRealTimers();
+      }
+    }
+    const closer = counterpart('2026-10-01', '2026-10-02T09:00:00Z');
+    const latest = counterpart('2026-10-03', '2026-10-02T10:00:00Z');
+    createBooking(
+      db,
+      {
+        accountId: 'spar',
+        date: '2026-10-01',
+        amountCents: 1703,
+        status: 'confirmed',
+        splits: [{ amountCents: 1703, categoryId: 'essen' }],
+      },
+      { actor: 'tester' },
+    );
+    const result = await call(`/bookings/${posted}/matches`);
+    expect(result.status).toBe(200);
+    expect(await result.json()).toMatchObject({
+      merge: [],
+      transfers: [{ id: latest }, { id: closer }],
+    });
+    expect(
+      db
+        .select({ transferId: schema.booking.transferId, cents: schema.booking.amountCents })
+        .from(schema.booking)
+        .where(eq(schema.booking.id, posted))
+        .get(),
+    ).toEqual({ transferId: null, cents: -1703 });
+    expect(db.select().from(schema.transfer).all()).toEqual([]);
+
+    updateBooking(
+      db,
+      latest,
+      { splits: [{ amountCents: 1703, categoryId: 'essen' }] },
+      { actor: 'tester' },
+    );
+    expect((await call(`/bookings/${posted}/transfer`, { bookingId: latest })).status).toBe(409);
+    expect(db.select().from(schema.transfer).all()).toEqual([]);
+    expect(
+      (await call(`/bookings/${posted}/transfer`, { bookingId: closer }, 'https://other.example'))
+        .status,
+    ).toBe(403);
+    expect((await call(`/bookings/${posted}/transfer`, { bookingId: closer })).status).toBe(200);
+    expect(db.select().from(schema.transfer).all()).toHaveLength(1);
   });
   it('requires session, origin and a passkey session before any consent HTTP request', async () => {
     authenticated = false;
