@@ -613,6 +613,7 @@ owner live acceptance is pending.
 - **Remaining scope:** Vorjahresvergleich der weiteren Investment-/Trading-Zahlen; Realwerte (Inflation), Zinszahlungen, Sparziele, Rücklage (noch keine gemeinsame Berechnung).
 
 - **Vorjahresvergleich (#1118):** Gewinne, Verluste und Trefferquote vergleichen dieselben Kalendermonate des Vorjahres. Ein vollständiger Verkauf beendet die Position; frühere Teilverkäufe zählen zu ihrem Ergebnis. Die neuen Werte und Differenzen folgen dem Privatsphäre-Schalter.
+- **Savings attribution (owner decision 2026-11-23):** The savings split uses the budget-side booking date for transfers to and from a depot or its linked settlement account. It subtracts withdrawals and ignores portfolio-internal transfers and trades. The household savings rate and the residual calculation use their existing formulas. The portfolio figures still use the securities performance source for the same period.
 
 ### RP-21a – Finanz-Check-Verlauf
 - **Story:** Als Nutzer möchte ich sehen, welche Regeln verletzt sind und seit wann, damit ich zuerst die offene Regel der aktuellen Stufe behebe.

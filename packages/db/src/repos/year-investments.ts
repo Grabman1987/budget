@@ -23,6 +23,7 @@ import {
   tradesUpTo,
 } from './portfolio-summary';
 import type { Executor } from './types';
+import { budgetLedger } from './queries';
 
 /**
  * Investments and trading block of the Jahresreport. Nothing is calculated here that the portfolio
@@ -65,6 +66,49 @@ export interface YearInvestments {
     /** Taxes as booked by the broker. */
     taxesCents: number;
   };
+}
+
+/** Net savings transfers, dated on the budget side of the linked ledger booking. */
+export function yearDepotTransfers(db: Executor, months: string[]): number | null {
+  const first = months[0];
+  const last = months.at(-1);
+  if (first === undefined || last === undefined) return null;
+  const from = `${first}-01`;
+  const to = lastDayOfMonth(last);
+
+  const investmentCash = new Set<string>();
+  for (const depot of db
+    .select({ id: account.id, referenceId: account.referenceAccountId })
+    .from(account)
+    .where(
+      and(isNull(account.deletedAt), eq(account.role, 'investment'), lte(account.openingDate, to)),
+    )
+    .all()) {
+    investmentCash.add(depot.id);
+    if (depot.referenceId !== null) investmentCash.add(depot.referenceId);
+  }
+  if (investmentCash.size === 0) return 0;
+
+  const ledger = budgetLedger(db);
+  const budgetOpenings = new Map(
+    ledger.accounts
+      .filter((a) => a.onBudget && !investmentCash.has(a.id))
+      .map((a) => [a.id, a.openingDate]),
+  );
+  let totalCents = 0;
+  for (const split of ledger.splits) {
+    const opening = budgetOpenings.get(split.accountId);
+    if (
+      opening !== undefined &&
+      split.date >= opening &&
+      split.date >= from &&
+      split.date <= to &&
+      split.transferAccountId != null &&
+      investmentCash.has(split.transferAccountId)
+    )
+      totalCents -= split.amountCents;
+  }
+  return totalCents;
 }
 
 interface YearRealizedResults {

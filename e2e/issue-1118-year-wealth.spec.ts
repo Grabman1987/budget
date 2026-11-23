@@ -110,6 +110,17 @@ test('1118 shows the detailed performance XIRR and hides investment figures with
   expect(detail.ok()).toBe(true);
   const xirr = (await detail.json()).portfolio.performance.xirr as number | null;
   expect(data.investments?.performance?.xirr).toBe(xirr);
+  const savings = page.getByTestId('yr-savings-split');
+  const deposits = savings.getByRole('row', { name: /Netto-Einzahlungen ins Depot/ });
+  const { investedCents, investedBp } = data.savingsSplit!;
+  expect(investedCents).not.toBeNull();
+  expect(investedBp).not.toBeNull();
+  await expect(deposits.getByRole('cell')).toHaveText(
+    `${eur(investedCents!, { cents: false })} · ${bpText(investedBp!)}`,
+  );
+  await expect(page.getByTestId('yr-investments')).toContainText(
+    'zum Buchungsdatum am Budgetkonto',
+  );
   const rows = page.getByTestId('yr-invest-figures');
   const xirrCell = rows.getByRole('row', { name: /Rendite \(XIRR p\. a\.\)/ }).getByRole('cell');
   await expect(xirrCell).toHaveText(
@@ -129,5 +140,6 @@ test('1118 shows the detailed performance XIRR and hides investment figures with
     .getByRole('button', { name: 'Beträge verbergen', exact: true });
   await privacy.press('Enter');
   if (xirr !== null) await expect(xirrCell).toHaveText('•••');
+  await expect(deposits.getByRole('cell')).toHaveText('••• € · •••');
   for (const row of [gains, losses, hitRate]) await expect(row).not.toContainText(/\d+\s*[€%]/);
 });

@@ -20,7 +20,7 @@ export function YearInvestments({ data }: { data: YearReportRead }) {
   const growth = (c: { deltaCents: number; changeBp: number | null }) =>
     `${money(c.deltaCents)} · ${c.changeBp === null ? NA : privateAmount(bpText(c.changeBp, { sign: true }))}`;
   const sub = (cents: number | null, bp: number | null) =>
-    cents === null || bp === null ? NA : `${money(cents)} · ${bpText(bp)}`;
+    cents === null || bp === null ? NA : `${money(cents)} · ${privateAmount(bpText(bp))}`;
   const current = t?.results;
   const previous = t?.previousResults;
   const compareMoney = (key: 'gainsCents' | 'lossesCents') => {
@@ -78,10 +78,9 @@ export function YearInvestments({ data }: { data: YearReportRead }) {
         </tbody>
       </table>
       <p className="ov-sheet-note">
-        Netto-Einzahlungen ins Depot sind das Geld, das im Zeitraum netto ins Depot floss; der Rest
-        ist Gespartes minus diese Einzahlungen. Ein negativer Rest heißt: mehr eingezahlt als
-        gespart, der Unterschied kam aus vorhandenem Geld. Eine Aufteilung der Sparquote im engen
-        Sinn ist das nicht.
+        Für die Sparquote zählen Überweisungen zwischen Budgetkonten und Depots samt
+        Verrechnungskonten zum Buchungsdatum am Budgetkonto. Der Rest ist Gespartes minus
+        Netto-Einzahlungen. Ein negativer Rest heißt: mehr eingezahlt als gespart.
       </p>
       {inv === null || perf === null ? (
         <p className="ov-sheet-note" role="status">
