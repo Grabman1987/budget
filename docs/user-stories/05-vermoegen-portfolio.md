@@ -348,7 +348,9 @@ Geteilt: V-06 und V-09 sind aufgeteilt (V-06a/V-06b, V-09a/V-09b). V-17 und V-18
 Siehe K-13 (Wertpapierüberträge mit Kostenbasis, #520). Gleiche Funktion, dort beschrieben. Wird noch nicht gebaut (Entscheidung 15.11.2026).
 - **Status:** geplant — **Verweis:** #520
 
-### V-18 – Fremdwährungsüberträge begrenzt erfassen (neu, geplant)
-Siehe K-14 (Fremdwährungsüberträge, #519). Gleiche Funktion, dort beschrieben. Entschieden 15.11.2026: keine neue Funktion nötig, Vorgehen dort dokumentiert.
-- **Status:** live — **Verweis:** #519
+### V-18 – Record a currency exchange in EUR
+
+The project lead’s decision on 2026-11-23 uses the ordinary EUR booking workflow documented in [K-14](03-konten-buchungen.md#k-14--record-a-currency-exchange-in-eur).
+
+- **Status:** live, using the existing booking form. **Reference:** #519.
 

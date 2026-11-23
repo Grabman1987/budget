@@ -283,23 +283,20 @@ Bereich: Konten (`/konten`, `/konten/$id`), Alle Buchungen (`/konten/buchungen`)
 - Wird noch nicht gebaut; bleibt offener Punkt (Entscheidung 15.11.2026). Gleiche Funktion wie V-17.
 - Fehlt noch: Nachweis der Erhaltung (Stufe A), danach Speicherung, Schnittstelle und Oberfläche.
 
-### K-14 – Fremdwährungsüberträge
-- **Story:** Als Nutzer möchte ich einen Währungstausch als normale Euro-Buchung erfassen, damit Betrag und Gebühr in Euro stimmen und der Fremdwährungsbetrag nachlesbar bleibt.
-- **Ausgangslage:** Ich habe Geld in oder aus einer Fremdwährung getauscht. Alles wird in Euro geführt.
-- **Ablauf:**
-  1. Ich buche den erhaltenen Euro-Betrag auf das Zielkonto.
-  2. Ich schreibe den Fremdwährungsbetrag in die Notiz der Buchung.
-  3. Ich buche die Gebühr getrennt als Bankgebühr (Kategoriegruppe „Bank und Gebühren“).
-  4. Es gibt keine eigenen Fremdwährungsteile und keinen gespeicherten Kurs.
-- **Beispiel:** 1.000 USD werden zu 920 € mit 5 € Gebühr. Das Zielkonto erhält 920 €, die Notiz lautet „1.000 USD“. Die Gebühr von 5 € steht getrennt unter „Bank und Gebühren“.
-- **Ergebnis:** Nur Euro-Beträge sind gespeichert; der Fremdwährungsbetrag steht in der Notiz.
-- **Abnahmekriterien:**
-  1. Alle Beträge sind in Euro.
-  2. Der Fremdwährungsbetrag steht in der Notiz und ist über die Suche auffindbar.
-  3. Die Gebühr steht getrennt unter „Bank und Gebühren“.
-  4. „Rückgängig“ nimmt alle Teile zurück.
-- **Status:** live — keine neue Funktion nötig; Vorgehen dokumentiert. **Verweis:** #519
-- Entschieden 15.11.2026. Gleiche Funktion wie V-18.
+### K-14 – Record a currency exchange in EUR
+
+- **Story:** I want to record a currency exchange using ordinary EUR bookings so that the register matches my bank statement and I can look up the original amount.
+- **Starting point:** My statement shows an exchange credit on a EUR account.
+- **Steps:**
+  1. Under “Konten”, open the receiving EUR account. Open the credit if it already exists in the register. For a new credit, open “Buchung” in the desktop header or tap the phone’s plus button (“Buchung erfassen”). Choose “Einnahme” and enter the booking date and actual EUR credit from the statement.
+  2. Put the original amount and currency in “Notiz”. If the statement itemizes a fee withheld from the credit, keep the net credit as “Betrag” and choose “Kategorie hinzufügen”. Enter the documented gross credit on the first line (for example, “Zu verteilen” on a budget account) and the fee as a negative amount on the line categorized under “Bank und Gebühren”. Check that “Rest” is zero for a split, then choose “Speichern”.
+  3. Record any separately debited fee as a normal EUR “Ausgabe” on the account that was charged. Select a category from “Bank und Gebühren”. If the fee already exists in the register, categorize that booking.
+- **Synthetic example:** The statement shows a €92.00 credit for exchanging 100 USD and a separate €0.50 debit. Save the credit with the note “100 USD” and categorize the debit under “Bank und Gebühren”. If both entries are on the same account, its net change is 9,150 cents.
+- **Acceptance criteria:**
+  1. EUR amounts match the statement. The foreign amount and currency appear in the searchable note. The workflow uses only EUR bookings and stores no exchange rate.
+  2. A documented fee appears once under “Bank und Gebühren”. For a net credit of 9,150 cents with a documented gross credit of 9,200 cents and a withheld fee of 50 cents, the signed lines are 9,200 and −50 cents in the same booking. If the statement shows only a net credit, record that amount without inferring a fee.
+  3. Each manual save uses the existing “Rückgängig” action for that booking, including all lines of a split.
+- **Status:** live, using the existing booking form. **Reference:** #519, project lead decision on 2026-11-23.
 
 ### K-15 – Bankzeilen automatisch lesen
 - **Story:** Als Nutzer möchte ich Bankzeilen automatisch lesen lassen, damit ich weniger abtippe und neue Umsätze zur Prüfung bereitstehen.
