@@ -1,5 +1,5 @@
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
-import { and, eq, gt, gte, isNull, lte, or, sql } from 'drizzle-orm';
+import { and, eq, gt, gte, inArray, isNull, lte, or, sql } from 'drizzle-orm';
 import {
   bookedBalance,
   candidateMatches,
@@ -41,6 +41,7 @@ import {
   BANK_AUTO_LINK_DAYS,
   BANK_MATCH_DAYS,
   type BankLineMatch,
+  type BankTransaction,
   matchBankLines,
   cents,
   consentNeedsAttention,
@@ -77,6 +78,62 @@ const insertTracked: typeof insertUnwrapped = (db, table, values, ctx) =>
   runInTransaction(db, (tx) => insertUnwrapped(tx, table, values, ctx));
 const updateTracked: typeof updateUnwrapped = (db, table, key, patch, ctx, action) =>
   runInTransaction(db, (tx) => updateUnwrapped(tx, table, key, patch, ctx, action));
+
+function stagedTransactionKeys(
+  db: Executor,
+  accountId: string,
+  rows: readonly BankTransaction[],
+): (string | null)[] {
+  const keys: (string | null)[] = bankTransactionKeys(rows).map(hash);
+  const byReference = new Map<string, number[]>();
+  rows.forEach(({ reference }, index) => {
+    if (!reference) return;
+    const indices = byReference.get(reference);
+    if (indices) indices.push(index);
+    else byReference.set(reference, [index]);
+  });
+  for (const indices of byReference.values()) {
+    // A single authorization and settlement can share a reference in an overlapping fetch.
+    if (indices.length !== 2) continue;
+    const pending = indices.find((index) => rows[index]!.bankStatus === 'pending');
+    const booked = indices.find((index) => rows[index]!.bankStatus !== 'pending');
+    if (pending === undefined || booked === undefined) continue;
+    if (
+      rows[pending]!.currency !== rows[booked]!.currency ||
+      rows[pending]!.amountCents < 0 !== rows[booked]!.amountCents < 0
+    )
+      continue;
+
+    const referenceKey = hash(bankTransactionKeys([rows[booked]!])[0]!);
+    const staged = db
+      .select()
+      .from(candidate)
+      .where(
+        and(
+          eq(candidate.accountId, accountId),
+          inArray(candidate.dedupeKey, [referenceKey, keys[pending]!, keys[booked]!]),
+        ),
+      )
+      .all();
+    // A reused reference alone cannot distinguish two bank lines from one transition.
+    // Require an existing reference identity matching the corresponding snapshot.
+    const [known] = staged;
+    if (staged.length !== 1 || known?.dedupeKey !== referenceKey) continue;
+    const snapshot = rows[known.bankStatus === 'pending' ? pending : booked]!;
+    if (
+      known.date !== snapshot.date ||
+      known.amountCents !== snapshot.amountCents ||
+      known.currency !== snapshot.currency ||
+      known.memo !== snapshot.memo ||
+      known.rawPayee !== (snapshot.rawPayee ?? null)
+    )
+      continue;
+    keys[pending] = null;
+    keys[booked] = referenceKey;
+  }
+  return keys;
+}
+
 export class BankSync {
   constructor(
     readonly db: Db,
@@ -839,13 +896,14 @@ export class BankSync {
             )
               throw new BankError('invalid_response');
             if (writesHeld(this.db)) throw new BankError('unavailable');
-            const keys = bankTransactionKeys(transactions);
             this.db.transaction((tx) => {
+              const keys = stagedTransactionKeys(tx, a.accountId!, transactions);
               const ctx = withGroup(system);
               const toPost: string[] = [];
               const staged = new Set<string>();
               for (const [i, t] of transactions.entries()) {
-                const dedupeKey = hash(keys[i]!);
+                const dedupeKey = keys[i];
+                if (!dedupeKey) continue;
                 const foreign = t.currency !== acct.currency;
                 const existing = tx
                   .select()
@@ -856,6 +914,8 @@ export class BankSync {
                   .get();
                 if (existing && foreign) continue;
                 if (existing) {
+                  // An overlapping fetch can still return the authorization after settlement.
+                  if (existing.bankStatus === 'booked' && t.bankStatus === 'pending') continue;
                   const promoted =
                     existing.bankStatus === 'pending' && (t.bankStatus ?? 'booked') === 'booked';
                   if (promoted)
@@ -891,18 +951,9 @@ export class BankSync {
                       formatEuro(cents(t.amountCents)) +
                       ' · ' +
                       t.memo;
-                    if (recorded || item.resolvedAt) {
-                      this.warning(
-                        tx,
-                        'bank-changed:' + existing.id,
-                        'revision',
-                        'Bankumsatz geändert',
-                        detail + '. Bereits bearbeiteten Umsatz mit der Buchung vergleichen.',
-                        existing.id,
-                        true,
-                        true,
-                      );
-                    } else {
+                    const needsReview = recorded !== undefined || item.resolvedAt !== null;
+                    // Store the final source snapshot on promotion even if the ledger needs review.
+                    if (promoted || !needsReview) {
                       updateTracked(
                         tx,
                         candidate,
@@ -917,6 +968,19 @@ export class BankSync {
                         },
                         ctx,
                       );
+                    }
+                    if (needsReview) {
+                      this.warning(
+                        tx,
+                        'bank-changed:' + existing.id,
+                        'revision',
+                        'Bankumsatz geändert',
+                        detail + '. Bereits bearbeiteten Umsatz mit der Buchung vergleichen.',
+                        existing.id,
+                        true,
+                        true,
+                      );
+                    } else {
                       updateTracked(
                         tx,
                         inboxItem,

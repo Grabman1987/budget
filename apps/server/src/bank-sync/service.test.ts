@@ -545,6 +545,62 @@ describe('bank sync workflow', () => {
     expect(opened.db.select().from(schema.booking).all()).toHaveLength(1);
     expect(opened.db.select().from(schema.booking).get()?.deletedAt).not.toBeNull();
   });
+
+  it.each([false, true])(
+    'keeps one known candidate when PDNG and BOOK overlap (immediate posting: %s)',
+    async (immediate) => {
+      service.setPolicy(consentId, immediate);
+      const pending = { ...row, bankStatus: 'pending' } as const;
+      const booked = { ...row, date: '2026-10-01', amountCents: -1202 };
+      vi.mocked(provider.transactions).mockResolvedValue(batch([pending]));
+      await service.tick();
+      const id = candidates()[0]!.id;
+      nextDay();
+      vi.mocked(provider.transactions).mockResolvedValue(
+        batch(immediate ? [booked, pending] : [pending, booked]),
+      );
+      await service.tick();
+      expect(candidates()).toHaveLength(1);
+      nextDay();
+      // Repeat the overlap after it is recorded as BOOK.
+      await service.tick();
+      nextDay();
+      vi.mocked(provider.transactions).mockResolvedValue(batch([pending]));
+      await service.tick();
+
+      expect(candidates()).toMatchObject([
+        { id, bankStatus: 'booked', date: '2026-10-01', amountCents: -1202 },
+      ]);
+      expect(bookedBalance(opened.db, 'giro', '2026-09-30')).toBe(100000);
+      if (immediate) {
+        expect(opened.db.select().from(schema.booking).all()).toMatchObject([
+          { status: 'pending', date: '2026-10-01', amountCents: -1202 },
+        ]);
+        expect(bookedBalance(opened.db, 'giro', '2026-10-01')).toBe(100000);
+        expect(accountBalances(opened.db, '2026-10-01')[0]?.balanceCents).toBe(98798);
+        return;
+      }
+      expect(opened.db.select().from(schema.booking).all()).toHaveLength(0);
+      const { bookingId, groupId } = service.confirm(id, null, {
+        splits: [
+          { categoryId: 'essen', amountCents: -701 },
+          { categoryId: 'reise', amountCents: -501 },
+        ],
+      });
+      expect(opened.db.select().from(schema.booking).all()).toMatchObject([
+        { id: bookingId, status: 'confirmed', date: '2026-10-01', amountCents: -1202 },
+      ]);
+      expect(opened.db.select().from(schema.bookingSplit).all()).toMatchObject([
+        { categoryId: 'essen', amountCents: -701 },
+        { categoryId: 'reise', amountCents: -501 },
+      ]);
+      expect(bookedBalance(opened.db, 'giro', '2026-09-30')).toBe(100000);
+      expect(bookedBalance(opened.db, 'giro', '2026-10-01')).toBe(98798);
+      undo(opened.db, { groupId }, { actor: 'owner' });
+      expect(bookedBalance(opened.db, 'giro', '2026-10-01')).toBe(100000);
+      expect(candidates()).toMatchObject([{ id, bankStatus: 'booked', amountCents: -1202 }]);
+    },
+  );
   it('keeps automatic ledger creation replayable without replaying provider history', async () => {
     service.setPolicy(consentId, true);
     await service.tick();
@@ -607,18 +663,58 @@ describe('bank sync workflow', () => {
         .every((b) => b.deletedAt !== null),
     ).toBe(true);
   });
-  it('does not double count a pending candidate confirmed before it becomes BOOK', async () => {
+  it('keeps the recorded split booking intact for explicit review when PDNG settles differently', async () => {
     service.setPolicy(consentId, true);
-    vi.mocked(provider.transactions).mockResolvedValue(batch([{ ...row, bankStatus: 'pending' }]));
+    const pending = { ...row, bankStatus: 'pending' } as const;
+    const booked = { ...row, date: '2026-10-01', amountCents: -1202 };
+    vi.mocked(provider.transactions).mockResolvedValue(batch([pending]));
     await service.tick();
-    service.confirm(candidates()[0]!.id, 'essen');
+    const id = candidates()[0]!.id;
+    const splits = [
+      { categoryId: 'essen', amountCents: -701 },
+      { categoryId: 'reise', amountCents: -500 },
+    ];
+    const { bookingId } = service.confirm(id, null, { splits });
     nextDay();
-    vi.mocked(provider.transactions).mockResolvedValue(batch([row]));
+    vi.mocked(provider.transactions).mockResolvedValue(batch([booked]));
     await service.tick();
-    expect(opened.db.select().from(schema.booking).all()).toHaveLength(1);
+    nextDay();
+    vi.mocked(provider.transactions).mockResolvedValue(batch([pending, booked]));
+    await service.tick();
+    expect(candidates()).toMatchObject([
+      { id, bankStatus: 'booked', date: '2026-10-01', amountCents: -1202 },
+    ]);
+    expect(opened.db.select().from(schema.booking).all()).toMatchObject([
+      { id: bookingId, date: '2026-09-30', amountCents: -1201 },
+    ]);
+    expect(opened.db.select().from(schema.bookingSplit).all()).toMatchObject(splits);
+    expect(
+      storedInbox('2026-10-02').find((item) => item.id === 'bank-changed:' + id)?.detail,
+    ).toContain('2026-10-01');
     expect(
       accountBalances(opened.db, '2026-10-02').find((a) => a.accountId === 'giro')?.balanceCents,
     ).toBe(98799);
+
+    const groupId = randomUUID();
+    const correctedSplits = [
+      { categoryId: 'essen', amountCents: -701 },
+      { categoryId: 'reise', amountCents: -501 },
+    ];
+    updateBooking(
+      opened.db,
+      bookingId,
+      { date: '2026-10-01', amountCents: -1202, splits: correctedSplits },
+      { actor: 'owner', groupId },
+    );
+    expect(opened.db.select().from(schema.booking).all()).toMatchObject([
+      { id: bookingId, date: '2026-10-01', amountCents: -1202 },
+    ]);
+    expect(opened.db.select().from(schema.bookingSplit).all()).toMatchObject(correctedSplits);
+    expect(bookedBalance(opened.db, 'giro', '2026-09-30')).toBe(100000);
+    expect(bookedBalance(opened.db, 'giro', '2026-10-01')).toBe(98798);
+    undo(opened.db, { groupId }, { actor: 'owner' });
+    expect(opened.db.select().from(schema.bookingSplit).all()).toMatchObject(splits);
+    expect(bookedBalance(opened.db, 'giro', '2026-09-30')).toBe(98799);
   });
   it('explicitly confirms an automatic BOOK again after undo without duplicating it', async () => {
     service.setPolicy(consentId, true);
@@ -951,6 +1047,29 @@ describe('bank sync workflow', () => {
     await service.tick();
     expect(candidates()).toHaveLength(3);
     expect(connection().failures).toBe(0);
+  });
+  it('retains existing fallback identities when a reused reference later includes PDNG', async () => {
+    const other = { ...row, amountCents: -1202 };
+    vi.mocked(provider.transactions).mockResolvedValue(batch([row, other]));
+    await service.tick();
+    const original = candidates();
+    expect(original).toHaveLength(2);
+    nextDay();
+    vi.mocked(provider.transactions).mockResolvedValue(
+      batch([row, { ...other, bankStatus: 'pending' }]),
+    );
+    await service.tick();
+    expect(candidates()).toEqual(original);
+  });
+  it('keeps a previously unseen reference shared by different BOOK and PDNG rows separate', async () => {
+    vi.mocked(provider.transactions).mockResolvedValue(
+      batch([row, { ...row, bankStatus: 'pending', amountCents: -1202 }]),
+    );
+    await service.tick();
+    expect(candidates()).toMatchObject([
+      { bankStatus: 'booked', amountCents: -1201 },
+      { bankStatus: 'pending', amountCents: -1202 },
+    ]);
   });
   it('isolates a failed account stage and retries only that account, retaining each watermark', async () => {
     const secondId = randomUUID();

@@ -325,3 +325,13 @@ reconciliation or repayment dates. The explicit override is audited with the
 booking change. Repayments keep their bank amounts and any released allocation
 becomes contact credit. A changed reconciliation balance remains visible in
 Prüfen. One Undo restores the booking and its affected links.
+
+## Bank feed at month boundaries (#1293)
+
+When a bank authorization becomes booked under the same source reference, its
+final date and amount stay available for review if the feed later repeats the
+pending authorization. If both versions arrive together, Budget uses the
+booked version when it can match the pair to a recorded source identity.
+If I already recorded the booking,
+I review any reported change and correct the existing booking explicitly.
+One Undo restores its previous date, amount and allocations.
