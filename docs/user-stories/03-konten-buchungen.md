@@ -120,7 +120,9 @@ Bereich: Konten (`/konten`, `/konten/$id`), Alle Buchungen (`/konten/buchungen`)
   2. Gleiches Konto als Quelle und Ziel ist nicht möglich.
   3. Löschen entfernt beide Seiten.
   4. Der Plan zeigt keine Aktivität für die Umbuchung.
-- **Status:** live — **Verweis:** Y04
+  5. New cash withdrawals and deposits between cash and checking or savings start with a confirmed cash leg and a pending bank leg. Cash status is fixed at capture. The bank leg requires an explicit choice to start confirmed.
+  6. One Undo removes both legs. Creating or undoing the transfer preserves the status of existing bookings, net worth and “Zu verteilen” for transfers within the budget.
+- **Status:** live — **Verweis:** Y04, #499, #585
 
 ### K-05c – Sammelaktion auf mehrere Buchungen
 - **Story:** Als Nutzer möchte ich mehrere Buchungen auf einmal ändern, damit ich z. B. 20 Zeilen in einem Schritt kategorisiere statt einzeln.

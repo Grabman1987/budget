@@ -1,4 +1,4 @@
-import { captureSaveControl } from './ledger-helpers';
+import { captureSaveControl, redesignLoaded } from './ledger-helpers';
 import AxeBuilder from '@axe-core/playwright';
 import { openDatabase, schema } from '@budget/db';
 import { expect, type Page, type TestInfo } from '@playwright/test';
@@ -38,6 +38,8 @@ async function form(page: Page, from: string, to: string) {
   await page.goto(`/konten/${from}?panel=buchung`);
   const dialog = page.getByRole('dialog', { name: 'Buchung erfassen', exact: true });
   await expect(dialog).toBeVisible();
+  if (process.env['A2_EXPECT_REDESIGN'] !== undefined)
+    expect(await redesignLoaded(page)).toBe(process.env['A2_EXPECT_REDESIGN'] === '1');
   await dialog.getByRole('button', { name: 'Umbuchung', exact: true }).click();
   await dialog.getByLabel('Nach Konto', { exact: true }).selectOption(to);
   await dialog.getByLabel('Betrag', { exact: true }).fill('123,45');
@@ -137,11 +139,18 @@ test('cash/bank transfer capture persists both directions and explicit confirmat
           clearedCents: confirm ? (reverse ? 87655 : 112345) : 100000,
         });
         expect(current.accounts.reduce((sum, row) => sum + row.balanceCents, 0)).toBe(250000);
-        const undone = await page.request.post('/api/undo', {
-          headers: { origin: isolatedLedger.origin },
-          data: { groupId: result.groupId },
-        });
+        const undoResponse = page.waitForResponse(
+          (response) =>
+            new URL(response.url()).pathname === '/api/undo' &&
+            response.request().method() === 'POST',
+        );
+        await page.getByRole('button', { name: 'Rückgängig', exact: true }).click();
+        const undone = await undoResponse;
         expect(undone.status()).toBe(200);
+        expect(undone.request().postDataJSON()).toEqual({ groupId: result.groupId });
+        for (const booking of result.bookings) {
+          expect((await page.request.get(`/api/bookings/${booking.id}`)).status()).toBe(404);
+        }
         const restored = await read(page);
         expect(restored.accounts.find((row) => row.id === ids.cash)).toMatchObject({
           balanceCents: 50000,
