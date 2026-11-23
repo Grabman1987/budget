@@ -225,18 +225,20 @@ Displayed signs, source values, drilldowns, CSV and privacy retain the same rule
 
 Issue #1160, total view: `darstellung=gesamt` lists combined bank and interest costs, portfolio fees, estimated TER and booked broker taxes by calendar year, newest first. A selected year is shareable with `jahr`. Each year's amounts and closing portfolio valuation use the same dates, with partial years marked. Trade fees are counted once and the fee-and-TER ratio excludes household costs and taxes. Amount privacy also masks the ratios.
 
-Issue #1158, first consolidation slice (review pending): the redesign spending report
+Issue #1158 (review pending): the redesign spending report
 adds `darstellung=kategorien`, reusing the existing monthly category table and trend.
 It defaults to the largest absolute category change, with stable ID ordering for ties
 and unavailable comparisons last. Period and category selections survive view changes
-and reload; amount privacy and the OFF view set remain intact. The Explorer and old
-category bookmark keep their existing behavior. Second slice: the group view has a
-comparison mode "Vorperiode" (default, equally long window before) or "Vorjahr" (same days
-one year earlier; 29 February falls back to 28 February), kept in the address as
+and reload. The group view has a
+comparison mode "Vorperiode" (default, equally long window before) or "Vorjahr" (equally
+long window starting in the same month one year earlier), kept in the address as
 `vergleich=vorjahr` (`basis=previous-year` on `GET /api/reports/spending/analysis`). Same
 calculation as before, only the window differs; the Empfänger view stays inside the same
-report (`darstellung=empfaenger`). Remaining: custom comparison window and final
-legacy-address consolidation. No migration.
+report (`darstellung=empfaenger`). The old category and comparison report addresses open
+the corresponding Ausgaben views in ON. Bookmarks retain their explicit period, filters
+and anchor. A remembered period takes precedence over the legacy default. Explicit
+Explorer bookmarks still open in Explorer. Earlier custom comparison bookmarks open
+with Vorperiode, following the 2026-11-23 owner decision.
 
 | ID | Report | Prototype calculation/view reference | Remaining status |
 | --- | --- | --- | --- |
@@ -252,7 +254,7 @@ legacy-address consolidation. No migration.
 | 1.9 | Projekte und Nebeneinkünfte | `reports-monat.js` | Connected project management and closed-month P&L from attributed booking splits, signed refunds, monthly heat table and source links; Nebeneinkünfte remain a separate income type. Project hours/hourly rates and owner acceptance remain open |
 | 1.10 | Einnahmen und Ausgaben | Owner feedback 2026-10-04 | Connected: Income versus Expense monthly chart, expandable category-group table, household income subtotal with capital/refunds separately labelled, net, exact-cent booking drilldown and CSV of the displayed months/rows plus sum and mean. Own-account transfers and contact repayments excluded. Owner acceptance remains. |
 | 1.11 | Prognosegenauigkeit (retired) | Owner decision 2026-11-15, #1156 | Report and subview removed. `/reports/planungstreue` redirects to Budgettreue; old subview bookmarks render Budgettreue, retaining month, period and hash. Stored snapshots, API/domain calculations and the Heute Pace note remain unchanged. Geldfluss remains independent. CI/owner acceptance pending. |
-| 2.1 | Ausgabenanalyse | `reports-ausgaben.js` | Connected: net Bedarf/Wunsch consumption per period from the shared budget read model, class bar, changes against the previous period, previous year, or explicit inclusive dates with covered history, category bars with booking drilldown, 12-month heatmap. Spending is the monthly table read model (refunds netted against their category, owner decision); Zukunft shown apart, never consumption |
+| 2.1 | Ausgabenanalyse | `reports-ausgaben.js` | Connected: net Bedarf/Wunsch consumption per period from the shared budget read model, class bar, changes against the previous period or previous year, category bars with booking drilldown, 12-month heatmap. Spending is the monthly table read model (refunds netted against their category, owner decision); Zukunft shown apart, never consumption |
 | 2.2 | Budgettreue inkl. 50/30/20 | `reports-ausgaben.js` | Connected: plan (assigned money; periodic categories with their reserve) against net spending per category and month (running month up to today), plan-minus-actual chain, 12-month 50/30/20 on the shared assigned-money allocation (twelfths per SPEC) with household income only (Kapitalerträge and Erstattungen excluded, owner decision 02.10.2026), rolling 12-month plan deviation. R01 on Heute and the rules use the same household-income base |
 | 2.3 | Verträge und Abos | `reports-ausgaben.js` | Connected: no term column; payments with any end date excluded from binding and list. Current stored terms price the headline; linked occurrences or same-payee/category splits derive sustained historical prices, chart and price-check hints, marked as derived. One-off payments remain in liquidity/year preview. Notice periods are absent from the data model. |
 | 2.4 | Persönliche Inflation | `reports-ausgaben.js` | Connected: contract-relative chained Laspeyres with December annual weighting, successors, trailing means and exact contributions. Separate Warenkorb vs. VPI and category explorer with multi-select (basket defaults), own/category-reference index histories from October 2023, plain-language basket settings with current-effect hints, one Automatic/Always/Never choice, collapsed official price groups that switch to CPI on selection, autosaved exact-100% splits and payee exceptions with undo, explicit total-VPI fallback, neutral percentage-point differences and supported booking-count/unit attribution. Variable booking averages disclose purchase mix; fixed owner-interpretation note replaces automatic verdicts. Existing CPI loader and per-contract chain reused; owner mapping/design acceptance remains. |
@@ -273,7 +275,7 @@ legacy-address consolidation. No migration.
 | 5.2 | Finanz-Check-Verlauf | `reports-ueberblick.js` | Connected: stage with progress, current-stage and next-stage items, count chart and registered rules (`RULE_CODES`) status strips from the stored `rule_result` rows (12 month ends + today, `/api/rules/results`), open actions, since-date per rule. Opening the report re-derives the stored results (idempotent); a day without data stays "nicht bewertbar" |
 | 5.3 | Explorer | `reports-ueberblick.js` | Connected (`/api/overview/explorer`): pivot over the live booking splits (rows Kategorie, Gruppe, Klasse, Empfänger, Einnahmenart; columns Monat, Quartal, Jahr, keine; Summe, Ø je Monat, Anzahl Buchungen; windows 1M to Alles), row heat, totals, category and recipient rows open their bookings. Saved views are kept per browser (`localStorage`), not on the server; the choices are page state, not in the URL |
 | 5.4 | Kontakte-Abrechnung | `reports-ueberblick.js` | Fixed all-time EUR report: shared receivable/credit chain, per-person retained ledger, running balance stair chart and source drilldown. Pending bookings explicitly included; mixed currency unavailable. Owner/private acceptance remains |
-| 5.5 | Zeitraumvergleich | `reports-ueberblick.js` | Redesign bookmarks open Ausgabenanalyse and preserve query and anchor. Vorperiode, Vorjahr, and an independent comparison window share the spending reader and Konsum chain. The legacy presentation retains its four comparison modes |
+| 5.5 | Zeitraumvergleich | `reports-ueberblick.js` | Redesign bookmarks open Ausgabenanalyse and preserve query and anchor. Vorperiode and Vorjahr share the spending reader and Konsum chain. The legacy presentation retains its four comparison modes |
 | 5.6 | Gesamtübersicht | owner feedback 2026-10-04 | Monthly whole picture, first in Überblick: existing cashflow and net-worth valuations, investment boundary flows and shared depot performance; cent-exact start + savings + market + other = end, separate capital income, signed monthly bars/net-worth band, source links and displayed-table CSV. Synthetic equality/valuation tests and desktop/mobile browser checks; owner acceptance open |
 
 References are under [design/prototype](../design/prototype/). The older concept's

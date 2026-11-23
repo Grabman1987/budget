@@ -12,6 +12,14 @@ test('1158 category view retains period and selection through reload and report 
     await expect(page.getByTestId('spending-analysis')).toBeVisible();
     return;
   }
+  await page.goto('/reports/kategorien?zeitraum=3M#details');
+  await expect(page).toHaveURL(
+    (url) =>
+      url.pathname === '/reports/ausgaben' &&
+      url.searchParams.get('darstellung') === 'kategorien' &&
+      url.searchParams.get('zeitraum') === '3M' &&
+      url.hash === '#details',
+  );
   await expectReportMenuView(page, 'Kategorien und Verlauf');
   await expect(page.getByRole('heading', { name: 'Kategorietrend', exact: true })).toBeVisible();
   await expect(page.locator('.rc-row').first()).toBeVisible();

@@ -757,17 +757,17 @@ const redirects = [
   redirectRoute('/reports/peinzahlungen', '/reports/pallocation', { darstellung: 'einzahlungen' }),
   redirectRoute('/reports/prendite', '/reports/pallocation', { darstellung: 'rendite' }),
   redirectRoute('/reports/jahresansicht', '/reports/explorer', { vorlage: 'year' }, 'YTD'),
-  redirectRoute(
-    '/reports/kategorien',
-    (search) => {
-      const { ansicht, exakt, vorlage } = validateReportSearch(search);
-      return REDESIGN_ENABLED && !ansicht && !exakt && vorlage !== 'category'
-        ? { path: '/reports/ausgaben', intent: { darstellung: 'kategorien' } }
-        : { path: '/reports/explorer', intent: { vorlage: 'category' } };
-    },
-    {},
-    'YTD',
-  ),
+  redirectRoute('/reports/kategorien', (search) => {
+    const { ansicht, exakt, vorlage } = validateReportSearch(search);
+    const spending = REDESIGN_ENABLED && !ansicht && !exakt && vorlage !== 'category';
+    const intent: Record<string, string> = spending
+      ? { darstellung: 'kategorien' }
+      : { vorlage: 'category' };
+    if (!isZeitraum(search.zeitraum))
+      intent.zeitraum =
+        (spending ? rememberedReportPeriod('ausgaben', search) : undefined) ?? 'YTD';
+    return { path: spending ? '/reports/ausgaben' : '/reports/explorer', intent };
+  }),
   redirectRoute('/reports/gesamttabelle', '/reports/explorer', { vorlage: 'total' }, 'Alles'),
   redirectRoute(
     '/reports/vorschau',
@@ -863,11 +863,24 @@ const reportRoute = createRoute({
   path: '/reports/$reportId',
   validateSearch: validateReportSearch,
   beforeLoad: ({ params, search, location }) => {
-    if (REDESIGN_ENABLED && params.reportId === 'vergleich') {
+    const comparisonAlias = params.reportId === 'vergleich';
+    const rawSearch: Record<string, unknown> = location.search;
+    const retiredMode = rawSearch['vergleich'] === 'eigen';
+    const retiredDates = 'vergleichVon' in rawSearch || 'vergleichBis' in rawSearch;
+    if (
+      REDESIGN_ENABLED &&
+      (comparisonAlias || (params.reportId === 'ausgaben' && (retiredMode || retiredDates)))
+    ) {
       const target = new URL('/reports/ausgaben' + location.searchStr, 'https://budget.invalid');
-      target.searchParams.set('darstellung', 'gruppen');
-      if (!search.zeitraum) target.searchParams.set('zeitraum', '1M');
-      if (!target.searchParams.has('vergleich')) target.searchParams.set('vergleich', 'vorjahr');
+      if (comparisonAlias) {
+        target.searchParams.set('darstellung', 'gruppen');
+        if (!isZeitraum(search.zeitraum))
+          target.searchParams.set('zeitraum', rememberedReportPeriod('ausgaben', search) ?? '1M');
+        if (!target.searchParams.has('vergleich')) target.searchParams.set('vergleich', 'vorjahr');
+      }
+      if (retiredMode) target.searchParams.delete('vergleich');
+      target.searchParams.delete('vergleichVon');
+      target.searchParams.delete('vergleichBis');
       throw redirect({
         href: target.pathname + target.search + (location.hash ? '#' + location.hash : ''),
         replace: true,
