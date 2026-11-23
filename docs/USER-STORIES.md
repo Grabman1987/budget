@@ -270,18 +270,17 @@ balances, performance and net worth remain unchanged.
 
 Independent-date transit supports whole equal-amount, same-currency transfers
 between **checking/savings** accounts, with existing opening-date and five-day
-guards. Brokerage, crypto and P2P eligibility needs an owner policy decision;
-this slice neither broadens eligibility nor invents settlement rules. Cash/bank
-transfers retain their separate contract. Deleting through either single leg
-deletes the connected pair; Undo restores both original legs and redo deletes both.
+guards. Cash/bank transfers retain their separate contract. Deleting through either
+single leg deletes the connected pair; Undo restores both original legs and redo
+deletes both.
 
 Evidence: `transit-readers-1195.test.ts` covers days 0–4, reversed dates, selected
 scope, missing FX, unchanged snapshots and single-leg delete/Undo/redo.
 `invest.test.ts` pins literal German update/delete/restore refusal messages.
 `issue-1195-transit.spec.ts` covers four rendered readers, raw cash versus net
-worth, privacy, themes and responsive layout. Status: prepared for review;
-publication and owner acceptance pending. #1195 stays open for the account-type
-decision. Already-delivered items 3/4 remain unchanged.
+worth, privacy, themes and responsive layout. Already-delivered items 3/4 remain
+unchanged. The account-type decision is recorded below.
+
 ## Bank posting and observed balance (#1267)
 
 New bank connections follow SPEC decision 41: fetched BOOK lines without a match
@@ -338,3 +337,9 @@ booked version when it can match the pair to a recorded source identity.
 If I already recorded the booking,
 I review any reported change and correct the existing booking explicitly.
 One Undo restores its previous date, amount and allocations.
+## Bank-only transit reconciliation (#1195)
+
+When money is between two bank accounts, I see the signed difference on its own
+**Geld unterwegs** line. The cash reconciliation covers the selected checking and
+savings accounts. Brokerage, crypto and P2P cash keeps its own valuation, outside
+the bank cash shown on that line. The display creates no bookings or adjustments.

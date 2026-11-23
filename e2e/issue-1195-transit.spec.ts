@@ -12,6 +12,7 @@ for (const view of ['allocation', 'summary', 'depots', 'whole'])
     for (const [type, openingBalanceCents] of [
       ['checking', 50000],
       ['savings', 10000],
+      ['brokerage', 12345],
     ] as const) {
       const response = await page.request.post('/api/accounts', {
         headers,
@@ -70,8 +71,8 @@ for (const view of ['allocation', 'summary', 'depots', 'whole'])
     const before = await accountRead();
     expect(
       ids.map((id) => before.accounts.find((a: { id: string }) => a.id === id).balanceCents),
-    ).toEqual([40000, 10000]);
-    expect(before.netWorthEurCents).toBe(60000);
+    ).toEqual([40000, 10000, 12345]);
+    expect(before.netWorthEurCents).toBe(72345);
     const writes: string[] = [];
     page.on('request', (request) => {
       if (request.url().includes('/api/') && !['GET', 'HEAD'].includes(request.method()))
@@ -89,9 +90,10 @@ for (const view of ['allocation', 'summary', 'depots', 'whole'])
     }
     const line = page.getByTestId('transit-reconciliation').filter({ visible: true });
     await expect(line).toHaveCount(1);
-    await expect(line).toContainText('Geld unterwegs: 100,00 €');
+    await expect(line.getByText('Geld unterwegs: 100,00 €', { exact: true })).toBeVisible();
     await expect(line).toContainText('Kontogeld: 500,00 €');
     await expect(line).toContainText('Kontogeld inkl. Geld unterwegs: 600,00 €');
+    await expect(line).toContainText('Umfang: 2 ausgewählte Bankkonten');
     for (const theme of ['light', 'dark']) {
       await page.evaluate((value) => {
         document.documentElement.dataset['theme'] = value;
