@@ -4,7 +4,10 @@ import { mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'n
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { expect, it } from 'vitest';
+import { expect, it, vi } from 'vitest';
+
+// Every test spawns the reference-check CLI; cold CI runners need more than the default 5 s.
+vi.setConfig({ testTimeout: 30_000 });
 import manifest from './testing/reference-check-manifest.json';
 
 const publicManifest = fileURLToPath(
