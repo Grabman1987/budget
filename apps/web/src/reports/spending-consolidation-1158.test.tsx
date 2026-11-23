@@ -81,55 +81,23 @@ it('keeps the comparison mode in the address and clears it for the default', () 
   render(<SpendingReportViews {...props} />);
   fireEvent.click(screen.getByText('mode-vorjahr'));
   const options = state.navigate.mock.calls[0]![0];
-  expect(
-    options.search({ zeitraum: '3M', vergleichVon: '2025-02-01', vergleichBis: '2025-02-07' }),
-  ).toEqual({
+  expect(options.search({ zeitraum: '3M' })).toEqual({
     zeitraum: '3M',
     vergleich: 'vorjahr',
-    vergleichVon: undefined,
-    vergleichBis: undefined,
   });
   expect(options.replace).toBe(true);
 });
 
-it('validates both literal calendar dates for an independent comparison window', () => {
-  expect(
-    validateReportSearch({
-      vergleich: 'eigen',
-      vergleichVon: '2025-05-03',
-      vergleichBis: '2025-05-05',
-    }),
-  ).toMatchObject({
+it('defaults a retired custom comparison to Vorperiode and retains selected categories', () => {
+  state.search = validateReportSearch({
     vergleich: 'eigen',
     vergleichVon: '2025-05-03',
     vergleichBis: '2025-05-05',
+    kategorien: ['synthetic'],
   });
-  expect(
-    validateReportSearch({
-      vergleich: 'eigen',
-      vergleichVon: '2025-02-30',
-      vergleichBis: '2025-03-05',
-    }),
-  ).toHaveProperty('vergleich', undefined);
-  expect(
-    validateReportSearch({
-      vergleich: 'eigen',
-      vergleichVon: '2025-05-03',
-      vergleichBis: '2025-05-02',
-    }),
-  ).toHaveProperty('vergleich', undefined);
-  expect(validateReportSearch({ vergleich: 'eigen', vergleichVon: '2025-05-03' })).toHaveProperty(
-    'vergleich',
-    undefined,
-  );
-});
-
-it('falls back to the editable default for a future comparison bookmark', () => {
-  expect(
-    validateReportSearch({
-      vergleich: 'eigen',
-      vergleichVon: '9998-01-01',
-      vergleichBis: '9999-01-01',
-    }),
-  ).toHaveProperty('vergleich', undefined);
+  expect(state.search).toMatchObject({ vergleich: undefined, kategorien: ['synthetic'] });
+  expect(state.search).not.toHaveProperty('vergleichVon');
+  expect(state.search).not.toHaveProperty('vergleichBis');
+  render(<SpendingReportViews {...props} />);
+  expect(screen.getByText('mode-vorperiode')).toBeTruthy();
 });

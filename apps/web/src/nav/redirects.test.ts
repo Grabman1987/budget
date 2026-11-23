@@ -3,6 +3,7 @@ import { createMemoryHistory, createRouter } from '@tanstack/react-router';
 import { beforeEach, expect, it } from 'vitest';
 import { AUTH_STATUS_KEY, queryClient } from '../auth/status-query';
 import { router as appRouter } from '../router';
+import { forgetReportPeriod, rememberReportPeriod } from '../reports/remembered-period';
 import { REDESIGN_ENABLED } from '../shell/redesign-flag';
 
 // Owner mapping #487: literals deliberately independent of the production alias table.
@@ -223,23 +224,48 @@ it.each([
   );
 });
 
-it('preserves an exact comparison bookmark and a saved Explorer bookmark through their legacy addresses', async () => {
-  const comparison = await open(
-    '/reports/vergleich?zeitraum=3M&vergleich=eigen&vergleichVon=2025-03-03&vergleichBis=2025-03-08&fokus=synthetic#details',
-  );
-  expect(comparison.state.location.pathname).toBe(
-    REDESIGN_ENABLED ? '/reports/ausgaben' : '/reports/vergleich',
-  );
-  expect(comparison.state.location.hash).toBe('details');
-  expect(comparison.state.location.searchStr).toContain('fokus=synthetic');
-  if (REDESIGN_ENABLED)
-    expect(comparison.state.matches.at(-1)?.search).toMatchObject({
-      darstellung: 'gruppen',
-      zeitraum: '3M',
-      vergleich: 'eigen',
-      vergleichVon: '2025-03-03',
-      vergleichBis: '2025-03-08',
-    });
+it.each(['/reports/vergleich', '/reports/ausgaben'])(
+  'retires the custom comparison at %s while preserving the reporting context',
+  async (path) => {
+    const comparison = await open(
+      path +
+        '?zeitraum=3M&vergleich=eigen&vergleichVon=2025-03-03&vergleichBis=2025-03-08&fokus=synthetic#details',
+    );
+    expect(comparison.state.location.pathname).toBe(REDESIGN_ENABLED ? '/reports/ausgaben' : path);
+    expect(comparison.state.location.hash).toBe('details');
+    const search = new URLSearchParams(comparison.state.location.searchStr);
+    expect(search.get('fokus')).toBe('synthetic');
+    expect(search.get('zeitraum')).toBe('3M');
+    if (REDESIGN_ENABLED) {
+      expect(search.has('vergleich')).toBe(false);
+      expect(search.has('vergleichVon')).toBe(false);
+      expect(search.has('vergleichBis')).toBe(false);
+    }
+  },
+);
+
+it.each(['kategorien', 'vergleich'])('honors the remembered period at %s in ON', async (alias) => {
+  rememberReportPeriod('3M');
+  try {
+    const router = await open(`/reports/${alias}?vergleich=vorperiode#details`);
+    if (REDESIGN_ENABLED) {
+      expect(router.state.location.pathname).toBe('/reports/ausgaben');
+      expect(router.state.location.hash).toBe('details');
+      expect(router.state.matches.at(-1)?.search.zeitraum).toBe('3M');
+      expect(new URLSearchParams(router.state.location.searchStr).get('vergleich')).toBe(
+        'vorperiode',
+      );
+    } else {
+      expect(router.state.location.pathname).toBe(
+        alias === 'vergleich' ? '/reports/vergleich' : '/reports/explorer',
+      );
+    }
+  } finally {
+    forgetReportPeriod();
+  }
+});
+
+it('preserves a saved Explorer bookmark through its legacy category address', async () => {
   const category = await open(
     '/reports/kategorien?zeitraum=3M&ansicht=synthetic&exakt=true#details',
   );

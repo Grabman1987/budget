@@ -7,9 +7,8 @@ import {
   useIsPhone,
   useMediaQuery,
 } from '@budget/ui';
-import { cents, todayInVienna, type SpendRow, type SpendingPeriod } from '@budget/domain';
+import { cents, type SpendRow, type SpendingPeriod } from '@budget/domain';
 import type { SpendingReport } from '@budget/db';
-import { spendingComparisonWindow } from './report-search';
 import { ReportViewControl } from './report-view-control';
 import { queryOptions, useQuery } from '@tanstack/react-query';
 import { useState, type CSSProperties, type ReactNode } from 'react';
@@ -31,32 +30,22 @@ import { ReportBodyDisclosure } from './report-body-disclosure';
 import { SpendingTrend } from './spending-trend';
 import './income-spending-redesign.css';
 
-export type SpendingComparison = 'vorperiode' | 'vorjahr' | 'eigen';
-type ComparisonWindow = { von: string; bis: string };
-type ComparisonChange = (comparison: SpendingComparison, window?: ComparisonWindow) => void;
+type SpendingComparison = 'vorperiode' | 'vorjahr';
+type ComparisonChange = (comparison: SpendingComparison) => void;
 const COMPARISONS = [
   { value: 'vorperiode', label: 'Vorperiode' },
   { value: 'vorjahr', label: 'Vorjahr' },
-  { value: 'eigen', label: 'Eigener Vergleichszeitraum' },
 ] as const;
 
-const analysisQuery = (
-  period: SpendingPeriod,
-  comparison: SpendingComparison,
-  window?: ComparisonWindow,
-) =>
+const analysisQuery = (period: SpendingPeriod, comparison: SpendingComparison) =>
   queryOptions({
-    queryKey: [...LEDGER_KEY, 'spending-analysis', period, comparison, window],
+    queryKey: [...LEDGER_KEY, 'spending-analysis', period, comparison],
     retry: false,
     queryFn: () =>
       request<SpendingReport>(
         'GET',
         `/api/reports/spending/analysis?period=${period}${
-          comparison === 'eigen' && window
-            ? `&basis=custom&comparisonFrom=${window.von}&comparisonTo=${window.bis}`
-            : comparison === 'vorjahr'
-              ? '&basis=previous-year'
-              : ''
+          comparison === 'vorjahr' ? '&basis=previous-year' : ''
         }`,
       ),
   });
@@ -70,7 +59,6 @@ export function SpendingAnalysisReport({
   viewControl,
   onPeriodChange,
   comparison: comparisonMode = 'vorperiode',
-  comparisonWindow,
   onComparisonChange,
 }: {
   report: ReportEntry;
@@ -78,12 +66,11 @@ export function SpendingAnalysisReport({
   viewControl?: ReactNode;
   onPeriodChange?: (period: SpendingPeriod) => void;
   comparison?: SpendingComparison;
-  comparisonWindow?: ComparisonWindow;
   onComparisonChange?: ComparisonChange;
 }) {
   useAmountPrivacy();
   const [period, setPeriod] = useReportPeriod();
-  const query = useQuery(analysisQuery(period, comparisonMode, comparisonWindow));
+  const query = useQuery(analysisQuery(period, comparisonMode));
   const data = query.data && !query.isFetching ? query.data : undefined;
   const phone = useIsPhone();
   const sections = useCollapsibleSections(
@@ -149,7 +136,6 @@ export function SpendingAnalysisReport({
             <Body
               data={result}
               comparisonMode={comparisonMode}
-              comparisonWindow={comparisonWindow}
               onComparisonChange={onComparisonChange}
             />
           )}
@@ -288,20 +274,16 @@ function SignedBar({
 function Body({
   data,
   comparisonMode,
-  comparisonWindow,
   onComparisonChange,
 }: {
   data: SpendingReport;
   comparisonMode: SpendingComparison;
-  comparisonWindow: ComparisonWindow | undefined;
   onComparisonChange: ComparisonChange | undefined;
 }) {
   useAmountPrivacy();
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [tableOpen, setTableOpen] = useState(false);
   const [allGroups, setAllGroups] = useState(false);
-  const [editingComparison, setEditingComparison] = useState(false);
-  const [comparisonError, setComparisonError] = useState(false);
   const printing = useMediaQuery('print');
   if (data.months.length === 0)
     return (
@@ -374,66 +356,12 @@ function Body({
             }}
           />
           {REDESIGN_ENABLED && onComparisonChange && (
-            <>
-              <ReportViewControl
-                label="Vergleich mit"
-                options={COMPARISONS}
-                value={editingComparison ? 'eigen' : comparisonMode}
-                onChange={(value) => {
-                  setEditingComparison(value === 'eigen');
-                  setComparisonError(false);
-                  if (value !== 'eigen') onComparisonChange(value);
-                }}
-              />
-              {(editingComparison || comparisonMode === 'eigen') && (
-                <form
-                  key={comparisonWindow && `${comparisonWindow.von}:${comparisonWindow.bis}`}
-                  className="sa-custom-comparison"
-                  onSubmit={(event) => {
-                    event.preventDefault();
-                    const fields = new FormData(event.currentTarget);
-                    const result = spendingComparisonWindow.safeParse({
-                      von: fields.get('von'),
-                      bis: fields.get('bis'),
-                    });
-                    if (!result.success) {
-                      setComparisonError(true);
-                      return;
-                    }
-                    setComparisonError(false);
-                    setEditingComparison(false);
-                    onComparisonChange('eigen', result.data);
-                  }}
-                >
-                  <label>
-                    Vergleich von{' '}
-                    <input
-                      name="von"
-                      type="date"
-                      max={todayInVienna()}
-                      defaultValue={comparisonWindow?.von}
-                      required
-                    />
-                  </label>
-                  <label>
-                    Vergleich bis{' '}
-                    <input
-                      name="bis"
-                      type="date"
-                      max={todayInVienna()}
-                      defaultValue={comparisonWindow?.bis}
-                      required
-                    />
-                  </label>
-                  <button className="btn" type="submit">
-                    Vergleich übernehmen
-                  </button>
-                  {comparisonError && (
-                    <p role="alert">Bitte einen gültigen Vergleichszeitraum bis heute eingeben.</p>
-                  )}
-                </form>
-              )}
-            </>
+            <ReportViewControl
+              label="Vergleich mit"
+              options={COMPARISONS}
+              value={comparisonMode}
+              onChange={onComparisonChange}
+            />
           )}
           {comparison.previousFrom && comparison.previousTo ? (
             <p className="sa-comparison">
@@ -441,18 +369,14 @@ function Body({
               {longDay(comparison.previousTo)}
               {comparisonMode === 'vorjahr'
                 ? ' (gleiche Tage im Vorjahr)'
-                : comparisonMode === 'vorperiode'
-                  ? ` · jeweils ${comparison.days} Tage`
-                  : ''}
+                : ` · jeweils ${comparison.days} Tage`}
               . Der Strich markiert den {comparisonLabel}.
             </p>
           ) : (
             <p className="sa-comparison">
-              {comparisonMode === 'eigen'
-                ? 'Für den eigenen Vergleichszeitraum sind keine vollständig abgedeckten Buchungsdaten verfügbar.'
-                : comparisonMode === 'vorjahr'
-                  ? 'Für die gleichen Tage im Vorjahr sind keine vollständig abgedeckten Buchungsdaten verfügbar.'
-                  : 'Für diesen Zeitraum ist kein vollständig abgedeckter, gleich langer Vorzeitraum verfügbar.'}
+              {comparisonMode === 'vorjahr'
+                ? 'Für die gleichen Tage im Vorjahr sind keine vollständig abgedeckten Buchungsdaten verfügbar.'
+                : 'Für diesen Zeitraum ist kein vollständig abgedeckter, gleich langer Vorzeitraum verfügbar.'}
             </p>
           )}
           {changeChain && (
