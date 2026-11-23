@@ -280,16 +280,16 @@ describe('operation types', () => {
     o.transactions[0]!.fee = coin('0.00000001');
     expect(verdictOf(o, ledger())).toEqual({ status: 'unreadable', field: 'assets[0].netE8' });
   });
-  it('does not infer an internal move from a missing, different-asset or unbalanced leg', () => {
+  it('keeps platform transfers open when a counterpart is missing, different or unbalanced', () => {
     for (const parts of [
-      [{ type: 'stake', flow: 'OUTGOING' as const, amount: coin('1') }],
+      [{ type: 'transfer', flow: 'OUTGOING' as const, amount: coin('1') }],
       [
         { type: 'transfer', flow: 'OUTGOING' as const, amount: coin('1') },
         { type: 'transfer', flow: 'INCOMING' as const, amount: coin('1', OTHER) },
       ],
       [
-        { type: 'stake', flow: 'OUTGOING' as const, amount: coin('1') },
-        { type: 'stake', flow: 'INCOMING' as const, amount: coin('0.99999999') },
+        { type: 'transfer', flow: 'OUTGOING' as const, amount: coin('1') },
+        { type: 'transfer', flow: 'INCOMING' as const, amount: coin('0.99999999') },
       ],
     ])
       expect(status(op('unproven', 'stake', ...parts), ledger())).toBe('missing');

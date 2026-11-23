@@ -2,6 +2,7 @@ import { addDays, daysBetween, todayInVienna } from './date/date';
 import {
   internalTransferKeys,
   isInternalStakeType,
+  isStakeMovement,
   sourceInteger,
   sourceOperationUnreadableField,
   type SourceMapping,
@@ -524,12 +525,16 @@ export function matchSourceOperations(
   const operationIds = new Set(operations.map((op) => op.id));
   for (const { op, members, conflicting } of sorted) {
     const field = conflicting ? 'transaction_id' : sourceOperationUnreadableField(op);
+    if (field) {
+      verdicts.set(op.id, { status: 'unreadable', field });
+      continue;
+    }
     const summary = summarizeOperation(op);
     const unknownAsset = summary.assets.findIndex((a) => a.netE8 === null);
-    if (field || unknownAsset !== -1) {
+    if (unknownAsset !== -1) {
       verdicts.set(op.id, {
         status: 'unreadable',
-        field: field ?? `assets[${unknownAsset}].netE8`,
+        field: `assets[${unknownAsset}].netE8`,
       });
       continue;
     }
@@ -545,18 +550,18 @@ export function matchSourceOperations(
       continue;
     }
     const movement = op.transactions.filter((t) => t.type !== 'fee' && t.type !== 'tax');
+    // The other staking wallet leg can arrive as a separate operation or be absent.
     const internalOnly =
       movement.length > 0 &&
       movement.every(
-        (t) =>
-          (t.type === 'transfer' || isInternalStakeType(t.type)) && internal.has(keyOf(t.amount)),
+        (t) => isStakeMovement(t) || (t.type === 'transfer' && internal.has(keyOf(t.amount))),
       );
-    const hasOpenStake = movement.some(
+    const hasOpenStakingLeg = movement.some(
       (t) =>
-        (isInternalStakeType(t.type) || (isInternalStakeType(op.type) && t.type === 'transfer')) &&
-        !internal.has(keyOf(t.amount)),
+        (isInternalStakeType(t.type) && !isStakeMovement(t)) ||
+        (isInternalStakeType(op.type) && t.type === 'transfer' && !internal.has(keyOf(t.amount))),
     );
-    if (hasOpenStake) {
+    if (hasOpenStakingLeg) {
       verdicts.set(op.id, { status: 'missing' });
       continue;
     }

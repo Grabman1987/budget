@@ -154,6 +154,12 @@ describe('summarizeOperation', () => {
       expect(s).toMatchObject({ class: 'staking_transfer', assets: [] });
     }
   });
+  it('shows a single staking leg with a same-asset fee as an internal wallet move', () => {
+    const s = summarizeOperation(
+      op('stake', tx('stake', 'OUTGOING', amt('1', COIN), { fee: amt('0.01', COIN) })),
+    );
+    expect(s).toEqual({ class: 'staking_transfer', assets: [], fiatCents: null });
+  });
   it('sale and fiat transfer are classified', () => {
     expect(
       summarizeOperation(

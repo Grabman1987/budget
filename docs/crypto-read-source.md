@@ -135,7 +135,8 @@ Tolerances and rules:
 | buy, sell, savings plan, swap legs, dust swap | Trade of the mapped instrument in the mapped account (buy/sell, deliveries accepted), +-2 days. Units within 1e-8, else amount within 1 cent, else amount and units both within 0.5 %. Fee and tax (stated by the source or on the trade) may explain amount differences. Each trade leg of a swap must match. |
 | reward, bonus, staking reward, merger | Delivery in/out (or buy/sell) of the mapped instrument by units, +-2 days. A commission in the same asset is subtracted (the ledger records the net units). |
 | deposit, withdrawal, cash refund/reward | Booking on the mapped cash account with exact cents (a stated fee may be added or subtracted), +-3 days; positive cash credits may also match an interest/dividend trade of a mapped account. Settlement bookings of trades and transfers between two mapped accounts are internal and never match. |
-| stake, unstake, transfer | Internal only with readable incoming and outgoing legs of the same asset/currency and an exact zero sum (no tolerance). Missing or unbalanced staking legs stay open; unreadable amounts/precision stay unreadable. |
+| stake, unstake | Readable legs with an incoming or outgoing flow are internal even when the other wallet leg is in a separate operation or absent. Unreadable amounts or precision remain unreadable. Other movements in the same operation are still checked. |
+| transfer | Internal only with readable incoming and outgoing legs of the same asset/currency and an exact zero sum (no tolerance). A one-sided transfer remains eligible for normal ledger matching. |
 | fee/tax-only operations | Informational only when amounts and aggregates are readable. |
 
 A heuristic match claims a ledger row for one logical operation (best match first: tier, then

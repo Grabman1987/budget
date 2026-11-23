@@ -362,3 +362,11 @@ cash booking in the savings-plan date window. A token fee is included once in
 that token's unit effect, and balanced staking transfers are informational.
 Repeat runs preserve the result. Undo restores the operation and balance-review
 decisions together. The comparison reads the existing ledger and holdings.
+
+## Crypto staking reconciliation (#1309)
+
+When I run **Abgleich neu ausführen**, a readable stake or unstake stays
+informational even if the source sent only one wallet leg. Any purchase in the
+same operation is still checked against the ledger. Reconciliation leaves my
+bookings, trades and balances intact, and one Undo restores the review decisions
+changed by that run.

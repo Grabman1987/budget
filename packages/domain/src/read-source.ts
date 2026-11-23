@@ -67,6 +67,9 @@ export interface ReadSource {
 /** Only exact provider stake types identify staking legs; rewards remain movements. */
 export const isInternalStakeType = (type: string) => /^(un)?stake$/.test(type);
 
+export const isStakeMovement = ({ type, flow }: SourceOperation['transactions'][number]) =>
+  isInternalStakeType(type) && (flow === 'INCOMING' || flow === 'OUTGOING');
+
 /** First unreadable amount field; values are never included in the diagnostic. */
 export function sourceOperationUnreadableField(op: SourceOperation): string | null {
   for (const [i, t] of op.transactions.entries()) {
