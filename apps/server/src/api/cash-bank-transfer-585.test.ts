@@ -2,9 +2,11 @@ import { createHash } from 'node:crypto';
 import {
   accountBalances,
   accounts,
+  budget,
   createTestDatabase,
   createTransfer,
   getBooking,
+  netWorthAsOf,
   schema,
   undo,
   type OpenedDatabase,
@@ -108,6 +110,13 @@ function pair(result: TransferAnswer) {
   ] as const;
 }
 
+function expectBudgetNeutrality() {
+  expect(netWorthAsOf(opened.db, day).totalCents).toBe(150000);
+  expect(budget(opened.db, ['2026-10'], { asOf: day })).toMatchObject([
+    { incomeCents: 0, toBeAssignedCents: 150000 },
+  ]);
+}
+
 describe('manual cash/bank transfer status intent #585', () => {
   it.each([
     ['checking', false, undefined, 'pending', 37655, 112345, 37655, 100000],
@@ -167,6 +176,7 @@ describe('manual cash/bank transfer status intent #585', () => {
       expect(cashFull + bankFull).toBe(150000);
       expect(confirmedBalance('cash585')).toBe(cashConfirmed);
       expect(confirmedBalance('bank585')).toBe(bankConfirmed);
+      expectBudgetNeutrality();
       const action = opened.db
         .select()
         .from(schema.auditLog)
@@ -182,6 +192,7 @@ describe('manual cash/bank transfer status intent #585', () => {
       expect(getBooking(opened.db, result.toBookingId)).toBeUndefined();
       expect(opened.db.select().from(schema.bookingSplit).all()).toHaveLength(0);
       expect(balances()).toEqual({ cash585: 50000, bank585: 100000 });
+      expectBudgetNeutrality();
       // Structural transfer identity is intentionally unaudited and may survive undo.
       expect(opened.db.select().from(schema.transfer).all()).toHaveLength(1);
       const undoneState = snapshot();
