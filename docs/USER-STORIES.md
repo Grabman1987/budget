@@ -325,3 +325,13 @@ reconciliation or repayment dates. The explicit override is audited with the
 booking change. Repayments keep their bank amounts and any released allocation
 becomes contact credit. A changed reconciliation balance remains visible in
 Prüfen. One Undo restores the booking and its affected links.
+
+## Plan: repayment versus investment (#1291)
+
+In Plan › Prognose, I can start with the investable amount, select a payment account
+and an open EUR loan or overdraft, and edit the amount and return assumptions. I
+see each option's lowest payment-account balance, account and date, and whether
+committed reserves stay covered through payday plus 30 days. A negative low or
+reserve shortfall marks the option as inadvisable. First-year interest saved and
+the assumed investment return range are shown separately from the cash forecast.
+The comparison leaves bookings and Undo history untouched.

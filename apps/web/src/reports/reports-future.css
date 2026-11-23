@@ -646,6 +646,13 @@
 }
 
 /* Forecast tools remain mounted while folded, retaining local drafts and existing write paths. */
+.repay-invest > summary {
+  min-height: 44px;
+  padding: 12px 24px;
+  cursor: pointer;
+  font-weight: 620;
+}
+
 .rf-tools > summary {
   display: flex;
   align-items: center;
@@ -686,6 +693,7 @@
   padding: 4px;
 }
 @media (max-width: 767px) {
+  .repay-invest > summary,
   .rf-tools > summary {
     padding-inline: 12px;
   }

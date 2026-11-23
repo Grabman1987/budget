@@ -526,18 +526,20 @@ function requiredAccountValue(
 export function investableAmountAsOf(
   db: Executor,
   today: string,
+  loaded?: {
+    facts: RuleFacts;
+    valuation: ReturnType<typeof netWorthValuationAsOf>;
+    forecast: ReturnType<typeof forecastInputs>;
+  },
 ):
   | InvestableAmount
   | HeuteUnavailable
   | { unavailable: { reason: 'invalid_source'; message: string; asOf: string } } {
   return availableSection(() => {
-    const facts = loadFacts(db, today);
-    const valuation = netWorthValuationAsOf(db, today);
-    const { cashAccounts, openOutflows, missingFx } = liquidityPlanningInputs(
-      facts,
-      today,
-      valuation,
-    );
+    const facts = loaded?.facts ?? loadFacts(db, today);
+    const valuation = loaded?.valuation ?? netWorthValuationAsOf(db, today);
+    const { cashAccounts, openOutflows, missingFx } =
+      loaded?.forecast ?? liquidityPlanningInputs(facts, today, valuation);
     const payday = nextPayday(today).day;
     const missing = missingFx.find(
       (item) =>

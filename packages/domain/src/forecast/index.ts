@@ -43,3 +43,4 @@ export {
 } from './report';
 export { incomePauseAmount, type IncomePause, type IncomePauseOccurrence } from './income-pause';
 export * from './liquidity-account';
+export * from './repay-invest';
