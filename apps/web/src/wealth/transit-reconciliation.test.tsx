@@ -16,10 +16,13 @@ it('labels raw cash and the separate signed transit bridge, including missing FX
   };
   const { rerender } = render(<TransitReconciliation data={data} />);
   const line = () => screen.getByTestId('transit-reconciliation').textContent?.replace(/\s+/g, ' ');
+  expect(
+    screen.getByText('Geld unterwegs:', { exact: true }).textContent?.replace(/\s+/g, ' '),
+  ).toBe('Geld unterwegs: 100,00 €');
   expect(line()).toContain('Geld unterwegs: 100,00 €');
   expect(line()).toContain('Kontogeld: 500,00 €');
   expect(line()).toContain('Kontogeld inkl. Geld unterwegs: 600,00 €');
-  expect(line()).toContain('Umfang: 2 ausgewählte Konten');
+  expect(line()).toContain('Umfang: 2 ausgewählte Bankkonten');
   rerender(<TransitReconciliation data={{ ...data, rawCashCents: 70000, transitCents: -10000 }} />);
   expect(line()).toContain('Geld unterwegs: −100,00 €');
   rerender(

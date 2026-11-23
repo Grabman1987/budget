@@ -35,7 +35,7 @@ import { earliestAccountDate, netWorthAsOf, netWorthDaily } from './portfolio';
 import { budget } from './queries';
 import { ruleResults } from './rules';
 import { debtsAsOf } from './debts';
-import { yearInvestments, type YearInvestments } from './year-investments';
+import { yearDepotTransfers, yearInvestments, type YearInvestments } from './year-investments';
 import type { Executor } from './types';
 
 /**
@@ -258,7 +258,7 @@ export function yearReportRead(db: Executor, year: number, today: string): YearR
     savingsSplit: yearSavingsSplit({
       incomeCents: report.totals.incomeCents,
       consumptionCents: report.totals.consumptionCents,
-      investedCents: investments?.performance?.contributionsCents ?? null,
+      investedCents: yearDepotTransfers(db, months),
     }),
   };
 }

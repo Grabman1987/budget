@@ -207,9 +207,9 @@ only read on opening, reset after template changes/source refresh/reload, and no
 stale export. The existing Explorer spec checks exact CSV bytes and privacy in
 light/dark at the configured desktop/390 widths. See [RP-09](user-stories/06-reports.md#rp-09--gesamttabelle-explorer-template); CI and owner acceptance remain open.
 
-## Eigener Ausgabenvergleich (#1158)
+## Spending report bookmarks (#1158)
 
-Als Haushaltsmitglied kann ich in der Ausgabenanalyse einen eigenen Vergleich von Tag bis Tag auswählen und die Adresse erneut öffnen. Die Beträge reichen inklusive bis zu beiden Grenzen und zeigen fehlende Historie an. Die bisherigen Adressen für Kategorien und Zeitraumvergleich führen zur Ausgabenanalyse. Gespeicherte Explorer-Ansichten und Vorlagen bleiben erreichbar.
+As a household member, I can open an old category overview or period comparison bookmark in Ausgaben with its reporting period and anchor intact. I can choose Vorperiode or Vorjahr and reopen the report with the same comparison. Earlier custom comparison bookmarks open with Vorperiode. Saved Explorer views and templates remain reachable.
 
 ## Queue rejection and dialog completion (#1144, #1201)
 
@@ -270,18 +270,17 @@ balances, performance and net worth remain unchanged.
 
 Independent-date transit supports whole equal-amount, same-currency transfers
 between **checking/savings** accounts, with existing opening-date and five-day
-guards. Brokerage, crypto and P2P eligibility needs an owner policy decision;
-this slice neither broadens eligibility nor invents settlement rules. Cash/bank
-transfers retain their separate contract. Deleting through either single leg
-deletes the connected pair; Undo restores both original legs and redo deletes both.
+guards. Cash/bank transfers retain their separate contract. Deleting through either
+single leg deletes the connected pair; Undo restores both original legs and redo
+deletes both.
 
 Evidence: `transit-readers-1195.test.ts` covers days 0–4, reversed dates, selected
 scope, missing FX, unchanged snapshots and single-leg delete/Undo/redo.
 `invest.test.ts` pins literal German update/delete/restore refusal messages.
 `issue-1195-transit.spec.ts` covers four rendered readers, raw cash versus net
-worth, privacy, themes and responsive layout. Status: prepared for review;
-publication and owner acceptance pending. #1195 stays open for the account-type
-decision. Already-delivered items 3/4 remain unchanged.
+worth, privacy, themes and responsive layout. Already-delivered items 3/4 remain
+unchanged. The account-type decision is recorded below.
+
 ## Bank posting and observed balance (#1267)
 
 New bank connections follow SPEC decision 41: fetched BOOK lines without a match
@@ -325,3 +324,41 @@ reconciliation or repayment dates. The explicit override is audited with the
 booking change. Repayments keep their bank amounts and any released allocation
 becomes contact credit. A changed reconciliation balance remains visible in
 Prüfen. One Undo restores the booking and its affected links.
+
+F4/F9 (#1294): The operator can compare fixed expected values with a read-only database snapshot
+and get a pass or fail for each figure. The synthetic twin runs in CI. Private parallel-run
+evidence and owner sign-off remain open. See the [reference check](acceptance-tolerances.md#4-reference-check-operator-command-1294).
+## Bank feed at month boundaries (#1293)
+
+When a bank authorization becomes booked under the same source reference, its
+final date and amount stay available for review if the feed later repeats the
+pending authorization. If both versions arrive together, Budget uses the
+booked version when it can match the pair to a recorded source identity.
+If I already recorded the booking,
+I review any reported change and correct the existing booking explicitly.
+One Undo restores its previous date, amount and allocations.
+## Bank-only transit reconciliation (#1195)
+
+When money is between two bank accounts, I see the signed difference on its own
+**Geld unterwegs** line. The cash reconciliation covers the selected checking and
+savings accounts. Brokerage, crypto and P2P cash keeps its own valuation, outside
+the bank cash shown on that line. The display creates no bookings or adjustments.
+## Plan: repayment versus investment (#1291)
+
+In Plan › Prognose, I can start with the investable amount, select a payment account
+and an open EUR loan or overdraft, and edit the amount and return assumptions. I
+see each option's lowest payment-account balance, account and date, and whether
+committed reserves stay covered through payday plus 30 days. A negative low or
+reserve shortfall marks the option as inadvisable. First-year interest saved and
+the assumed investment return range are shown separately from the cash forecast.
+The comparison leaves bookings and Undo history untouched.
+## Crypto operation matching (#1205)
+
+After fetching or running **Abgleich neu ausführen**, movements with the same
+provider transaction or trade reference are checked together, even if they
+arrived on different pages. An existing savings-plan trade can be shown beside
+an open funding leg. The funding check compares exact cents with the existing
+cash booking in the savings-plan date window. A token fee is included once in
+that token's unit effect, and balanced staking transfers are informational.
+Repeat runs preserve the result. Undo restores the operation and balance-review
+decisions together. The comparison reads the existing ledger and holdings.

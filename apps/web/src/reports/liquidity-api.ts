@@ -1,4 +1,5 @@
 import type {
+  ForecastBacktest,
   IncomePauseView,
   IncomePauseInput,
   IncomePausePatch,
@@ -19,6 +20,13 @@ import type { AccountRow, WriteResult } from '../ledger/types';
  */
 
 export type { IncomePauseView, LiquidityReportView, PlannedEventView };
+export const forecastBacktestQuery = () =>
+  queryOptions({
+    queryKey: [...LEDGER_KEY, 'liquidity-backtest'],
+    retry: false,
+    queryFn: () => request<ForecastBacktest>('GET', '/api/liquidity/backtest'),
+  });
+
 export const plannedEventsQuery = () =>
   queryOptions({
     queryKey: [...LEDGER_KEY, 'planned-events'],
@@ -37,14 +45,21 @@ export const plannedEventsQuery = () =>
 export const liquidityQuery = (
   horizon: LiquidityHorizon,
   levers: ReadonlyArray<LiquidityLeverId>,
+  includeRepaymentComparison = false,
 ) =>
   queryOptions({
-    queryKey: [...LEDGER_KEY, 'liquidity-report', horizon, [...levers].sort().join(',')],
+    queryKey: [
+      ...LEDGER_KEY,
+      'liquidity-report',
+      horizon,
+      [...levers].sort().join(','),
+      includeRepaymentComparison,
+    ],
     retry: false,
     queryFn: () =>
       request<LiquidityReportView>(
         'GET',
-        `/api/liquidity?horizon=${horizon}${levers.length ? `&levers=${[...levers].sort().join(',')}` : ''}`,
+        `/api/liquidity?horizon=${horizon}${levers.length ? `&levers=${[...levers].sort().join(',')}` : ''}${includeRepaymentComparison ? '&compare=1' : ''}`,
       ),
   });
 

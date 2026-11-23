@@ -502,6 +502,40 @@ describe('provider ids (#1205)', () => {
 });
 
 describe('savings plan across dates (#1205)', () => {
+  it('requires the funding counterpart even when the execution is linked by provider id', () => {
+    const purchase = buyOp('plan', '25.01', '0.5', { type: 'savings_plan' });
+    const plan = {
+      ...purchase,
+      transactions: [
+        ...op('reservation', 'savings_plan', {
+          type: 'deposit',
+          flow: 'INCOMING',
+          amount: { ...cash('25.01'), cents: 2501 },
+          at: '2026-03-06T10:00:00.000Z',
+          tradeId: 't-plan',
+        }).transactions,
+        ...purchase.transactions,
+        tx(9, { type: 'fee', flow: 'OUTGOING', amount: { ...cash('1'), cents: 100 } }),
+      ],
+    };
+    const execution = trade({ amountCents: 2501, importKey: 'rebuild:plan:2' });
+    expect(verdictOf(plan, ledger([execution]))).toMatchObject({
+      status: 'missing',
+      refs: [{ id: execution.id }],
+      missingLegs: [{ key: 'currency:cur-eur', incoming: true, day: '2026-03-06', cents: 2501 }],
+    });
+    expect(status(plan, ledger([execution], [booking({ amountCents: 2401 })]))).toBe('missing');
+    expect(
+      status(plan, ledger([execution], [booking({ date: '2026-02-26', amountCents: 2501 })])),
+    ).toBe('missing');
+    const debit = booking({ date: '2026-03-01', amountCents: 2501 });
+    expect(verdictOf(plan, ledger([execution], [debit]))).toMatchObject({
+      status: 'matched',
+      refs: expect.arrayContaining([
+        { type: 'booking', id: debit.id, kind: 'booking', date: debit.date },
+      ]),
+    });
+  });
   const planDeposit = (id: string, at: string) =>
     op(id, 'savings_plan', { type: 'deposit', flow: 'INCOMING', amount: cash('25'), at });
   it('matches the bank booking up to ten days away, nearer matches first', () => {
@@ -532,3 +566,127 @@ describe('savings plan across dates (#1205)', () => {
     ).toBe('missing');
   });
 });
+
+it('matches one purchase spanning source records and claims an exact repeated transaction once', () => {
+  const buy = buyOp('split', '25.01', '0.5');
+  const [fiat, asset] = buy.transactions;
+  const fee = tx(9, {
+    type: 'fee',
+    flow: 'OUTGOING',
+    amount: coin('0.2', OTHER),
+    tradeId: asset!.tradeId,
+  });
+  const records = [
+    { ...buy, id: 'cash-side', transactions: [fiat!] },
+    { ...buy, id: 'asset-side', transactions: [asset!, fee] },
+    { ...buy, id: 'replay-side', transactions: [asset!] },
+    buyOp('unrelated', '25.01', '0.5'),
+  ];
+  const feeSale = trade({
+    kind: 'sell',
+    securityId: 'sec-other',
+    amountCents: 0,
+    unitsE8: -20_000_000,
+    importKey: 'rebuild:asset-side:1',
+  });
+  expect(
+    matchSourceOperations(records, mappings, ledger([feeSale])).get('asset-side'),
+  ).toMatchObject({ status: 'missing', refs: [] });
+  const execution = trade({ amountCents: 2501, importKey: 'rebuild:split-1:0' });
+  const verdicts = matchSourceOperations(records, mappings, ledger([execution]));
+  expect(verdicts.get('cash-side')).toMatchObject({
+    status: 'matched',
+    refs: [{ id: execution.id }],
+  });
+  expect(verdicts.get('asset-side')).toEqual(verdicts.get('cash-side'));
+  expect(verdicts.get('replay-side')).toEqual(verdicts.get('cash-side'));
+  expect(verdicts.get('unrelated')).toMatchObject({ status: 'missing' });
+  expect(matchSourceOperations([...records].reverse(), mappings, ledger([execution]))).toEqual(
+    verdicts,
+  );
+  const changedCopy = { ...asset!, amount: coin('0.6') };
+  expect(
+    matchSourceOperations(
+      [...records, { ...buy, id: 'conflicting-copy', transactions: [changedCopy] }],
+      mappings,
+      ledger([execution]),
+    ).get('asset-side'),
+  ).toEqual({ status: 'unreadable', field: 'transaction_id' });
+});
+
+it('matches staking reward units net of a separately reported fee', () => {
+  const reward = op(
+    'staking',
+    'staking_reward',
+    { type: 'reward', flow: 'INCOMING', amount: coin('0.3') },
+    { type: 'fee', flow: 'OUTGOING', amount: coin('0.06') },
+  );
+  expect(
+    status(reward, ledger([trade({ kind: 'delivery_in', unitsE8: 24_000_000, amountCents: 0 })])),
+  ).toBe('matched');
+  expect(status(reward, ledger([trade({ kind: 'delivery_in', unitsE8: 30_000_000 })]))).toBe(
+    'missing',
+  );
+  const valued = {
+    ...reward,
+    transactions: [
+      ...reward.transactions,
+      tx(10, { type: 'reward', flow: 'INCOMING', amount: { ...cash('3.01'), cents: 301 } }),
+    ],
+  };
+  expect(status(valued, ledger([trade({ amountCents: 301, unitsE8: 30_000_000 })]))).toBe(
+    'missing',
+  );
+  expect(
+    status(valued, ledger([trade({ kind: 'delivery_in', unitsE8: 24_000_000, amountCents: 301 })])),
+  ).toBe('matched');
+});
+
+it('reconciles separate staking wallet legs by their shared reference without a sale', () => {
+  const out = op('stake-out', 'stake', {
+    type: 'stake',
+    flow: 'OUTGOING',
+    amount: coin('0.3'),
+    tradeId: 'stake-reference',
+  });
+  const into = op('stake-in', 'stake', {
+    type: 'stake',
+    flow: 'INCOMING',
+    amount: coin('0.3'),
+    tradeId: 'stake-reference',
+  });
+  expect(verdictOf(out, ledger())).toMatchObject({ status: 'missing' });
+  const verdicts = matchSourceOperations([out, into], mappings, ledger());
+  expect(verdicts.get(out.id)).toEqual({ status: 'informational', reason: 'internal' });
+  expect(verdicts.get(into.id)).toEqual(verdicts.get(out.id));
+  const reward = op('zz-reward', 'reward', {
+    type: 'reward',
+    flow: 'INCOMING',
+    amount: coin('0.2'),
+    tradeId: 'stake-reference',
+  });
+  expect(
+    matchSourceOperations(
+      [out, into, reward],
+      mappings,
+      ledger([trade({ kind: 'delivery_in', unitsE8: 20_000_000 })]),
+    ).get(out.id),
+  ).toMatchObject({ status: 'matched' });
+});
+
+it.each(['refund', 'onetime_reward', 'earn_on_fiat_reward'])(
+  'matches %s cash by exact cents and leaves an unmapped currency open',
+  (type) => {
+    const credit = op(type, type, {
+      type,
+      flow: 'INCOMING',
+      amount: { ...cash('1.23'), cents: 123 },
+    });
+    expect(status(credit, ledger([], [booking({ amountCents: 123 })]))).toBe('matched');
+    expect(status(credit, ledger([], [booking({ amountCents: 124 })]))).toBe('missing');
+    expect(verdictOf(credit, ledger(), mappings.slice(1))).toEqual({
+      status: 'unmapped',
+      keys: ['currency:cur-eur'],
+    });
+  },
+);

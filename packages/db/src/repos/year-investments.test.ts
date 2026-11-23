@@ -5,9 +5,9 @@ import { costsTaxesReport } from './portfolio-costs';
 import { REPORT_TODAY, reportPortfolioFixture } from './portfolio-report-fixture';
 import { seedBasics, testCtx } from './test-helpers';
 import { MissingFxRateError } from './errors';
-import { createBooking } from './bookings';
+import { createBooking, createTransfer } from './bookings';
 import { yearReportRead } from './overview-reports';
-import { yearInvestments } from './year-investments';
+import { yearDepotTransfers, yearInvestments } from './year-investments';
 
 let opened: OpenedDatabase;
 
@@ -166,7 +166,22 @@ describe('yearInvestments edge cases', () => {
 });
 
 describe('yearReportRead (Jahresreport slice 1)', () => {
-  it('split Sparquote adds up to the report Sparquote and shares the portfolio figures', () => {
+  it('preserves the exact net transfer cents when large bookings cancel', () => {
+    const transfer = (fromAccountId: string, toAccountId: string, amountCents: number) =>
+      createTransfer(
+        opened.db,
+        { fromAccountId, toAccountId, date: '2026-01-01', amountCents },
+        testCtx,
+      );
+    transfer('giro', 'depot-b', Number.MAX_SAFE_INTEGER);
+    transfer('giro', 'depot-b', 2);
+    transfer('depot-b', 'giro', Number.MAX_SAFE_INTEGER);
+    expect(yearDepotTransfers(opened.db, ['2026-01'])).toBe(2);
+    transfer('giro', 'depot-b', Number.MAX_SAFE_INTEGER);
+    expect(yearDepotTransfers(opened.db, ['2026-01'])).toBeNull();
+  });
+
+  it('attributes depot savings to the budget booking date and preserves the total savings rate', () => {
     opened.sqlite.exec("INSERT INTO income_type (id, name) VALUES ('gehalt', 'Gehalt')");
     const book = (date: string, amountCents: number, split: object) =>
       createBooking(
@@ -178,7 +193,39 @@ describe('yearReportRead (Jahresreport slice 1)', () => {
       book(`${month}-15`, 300_000, { incomeTypeId: 'gehalt' });
       book(`${month}-16`, -200_000, { categoryId: 'miete' });
     }
+    opened.sqlite.exec(`
+      INSERT INTO account (id, name, type, role, on_budget, opening_date)
+      VALUES ('settlement', 'Verrechnung', 'checking', 'reserve', 0, '2025-01-01');
+      UPDATE account SET reference_account_id = 'settlement' WHERE id = 'depot-a';
+    `);
+    createTransfer(
+      opened.db,
+      { fromAccountId: 'giro', toAccountId: 'settlement', date: '2025-12-31', amountCents: 20_100 },
+      testCtx,
+      {
+        bankLegs: {
+          from: { date: '2025-12-31', status: 'confirmed' },
+          to: { date: '2026-01-02', status: 'confirmed' },
+        },
+      },
+    );
+    book('2025-12-15', 100_000, { incomeTypeId: 'gehalt' });
+    const transfer = (
+      fromAccountId: string,
+      toAccountId: string,
+      date: string,
+      amountCents: number,
+    ) => createTransfer(opened.db, { fromAccountId, toAccountId, date, amountCents }, testCtx);
+    transfer('giro', 'depot-b', '2026-01-01', 60_003);
+    transfer('settlement', 'giro', '2026-08-31', 1_001);
+    transfer('giro', 'spar', '2026-01-05', 10_000);
+    transfer('settlement', 'depot-a', '2026-01-31', 20_100);
+    transfer('giro', 'depot-b', '2026-09-01', 1_000);
+    const before = opened.sqlite.serialize();
     const read = yearReportRead(opened.db, 2026, '2026-08-31');
+    const prior = yearReportRead(opened.db, 2025, '2026-08-31');
+    expect(opened.sqlite.serialize()).toEqual(before);
+    expect(prior.savingsSplit?.investedCents).toBe(20_100);
     expect(read.report.months).toEqual(MONTHS);
     const split = read.savingsSplit!;
     expect(split.totalBp).toBe(read.report.totals.savingsRateBp);
@@ -186,7 +233,17 @@ describe('yearReportRead (Jahresreport slice 1)', () => {
     expect(split.savedCents).toBe(
       read.report.totals.incomeCents - read.report.totals.consumptionCents,
     );
-    expect(split.investedCents).toBe(read.investments!.performance!.contributionsCents);
+    expect(split.investedCents).toBe(59_002);
+    expect(split.cashCents).toBe(740_998);
+    expect(split.investedBp).toBe(246);
+    expect(split.cashBp).toBe(3087);
+    expect(read.investments!.performance!.contributionsCents).toBe(
+      portfolioSummary(opened.db, {
+        today: REPORT_TODAY,
+        period: '2026-01..2026-08',
+        view: 'securities',
+      }).performance!.contributionsCents,
+    );
     expect(split.investedCents! + split.cashCents!).toBe(split.savedCents);
     expect(read.wealthColumns!.withMarket.deltaCents).toBe(
       read.report.netWorth!.endCents - read.report.netWorth!.startCents,

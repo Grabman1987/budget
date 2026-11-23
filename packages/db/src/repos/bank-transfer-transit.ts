@@ -11,6 +11,10 @@ import { accountBalances } from './queries';
 import { cashValuer } from './cash-valuation';
 import type { Executor } from './types';
 
+function isBankAccount(account: { type: string }) {
+  return account.type === 'checking' || account.type === 'savings';
+}
+
 /** Whole same-currency bank transfers only; no synthetic ledger rows or balance adjustments. */
 export function bankTransferTransit(db: Executor) {
   return memoizedShared(db, 'bankTransferTransit', () => {
@@ -25,7 +29,7 @@ export function bankTransferTransit(db: Executor) {
         .from(account)
         .where(isNull(account.deletedAt))
         .all()
-        .filter((a) => a.type === 'checking' || a.type === 'savings')
+        .filter(isBankAccount)
         .map((a) => [a.id, a]),
     );
     const pairs = new Map<string, (typeof booking.$inferSelect)[]>();
@@ -84,7 +88,7 @@ export function cashWithBankTransit(
   return terms.some((cents) => cents !== 0) ? sumValuationCents([cashCents, ...terms]) : cashCents;
 }
 
-/** Display-only reconciliation for an explicit account universe; bank facts stay untouched. */
+/** Display-only reconciliation of bank cash within an explicit account universe. */
 export function bankTransitReconciliation(
   db: Executor,
   asOf: string,
@@ -92,7 +96,9 @@ export function bankTransitReconciliation(
 ) {
   const selected = new Set(accountIds);
   const rows = db.select().from(account).where(isNull(account.deletedAt)).all();
-  const accounts = new Map(rows.filter((a) => selected.has(a.id)).map((a) => [a.id, a]));
+  const accounts = new Map(
+    rows.filter((a) => selected.has(a.id) && isBankAccount(a)).map((a) => [a.id, a]),
+  );
   const transit = bankTransferTransit(db);
   const value = cashValuer(db);
   const raw: number[] = [];

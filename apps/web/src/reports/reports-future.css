@@ -646,7 +646,15 @@
 }
 
 /* Forecast tools remain mounted while folded, retaining local drafts and existing write paths. */
-.rf-tools > summary {
+.repay-invest > summary {
+  min-height: 44px;
+  padding: 12px 24px;
+  cursor: pointer;
+  font-weight: 620;
+}
+
+/* Forecast disclosures share the same layout and target size. */
+:is(.rf-tools, .rf-backtest) > summary {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
@@ -657,7 +665,7 @@
   list-style: none;
   font-weight: 620;
 }
-.rf-tools > summary::-webkit-details-marker {
+:is(.rf-tools, .rf-backtest) > summary::-webkit-details-marker {
   display: none;
 }
 .rf-tools > summary small {
@@ -665,11 +673,11 @@
   font-size: var(--fs-meta);
   font-weight: 400;
 }
-.rf-tools > summary svg {
+:is(.rf-tools, .rf-backtest) > summary svg {
   margin-left: auto;
   flex: none;
 }
-.rf-tools[open] > summary svg {
+:is(.rf-tools, .rf-backtest)[open] > summary svg {
   transform: rotate(180deg);
 }
 .rf-tools-content > .rf-card {
@@ -680,13 +688,17 @@
   background: transparent;
   box-shadow: none;
 }
+.rf-backtest-content {
+  padding: 0 var(--space-md) var(--space-md);
+}
 .rf-moves .rf-strike {
   min-width: 44px;
   min-height: 44px;
   padding: 4px;
 }
 @media (max-width: 767px) {
-  .rf-tools > summary {
+  .repay-invest > summary,
+  :is(.rf-tools, .rf-backtest) > summary {
     padding-inline: 12px;
   }
   .rf-tools > summary small {

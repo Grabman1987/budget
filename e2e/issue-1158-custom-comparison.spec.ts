@@ -9,7 +9,7 @@ import { withShellControls } from './shell-actions';
 
 test.use({ ledgerToday: '2026-09-17' });
 
-test('1158 compares exact dates at literal cents through aliases, reload, themes and privacy', async ({
+test('1158 keeps both supported comparisons through the legacy alias, reload, themes and privacy', async ({
   page,
   isolatedLedger,
 }, info) => {
@@ -18,10 +18,11 @@ test('1158 compares exact dates at literal cents through aliases, reload, themes
     const { ctx } = seedBasics(opened.db);
     for (const [date, categoryId, amountCents] of [
       ['2026-08-10', 'essen', -20_000],
-      ['2025-03-02', 'essen', -70_000],
-      ['2025-03-03', 'essen', -12_345],
-      ['2025-03-08', 'reise', -2_105],
-      ['2025-03-09', 'essen', -80_000],
+      ['2025-07-31', 'essen', -70_000],
+      ['2025-08-01', 'essen', -12_345],
+      ['2025-08-31', 'reise', -2_105],
+      ['2025-09-01', 'essen', -80_000],
+      ['2026-07-10', 'essen', -10_001],
     ] as const) {
       createBooking(
         opened.db,
@@ -37,40 +38,27 @@ test('1158 compares exact dates at literal cents through aliases, reload, themes
     await expect(page.getByTestId('vg-consumption')).toBeVisible();
     return;
   }
-  expect(new URL(page.url()).pathname).toBe('/reports/ausgaben');
-  expect(new URL(page.url()).searchParams.get('fokus')).toBe('synthetic');
-  expect(new URL(page.url()).hash).toBe('#details');
-  await openSpendingGroups(page);
-  await page.getByRole('combobox', { name: 'Vergleich mit', exact: true }).selectOption('eigen');
-  const from = page.getByLabel('Vergleich von', { exact: true });
-  const to = page.getByLabel('Vergleich bis', { exact: true });
-  const submit = page.getByRole('button', { name: 'Vergleich übernehmen', exact: true });
-  await from.fill('2025-03-08');
-  await to.fill('2025-03-03');
-  await submit.click();
-  await expect(page.getByRole('alert')).toContainText('gültigen Vergleichszeitraum');
-  expect(new URL(page.url()).searchParams.get('vergleich')).toBe('vorjahr');
-  await from.fill('2025-03-03');
-  await to.fill('2025-03-08');
-  await submit.click();
   await expect(page).toHaveURL(
     (url) =>
-      url.searchParams.get('vergleich') === 'eigen' &&
-      url.searchParams.get('vergleichVon') === '2025-03-03' &&
-      url.searchParams.get('vergleichBis') === '2025-03-08',
+      url.pathname === '/reports/ausgaben' &&
+      url.searchParams.get('zeitraum') === '1M' &&
+      url.searchParams.get('fokus') === 'synthetic' &&
+      url.searchParams.get('vergleich') === 'vorjahr' &&
+      url.hash === '#details',
   );
   const bookmark = page.url();
   await page.reload();
   await expect(page).toHaveURL(bookmark);
   await openSpendingGroups(page);
-  await expect(from).toHaveValue('2025-03-03');
-  await expect(to).toHaveValue('2025-03-08');
+  const mode = page.getByRole('combobox', { name: 'Vergleich mit', exact: true });
+  await expect(mode).toHaveValue('vorjahr');
+  await expect(mode.getByRole('option')).toHaveText(['Vorperiode', 'Vorjahr']);
   const chain = page.getByRole('group', { name: 'Maßkette Veränderung', exact: true });
   for (const amount of ['144,50 €', '76,55 €', '21,05 €', '200,00 €']) {
     await expect(chain).toContainText(amount);
   }
   await expect(page.locator('.r8-spending-trend .r8-scope')).toContainText(
-    'Vergleich: 03.03.2025 bis 08.03.2025',
+    'Vergleich: 01.08.2025 bis 31.08.2025',
   );
   if (info.project.name === 'desktop') expect(page.viewportSize()?.width).toBe(1440);
   else await page.setViewportSize({ width: 390, height: 844 });
@@ -95,14 +83,29 @@ test('1158 compares exact dates at literal cents through aliases, reload, themes
   await withShellControls(page, async ({ privacy }) => {
     await privacy.click();
   });
-  await from.fill('2023-09-30');
-  await to.fill('2023-10-01');
-  await submit.click();
+  await mode.selectOption('vorperiode');
+  await expect(mode).toHaveValue('vorperiode');
+  await expect(page).toHaveURL((url) => !url.searchParams.has('vergleich'));
+  await expect(chain).toContainText('100,01 €');
+  await expect(chain).toContainText('99,99 €');
+  await expect(chain).toContainText('200,00 €');
+
+  await page.goto(
+    '/reports/ausgaben?zeitraum=Alles&vergleich=eigen&vergleichVon=2025-08-01&vergleichBis=2025-08-31#details',
+  );
+  await expect(page).toHaveURL(
+    (url) =>
+      url.pathname === '/reports/ausgaben' &&
+      url.search === '?zeitraum=Alles' &&
+      url.hash === '#details',
+  );
+  await openSpendingGroups(page);
+  await expect(mode).toHaveValue('vorperiode');
   await expect(
     page.getByText(
-      'Für den eigenen Vergleichszeitraum sind keine vollständig abgedeckten Buchungsdaten verfügbar.',
+      'Für diesen Zeitraum ist kein vollständig abgedeckter, gleich langer Vorzeitraum verfügbar.',
     ),
   ).toBeVisible();
   await expect(chain).toHaveCount(0);
-  await expect(page.getByTestId('sa-consumption')).toHaveText('200,00 €');
+  await expect(page.getByTestId('sa-consumption')).toHaveText('1.944,51 €');
 });

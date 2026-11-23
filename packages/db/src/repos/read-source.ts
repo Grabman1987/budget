@@ -8,6 +8,7 @@ import {
   isAutomaticResolution,
   matchedResolution,
   explainHoldingDifference,
+  groupSourceOperations,
   summarizeOperation,
   type OperationVerdict,
   type SourceBalance,
@@ -339,10 +340,41 @@ export function stageSourcePage(
   const grouped = withGroup(ctx);
   return runInTransaction(db, (tx) => {
     const since = readSourceSince(tx);
-    const verdicts = operations.length
-      ? evaluateReadSource(tx, readSourceMappings(tx), since, operations)
-      : new Map<string, OperationVerdict>();
-    for (const op of operations) {
+    // Replace invalid source facts before matching so former group members cannot claim them.
+    for (const invalid of invalidOperations)
+      item(
+        tx,
+        'operation:' + invalid.id,
+        'Quellbewegung: Datenformat prüfen',
+        JSON.stringify(invalid),
+        'other',
+        grouped,
+        false,
+        // The failing field is a diagnostic: it must not reopen an item the owner closed.
+        (detail) =>
+          JSON.stringify({
+            id: invalid.id,
+            reason: (JSON.parse(detail) as { reason?: string }).reason,
+          }),
+      );
+    const invalidIds = new Set(invalidOperations.map(({ id }) => id));
+    const validOperations = operations.filter(({ id }) => !invalidIds.has(id));
+    const verdicts =
+      operations.length || invalidOperations.length
+        ? evaluateReadSource(tx, readSourceMappings(tx), since, validOperations)
+        : new Map<string, OperationVerdict>();
+    if (verdicts.size) {
+      const incomingIds = new Set(validOperations.map((op) => op.id));
+      // Matching claims ledger rows globally. A new page can change an earlier verdict
+      // even when the operations share no provider identity.
+      for (const { row, op } of stagedOperations(tx)) {
+        const verdict = verdicts.get(op.id);
+        if (!verdict || incomingIds.has(op.id)) continue;
+        if (row.resolvedAt && !isAutomaticResolution(row.resolution)) continue;
+        applyVerdict(tx, row, op, verdict, grouped);
+      }
+    }
+    for (const op of validOperations) {
       const day = since === null ? null : operationDay(op);
       const key = 'operation:' + op.id;
       const detail = JSON.stringify({ ...op, reconciliation: verdicts.get(op.id) ?? null });
@@ -360,22 +392,6 @@ export function stageSourcePage(
         item(tx, key, title, detail, 'import', grouped, false, operationFields);
       else applyVerdict(tx, old, op, verdict, grouped);
     }
-    for (const invalid of invalidOperations)
-      item(
-        tx,
-        'operation:' + invalid.id,
-        'Quellbewegung: Datenformat prüfen',
-        JSON.stringify(invalid),
-        'other',
-        grouped,
-        false,
-        // The failing field is a diagnostic: it must not reopen an item the owner closed.
-        (detail) =>
-          JSON.stringify({
-            id: invalid.id,
-            reason: (JSON.parse(detail) as { reason?: string }).reason,
-          }),
-      );
     saveReadSourceState(tx, state, grouped);
     return grouped.groupId;
   });
@@ -491,10 +507,28 @@ function compareSourceBalances(
     ...holdings.missingPricePositions,
   ];
   const mappings = readSourceMappings(tx);
-  const openOperations = stagedOperations(tx)
-    .filter(({ row }) => !row.resolvedAt)
+  const since = readSourceSince(tx);
+  const staged = stagedOperations(tx).filter(
+    ({ day: operationDate }) => since === null || operationDate === null || operationDate >= since,
+  );
+  const openIds = new Set(staged.filter(({ row }) => !row.resolvedAt).map(({ op }) => op.id));
+  const openOperations = groupSourceOperations(staged.map(({ op }) => op))
+    .filter(({ members, conflicting }) => !conflicting && members.some(({ id }) => openIds.has(id)))
     .map(({ op }) => op);
-  const verdicts = evaluateReadSource(tx, mappings, readSourceSince(tx));
+  const verdicts = evaluateReadSource(tx, mappings, since);
+  const openForAsset = (key: string) =>
+    openOperations.filter((op) => {
+      const verdict = verdicts.get(op.id);
+      if (verdict?.status !== 'missing' || !verdict.refs?.some((ref) => ref.type === 'trade'))
+        return true;
+      if (!verdict.missingLegs?.length || verdict.missingLegs.some((leg) => leg.key === key))
+        return true;
+      // A matched execution accounts for its purchased units. A fee in a separate token
+      // has no execution leg and can still explain a holding difference.
+      return summarizeOperation(op).assets.some(
+        (asset) => 'asset:' + asset.assetId === key && asset.grossE8 === 0 && asset.feeE8 !== 0,
+      );
+    });
   const causeOf = (
     key: string,
     mapped: boolean,
@@ -508,7 +542,7 @@ function compareSourceBalances(
           appE8,
           sourceE8,
           sourceUnreadable,
-          openOperations,
+          openOperations: openForAsset(key),
           assetId: key.slice('asset:'.length),
         })
       : null;
@@ -631,7 +665,7 @@ function compareSourceBalances(
                 fetchedAt: fetchedAt === undefined ? now : fetchedAt,
                 comparedOn: day,
                 securityId: mapping?.securityId ?? null,
-                operations: openOperations.flatMap((op) => {
+                operations: openForAsset(balance.key).flatMap((op) => {
                   const summary = summarizeOperation(op);
                   if (
                     !summary.assets.some(

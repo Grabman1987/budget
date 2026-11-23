@@ -38,6 +38,7 @@ import {
 } from '../backup/restore-test';
 import { deleteRun, saveMapping } from './staging';
 import { applyBankInboxEntries, listBankInbox, parseBankInboxFile } from './operator-bank-inbox';
+import { referenceCheck } from './reference-check';
 import { findRun, runTask, type ImportTask } from './tasks';
 import { applyRestructure, parseRestructureFile } from './operator-restructure';
 import { BankSync } from '../bank-sync/service';
@@ -138,6 +139,7 @@ const required = (name: string) => {
 
 const dataDir = resolve(process.env['DATA_DIR'] ?? 'data');
 const databasePath = resolve(process.env['DATABASE_PATH'] ?? resolve(dataDir, 'budget.sqlite'));
+if (command === 'reference-check') process.exit(referenceCheck(databasePath, args.slice(1)));
 if (command === 'bank-posting' && !existsSync(databasePath))
   throw new Error('bank-posting requires an existing database');
 const { db, close } = openDatabase(databasePath);
@@ -795,7 +797,7 @@ try {
     }
     default:
       console.log(
-        'usage: migrate-cli.js stage|dry-run|report|commit|revert|delete|order-accounts|list-groups|undo-group|move-money|book|payslips|instrument-facts|owner-config|contact-allocate|restructure|owner-trades|source-rebuild|bank-posting|bank-inbox|restore-test [options]',
+        'usage: migrate-cli.js stage|dry-run|report|commit|revert|delete|order-accounts|list-groups|undo-group|move-money|book|payslips|instrument-facts|owner-config|contact-allocate|restructure|owner-trades|source-rebuild|bank-posting|bank-inbox|restore-test|reference-check [options]',
       );
       process.exitCode = 2;
   }

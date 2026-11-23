@@ -241,8 +241,9 @@ owner live acceptance is pending.
   - Die Summe je Kategorie stimmt mit Ausgabenanalyse und Explorer für denselben Zeitraum überein.
   - Plan entspricht dem zugewiesenen Betrag.
   - Randfall: Ohne ausgewählte Kategorie steht „Wähle mindestens eine Kategorie für den Verlauf.“; Zukunft-Kategorien sind gekennzeichnet.
-- **Continuation (#1158, first slice):** The redesign exposes the existing monthly category reader at `/reports/ausgaben?darstellung=kategorien`. Largest absolute changes come first, with category ID as the stable tie-breaker; unavailable comparisons follow available ones. The period and category selection remain in the URL across view changes and reload. The default period matches the spending report (1J); explicit and remembered periods still take precedence. Monthly scope, Zukunft separation and amount privacy remain visible. The existing Explorer and legacy category bookmark remain unchanged.
+- **Continuation (#1158, first slice):** The redesign exposes the existing monthly category reader at `/reports/ausgaben?darstellung=kategorien`. Largest absolute changes come first, with category ID as the stable tie-breaker; unavailable comparisons follow available ones. The period and category selection remain in the URL across view changes and reload. The default period matches the spending report (1J); explicit and remembered periods still take precedence. Monthly scope, Zukunft separation and amount privacy remain visible.
 - **Status:** existing reader live; consolidated category view implemented for review (#1158), CI and owner acceptance pending. **Verweis:** 1.6
+- **Owner decision (2026-11-23, #1158):** In ON, the plain legacy category address opens Kategorien und Verlauf. Links that explicitly target a saved Explorer view, an exact window or the category template still open in Explorer.
 
 ### RP-08 – Sparquote und Geldalter
 - **Story:** Als Nutzer möchte ich Sparquote und Geldalter im Verlauf sehen, damit ich weiß, ob ich das Sparziel halte und ob das Geld, das ich ausgebe, schon lange vor mir liegt.
@@ -317,8 +318,9 @@ owner live acceptance is pending.
   - Die Summe der Gruppen entspricht der „Maßkette Konsum“ und der Kategorieübersicht im selben Zeitraum.
   - Erstattungen sind gegen ihre Kategorie gerechnet; Zukunft steht getrennt und ist kein Konsum.
   - Randfall: Für „Alles“ gibt es keinen gleich langen Vorzeitraum („Kein gleich langer Vorzeitraum verfügbar.“); ohne Monatsdaten „Noch keine Monatsdaten“.
-- **Continuation criteria (#1158):** In ON, `vergleich=vorjahr` compares with the same days one year earlier and survives reload and period changes; the default is the equally long previous period. In ON, `darstellung=kategorien` reopens the category reader after reload; selected categories and period survive switching among all three views. Existing group/payee figures and the OFF view set remain unchanged.
-- **Status:** existing body live; first consolidation slice implemented for review (#1158). Comparison mode Vorperiode/Vorjahr is delivered (address `vergleich=vorjahr`, same figures, only the comparison window differs; Empfänger is a view of the same report). The comparison section also shows the chain “Vorzeitraum + Mehr − Weniger = Jetzt” (per-category changes of the existing figures; hidden unless it adds up to the cent). Der eigene Vergleich akzeptiert ein Von- und ein Bis-Datum, zählt beide Tage mit und zeigt fehlende Buchungshistorie an. Die alten Kategorien- und Vergleichsadressen führen zur Ausgabenanalyse. **Verweis:** 2.1
+- **Continuation criteria (#1158):** In ON, `vergleich=vorjahr` compares with an equally long window starting in the same month one year earlier and survives reload and period changes; the default is the equally long previous period. In ON, `darstellung=kategorien` reopens the category reader after reload; selected categories and period survive switching among all three views. Existing group/payee figures and the OFF view set remain unchanged.
+- **Status:** existing body live; first consolidation slice implemented for review (#1158). Comparison mode Vorperiode/Vorjahr is delivered (address `vergleich=vorjahr`, same figures, only the comparison window differs; Empfänger is a view of the same report). The comparison section also shows the chain “Vorzeitraum + Mehr − Weniger = Jetzt” (per-category changes of the existing figures; hidden unless it adds up to the cent). **Verweis:** 2.1
+- **Owner decision (2026-11-23, #1158):** Old Kategorieübersicht and Zeitraumvergleich report addresses open Ausgaben in ON, preserving explicit periods, filters and anchors and using the remembered period before the legacy default. Zeitraumvergleich defaults to Vorjahr. A retired custom comparison bookmark opens with Vorperiode. The report shows missing comparison history explicitly.
 
 ### RP-12b – Empfänger-Analyse
 - **Story:** Als Nutzer möchte ich sehen, bei wem ich das meiste Geld lasse und wie oft ich dort zahle, damit ich Gewohnheiten und Verträge mit Händlern prüfe.
@@ -613,6 +615,7 @@ owner live acceptance is pending.
 - **Remaining scope:** Vorjahresvergleich der weiteren Investment-/Trading-Zahlen; Realwerte (Inflation), Zinszahlungen, Sparziele, Rücklage (noch keine gemeinsame Berechnung).
 
 - **Vorjahresvergleich (#1118):** Gewinne, Verluste und Trefferquote vergleichen dieselben Kalendermonate des Vorjahres. Ein vollständiger Verkauf beendet die Position; frühere Teilverkäufe zählen zu ihrem Ergebnis. Die neuen Werte und Differenzen folgen dem Privatsphäre-Schalter.
+- **Savings attribution (owner decision 2026-11-23):** The savings split uses the budget-side booking date for transfers to and from a depot or its linked settlement account. It subtracts withdrawals and ignores portfolio-internal transfers and trades. The household savings rate and the residual calculation use their existing formulas. The portfolio figures still use the securities performance source for the same period.
 
 ### RP-21a – Finanz-Check-Verlauf
 - **Story:** Als Nutzer möchte ich sehen, welche Regeln verletzt sind und seit wann, damit ich zuerst die offene Regel der aktuellen Stufe behebe.

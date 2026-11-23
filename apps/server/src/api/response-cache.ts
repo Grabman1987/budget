@@ -3,17 +3,17 @@ import type { MiddlewareHandler } from 'hono';
 
 /**
  * Read models that are a pure function of the database, the day and the query string. Everything
- * else (search, inbox, receipts, exports, bank sync, import jobs, market runs) is never cached.
+ * else (search, inbox list and details, receipts, exports, bank sync, import jobs, market runs)
+ * is never cached.
  */
 const CACHEABLE =
   /^\/(heute|portfolio|reports|overview|report-tables|networth-history|assets-debts-history|wealth|cashflow|budget|rules|inflation-basket|liquidity|accounts\/series|goals\/report|projects\/report)(\/|$)/;
 
 /**
- * The account list also qualifies: it derives only from the database and the day, and replays the
- * audit log (`accountReviewChronology`), the dominant cost on a real ledger (#956). The inbox badge
- * stays uncached by design (see response-cache.test.ts).
+ * The account list and inbox badge also qualify: both derive from the database and the day,
+ * and can replay the audit log for account review tasks (#956).
  */
-const CACHEABLE_EXACT = /^\/accounts$/;
+const CACHEABLE_EXACT = /^\/(accounts|inbox\/count)$/;
 
 const MAX_ENTRY_BYTES = 4 * 1024 * 1024;
 const MAX_TOTAL_BYTES = 24 * 1024 * 1024;

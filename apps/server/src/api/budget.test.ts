@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- JSON answers are inspected, not typed */
 import { auditLog, accountBalances, createTestDatabase, reportTables, type Db } from '@budget/db';
+import { todayInVienna } from '@budget/domain';
 import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -171,6 +172,109 @@ async function ok(method: string, path: string, body?: unknown) {
   expect(res.status, JSON.stringify(res.body)).toBeLessThan(300);
   return res.body;
 }
+
+describe('booking month boundaries', () => {
+  it.each([
+    ['2023-02-28', '2023-03-01', '2023-02-28T23:00:00Z'],
+    ['2024-02-29', '2024-03-01', '2024-02-29T23:00:00Z'],
+    ['2024-03-31', '2024-04-01', '2024-03-31T22:00:00Z'],
+    ['2021-10-31', '2021-11-01', '2021-10-31T23:00:00Z'],
+  ])(
+    'keeps %s and %s in separate Plan, Reports and Heute months',
+    async (last, first, midnight) => {
+      let now = new Date(Date.parse(midnight) - 1);
+      app = createApp({ webDir, auth: signedIn, ledger: { db, today: () => todayInVienna(now) } });
+      const { account } = await ok('POST', '/accounts', {
+        name: 'Synthetic account',
+        type: 'checking',
+        openingDate: last,
+        openingBalanceCents: 10_003,
+      });
+      const { group } = await ok('POST', '/categories/groups', { name: 'Synthetic group' });
+      const { category } = await ok('POST', '/categories', {
+        name: 'Synthetic expense',
+        groupId: group.id,
+        class: 'need',
+        kind: 'variable',
+      });
+      const prior = last.slice(0, 7);
+      const current = first.slice(0, 7);
+      await ok('PUT', `/budget/${prior}/assigned`, {
+        items: [{ categoryId: category.id, assignedCents: 3_001 }],
+      });
+      let pendingId: string | undefined;
+      for (const [date, amountCents] of [
+        [last, -501],
+        [first, -203],
+      ] as const) {
+        const { id } = await ok('POST', '/bookings', {
+          type: 'booking',
+          accountId: account.id,
+          date,
+          amountCents,
+          categoryId: category.id,
+          status: date === last ? 'pending' : 'confirmed',
+        });
+        if (date === last) pendingId = id;
+      }
+      expect((await ok('GET', '/heute?period=month')).pace).toMatchObject({
+        month: prior,
+        figures: { spentCents: 501 },
+      });
+      now = new Date(midnight);
+      const readMonths = async () => {
+        const plans = await Promise.all(
+          [prior, current].map((month) => ok('GET', `/budget/${month}`)),
+        );
+        const { months } = await ok('GET', '/report-tables/months');
+        const { pace } = await ok('GET', '/heute?period=month');
+        return {
+          envelopes: plans.map(({ summary }) =>
+            summary.envelopes.find((e: any) => e.categoryId === category.id),
+          ),
+          unassigned: plans.map(({ summary }) => summary.toBeAssignedCents),
+          spending: months.map((month: any) => month.spending[category.id] ?? 0),
+          pace,
+        };
+      };
+      const before = await readMonths();
+      expect(before.envelopes).toMatchObject([
+        { activityCents: -501, availableCents: 2_500 },
+        { activityCents: -203, availableCents: 2_297 },
+      ]);
+      expect(before.spending).toEqual([501, 203]);
+      expect(before.pace).toMatchObject({ month: current, figures: { spentCents: 203 } });
+      expect(accountBalances(db, last)[0]?.balanceCents).toBe(9_502);
+      expect(accountBalances(db, first)[0]?.balanceCents).toBe(9_299);
+      expect(before.unassigned).toEqual([7_002, 7_002]);
+
+      // An owner correcting a posted debit can change its date and amount in one action.
+      const { bookings, groupId } = await ok('PATCH', `/bookings/${pendingId}`, {
+        date: first,
+        status: 'confirmed',
+        amountCents: -502,
+        splits: [{ categoryId: category.id, amountCents: -502 }],
+      });
+      expect(bookings).toMatchObject([
+        { id: pendingId, date: first, status: 'confirmed', amountCents: -502 },
+      ]);
+      const after = await readMonths();
+      expect(after.envelopes).toMatchObject([
+        { activityCents: 0, availableCents: 3_001 },
+        { activityCents: -705, availableCents: 2_296 },
+      ]);
+      expect(after.spending).toEqual([0, 705]);
+      expect(after.pace).toMatchObject({ month: current, figures: { spentCents: 705 } });
+      expect(accountBalances(db, last)[0]?.balanceCents).toBe(10_003);
+      expect(accountBalances(db, first)[0]?.balanceCents).toBe(9_298);
+      expect(after.unassigned).toEqual([7_002, 7_002]);
+
+      await ok('POST', '/undo', { groupId });
+      expect(await readMonths()).toEqual(before);
+      expect(accountBalances(db, first)[0]?.balanceCents).toBe(9_299);
+    },
+  );
+});
 
 describe('categories and budget API', () => {
   it('builds categories, fills targets, moves and covers money, merges with one undo', async () => {

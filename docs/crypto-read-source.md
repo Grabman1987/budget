@@ -106,12 +106,18 @@ bookings or trades. Result per operation:
 - **informativ** (resolved, "Informativ: …"): positively identified platform-internal moves, or an
   operation that only carries fee/tax legs. No ledger effect.
 
-Provider ids come first (#1205): a trade whose import key was written from a source operation
-(`rebuild:<operation-id>:<leg>`, or the monthly reward aggregate `…:source:[ids]`) belongs to that
-operation, whatever its date or amount; the operation is "erfasst" and the trade is unavailable to
-every other movement. Savings-plan fiat movements may find their bank booking up to ten days away
-(second pass, after all exact-window matches). Fee legs in another token, stake/unstake and
-reward commission stay part of their operation and never produce a fiat booking or a sale.
+Provider ids come first (#1205). Source records with the same transaction or trade
+reference are matched together, including across pages. Duplicate transaction IDs
+contribute their units once. Conflicting copies stay unreadable. Rebuild trade keys
+can prove a counterpart by source operation, transaction or trade reference. A
+rebuild trade with a reference in the source data being checked is reserved for
+that reference.
+Savings-plan funding needs its own cash counterpart even when the trade is already
+recorded. On the mapped cash account, the booking can be up to ten days from the
+reservation and, when linked, the execution. The wider window follows the ordinary
+cash window. An unmatched funding leg remains visible alongside any matched trade.
+Fee legs in another token, stake/unstake and reward commission stay part of their
+operation and never produce a fiat booking or a sale.
 `summarizeOperation` (`packages/domain/src/read-source-explain.ts`) states per operation and asset
 the gross, fee and net units; EUR values come only from the source. All inputs and sums
 must be safe integers; overflow remains unknown, and zero net units are always positive zero.
@@ -132,17 +138,18 @@ Tolerances and rules:
 | stake, unstake, transfer | Internal only with readable incoming and outgoing legs of the same asset/currency and an exact zero sum (no tolerance). Missing or unbalanced staking legs stay open; unreadable amounts/precision stay unreadable. |
 | fee/tax-only operations | Informational only when amounts and aggregates are readable. |
 
-A ledger row serves one source movement only (best match first: tier, then day distance, then
-operation order), so two identical purchases need two trades. Operations are always matched
-together, so the verdict does not depend on the page order of the fetch.
+A heuristic match claims a ledger row for one logical operation (best match first: tier, then
+day distance, then operation order). Two independent identical purchases need two trades.
+The matcher evaluates operations together so the verdict does not depend on the fetch order.
 
 "Abgleich neu ausführen" (Einstellungen › Datenquellen, passkey session) re-checks all staged
 operations on/after the start day, including those closed by the manual cut-off cleanup
 (resolution starting "Vor dem Übernahme-Stichtag" or "Vor dem Startdatum"): matches are resolved,
 others reopened. Items the owner resolved by hand ("Vom Nutzer als erledigt markiert") and items
 before the start day are never touched. The run is one audit group (undo via the button or
-`POST /undo`), idempotent, and also runs, for the fetched page only, whenever operations are
-staged. The Krypto-Lesequelle section shows a live preview of the four counts.
+`POST /undo`), idempotent, and also updates previous automatic verdicts in the
+groups touched by a newly staged page. The Krypto-Lesequelle section shows a
+live preview of the four counts.
 
 After a run the holdings comparison (app units vs. source units per asset) is recomputed from
 the last fetched balances inside the same audit group. A difference names its cause: mapping
