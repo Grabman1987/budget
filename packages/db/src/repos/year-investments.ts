@@ -6,7 +6,9 @@ import {
   feeBreakdownLast12Months,
   incomeByKindLast12Months,
   lastDayOfMonth,
+  sumValuationCents,
   taxBreakdownLast12Months,
+  ValuationLimitError,
   type CalendarRange,
   type RealizedMovement,
   type WindowPerformance,
@@ -95,7 +97,7 @@ export function yearDepotTransfers(db: Executor, months: string[]): number | nul
       .filter((a) => a.onBudget && !investmentCash.has(a.id))
       .map((a) => [a.id, a.openingDate]),
   );
-  let totalCents = 0;
+  const transfers: number[] = [];
   for (const split of ledger.splits) {
     const opening = budgetOpenings.get(split.accountId);
     if (
@@ -106,9 +108,14 @@ export function yearDepotTransfers(db: Executor, months: string[]): number | nul
       split.transferAccountId != null &&
       investmentCash.has(split.transferAccountId)
     )
-      totalCents -= split.amountCents;
+      transfers.push(-split.amountCents);
   }
-  return totalCents;
+  try {
+    return sumValuationCents(transfers);
+  } catch (error) {
+    if (error instanceof ValuationLimitError && error.boundary === 'result') return null;
+    throw error;
+  }
 }
 
 interface YearRealizedResults {

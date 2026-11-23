@@ -7,7 +7,7 @@ import { seedBasics, testCtx } from './test-helpers';
 import { MissingFxRateError } from './errors';
 import { createBooking, createTransfer } from './bookings';
 import { yearReportRead } from './overview-reports';
-import { yearInvestments } from './year-investments';
+import { yearDepotTransfers, yearInvestments } from './year-investments';
 
 let opened: OpenedDatabase;
 
@@ -166,6 +166,21 @@ describe('yearInvestments edge cases', () => {
 });
 
 describe('yearReportRead (Jahresreport slice 1)', () => {
+  it('preserves the exact net transfer cents when large bookings cancel', () => {
+    const transfer = (fromAccountId: string, toAccountId: string, amountCents: number) =>
+      createTransfer(
+        opened.db,
+        { fromAccountId, toAccountId, date: '2026-01-01', amountCents },
+        testCtx,
+      );
+    transfer('giro', 'depot-b', Number.MAX_SAFE_INTEGER);
+    transfer('giro', 'depot-b', 2);
+    transfer('depot-b', 'giro', Number.MAX_SAFE_INTEGER);
+    expect(yearDepotTransfers(opened.db, ['2026-01'])).toBe(2);
+    transfer('giro', 'depot-b', Number.MAX_SAFE_INTEGER);
+    expect(yearDepotTransfers(opened.db, ['2026-01'])).toBeNull();
+  });
+
   it('attributes depot savings to the budget booking date and preserves the total savings rate', () => {
     opened.sqlite.exec("INSERT INTO income_type (id, name) VALUES ('gehalt', 'Gehalt')");
     const book = (date: string, amountCents: number, split: object) =>

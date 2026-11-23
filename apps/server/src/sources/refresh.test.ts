@@ -1156,6 +1156,29 @@ describe('ledger matching (Abgleich)', () => {
   });
   it('persists the exact missing savings funding leg beside an already matched trade and retries without writes', () => {
     mapAll();
+    const fee: SourceBalance = {
+      ...asset,
+      key: 'asset:synthetic-fee-token',
+      amount: { ...asset.amount, assetId: 'synthetic-fee-token' },
+    };
+    createEntity(
+      opened.db,
+      schema.security,
+      { id: 'fee-token', name: 'Synthetic fee token', kind: 'crypto' },
+      ctx,
+    );
+    createEntity(
+      opened.db,
+      schema.holding,
+      { accountId: 'depot', securityId: 'fee-token', asOf: '2026-01-01', unitsE8: 8 },
+      ctx,
+    );
+    saveReadSourceState(
+      opened.db,
+      { ...readSourceState(opened.db), balances: [balance, asset, fee] },
+      ctx,
+    );
+    mapReadSource(opened.db, { key: fee.key, accountId: 'depot', securityId: 'fee-token' }, ctx);
     const trade = appTrade('2026-03-10', 50_000_000, 50);
     const purchase = buy('synthetic-funded-plan', '2026-03-10');
     const plan: SourceOperation = {
@@ -1164,6 +1187,13 @@ describe('ledger matching (Abgleich)', () => {
       transactions: [
         ...deposit('funding', '2026-03-04', 50).transactions,
         ...purchase.transactions,
+        {
+          ...purchase.transactions[1]!,
+          id: 'synthetic-plan-token-fee',
+          type: 'fee',
+          flow: 'OUTGOING',
+          amount: { ...fee.amount, value: '0.00000005' },
+        },
       ],
     };
     stage([plan]);
@@ -1174,6 +1204,18 @@ describe('ledger matching (Abgleich)', () => {
     });
     expect(row(plan.id).resolvedAt).toBeNull();
     reconcileReadSource(opened.db, ctx);
+    expect(
+      inbox()
+        .filter((i) => i.kind === 'reconciliation' && !i.resolvedAt)
+        .map((i) => JSON.parse(i.detail!)),
+    ).toContainEqual(
+      expect.objectContaining({
+        key: fee.key,
+        cause: 'missing_movement',
+        openMovementsE8: -5,
+        openMovementCount: 1,
+      }),
+    );
     expect(reconcileReadSource(opened.db, ctx).groupId).toBeNull();
     expect(ledgerCounts()).toEqual([1, 1]);
     createBooking(
@@ -1312,5 +1354,43 @@ describe('ledger matching (Abgleich)', () => {
     stage([{ ...assetSide, transactions: [{ ...assetLeg!, tradeId: 'corrected-synthetic-ref' }] }]);
     expect(row(cashSide.id).resolvedAt).toBeNull();
     expect(row(assetSide.id).resolvedAt).toBeTruthy();
+  });
+
+  it('reopens a prior match when a different source group wins the same trade', () => {
+    mapAll();
+    appTrade('2026-03-10', 50_000_000, 50);
+    const earlierPage = buy('synthetic-first-page', '2026-03-09');
+    const laterPage = buy('synthetic-second-page', '2026-03-10');
+
+    stage([earlierPage]);
+    expect(row(earlierPage.id).resolvedAt).toBeTruthy();
+    const decision = stage([laterPage]);
+    expect(row(laterPage.id).resolvedAt).toBeTruthy();
+    expect(row(earlierPage.id).resolvedAt).toBeNull();
+    expect(reconcileReadSource(opened.db, ctx).changed).toBe(0);
+    undo(opened.db, { groupId: decision }, ctx);
+    expect(row(earlierPage.id).resolvedAt).toBeTruthy();
+    expect(row(laterPage.id)).toBeUndefined();
+    expect(opened.db.select().from(schema.trade).all()).toHaveLength(1);
+  });
+
+  it('reopens a group when a schema error replaces a previously matched leg', () => {
+    mapAll();
+    appTrade('2026-03-10', 50_000_000, 50);
+    const purchase = buy('synthetic-schema-replay', '2026-03-10');
+    const [cashLeg, assetLeg] = purchase.transactions;
+    const cashSide = { ...purchase, id: 'synthetic-schema-cash', transactions: [cashLeg!] };
+    const assetSide = { ...purchase, transactions: [assetLeg!] };
+    stage([cashSide, assetSide]);
+    expect(row(cashSide.id).resolvedAt).toBeTruthy();
+
+    const decision = stageSourcePage(opened.db, [], readSourceState(opened.db), ctx, [
+      { id: assetSide.id, reason: 'schema' },
+    ]);
+    expect(row(assetSide.id)).toMatchObject({ kind: 'other', resolvedAt: null });
+    expect(row(cashSide.id).resolvedAt).toBeNull();
+    undo(opened.db, { groupId: decision }, ctx);
+    expect(row(assetSide.id).resolvedAt).toBeTruthy();
+    expect(row(cashSide.id).resolvedAt).toBeTruthy();
   });
 });

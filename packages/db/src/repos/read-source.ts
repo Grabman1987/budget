@@ -340,31 +340,41 @@ export function stageSourcePage(
   const grouped = withGroup(ctx);
   return runInTransaction(db, (tx) => {
     const since = readSourceSince(tx);
-    const verdicts = operations.length
-      ? evaluateReadSource(tx, readSourceMappings(tx), since, operations)
-      : new Map<string, OperationVerdict>();
+    // Replace invalid source facts before matching so former group members cannot claim them.
+    for (const invalid of invalidOperations)
+      item(
+        tx,
+        'operation:' + invalid.id,
+        'Quellbewegung: Datenformat prüfen',
+        JSON.stringify(invalid),
+        'other',
+        grouped,
+        false,
+        // The failing field is a diagnostic: it must not reopen an item the owner closed.
+        (detail) =>
+          JSON.stringify({
+            id: invalid.id,
+            reason: (JSON.parse(detail) as { reason?: string }).reason,
+          }),
+      );
+    const invalidIds = new Set(invalidOperations.map(({ id }) => id));
+    const validOperations = operations.filter(({ id }) => !invalidIds.has(id));
+    const verdicts =
+      operations.length || invalidOperations.length
+        ? evaluateReadSource(tx, readSourceMappings(tx), since, validOperations)
+        : new Map<string, OperationVerdict>();
     if (verdicts.size) {
-      const incomingIds = new Set(operations.map((op) => op.id));
-      const staged = stagedOperations(tx).filter(
-        ({ day }) => since === null || day === null || day >= since,
-      );
-      const previous = staged.filter(({ op }) => !incomingIds.has(op.id));
-      const affected = new Set(
-        [
-          ...groupSourceOperations(staged.map(({ op }) => op)),
-          ...groupSourceOperations([...previous.map(({ op }) => op), ...operations]),
-        ]
-          .filter(({ members }) => members.some(({ id }) => incomingIds.has(id)))
-          .flatMap(({ members }) => members.map(({ id }) => id)),
-      );
-      for (const { row, op } of previous) {
+      const incomingIds = new Set(validOperations.map((op) => op.id));
+      // Matching claims ledger rows globally. A new page can change an earlier verdict
+      // even when the operations share no provider identity.
+      for (const { row, op } of stagedOperations(tx)) {
         const verdict = verdicts.get(op.id);
-        if (!verdict || !affected.has(op.id)) continue;
+        if (!verdict || incomingIds.has(op.id)) continue;
         if (row.resolvedAt && !isAutomaticResolution(row.resolution)) continue;
         applyVerdict(tx, row, op, verdict, grouped);
       }
     }
-    for (const op of operations) {
+    for (const op of validOperations) {
       const day = since === null ? null : operationDay(op);
       const key = 'operation:' + op.id;
       const detail = JSON.stringify({ ...op, reconciliation: verdicts.get(op.id) ?? null });
@@ -382,22 +392,6 @@ export function stageSourcePage(
         item(tx, key, title, detail, 'import', grouped, false, operationFields);
       else applyVerdict(tx, old, op, verdict, grouped);
     }
-    for (const invalid of invalidOperations)
-      item(
-        tx,
-        'operation:' + invalid.id,
-        'Quellbewegung: Datenformat prüfen',
-        JSON.stringify(invalid),
-        'other',
-        grouped,
-        false,
-        // The failing field is a diagnostic: it must not reopen an item the owner closed.
-        (detail) =>
-          JSON.stringify({
-            id: invalid.id,
-            reason: (JSON.parse(detail) as { reason?: string }).reason,
-          }),
-      );
     saveReadSourceState(tx, state, grouped);
     return grouped.groupId;
   });
@@ -527,8 +521,13 @@ function compareSourceBalances(
       const verdict = verdicts.get(op.id);
       if (verdict?.status !== 'missing' || !verdict.refs?.some((ref) => ref.type === 'trade'))
         return true;
-      // A matched execution with only funding outstanding does not explain missing token units.
-      return !verdict.missingLegs?.length || verdict.missingLegs.some((leg) => leg.key === key);
+      if (!verdict.missingLegs?.length || verdict.missingLegs.some((leg) => leg.key === key))
+        return true;
+      // A matched execution accounts for its purchased units. A fee in a separate token
+      // has no execution leg and can still explain a holding difference.
+      return summarizeOperation(op).assets.some(
+        (asset) => 'asset:' + asset.assetId === key && asset.grossE8 === 0 && asset.feeE8 !== 0,
+      );
     });
   const causeOf = (
     key: string,
