@@ -29,6 +29,7 @@ import {
   restoreBooking,
 } from './bookings';
 import { assertContactBookingWrite } from './contact-invariants';
+import { bookingReviewedOn } from './booking-review';
 import {
   assertLedgerInvariants,
   assertTradeSettlementBookingWrite,
@@ -59,7 +60,8 @@ function mergeable(db: Executor, id: string) {
   const row = getBooking(db, id);
   if (!row) throw new EntityNotFoundError('booking', id);
   openAccount(db, row.accountId);
-  if (row.status === 'reconciled') throw new ReconciledLockedError([id]);
+  if (row.status === 'reconciled' || bookingReviewedOn(db, id))
+    throw new ReconciledLockedError([id]);
   if (
     row.source !== 'manual' ||
     row.importKey ||
@@ -78,7 +80,8 @@ function linkable(db: Executor, id: string) {
   const row = getBooking(db, id);
   if (!row) throw new EntityNotFoundError('booking', id);
   openAccount(db, row.accountId);
-  if (row.status === 'reconciled') throw new ReconciledLockedError([id]);
+  if (row.status === 'reconciled' || bookingReviewedOn(db, id))
+    throw new ReconciledLockedError([id]);
   if (row.transferId || row.splits.some((s) => s.transferId || s.contactId) || row.originalCurrency)
     throw new ConflictError('Diese Buchung ist bereits verbunden oder enthält geschützte Anteile.');
   assertContactBookingWrite(db, id, 'update', ['transferId']);

@@ -835,3 +835,27 @@ for (const mixed of [false, true]) {
     });
   }
 }
+
+test('issue 1282: the booked-lines select on a bank connection sends the policy PUT', async ({
+  page,
+}) => {
+  await mockSources(page);
+  const puts: { url: string; body: unknown }[] = [];
+  await page.route('**/api/bank-sync/*/policy', (route) => {
+    puts.push({
+      url: new URL(route.request().url()).pathname,
+      body: route.request().postDataJSON(),
+    });
+    return route.fulfill({ json: { groupId: 'synthetic-group' } });
+  });
+  await page.goto(settings);
+  const card = page.locator('#quelle-bank');
+  await expect(card).toBeVisible();
+  const toggle = card.locator('.settings-source-toggle').first();
+  if ((await toggle.getAttribute('aria-expanded')) !== 'true') await toggle.click();
+  await card.getByLabel('Gebuchte Umsätze').selectOption('true');
+  await expect(card.getByText('Übernahme gespeichert.')).toBeVisible();
+  expect(puts).toEqual([
+    { url: '/api/bank-sync/synthetic-connection/policy', body: { bookedToLedger: true } },
+  ]);
+});

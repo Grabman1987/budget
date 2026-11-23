@@ -1361,7 +1361,10 @@ function InboxBodyContent({
                                     if (item.type === 'stored') void resolve(item);
                                   }}
                                   onConfirm={(id) =>
-                                    writes.patch.mutate({ id, patch: { status: 'confirmed' } })
+                                    writes.patch.mutate({
+                                      id,
+                                      patch: { status: 'confirmed', acceptInReview: true },
+                                    })
                                   }
                                   confirming={writes.patch.isPending}
                                 />

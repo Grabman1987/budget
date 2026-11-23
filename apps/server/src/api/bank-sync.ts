@@ -8,6 +8,7 @@ import {
   deferLearning,
   getBooking,
   readAssignmentCandidate,
+  recordBookingReview,
   resolveInboxItem,
   schema,
   ConflictError,
@@ -201,18 +202,25 @@ export function bankSyncRoutes(
           }
           const prepared = row.suggestion;
           if (!prepared) continue;
+          let acceptedId: string;
           if (row.type === 'candidate') {
             if (prepared.action === 'merge')
-              mergeBankCandidate(tx, row.id, prepared.bookingId, ctx, now);
+              acceptedId = mergeBankCandidate(tx, row.id, prepared.bookingId, ctx, now).bookingId;
             else {
               if (!service) throw new ConflictError('Bankbestätigung nicht verfügbar.');
               // The synchronous service opens a savepoint on this same connection; the outer
               // transaction rolls back every row and its audit entries together.
-              service.confirm(row.id, null, { ...prepared, verifyNewTransfer: true }, ctx);
+              acceptedId = service.confirm(
+                row.id,
+                null,
+                { ...prepared, verifyNewTransfer: true },
+                ctx,
+              ).bookingId;
             }
           } else if (prepared.action === 'merge')
-            mergeBankBooking(tx, row.id, prepared.bookingId, ctx);
+            acceptedId = mergeBankBooking(tx, row.id, prepared.bookingId, ctx).bookingId;
           else {
+            acceptedId = row.id;
             applyBookingAssignment(tx, row.id, prepared.ruleId, ctx, prepared.revision);
             // Like the single path, the rule alone does not confirm: only a booking without an
             // unclassified split left is confirmed.
@@ -220,6 +228,8 @@ export function bankSyncRoutes(
             if (applied.status !== 'confirmed' && !applied.splits.some(unclassified))
               updateBooking(tx, row.id, { status: 'confirmed' }, ctx);
           }
+          if (getBooking(tx, acceptedId)?.status === 'confirmed')
+            recordBookingReview(tx, acceptedId, today(), ctx);
         }
       });
       return { groupId: ctx.groupId, changedCount, skippedCount };
@@ -249,13 +259,17 @@ export function bankSyncRoutes(
             readAssignmentCandidate(tx, candidateId).candidateRevision !== input.candidateRevision
           )
             throw new ConflictError('Der Bankumsatz hat sich geändert. Bitte neu laden.');
-          return mutate(
+          const ctx = { actor: 'owner', groupId: randomUUID() };
+          const result = mutate(
             tx,
             candidateId,
             input.bookingId,
-            { actor: 'owner', groupId: randomUUID() },
+            ctx,
             service?.clock().toISOString() ?? new Date().toISOString(),
           );
+          if (getBooking(tx, result.bookingId)?.status === 'confirmed')
+            recordBookingReview(tx, result.bookingId, today(), ctx);
+          return result;
         }),
       );
     });
@@ -266,9 +280,16 @@ export function bankSyncRoutes(
   app.post('/bookings/:id/merge', async (c) => {
     const input = await readBody(c, z.object({ bookingId: z.string().min(1).max(200) }).strict());
     return c.json(
-      mergeBankBooking(db, z.string().min(1).max(200).parse(c.req.param('id')), input.bookingId, {
-        actor: 'owner',
-        groupId: randomUUID(),
+      db.transaction((tx) => {
+        const ctx = { actor: 'owner', groupId: randomUUID() };
+        const result = mergeBankBooking(
+          tx,
+          z.string().min(1).max(200).parse(c.req.param('id')),
+          input.bookingId,
+          ctx,
+        );
+        recordBookingReview(tx, result.bookingId, today(), ctx);
+        return result;
       }),
     );
   });
@@ -317,7 +338,15 @@ export function bankSyncRoutes(
   });
   app.post('/candidates/:id/confirm', async (c) => {
     const { categoryId, ...options } = await readBody(c, bankConfirmSchema);
-    return c.json(service!.confirm(id.parse(c.req.param('id')), categoryId, options));
+    return c.json(
+      db.transaction((tx) => {
+        const ctx = { actor: 'owner', groupId: randomUUID() };
+        const result = service!.confirm(id.parse(c.req.param('id')), categoryId, options, ctx);
+        if (getBooking(tx, result.bookingId)?.status === 'confirmed')
+          recordBookingReview(tx, result.bookingId, today(), ctx);
+        return result;
+      }),
+    );
   });
   app.onError((error, c) => {
     if (error instanceof BankError)

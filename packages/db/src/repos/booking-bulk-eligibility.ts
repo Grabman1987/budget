@@ -2,6 +2,7 @@ import { bulkFieldProtection, type BulkBookingField } from '@budget/domain';
 import { and, eq, inArray, isNull, or, sql } from 'drizzle-orm';
 import {
   account,
+  appSetting,
   auditLog,
   bankSyncCandidate,
   booking,
@@ -20,6 +21,7 @@ import { hasStatementAutomation } from './statement-automation-invariants';
 import { hasStatementSettlementFamily } from './statement-settlement-invariants';
 import { runInTransaction, type Executor } from './types';
 import { assertContactBookingWrite } from './contact-invariants';
+import { BOOKING_REVIEW_PREFIX } from './booking-review';
 import { BookingInvariantError } from './errors';
 
 export type BookingBulkReason =
@@ -74,10 +76,11 @@ export function readBookingBulkSelection(
       const part = ids.slice(at, at + 200),
         wanted = new Set(part);
       const rows = tx
-        .select({ b: booking, a: account, p: payee })
+        .select({ b: booking, a: account, p: payee, reviewDate: appSetting.value })
         .from(booking)
         .innerJoin(account, eq(account.id, booking.accountId))
         .leftJoin(payee, eq(payee.id, booking.payeeId))
+        .leftJoin(appSetting, eq(appSetting.id, sql`${BOOKING_REVIEW_PREFIX} || ${booking.id}`))
         .where(and(inArray(booking.id, part), isNull(booking.deletedAt), isNull(account.deletedAt)))
         .all();
       const splits = tx
@@ -226,8 +229,9 @@ export function readBookingBulkSelection(
           .all()
           .map((r) => r.id),
       );
-      for (const { b, a, p } of rows) {
+      for (const { b, a, p, reviewDate } of rows) {
         const own = splits.filter((s) => s.bookingId === b.id);
+        const checked = b.status === 'reconciled' || reviewDate !== null;
         let deleteContact = false;
         if (policy === 'delete') {
           try {
@@ -237,25 +241,24 @@ export function readBookingBulkSelection(
             deleteContact = true;
           }
         }
-        const deleteReason: BookingBulkReason | null =
-          b.status === 'reconciled'
-            ? 'reconciled_locked'
-            : deleteContact
-              ? 'linked_contact'
-              : trades.has(b.id)
-                ? 'linked_trade'
-                : documents.has(b.id)
-                  ? 'linked_document'
-                  : statements.has(b.id)
-                    ? 'linked_statement'
-                    : !Number.isSafeInteger(b.amountCents)
-                      ? 'invalid'
-                      : null;
+        const deleteReason: BookingBulkReason | null = checked
+          ? 'reconciled_locked'
+          : deleteContact
+            ? 'linked_contact'
+            : trades.has(b.id)
+              ? 'linked_trade'
+              : documents.has(b.id)
+                ? 'linked_document'
+                : statements.has(b.id)
+                  ? 'linked_statement'
+                  : !Number.isSafeInteger(b.amountCents)
+                    ? 'invalid'
+                    : null;
         const reason: BookingBulkReason | null =
           policy === 'delete'
             ? deleteReason
             : bulkFieldProtection(policy === 'update' ? 'memo' : policy, {
-                reconciled_locked: b.status === 'reconciled',
+                reconciled_locked: checked,
                 linked_transfer: !!b.transferId || own.some((s) => !!s.transferId),
                 linked_contact: contacts.has(b.id) || own.some((s) => !!s.contactId),
                 linked_expected: expected.has(b.id),

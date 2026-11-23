@@ -1,5 +1,7 @@
 import { infiniteQueryOptions, queryOptions } from '@tanstack/react-query';
 import { addDays, todayInVienna } from '@budget/domain';
+import type { getContactCreditAvailability } from '@budget/db';
+import { request } from '../api/http';
 import {
   fetchAccounts,
   fetchBookings,
@@ -15,6 +17,17 @@ export const LEDGER_KEY = ['ledger'] as const;
 
 export const accountsQuery = () =>
   queryOptions({ queryKey: [...LEDGER_KEY, 'accounts'], queryFn: () => fetchAccounts() });
+
+export const contactCreditQuery = (id: string, date: string) =>
+  queryOptions({
+    queryKey: [...LEDGER_KEY, 'contact-credit-availability', id, date],
+    retry: false,
+    queryFn: () =>
+      request<ReturnType<typeof getContactCreditAvailability>>(
+        'GET',
+        `/api/contacts/${encodeURIComponent(id)}/credit-availability?asOf=${encodeURIComponent(date)}`,
+      ),
+  });
 
 /** End-of-day balances; `days` is the window length ending today. */
 export const seriesQuery = (accountId: string, days: number) => {

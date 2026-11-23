@@ -2,17 +2,29 @@
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { BookingPanel } from './booking-panel';
+import { readBookingEditProtection } from './api';
 import type { ListedBooking } from './types';
 
 const mode = vi.hoisted(() => ({ redesign: true, phone: true }));
+vi.mock('./api', () => ({ readBookingEditProtection: vi.fn() }));
 vi.mock('../shell/redesign-flag', () => ({
   get REDESIGN_ENABLED() {
     return mode.redesign;
   },
 }));
 vi.mock('./capture-form', () => ({
-  CaptureForm: ({ initialUnlockReconciled }: { initialUnlockReconciled?: boolean }) => (
-    <div className="bkform" data-released={String(Boolean(initialUnlockReconciled))}>
+  CaptureForm: ({
+    initialUnlockReconciled,
+    initialUnlockContactLinked,
+  }: {
+    initialUnlockReconciled?: boolean;
+    initialUnlockContactLinked?: boolean;
+  }) => (
+    <div
+      className="bkform"
+      data-released={String(Boolean(initialUnlockReconciled))}
+      data-linked={String(Boolean(initialUnlockContactLinked))}
+    >
       <div className="bk-body">
         <input aria-label="Kategorie" defaultValue="Synthetische Kategorie" />
       </div>
@@ -27,6 +39,13 @@ let frames: Map<number, FrameRequestCallback>;
 const originalShowModal = HTMLDialogElement.prototype.showModal;
 const originalClose = HTMLDialogElement.prototype.close;
 beforeEach(() => {
+  vi.mocked(readBookingEditProtection).mockResolvedValue({
+    reconciled: true,
+    reconciliationDates: ['2026-09-02'],
+    settlementDates: [],
+    reconciledRepayment: false,
+    reviewedOn: [],
+  });
   mode.redesign = mode.phone = true;
   viewport = Object.assign(new EventTarget(), { height: 844, offsetTop: 0 });
   vi.stubGlobal('visualViewport', viewport);
@@ -156,15 +175,16 @@ const checked = {
   status: 'reconciled',
 } as ListedBooking;
 
-it('mounts the editor only after confirmation and scopes release to that opening', () => {
+it('mounts the editor only after confirmation and scopes release to that opening', async () => {
   const onClose = vi.fn();
   const view = render(
     <BookingPanel state={{ mode: 'edit', booking: checked }} onClose={onClose} />,
   );
-  const question = screen.getByRole('alertdialog', {
+  const question = await screen.findByRole('alertdialog', {
     name: 'Geprüfte Buchung wirklich bearbeiten?',
   });
   expect(question.textContent).toContain('geprüften Kontostand');
+  expect(question.textContent).toContain('am 02.09.2026 abgeglichen');
   expect(screen.queryByLabelText('Kategorie')).toBeNull();
   expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Abbrechen' }));
   fireEvent.click(screen.getByRole('button', { name: 'Bearbeitung freigeben' }));
@@ -176,7 +196,7 @@ it('mounts the editor only after confirmation and scopes release to that opening
 
   view.rerender(<BookingPanel state={null} onClose={onClose} />);
   view.rerender(<BookingPanel state={{ mode: 'edit', booking: checked }} onClose={onClose} />);
-  expect(screen.getByRole('alertdialog')).toBeTruthy();
+  expect(await screen.findByRole('alertdialog')).toBeTruthy();
   expect(screen.queryByLabelText('Kategorie')).toBeNull();
   fireEvent.click(screen.getByRole('button', { name: 'Bearbeitung freigeben' }));
   view.rerender(
@@ -185,32 +205,93 @@ it('mounts the editor only after confirmation and scopes release to that opening
       onClose={onClose}
     />,
   );
-  expect(screen.getByRole('alertdialog')).toBeTruthy();
+  expect(await screen.findByRole('alertdialog')).toBeTruthy();
   expect(screen.queryByLabelText('Kategorie')).toBeNull();
 });
 
-it.each(['cancel', 'escape'] as const)('closes without mounting an editor on %s', (answer) => {
-  const onClose = vi.fn();
-  render(<BookingPanel state={{ mode: 'edit', booking: checked }} onClose={onClose} />);
-  if (answer === 'cancel') fireEvent.click(screen.getByRole('button', { name: 'Abbrechen' }));
-  else fireEvent.keyDown(screen.getByRole('alertdialog'), { key: 'Escape' });
-  expect(onClose).toHaveBeenCalledOnce();
+it.each(['cancel', 'escape'] as const)(
+  'closes without mounting an editor on %s',
+  async (answer) => {
+    const onClose = vi.fn();
+    render(<BookingPanel state={{ mode: 'edit', booking: checked }} onClose={onClose} />);
+    const question = await screen.findByRole('alertdialog');
+    if (answer === 'cancel') fireEvent.click(screen.getByRole('button', { name: 'Abbrechen' }));
+    else fireEvent.keyDown(question, { key: 'Escape' });
+    expect(onClose).toHaveBeenCalledOnce();
+    expect(screen.queryByLabelText('Kategorie')).toBeNull();
+  },
+);
+
+it('opens a repayment-linked outlay with the contact release only after confirmation', async () => {
+  vi.mocked(readBookingEditProtection).mockResolvedValue({
+    reconciled: false,
+    reconciliationDates: [],
+    settlementDates: ['2026-09-02'],
+    reconciledRepayment: false,
+    reviewedOn: [],
+  });
+  const booking = {
+    ...checked,
+    status: 'confirmed',
+    splits: [{ contactId: 'synthetic-contact', amountCents: -1001 }],
+  } as ListedBooking;
+  render(<BookingPanel state={{ mode: 'edit', booking }} onClose={vi.fn()} />);
+  const question = await screen.findByRole('alertdialog', {
+    name: 'Verknüpfte Auslage wirklich bearbeiten?',
+  });
+  expect(question.textContent).toContain('02.09.2026');
   expect(screen.queryByLabelText('Kategorie')).toBeNull();
+  fireEvent.click(screen.getByRole('button', { name: 'Bearbeitung bestätigen' }));
+  const form = screen.getByLabelText('Kategorie').closest('.bkform');
+  expect(form?.getAttribute('data-linked')).toBe('true');
+  expect(form?.getAttribute('data-released')).toBe('false');
 });
 
-it.each(['unprotected', 'rollback'] as const)('opens %s editing without a new gate', (variant) => {
-  mode.redesign = variant !== 'rollback';
+it('explains an explicit Prüfen acceptance without claiming a bank reconciliation', async () => {
+  vi.mocked(readBookingEditProtection).mockResolvedValue({
+    reconciled: false,
+    reconciliationDates: [],
+    settlementDates: [],
+    reconciledRepayment: false,
+    reviewedOn: ['2026-09-17'],
+  });
   render(
     <BookingPanel
-      state={{
-        mode: 'edit',
-        booking: variant === 'rollback' ? checked : { ...checked, status: 'confirmed' },
-      }}
+      state={{ mode: 'edit', booking: { ...checked, status: 'confirmed' } }}
       onClose={vi.fn()}
     />,
   );
-  expect(screen.queryByRole('alertdialog')).toBeNull();
+  const question = await screen.findByRole('alertdialog');
+  expect(question.textContent).toContain('17.09.2026 in Prüfen bestätigt');
+  expect(question.textContent).not.toContain('abgeglichen');
+  fireEvent.click(screen.getByRole('button', { name: 'Bearbeitung freigeben' }));
   expect(screen.getByLabelText('Kategorie').closest('.bkform')?.getAttribute('data-released')).toBe(
-    'false',
+    'true',
   );
 });
+
+it.each(['unprotected', 'rollback'] as const)(
+  'opens %s editing without a new gate',
+  async (variant) => {
+    mode.redesign = variant !== 'rollback';
+    vi.mocked(readBookingEditProtection).mockResolvedValue({
+      reconciled: false,
+      reconciliationDates: [],
+      settlementDates: [],
+      reconciledRepayment: false,
+      reviewedOn: [],
+    });
+    render(
+      <BookingPanel
+        state={{
+          mode: 'edit',
+          booking: variant === 'rollback' ? checked : { ...checked, status: 'confirmed' },
+        }}
+        onClose={vi.fn()}
+      />,
+    );
+    const field = await screen.findByLabelText('Kategorie');
+    expect(screen.queryByRole('alertdialog')).toBeNull();
+    expect(field.closest('.bkform')?.getAttribute('data-released')).toBe('false');
+  },
+);

@@ -3,8 +3,10 @@ import { appSetting, booking, bookingSplit, contactAllocation, contactSettlement
 import { insertTracked, updateTracked, withGroup, type AuditContext } from './audit';
 import { getBooking, type BookingPatch } from './bookings';
 import { CONTACT_LINKED_OVERRIDE_PREFIX } from './contact-allocation-lock';
-import { contactIdentityIds } from './contact-label';
+import { contactCreditRecords, saveContactCreditRecord } from './contact-credit';
+import { contactIdentityIds, resolveContactRoot } from './contact-label';
 import { reallocateContactRepayment } from './contact-reallocation';
+import { getContactStatement } from './contacts';
 import { runInTransaction, type Executor } from './types';
 
 export interface LinkedEditResult {
@@ -28,7 +30,7 @@ export function releaseLinkedAllocations(
   planned: 'delete' | BookingPatch,
   ctx: AuditContext,
   today: string,
-  options: { unlockReconciled?: boolean; reason?: string } = {},
+  options: { unlockOutlay: boolean; unlockRepayments: boolean; reason?: string },
 ): LinkedEditResult {
   const grouped = withGroup(ctx);
   return runInTransaction(db, (tx) => {
@@ -43,6 +45,7 @@ export function releaseLinkedAllocations(
         amountCents: contactAllocation.amountCents,
         receiptSplitId: contactSettlement.receiptSplitId,
         contactId: contactSettlement.contactId,
+        receiptBookingId: booking.id,
         date: booking.date,
         order: sql<number>`${booking}.rowid`,
       })
@@ -59,6 +62,38 @@ export function releaseLinkedAllocations(
       )
       .all();
     if (!allocations.length) return none;
+    const movedDate = planned !== 'delete' && planned.date !== cur.date ? planned.date : undefined;
+    const outlayOrder = movedDate
+      ? tx.get<{ rowid: number }>(sql`select rowid from ${booking} where id = ${bookingId}`)!.rowid
+      : 0;
+    const records = movedDate ? contactCreditRecords(tx) : [];
+    const crossed = new Set(
+      allocations
+        .filter(
+          (a) =>
+            movedDate &&
+            (a.date < movedDate || (a.date === movedDate && a.order < outlayOrder)) &&
+            !records
+              .find((record) => record.bookingId === a.receiptBookingId)
+              ?.targetedRepayments?.includes(a.receiptSplitId),
+        )
+        .map((a) => a.id),
+    );
+    const savedOutlay = records.find((r) => r.bookingId === bookingId);
+    if (crossed.size && !savedOutlay?.uses && !savedOutlay?.explicitUses) {
+      // A standalone outlay normally infers credit use. Preserve its existing uses before
+      // moving it, so the repayment just released cannot automatically pay it again.
+      const splitIds = new Set(cur.splits.map((split) => split.id));
+      const contacts = new Set(
+        cur.splits.flatMap((split) =>
+          split.contactId ? [resolveContactRoot(tx, split.contactId)] : [],
+        ),
+      );
+      const uses = [...contacts].flatMap((id) =>
+        getContactStatement(tx, id, today).creditUses.filter((u) => splitIds.has(u.outlaySplitId)),
+      );
+      saveContactCreditRecord(tx, { bookingId, uses }, grouped);
+    }
 
     /** Cents of the outlay split that remain a contact outlay after the planned change. */
     const sizeAfter = (splitId: string, contactId: string): number | null => {
@@ -82,11 +117,12 @@ export function releaseLinkedAllocations(
     };
 
     // Newest repayment gives way first; older ones stay as they were as long as the outlay fits.
-    const keep = new Map(allocations.map((a) => [a.id, a.amountCents]));
+    const keep = new Map(allocations.map((a) => [a.id, crossed.has(a.id) ? 0 : a.amountCents]));
     for (const splitId of new Set(allocations.map((a) => a.outlaySplitId))) {
       const onSplit = allocations
-        .filter((a) => a.outlaySplitId === splitId)
+        .filter((a) => a.outlaySplitId === splitId && !crossed.has(a.id))
         .sort((a, b) => b.date.localeCompare(a.date) || b.order - a.order);
+      if (!onSplit.length) continue;
       const size = sizeAfter(splitId, onSplit[0]!.contactId);
       if (size === null) continue;
       let excess = onSplit.reduce((sum, a) => sum + a.amountCents, 0) - size;
@@ -102,6 +138,9 @@ export function releaseLinkedAllocations(
       if (keep.get(a.id) !== a.amountCents)
         touched.set(a.settlementId, [...(touched.get(a.settlementId) ?? []), a]);
 
+    const unlockBookingIds = new Set(options.unlockOutlay ? [bookingId] : []);
+    if (options.unlockRepayments)
+      for (const a of allocations) unlockBookingIds.add(a.receiptBookingId);
     let releasedCents = 0;
     for (const [settlementId, changed] of touched) {
       const first = changed[0]!;
@@ -129,8 +168,33 @@ export function releaseLinkedAllocations(
         { allocations: next },
         grouped,
         today,
-        { unlock: options.unlockReconciled ?? false },
+        { unlockBookingIds },
       );
+      const movedSplits = new Set(
+        changed.filter((a) => crossed.has(a.id)).map((a) => a.outlaySplitId),
+      );
+      if (movedSplits.size) {
+        const record = contactCreditRecords(tx).find(
+          (r) => r.bookingId === first.receiptBookingId,
+        )!;
+        // Historical statements replay against the corrected booking date too.
+        const allocationHistory = record.allocationHistory?.map((entry) => {
+          if (entry.receiptSplitId !== first.receiptSplitId || entry.allowFutureAllocations)
+            return entry;
+          const released = entry.allocations.filter((a) => movedSplits.has(a.outlaySplitId));
+          return {
+            ...entry,
+            allocations: entry.allocations.filter((a) => !movedSplits.has(a.outlaySplitId)),
+            creditCents: released.reduce((sum, a) => sum + a.amountCents, entry.creditCents),
+          };
+        });
+        if (allocationHistory)
+          saveContactCreditRecord(
+            tx,
+            { bookingId: first.receiptBookingId, allocationHistory },
+            grouped,
+          );
+      }
     }
 
     const id = `${CONTACT_LINKED_OVERRIDE_PREFIX}${grouped.groupId}`;

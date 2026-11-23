@@ -310,3 +310,18 @@ A matching transfer rule or two consecutive confirmed bank occurrences to the sa
 ## Prüfen: ambiguous bank matches (#516)
 
 A bank line only links automatically if it has one eligible booking and is that booking’s only bank-line claim. All other matches stay open for manual review. The default suggestion uses the latest known confirmation, then closest booking date and stable identity. The owner sees the number of alternatives and confirms or changes the selection.
+
+## Reports: Explorer tables (#1161)
+
+In Explorer, the pivot, template tables and original chart rows share a
+register-style layout. I can scroll wide tables from the keyboard or on a phone,
+read figures under sticky headers and open the same booking details.
+## Reviewing protected bookings (#1108)
+
+The edit form opens after a separate confirmation for bookings accepted in Prüfen,
+bookings protected by account reconciliation (including month close), and outlays
+with eligible repayment allocations. The dialog shows recorded review,
+reconciliation or repayment dates. The explicit override is audited with the
+booking change. Repayments keep their bank amounts and any released allocation
+becomes contact credit. A changed reconciliation balance remains visible in
+Prüfen. One Undo restores the booking and its affected links.

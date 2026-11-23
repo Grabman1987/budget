@@ -119,13 +119,15 @@ test('actual inbox: confirm, categorize, resolve warning, undo and keyboard navi
     .filter({ hasText: '12,00' })
     .getByRole('button', { name: 'Zuordnen' })
     .click();
+  const release = page.getByRole('alertdialog', { name: 'Geprüfte Buchung wirklich bearbeiten?' });
   const editor = page.getByRole('dialog', { name: 'Buchung bearbeiten' });
-  await expect(editor).toBeVisible();
+  await expect(release).toBeVisible();
   await page.keyboard.press('Escape');
-  await expect(editor).toBeHidden();
+  await expect(release).toBeHidden();
   const assign = row.getByRole('button', { name: 'Zuordnen' });
   await expect(assign).toBeFocused();
   await assign.click();
+  await release.getByRole('button', { name: 'Bearbeitung freigeben', exact: true }).click();
   await expect(editor).toBeVisible();
   await editor.getByLabel('Kategorie', { exact: true }).fill('Essen');
   await page.keyboard.press('ArrowDown');
@@ -220,7 +222,7 @@ test('actual inbox: confirm, categorize, resolve warning, undo and keyboard navi
     expect(cleaned.ok()).toBeTruthy();
   }
   // Own synthetic fixtures only; no shared ledger assumptions or real data.
-  const deleted = await request.delete(`${MAIN_URL}/api/bookings/${booking.id}`, {
+  const deleted = await request.delete(`${MAIN_URL}/api/bookings/${booking.id}?unlock=1`, {
     headers: { origin: MAIN_URL },
   });
   expect(deleted.ok()).toBeTruthy();

@@ -150,7 +150,11 @@ export const bookingCreate = z.object({
   flag: flag.nullable().optional(),
   projectId: id.nullable().optional(),
   /** Several splits, or `categoryId` for the common single one (none = uncategorised). */
-  splits: z.array(split).min(1).max(50).optional(),
+  splits: z
+    .array(split.extend({ offsetContactCredit: z.literal(false).optional() }))
+    .min(1)
+    .max(50)
+    .optional(),
   categoryId: id.nullable().optional(),
   ...foreign,
 });
@@ -192,8 +196,12 @@ export const bookingPatch = z
     ...foreign,
     /** Change a reconciled (geprüft) booking anyway. */
     unlockReconciled: z.boolean(),
+    /** Explicit acceptance of a pending booking in Prüfen. */
+    acceptInReview: z.literal(true),
     /** Edit an outlay that a contact repayment allocates, after the owner confirmed (#1108). */
     unlockContactLinked: z.boolean(),
+    /** Allocation-only permission when the linked repayment was reconciled. */
+    unlockLinkedRepayment: z.boolean(),
     /** Shown in the confirmation; stored with the audited override. */
     overrideReason: z.string().max(200),
   })
@@ -203,6 +211,7 @@ export const bookingDeleteQuery = z.object({
   unlock: z.enum(['1', 'true']).optional(),
   /** Confirmed deletion of an outlay that a contact repayment allocates (#1108). */
   unlockLinked: z.enum(['1', 'true']).optional(),
+  unlockLinkedRepayment: z.enum(['0', '1']).optional(),
   overrideReason: z.string().max(200).optional(),
   previewRevision: z
     .string()

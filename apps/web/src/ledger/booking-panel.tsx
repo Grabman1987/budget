@@ -1,13 +1,18 @@
 import './booking-edit.css';
 import { FormDialog } from '@budget/ui';
-import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { CaptureForm } from './capture-form';
 import type { ListedBooking } from './types';
 import { AssignmentLearnOffer } from '../assignment/review';
 import type { BookingDraft } from './booking-model';
 import { REDESIGN_ENABLED } from '../shell/redesign-flag';
-import { BOOKING_RELEASE_TITLE, BookingReleaseQuestion } from './booking-release-question';
+import {
+  BOOKING_RELEASE_TITLE,
+  LINKED_RELEASE_TITLE,
+  BookingReleaseQuestion,
+} from './booking-release-question';
+import { readBookingEditProtection } from './api';
 
 export type BookingPanelState =
   | { mode: 'create'; accountId?: string | undefined; prefill?: Partial<BookingDraft> }
@@ -131,13 +136,15 @@ export function BookingPanel({
     state: NonNullable<BookingPanelState>;
     key: string;
     n: number;
+    opening: symbol;
     released?: boolean;
   } | null>(null);
   const [seenKey, setSeenKey] = useState<string | null>(null);
   if (key !== seenKey || (state !== null && key !== null && shown === null)) {
     // Opened, or switched to another booking: a new form (also when reopened within the fade).
     setSeenKey(key);
-    if (state !== null && key !== null) setShown({ state, key, n: (shown?.n ?? 0) + 1 });
+    if (state !== null && key !== null)
+      setShown({ state, key, n: (shown?.n ?? 0) + 1, opening: Symbol() });
   }
   const latest = useRef(state);
   useEffect(() => {
@@ -151,22 +158,52 @@ export function BookingPanel({
   }, [state]);
 
   const current = state ?? shown?.state ?? null;
-  const needsRelease =
-    REDESIGN_ENABLED &&
-    current?.mode === 'edit' &&
-    current.booking.status === 'reconciled' &&
-    !shown?.released;
+  const booking = shown?.state.mode === 'edit' ? shown.state.booking : null;
+  const protectionId = booking?.id;
+  const opening = shown?.opening;
+  const [check, setCheck] = useState<{
+    opening: symbol | undefined;
+    protection: Awaited<ReturnType<typeof readBookingEditProtection>> | null;
+  }>();
+  const isOpen = state !== null;
   useEffect(() => {
+    if (!isOpen || !protectionId) return;
+    let active = true;
+    void readBookingEditProtection(protectionId).then(
+      (protection) => {
+        if (active) setCheck({ opening, protection });
+      },
+      () => {
+        if (active) setCheck({ opening, protection: null });
+      },
+    );
+    return () => {
+      active = false;
+    };
+  }, [isOpen, opening, protectionId]);
+  const checking = !!protectionId && check?.opening !== opening;
+  const protection = check?.opening === opening ? check?.protection : null;
+  const reconciled =
+    REDESIGN_ENABLED && (booking?.status === 'reconciled' || !!protection?.reconciled);
+  const linkedDates = protection?.settlementDates?.length ? protection.settlementDates : undefined;
+  const reviewedOn = protection?.reviewedOn ?? [];
+  const needsRelease =
+    !checking && (reconciled || !!linkedDates || reviewedOn.length > 0) && !shown?.released;
+  useLayoutEffect(() => {
     if (needsRelease && state !== null)
       focusScope.current?.querySelector<HTMLElement>('[role="alertdialog"] button')?.focus();
   }, [needsRelease, shown?.n, state]);
   const [lastMode, setLastMode] = useState<'create' | 'edit' | null>(state?.mode ?? null);
   if (state !== null && lastMode !== state.mode) setLastMode(state.mode);
-  const title = needsRelease
-    ? BOOKING_RELEASE_TITLE
-    : current?.mode === 'edit'
-      ? 'Buchung bearbeiten'
-      : 'Buchung erfassen';
+  const title = checking
+    ? 'Buchung wird geprüft'
+    : needsRelease
+      ? linkedDates
+        ? LINKED_RELEASE_TITLE
+        : BOOKING_RELEASE_TITLE
+      : current?.mode === 'edit'
+        ? 'Buchung bearbeiten'
+        : 'Buchung erfassen';
   const close = () => {
     setAsking(false);
     dirty.current = false;
@@ -189,13 +226,25 @@ export function BookingPanel({
       <FormDialog open={state !== null} onClose={close} title={title} beforeClose={beforeClose}>
         {current &&
           shown &&
-          (needsRelease ? (
+          (checking ? (
+            <div className="bkform">
+              <div className="bk-body" role="status">
+                Buchung wird geprüft …
+              </div>
+            </div>
+          ) : needsRelease ? (
             <div className="bkform">
               <div className="bk-body">
                 <BookingReleaseQuestion
                   className="kdiff kdelete-question bk-release-opening"
                   onCancel={close}
                   onConfirm={() => setShown({ ...shown, released: true })}
+                  {...(linkedDates ? { linkedDates } : {})}
+                  reconciled={reconciled}
+                  relatedReconciliation={reconciled && booking?.status !== 'reconciled'}
+                  reconciliationDates={protection?.reconciliationDates ?? []}
+                  reconciledRepayment={!!protection?.reconciledRepayment}
+                  reviewedOn={reviewedOn}
                 />
               </div>
             </div>
@@ -203,7 +252,13 @@ export function BookingPanel({
             <CaptureForm
               key={`${shown.n}-${shown.key}`}
               state={current}
-              initialUnlockReconciled={REDESIGN_ENABLED && Boolean(shown.released)}
+              initialUnlockReconciled={
+                (reconciled || reviewedOn.length > 0) && Boolean(shown.released)
+              }
+              initialUnlockContactLinked={!!linkedDates && Boolean(shown.released)}
+              initialUnlockLinkedRepayment={
+                !!protection?.reconciledRepayment && Boolean(shown.released)
+              }
               onDone={close}
               onBankCategorized={setLearnBookingId}
               dirtyRef={dirty}

@@ -32,21 +32,7 @@ import {
   type ValuationQuality,
   type ValuationSeries,
 } from '@budget/domain';
-import {
-  and,
-  desc,
-  eq,
-  gt,
-  gte,
-  inArray,
-  isNotNull,
-  isNull,
-  lt,
-  lte,
-  max,
-  min,
-  sql,
-} from 'drizzle-orm';
+import { and, desc, eq, gt, inArray, isNotNull, isNull, lte, max, min, sql } from 'drizzle-orm';
 import {
   account,
   booking,
@@ -1008,28 +994,25 @@ type MutablePosition = PositionInput & {
  */
 function pricesForWindow(db: Executor, from: string, to: string, withSource: boolean) {
   return memoizedShared(db, `pricesForWindow|${from}|${to}|${withSource ? 'src' : 'plain'}`, () => {
-    const before = db
-      .select({ securityId: price.securityId, date: max(price.date).as('before_date') })
-      .from(price)
-      .where(lt(price.date, from))
-      .groupBy(price.securityId)
-      .as('before');
-    const rows = [
-      ...db
-        .select()
-        .from(price)
-        .innerJoin(
-          before,
-          and(eq(price.securityId, before.securityId), eq(price.date, before.date)),
+    const columns = sql`${price.securityId} as securityId, ${price.date},
+      ${price.priceMicro} as priceMicro, ${price.currency}, ${price.source}`;
+    // Drive both branches from security so SQLite can seek on the (security_id, date)
+    // primary key instead of walking the quote history to group or filter by date.
+    const rows = db.all<DatedPrice & { securityId: string; source: string }>(sql`
+      select ${columns}
+      from ${security} cross join ${price}
+      where ${price.securityId} = ${security.id}
+        and ${price.date} = (
+          select p.date from price p
+          where p.security_id = ${security.id} and p.date < ${from}
+          order by p.date desc limit 1
         )
-        .all()
-        .map((r) => r.price),
-      ...db
-        .select()
-        .from(price)
-        .where(and(gte(price.date, from), lte(price.date, to)))
-        .all(),
-    ];
+      union all
+      select ${columns}
+      from ${security} cross join ${price}
+      where ${price.securityId} = ${security.id}
+        and ${price.date} >= ${from} and ${price.date} <= ${to}
+    `);
     const bySecurity = new Map<string, DatedPrice[]>();
     for (const p of rows) {
       const list = bySecurity.get(p.securityId) ?? [];

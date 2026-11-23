@@ -223,7 +223,10 @@ export function GuidedReview() {
     let problem: unknown;
     try {
       if (item.kind === 'booking') {
-        await writes.patch.mutateAsync({ id: item.refId, patch: { status: 'confirmed' } });
+        await writes.patch.mutateAsync({
+          id: item.refId,
+          patch: { status: 'confirmed', acceptInReview: true },
+        });
       } else {
         const rule = usableRules(review.data?.suggestions ?? [])[0];
         const done = await write(

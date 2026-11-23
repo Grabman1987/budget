@@ -94,8 +94,15 @@ test('bank merge, mirror transfer, selected pair and balance lock with undo', as
   await page.evaluate(() => {
     document.documentElement.dataset['theme'] = 'light';
   });
+  const mergeResponse = page.waitForResponse(
+    (response) =>
+      response.ok() &&
+      response.request().method() === 'POST' &&
+      new URL(response.url()).pathname === `/api/bank-sync/candidates/${bankId}/merge`,
+  );
   await page.getByRole('button', { name: /^Mit Buchung .* zusammenführen$/ }).focus();
   await page.keyboard.press('Enter');
+  const merged = await (await mergeResponse).json();
   await expect(
     page.getByText('Bankumsatz mit Buchung zusammengeführt.', { exact: true }),
   ).toBeVisible();
@@ -106,13 +113,6 @@ test('bank merge, mirror transfer, selected pair and balance lock with undo', as
     status: 'confirmed',
     splits: [{ categoryId: category.id }, { categoryId: category.id }],
   });
-  await page.getByRole('button', { name: 'Rückgängig', exact: true }).click();
-  await (await bankPreviewControl(page)).click();
-  await expect(page.getByRole('button', { name: /^Mit Buchung .* zusammenführen$/ })).toBeVisible();
-  await page.getByRole('button', { name: /^Mit Buchung .* zusammenführen$/ }).click();
-  await expect(
-    page.getByText('Bankumsatz mit Buchung zusammengeführt.', { exact: true }),
-  ).toBeVisible();
   const b = (
     await post('/bookings', {
       type: 'booking',
@@ -123,16 +123,35 @@ test('bank merge, mirror transfer, selected pair and balance lock with undo', as
       memo: 'Gegenbuchung',
     })
   ).id;
-  await page.goto('/konten/buchungen');
-  const select = page.getByRole('button', { name: 'Auswählen', exact: true });
-  if ((page.viewportSize()?.width ?? 1440) < 768) await select.click();
-  for (const id of [manual, b])
-    await page.locator(`[data-booking="${id}"] input[type=checkbox]`).check();
-  await page
-    .getByRole('group', { name: 'Auswahl bearbeiten', exact: true })
-    .locator('summary')
-    .click();
-  await page.getByRole('button', { name: 'Als Umbuchung verbinden', exact: true }).click();
+  const protectedLink = await request.post(origin + '/api/bookings/link-transfer', {
+    headers: { origin },
+    data: { ids: [manual, b] },
+  });
+  expect(protectedLink.status()).toBe(409);
+  expect((await (await request.get(origin + '/api/bookings/' + b)).json()).booking).toMatchObject({
+    transferId: null,
+    splits: [{ categoryId: category.id }],
+  });
+  const selectPair = async () => {
+    await page.goto('/konten/buchungen');
+    if ((page.viewportSize()?.width ?? 1440) < 768)
+      await page.getByRole('button', { name: 'Auswählen', exact: true }).click();
+    for (const id of [manual, b])
+      await page.locator(`[data-booking="${id}"] input[type=checkbox]`).check();
+    await page
+      .getByRole('group', { name: 'Auswahl bearbeiten', exact: true })
+      .locator('summary')
+      .click();
+    await expect(page.getByRole('button', { name: 'Notiz ändern', exact: true })).toBeEnabled();
+  };
+  const linkPair = page.getByRole('button', { name: 'Als Umbuchung verbinden', exact: true });
+  await selectPair();
+  await expect(linkPair).toHaveCount(0);
+
+  // Undo the merge to restore the unreviewed manual leg before testing the selected pair.
+  await post('/undo', { groupId: merged.groupId });
+  await selectPair();
+  await linkPair.click();
   await expect(
     page.getByText('Als Umbuchung verbunden; Kategorien entfernt.', { exact: true }),
   ).toBeVisible();
@@ -142,6 +161,12 @@ test('bank merge, mirror transfer, selected pair and balance lock with undo', as
   expect(saved.splits[0].categoryId).toBeNull();
   await page.getByRole('button', { name: 'Rückgängig', exact: true }).click();
   await expect(page.getByText('Rückgängig gemacht.', { exact: true })).toBeVisible();
+  await page.goto('/konten/posteingang');
+  await (await bankPreviewControl(page)).click();
+  await page.getByRole('button', { name: /^Mit Buchung .* zusammenführen$/ }).click();
+  await expect(
+    page.getByText('Bankumsatz mit Buchung zusammengeführt.', { exact: true }),
+  ).toBeVisible();
   const mirrorId = randomUUID();
   const db = openDatabase(databasePath);
   try {

@@ -274,13 +274,14 @@ export function SplitEditor({
                 if (pool) creditLeft.set(share.contactId, pool);
               }
               const shareCents = shareAmount.ok ? shareAmount.cents : 0;
+              const offset = share.offsetContactCredit !== false;
               const before = pool
                 ? pool
                     .filter((c) => !c.categoryId || c.categoryId === line.categoryId)
                     .reduce((sum, c) => sum + c.remainingCents, 0)
                 : undefined;
               const used =
-                pool && shareCents > 0
+                offset && pool && shareCents > 0
                   ? consumeContactCredit(pool, line.categoryId, shareCents)
                   : 0;
               covered += used;
@@ -301,7 +302,10 @@ export function SplitEditor({
                     contacts={contacts}
                     noneLabel="Kontakt wählen"
                     onChange={(contactId) =>
-                      shareChange(share.key, { contactId: contactId || null })
+                      shareChange(share.key, {
+                        contactId: contactId || null,
+                        offsetContactCredit: undefined,
+                      })
                     }
                   />
                   <div className="bk-share-value">
@@ -348,14 +352,32 @@ export function SplitEditor({
                       'Entfernen'
                     )}
                   </Button>
-                  {before !== undefined && before > 0 && (
-                    <p className="khint bk-share-credit" aria-live="polite">
-                      {used === 0
-                        ? `${shareName} hat ${eur(before)} Guthaben. Es wird mit dem Anteil verrechnet.`
-                        : used === shareCents
-                          ? `Bereits beglichen: Guthaben ${eur(before)} von ${shareName} deckt den Anteil. Danach ${eur(before - used)} Guthaben.`
-                          : `Guthaben ${eur(before)} von ${shareName} deckt ${eur(used)}. ${eur(shareCents - used)} bleiben offen bis zur Rückzahlung. Danach ${eur(before - used)} Guthaben.`}
-                    </p>
+                  {((before ?? 0) > 0 || !offset) && (
+                    <div className="bk-share-credit">
+                      <label className="kcheck">
+                        <input
+                          type="checkbox"
+                          checked={offset}
+                          onChange={(event) =>
+                            shareChange(share.key, {
+                              offsetContactCredit: event.target.checked ? undefined : false,
+                            })
+                          }
+                        />
+                        Mit Guthaben verrechnen
+                      </label>
+                      {before !== undefined && (
+                        <p className="khint" aria-live="polite">
+                          {!offset
+                            ? `Guthaben von ${shareName}: vorher und danach ${eur(before)}. Der Anteil bleibt bis zur Rückzahlung offen.`
+                            : used === 0
+                              ? `${shareName} hat ${eur(before)} Guthaben. Es wird mit dem Anteil verrechnet.`
+                              : used === shareCents
+                                ? `Bereits beglichen: Guthaben ${eur(before)} von ${shareName} deckt den Anteil. Danach ${eur(before - used)} Guthaben.`
+                                : `Guthaben ${eur(before)} von ${shareName} deckt ${eur(used)}. ${eur(shareCents - used)} bleiben offen bis zur Rückzahlung. Danach ${eur(before - used)} Guthaben.`}
+                        </p>
+                      )}
+                    </div>
                   )}
                 </div>
               );

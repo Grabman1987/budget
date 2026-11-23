@@ -17,7 +17,6 @@ import {
 } from '@budget/ui';
 import { manualTransferStatus, todayInVienna, type ManualBankStatus } from '@budget/domain';
 import { useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
-import { contactReportQuery } from '../reports/contact-api';
 import {
   CalendarDays,
   Check,
@@ -89,7 +88,13 @@ import {
 import { CAPTURE_SHORTCUT_HINT, SKIP_REASON_LABEL, errorText } from './labels';
 import { nativeCurrency } from './format';
 import { useLedgerWrites } from './mutations';
-import { LEDGER_KEY, accountsQuery, lookupsQuery, payeesQuery } from './queries';
+import {
+  LEDGER_KEY,
+  accountsQuery,
+  contactCreditQuery,
+  lookupsQuery,
+  payeesQuery,
+} from './queries';
 import {
   editQueued,
   readChoices,
@@ -150,6 +155,8 @@ export function CaptureForm({
   requestClose,
   queued,
   initialUnlockReconciled = false,
+  initialUnlockContactLinked = false,
+  initialUnlockLinkedRepayment = false,
 }: {
   state: NonNullable<BookingPanelState>;
   onDone: () => void;
@@ -161,6 +168,8 @@ export function CaptureForm({
   queued?: QueuedBooking;
   /** Explicit confirmation from this editor opening; never persisted across openings. */
   initialUnlockReconciled?: boolean;
+  initialUnlockContactLinked?: boolean;
+  initialUnlockLinkedRepayment?: boolean;
 }) {
   useAmountPrivacy();
   const qc = useQueryClient();
@@ -461,10 +470,10 @@ export function CaptureForm({
           ),
         ];
   const creditReports = useQueries({
-    queries: shareContactIds.map((id) => contactReportQuery(id, parsedDate ?? today, true)),
+    queries: shareContactIds.map((id) => contactCreditQuery(id, parsedDate ?? today)),
   });
   const contactCredits = (contactId: string) => {
-    const credits = creditReports[shareContactIds.indexOf(contactId)]?.data?.credits;
+    const credits = creditReports[shareContactIds.indexOf(contactId)]?.data;
     return credits
       ?.filter((c) => !c.targetOutlaySplitId && c.onBudget === from?.onBudget)
       .map((c) => ({ remainingCents: c.remainingCents, categoryId: c.categoryId }));
@@ -765,9 +774,15 @@ export function CaptureForm({
         if (Object.keys(built.value).length > 0)
           await writes.patch.mutateAsync({
             id: editing.id,
-            patch: linkedConfirmed.current
-              ? { ...built.value, unlockContactLinked: true }
-              : built.value,
+            patch: initialUnlockContactLinked
+              ? {
+                  ...built.value,
+                  unlockContactLinked: true,
+                  unlockLinkedRepayment: initialUnlockLinkedRepayment,
+                }
+              : linkedConfirmed.current
+                ? { ...built.value, unlockContactLinked: true }
+                : built.value,
             capture: {
               input: {
                 type: 'booking',
@@ -884,7 +899,10 @@ export function CaptureForm({
         id: editing.id,
         unlock,
         previewRevision: preview.revision,
-        ...(linkedConfirmed.current ? { unlockLinked: true } : {}),
+        ...(initialUnlockContactLinked || linkedConfirmed.current ? { unlockLinked: true } : {}),
+        ...(initialUnlockContactLinked
+          ? { unlockLinkedRepayment: initialUnlockLinkedRepayment }
+          : {}),
       });
       onDone();
     } catch (error) {
@@ -903,8 +921,11 @@ export function CaptureForm({
   const canConfirmDelete =
     !!deletion &&
     deletion.selection.items.length > 0 &&
-    (deletion.skipped.length === 0 ||
-      (unlock && deletion.skipped.every((item) => item.reason === 'reconciled_locked')));
+    deletion.skipped.every(
+      (item) =>
+        (unlock && item.reason === 'reconciled_locked') ||
+        (initialUnlockContactLinked && item.id === editing?.id && item.reason === 'linked_contact'),
+    );
   const onKeyDown = (e: KeyboardEvent<HTMLFormElement>) => {
     if (releaseAsking) {
       if (e.key === 'Escape') {
@@ -1678,6 +1699,12 @@ export function CaptureForm({
             <p>
               Alle Seiten der Umbuchung werden gemeinsam gelöscht und mit einem Rückgängig
               wiederhergestellt.
+            </p>
+          )}
+          {canConfirmDelete && initialUnlockContactLinked && (
+            <p>
+              Die Rückzahlung bleibt gebucht. Ihr bisher zugeordneter Betrag wird zu Guthaben beim
+              Kontakt.
             </p>
           )}
           {!canConfirmDelete && (

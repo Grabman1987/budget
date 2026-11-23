@@ -43,14 +43,14 @@ const liveRows = () => ({
     .where(isNull(schema.contactAllocation.deletedAt))
     .all(),
 });
-const outlay = async (amountCents = -1001) =>
+const outlay = async (amountCents = -1001, categoryId = 'essen') =>
   (
     await call('POST', '/bookings', {
       type: 'booking',
       accountId: 'giro',
       date: '2026-09-01',
       amountCents,
-      splits: [{ categoryId: 'essen', contactId: 'k1', amountCents }],
+      splits: [{ categoryId, contactId: 'k1', amountCents }],
     })
   ).body.bookings[0].id as string;
 const repay = (amountCents: number, date = '2026-09-02') =>
@@ -90,6 +90,11 @@ it('asks first, keeps the allocation while it fits and one Undo restores every r
   const refused = await call('PATCH', `/bookings/${id}`, { amountCents: -2000 });
   expect(refused.status).toBe(422);
   expect(refused.body).toMatchObject({ error: 'contact_linked', bookingId: id });
+  expect((await call('GET', `/bookings/${id}/edit-protection`)).body).toMatchObject({
+    reconciled: false,
+    reconciliationDates: [],
+    settlementDates: ['2026-09-02'],
+  });
   expect(refused.body.settlementDates).toEqual(['2026-09-02']);
   expect(opened.sqlite.serialize().equals(bytes)).toBe(true);
 
@@ -135,6 +140,39 @@ it('turns the part an edited outlay no longer covers into credit, never dropping
   expect(liveRows()).toEqual(before);
   expect((await statement()).balanceCents).toBe(300);
 });
+
+it.each(['essen', 'auslagen'])(
+  'keeps later repayments allocated after correcting an outlay date and holds earlier ones as credit (%s)',
+  async (categoryId) => {
+    const id = await outlay(-1001, categoryId);
+    expect((await repay(401, '2026-09-02')).status).toBe(201);
+    expect((await repay(301, '2026-09-04')).status).toBe(201);
+    const before = liveRows();
+
+    const moved = await call('PATCH', `/bookings/${id}`, {
+      date: '2026-09-03',
+      unlockContactLinked: true,
+    });
+    expect(moved.status, JSON.stringify(moved.body)).toBe(200);
+    const after = await statement();
+    expect(after).toMatchObject({
+      balanceCents: 299,
+      creditCents: 401,
+      outlays: [{ remainingCents: 700 }],
+      receipts: [
+        { creditCents: 401, allocations: [] },
+        { creditCents: 0, allocations: [{ amountCents: 301 }] },
+      ],
+    });
+    expectInvariants(after);
+    expect((await call('GET', '/contacts/k1?asOf=2026-09-02')).body).toMatchObject({
+      balanceCents: -401,
+      creditCents: 401,
+    });
+    expect((await call('POST', '/undo', { groupId: moved.body.groupId })).status).toBe(200);
+    expect(liveRows()).toEqual(before);
+  },
+);
 
 it('lets the owner delete an allocated outlay after confirming; the repayment stays as credit', async () => {
   const id = await outlay(-1001);

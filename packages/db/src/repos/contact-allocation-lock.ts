@@ -5,6 +5,7 @@ import type { Executor } from './types';
 
 export interface ContactAllocationOptions {
   unlock?: boolean;
+  unlockBookingIds?: ReadonlySet<string>;
 }
 export const CONTACT_UNLOCK_PREFIX = 'contacts.allocation-unlock.';
 /** Audited owner confirmation to edit an outlay that a repayment allocates (#1108). */

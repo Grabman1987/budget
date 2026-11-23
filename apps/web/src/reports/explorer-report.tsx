@@ -1,3 +1,4 @@
+import { ReportTable } from './report-table';
 import { REDESIGN_ENABLED } from '../shell/redesign-flag';
 import { ReportViewControl } from './report-view-control';
 import { ReportBodyDisclosure } from './report-body-disclosure';
@@ -973,97 +974,101 @@ function Pivot({
                     : 'Keine Werte für diese Auswahl.'}
                 </p>
               ) : (
-                <div
-                  className="ov-scroll ex-scroll"
-                  role="region"
-                  aria-label="Pivottabelle, bei Bedarf horizontal verschiebbar"
-                  // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- Keyboard users must be able to scroll the wide table.
-                  tabIndex={0}
+                <ReportTable
+                  className="ex-table"
+                  scrollClassName="ex-scroll"
+                  caption="Pivottabelle"
+                  regionLabel="Pivottabelle, bei Bedarf horizontal verschiebbar"
+                  data-testid="ex-table"
                 >
-                  <table className="ov-table ex-table" data-testid="ex-table">
-                    <thead>
-                      <tr>
-                        <th className="tech ex-first">{headers[0]}</th>
-                        {columns.map((c, i) => (
-                          <th key={c.key} className="tech n">
-                            {headers[i + 1]}
-                          </th>
-                        ))}
-                        {columns.length > 1 && <th className="tech n">{headers.at(-1)}</th>}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {rows.map((row, rowIndex) => {
-                        const heat =
-                          columns.length > 1 ? overviewHeat(row.values, result.good) : [];
-                        const to = link(row.key);
-                        return (
-                          <tr key={row.key || '__none'}>
-                            <th scope="row" className="ex-first">
-                              {row.class && <ClassSwatch kind={row.class} />}
-                              {to ? (
-                                <AppLink to="/konten/buchungen" search={to}>
-                                  {row.label}
-                                </AppLink>
-                              ) : (
-                                row.label
-                              )}
-                            </th>
-                            {row.values.map((value, i) => {
-                              const h = heat[i];
-                              return (
-                                <td
-                                  key={columns[i]?.key ?? i}
-                                  data-chart-point={rowIndex * cellsPerRow + i}
-                                  className={`n${h ? ` ov-hc is-${h.tone}` : ''}`}
-                                  style={
-                                    h
-                                      ? ({ '--h': h.strength.toFixed(2) } as CSSProperties)
-                                      : undefined
-                                  }
-                                >
-                                  {value === 0 ? <span className="muted">·</span> : fmt(value)}
-                                </td>
-                              );
-                            })}
-                            {columns.length > 1 && (
-                              <td
-                                className="n"
-                                data-chart-point={rowIndex * cellsPerRow + columns.length}
-                              >
-                                <strong>{fmt(row.total)}</strong>
-                              </td>
+                  <thead>
+                    <tr>
+                      <th scope="col" className="rg-first">
+                        {headers[0]}
+                      </th>
+                      {columns.map((c, i) => (
+                        <th key={c.key} scope="col" className="n">
+                          {headers[i + 1]}
+                        </th>
+                      ))}
+                      {columns.length > 1 && (
+                        <th scope="col" className="n">
+                          {headers.at(-1)}
+                        </th>
+                      )}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rows.map((row, rowIndex) => {
+                      // Higher expenses are unfavorable; higher income is favorable.
+                      const heat = columns.length > 1 ? overviewHeat(row.values, result.good) : [];
+                      const to = link(row.key);
+                      return (
+                        <tr key={row.key || '__none'}>
+                          <th scope="row" className="rg-first">
+                            {row.class && <ClassSwatch kind={row.class} />}
+                            {to ? (
+                              <AppLink to="/konten/buchungen" search={to}>
+                                {row.label}
+                              </AppLink>
+                            ) : (
+                              row.label
                             )}
-                          </tr>
-                        );
-                      })}
-                      {totals && (
-                        <tr className="is-total">
-                          <th scope="row" className="ex-first">
-                            Summe
                           </th>
-                          {totals.values.map((value, i) => (
-                            <td
-                              key={columns[i]?.key ?? i}
-                              className="n"
-                              data-chart-point={rows.length * cellsPerRow + i}
-                            >
-                              {fmt(value)}
-                            </td>
-                          ))}
+                          {row.values.map((value, i) => {
+                            const h = heat[i];
+                            return (
+                              <td
+                                key={columns[i]?.key ?? i}
+                                data-chart-point={rowIndex * cellsPerRow + i}
+                                className={`n${h ? ` ov-hc is-${h.tone}` : ''}`}
+                                style={
+                                  h
+                                    ? ({ '--h': h.strength.toFixed(2) } as CSSProperties)
+                                    : undefined
+                                }
+                              >
+                                {value === 0 ? <span className="muted">·</span> : fmt(value)}
+                              </td>
+                            );
+                          })}
                           {columns.length > 1 && (
                             <td
                               className="n"
-                              data-chart-point={rows.length * cellsPerRow + columns.length}
+                              data-chart-point={rowIndex * cellsPerRow + columns.length}
                             >
-                              {fmt(totals.total)}
+                              <strong>{fmt(row.total)}</strong>
                             </td>
                           )}
                         </tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
+                      );
+                    })}
+                    {totals && (
+                      <tr className="is-total">
+                        <th scope="row" className="rg-first">
+                          Summe
+                        </th>
+                        {totals.values.map((value, i) => (
+                          <td
+                            key={columns[i]?.key ?? i}
+                            className="n"
+                            data-chart-point={rows.length * cellsPerRow + i}
+                          >
+                            {fmt(value)}
+                          </td>
+                        ))}
+                        {columns.length > 1 && (
+                          <td
+                            className="n"
+                            data-chart-point={rows.length * cellsPerRow + columns.length}
+                          >
+                            {fmt(totals.total)}
+                          </td>
+                        )}
+                      </tr>
+                    )}
+                  </tbody>
+                </ReportTable>
               )}
             </ExplorerTableInspector626>
           </ExplorerTableDetails>
