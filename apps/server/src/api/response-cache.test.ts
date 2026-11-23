@@ -172,12 +172,13 @@ describe('readModelCache', () => {
     expect(events).toEqual(['month', 'ready-io', 'payday']);
   });
 
-  it('does not count the uncached inbox badge as warmed and recomputes its real route on a second call', async () => {
+  it('caches the inbox badge after its first request and refreshes it after a write or day change', async () => {
     const opened = createTestDatabase();
     const { db } = opened;
+    let day = '2026-03-18';
     const api = createLedgerApi({
       db,
-      today: () => '2026-03-18',
+      today: () => day,
       bankSync: null,
       stepUp: async (_c, next) => next(),
     });
@@ -185,20 +186,30 @@ describe('readModelCache', () => {
     const transaction = vi.spyOn(db, 'transaction');
 
     try {
-      const warmed = await warmReadModels(api, () => '2026-03-18');
+      expect(await warmReadModels(api, () => day)).toBe(2);
       const afterWarm = transaction.mock.calls.length;
       const first = await app.request('/api/inbox/count');
       expect(first.status).toBe(200);
-      const firstCount = await first.json();
+      const body = await first.text();
+      expect(JSON.parse(body)).toEqual({ asOf: day, count: 0 });
       const afterFirst = transaction.mock.calls.length;
+      expect(afterFirst).toBe(afterWarm + 1);
+
       const second = await app.request('/api/inbox/count');
       expect(second.status).toBe(200);
-      expect(await second.json()).toEqual(firstCount);
-      const afterSecond = transaction.mock.calls.length;
+      expect(await second.text()).toBe(body);
+      expect(transaction.mock.calls.length).toBe(afterFirst);
+      expect(second.headers.get('cache-control')).toBe('no-store');
 
-      expect(afterFirst).toBe(afterWarm + 1);
-      expect(afterSecond).toBe(afterFirst + 1);
-      expect(warmed).toBe(2);
+      db.insert(schema.inboxItem)
+        .values({ id: 'synthetic-warning', kind: 'import', title: 'Synthetic import warning' })
+        .run();
+      expect(await (await app.request('/api/inbox/count')).json()).toEqual({ asOf: day, count: 1 });
+      expect(transaction.mock.calls.length).toBe(afterFirst + 1);
+
+      day = '2026-03-19';
+      expect(await (await app.request('/api/inbox/count')).json()).toEqual({ asOf: day, count: 1 });
+      expect(transaction.mock.calls.length).toBe(afterFirst + 2);
     } finally {
       transaction.mockRestore();
       opened.close();
