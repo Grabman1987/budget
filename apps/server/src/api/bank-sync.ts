@@ -2,6 +2,7 @@ import {
   bankBookingMatches,
   candidateMatches,
   linkBankCandidate,
+  linkBookedFunding,
   mergeBankBooking,
   mergeBankCandidate,
   applyBookingAssignment,
@@ -273,10 +274,17 @@ export function bankSyncRoutes(
         }),
       );
     });
-  // Decision 41: a booked bank row is already an unchecked booking, merged into an earlier manual one.
+  // Decision 41: a booked bank row is already in the ledger and can be reviewed in Prüfen.
   app.get('/bookings/:id/matches', (c) =>
     c.json(bankBookingMatches(db, z.string().min(1).max(200).parse(c.req.param('id')))),
   );
+  app.post('/bookings/:id/transfer', async (c) => {
+    const id = z.string().min(1).max(200);
+    const { bookingId } = await readBody(c, z.object({ bookingId: id }).strict());
+    return c.json(
+      linkBookedFunding(db, id.parse(c.req.param('id')), bookingId, { actor: 'owner' }),
+    );
+  });
   app.post('/bookings/:id/merge', async (c) => {
     const input = await readBody(c, z.object({ bookingId: z.string().min(1).max(200) }).strict());
     return c.json(

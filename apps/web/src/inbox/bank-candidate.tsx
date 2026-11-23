@@ -479,6 +479,12 @@ function BankCandidateForm({
                     ? 'Kategorie, Anteile und Notiz bleiben erhalten. Die Bankreferenz wird übernommen; bei eigenen Buchungen auch das Bankdatum.'
                     : 'Kategorien werden entfernt. Beide Buchungstage bleiben erhalten.'}
                 </p>
+                {action === 'transfer' && rows.length > 1 && (
+                  <p className="kmeta">
+                    Mehrere Gegenbuchungen passen. Der Vorschlag bevorzugt die zuletzt bestätigte
+                    Buchung.
+                  </p>
+                )}
                 <Button
                   size="sm"
                   disabled={busy || !selected}
@@ -722,8 +728,7 @@ function BankCandidateForm({
 }
 
 /**
- * A booked bank row is already an unchecked booking (decision 41). Offer the merge into an earlier
- * manual entry; nothing is shown while there is no match or the booking is not eligible.
+ * An unchecked bank booking can be merged with a duplicate or linked to its transfer counterpart.
  */
 export function BankBookingMerge({
   bookingId,
@@ -736,17 +741,18 @@ export function BankBookingMerge({
   const matches = useQuery({
     queryKey: [...LEDGER_KEY, 'bank-booking-matches', bookingId],
     queryFn: () =>
-      request<{ merge: Match[] }>(
+      request<{ merge: Match[]; transfers: Match[] }>(
         'GET',
         '/api/bank-sync/bookings/' + encodeURIComponent(bookingId) + '/matches',
       ),
     retry: false,
   });
-  const [chosen, setChosen] = useState('');
+  const [chosen, setChosen] = useState<Partial<Record<'merge' | 'transfer', string>>>({});
   const [busy, setBusy] = useState(false);
   const write = useBudgetWrite();
   const rows = matches.data?.merge ?? NO_MATCHES;
-  const selected = chosen || rows[0]?.id;
+  const transfers = matches.data?.transfers ?? NO_MATCHES;
+  const selected = chosen.merge ?? rows[0]?.id;
   useEffect(() => {
     const row = rows.find((r) => r.id === selected);
     onPrepared?.(
@@ -759,48 +765,74 @@ export function BankBookingMerge({
         : undefined,
     );
   }, [onPrepared, selected, matches.isError, matches.isFetching, rows]);
-  if (!rows.length) return null;
-  return (
-    <div className="bank-candidate">
-      <Field label="Passende eigene Buchung (geringster Datumsabstand zuerst)">
-        {({ id: fieldId }) => (
-          <Select
-            id={fieldId}
-            value={selected}
-            disabled={busy}
-            onChange={(e) => setChosen(e.target.value)}
-          >
-            {rows.map((row) => (
-              <option key={row.id} value={row.id}>
-                {shortDay(row.date)} · {row.accountName} · {row.memo || 'Buchung'} ·{' '}
-                {eur(row.amountCents, { sign: true })}
-              </option>
-            ))}
-          </Select>
+  return (['merge', 'transfer'] as const).map((action) => {
+    const transfer = action === 'transfer';
+    const options = transfer ? transfers : rows;
+    if (!options.length) return null;
+    const target = chosen[action] ?? options[0]!.id;
+    const available = options.some((row) => row.id === target);
+    return (
+      <div className="bank-candidate" key={action}>
+        <Field
+          label={
+            transfer
+              ? 'Vorgeschlagene Gegenbuchung'
+              : 'Passende eigene Buchung (geringster Datumsabstand zuerst)'
+          }
+        >
+          {({ id: fieldId }) => (
+            <Select
+              id={fieldId}
+              value={available ? target : ''}
+              disabled={busy}
+              onChange={(e) => setChosen({ ...chosen, [action]: e.target.value })}
+            >
+              {!available && (
+                <option value="" disabled>
+                  Auswahl nicht mehr verfügbar
+                </option>
+              )}
+              {options.map((row) => (
+                <option key={row.id} value={row.id}>
+                  {shortDay(row.date)} · {row.accountName} · {row.memo || 'Buchung'} ·{' '}
+                  {eur(row.amountCents, { sign: true })}
+                </option>
+              ))}
+            </Select>
+          )}
+        </Field>
+        <p className="kmeta">
+          {transfer
+            ? 'Anderes Konto, gleicher Gegenbetrag in derselben Währung, höchstens fünf Tage Abstand. Beim Verbinden werden Kategorie, Empfänger und Projekt der Umbuchungsseiten entfernt. Die Buchungstage bleiben erhalten.'
+            : 'Deine Buchung bleibt mit Kategorie, Anteilen und Notiz erhalten und übernimmt Datum und Bankreferenz. Die doppelte Bankbuchung entfällt.'}
+        </p>
+        {transfer && options.length > 1 && (
+          <p className="kmeta">
+            Mehrere Gegenbuchungen passen. Der Vorschlag bevorzugt die zuletzt bestätigte Buchung.
+          </p>
         )}
-      </Field>
-      <p className="kmeta">
-        Deine Buchung bleibt mit Kategorie, Anteilen und Notiz erhalten und übernimmt Datum und
-        Bankreferenz. Die doppelte Bankbuchung entfällt.
-      </p>
-      <Button
-        size="sm"
-        disabled={busy}
-        onClick={() => {
-          setBusy(true);
-          void write(
-            () =>
-              request<{ groupId: string }>(
-                'POST',
-                '/api/bank-sync/bookings/' + encodeURIComponent(bookingId) + '/merge',
-                { bookingId: selected },
-              ),
-            () => 'Bankbuchung mit eigener Buchung zusammengeführt.',
-          ).finally(() => setBusy(false));
-        }}
-      >
-        Mit eigener Buchung zusammenführen
-      </Button>
-    </div>
-  );
+        <Button
+          size="sm"
+          disabled={busy || !available || matches.isFetching || matches.isError}
+          onClick={() => {
+            setBusy(true);
+            void write(
+              () =>
+                request<{ groupId: string }>(
+                  'POST',
+                  '/api/bank-sync/bookings/' + encodeURIComponent(bookingId) + '/' + action,
+                  { bookingId: target },
+                ),
+              () =>
+                transfer
+                  ? 'Als Umbuchung verbunden; Kategorien entfernt.'
+                  : 'Bankbuchung mit eigener Buchung zusammengeführt.',
+            ).finally(() => setBusy(false));
+          }}
+        >
+          {transfer ? 'Als Umbuchung verbinden' : 'Mit eigener Buchung zusammenführen'}
+        </Button>
+      </div>
+    );
+  });
 }

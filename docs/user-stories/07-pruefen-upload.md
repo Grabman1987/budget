@@ -293,3 +293,9 @@ Bildschirm Prüfen: `/konten/pruefen` (Konten › Prüfen). Zähler: „Umsätze
   4. Ohne Treffer fehlt die Auswahl und der Nutzer kann normal kategorisieren.
 - **Status:** offen — **Verweis:** #516
   Fehlt noch: Erklärung, warum und woher ein Treffer kommt (Herkunft und Versionen der Quelle) und fehlende Gründe bei Mehrdeutigkeit; die Auswahl selbst gibt es schon.
+
+### Payment-provider funding (#1290)
+
+As a household member reviewing bank activity, I can choose a suggested opposite booking and explicitly link the two funding legs as an internal transfer. When several eligible counterparts match, the most recently confirmed one is proposed. I can change the selection before confirming or undo both legs together afterwards.
+
+The categorised purchase and its refunds are separate bookings. Their signed category amounts determine spending in reports, Heute and the forecast. Linked funding and return transfers between budget accounts contribute zero spending.
