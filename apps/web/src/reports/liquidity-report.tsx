@@ -54,6 +54,7 @@ import { expectedQuery, skipOccurrence, type ExpectedPayment } from '../expected
 import './reports-future.css';
 import { salaryDay, upcomingEvents, useLiquiditySelection } from './liquidity-selection';
 import { ForecastRedesign } from './forecast-redesign';
+import { ForecastBacktestSection } from './forecast-backtest';
 import { AccountLiquidityTable } from './account-liquidity';
 import { ReportTable } from './report-table';
 import { PlanPageFrame } from '../budget/plan-page-frame';
@@ -179,6 +180,7 @@ export function LiquidityReportPage({ report, meta }: { report: ReportEntry; met
             <OutlookCard report={view.report} />
           </>
         )}
+        {REDESIGN_ENABLED && <ForecastBacktestSection />}
       </div>
     </ForecastFrame>
   );

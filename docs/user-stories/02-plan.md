@@ -257,3 +257,11 @@ Bereich: Plan (`/plan/monat`, `/plan/jahr`, `/plan/erwartet`, `/plan/sparziele`,
   4. Hell/dunkel, Desktop und iPhone gleich lesbar.
 - **Status:** offen — **Verweis:** #992
 - Fehlt noch: Punkt 3 (Filter „Braucht Aufmerksamkeit“) existiert im Plan bereits; Punkte 1, 2, 4, 5 sind laut Issue offen und im Code zu prüfen.
+
+### P-13 – Forecast backtest (#1292)
+
+- **Story** As a budget user, I can open “Prognose im Rückblick” in Plan › Prognose to see how closely the month-start account forecast matched the ledger.
+- **Acceptance** The disclosure covers the six most recent completed months. It shows separate mean absolute errors for month-end and each month's lowest daily closing balance, with the largest differences and their possible causes. Months without comparable account data do not appear as zero errors.
+- **Operator** Run `npx tsx scripts/forecast-backtest.ts --database <ledger.sqlite> [1-24]` on an authorized local copy. The report uses only bookings dated and known by the first day's close in Vienna as opening inputs, reconstructs retained plan and schedule history, and compares against the current dated ledger. Unassigned household estimates do not enter individual account paths. Output amounts are integer cents, and causes without sufficient evidence remain unclassified.
+- **Data limits** Revisions depend on retained audit history. The report omits account-months that require a historical FX rate because the rate table does not retain publication history.
+- **Status** In review. The disclosure and CLI read the ledger without creating bookings, adjustments or Undo entries.
