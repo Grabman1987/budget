@@ -352,3 +352,13 @@ committed reserves stay covered through payday plus 30 days. A negative low or
 reserve shortfall marks the option as inadvisable. First-year interest saved and
 the assumed investment return range are shown separately from the cash forecast.
 The comparison leaves bookings and Undo history untouched.
+## Crypto operation matching (#1205)
+
+After fetching or running **Abgleich neu ausführen**, movements with the same
+provider transaction or trade reference are checked together, even if they
+arrived on different pages. An existing savings-plan trade can be shown beside
+an open funding leg. The funding check compares exact cents with the existing
+cash booking in the savings-plan date window. A token fee is included once in
+that token's unit effect, and balanced staking transfers are informational.
+Repeat runs preserve the result. Undo restores the operation and balance-review
+decisions together. The comparison reads the existing ledger and holdings.

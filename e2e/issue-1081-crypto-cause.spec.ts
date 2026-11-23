@@ -19,13 +19,26 @@ test('crypto warning exposes stored cause, exact unit trace and missing funding 
         amount: { assetId: 'synthetic-coin', currencyId: null, value: '0.00000006', cents: null },
         fee: { assetId: 'synthetic-coin', currencyId: null, value: '0.00000001', cents: null },
         balanceAfter: null,
+        tradeFee: { assetId: 'synthetic-fee-token', currencyId: null, value: '0.5', cents: null },
+        compensates: null,
+      },
+      {
+        id: 'synthetic-fee-leg',
+        type: 'fee',
+        walletId: 'synthetic-fee-wallet',
+        flow: 'OUTGOING',
+        creditedAt: '2026-10-01T12:00:00Z',
+        tradeId: 'synthetic-trade',
+        amount: { assetId: 'synthetic-fee-token', currencyId: null, value: '0.5', cents: null },
+        fee: null,
+        balanceAfter: null,
         tradeFee: null,
         compensates: null,
       },
     ],
     reconciliation: {
       status: 'missing',
-      refs: [],
+      refs: [{ type: 'trade', id: 'synthetic-existing-trade', kind: 'buy', date: '2026-10-01' }],
       missingLegs: [
         { key: 'currency:synthetic-eur', incoming: true, day: '2026-09-28', cents: 1234 },
       ],
@@ -68,6 +81,10 @@ test('crypto warning exposes stored cause, exact unit trace and missing funding 
   );
   await expect(detail).toContainText('Handelsreferenz: synthetic-trade');
   await expect(detail).toContainText(
+    'Quellinstrument: synthetic-fee-token · Brutto: 0 · Gebühr: 0,5 · Netto-Bestandswirkung: −0,5',
+  );
+  await expect(detail).toContainText('Erfasste Gegenbewegung: Handel · 2026-10-01');
+  await expect(detail).toContainText(
     'Einzahlung / Finanzierung fehlt im Abgleich: currency:synthetic-eur · 2026-09-28 · 12,34',
   );
   await expect(detail).toContainText(
@@ -98,6 +115,7 @@ test('crypto warning exposes stored cause, exact unit trace and missing funding 
   await expect(detail).not.toContainText('0,00000008');
   await expect(detail).not.toContainText('0,00000006');
   await expect(detail).not.toContainText('12,34');
+  await expect(detail).not.toContainText('−0,5');
   await expect(detail.locator('pre')).toHaveCount(0);
   await expect(detail).toContainText('Beträge sind ausgeblendet');
 });

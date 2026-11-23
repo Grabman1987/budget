@@ -107,6 +107,38 @@ describe('summarizeOperation', () => {
       { assetId: COIN, grossE8: 30_000_000, feeE8: 6_000_000, netE8: 24_000_000 },
     ]);
   });
+  it('counts a repeated inline trade fee in the platform token once', () => {
+    const fee = amt('0.5', TOKEN);
+    const s = summarizeOperation(
+      op(
+        'buy',
+        tx('buy', 'OUTGOING', amt('25.01', null, 2501), { tradeId: 't', tradeFee: fee }),
+        tx('buy', 'INCOMING', amt('0.0003', COIN), { tradeId: 't', tradeFee: fee }),
+      ),
+    );
+    expect(s.fiatCents).toBe(2501);
+    expect(s.assets).toContainEqual({
+      assetId: TOKEN,
+      grossE8: 0,
+      feeE8: 50_000_000,
+      netE8: -50_000_000,
+    });
+  });
+  it('shows a staking reward with its explicit EUR source value and net units', () => {
+    const s = summarizeOperation(
+      op(
+        'staking_reward',
+        tx('reward', 'INCOMING', amt('0.3', COIN)),
+        tx('reward', 'INCOMING', amt('3.01', null, 301)),
+        tx('fee', 'OUTGOING', amt('0.06', COIN)),
+      ),
+    );
+    expect(s).toEqual({
+      class: 'reward',
+      fiatCents: 301,
+      assets: [{ assetId: COIN, grossE8: 30_000_000, feeE8: 6_000_000, netE8: 24_000_000 }],
+    });
+  });
   it('a staking_reward type is a reward, not an internal transfer', () => {
     const s = summarizeOperation(
       op('staking_reward', tx('staking_reward', 'INCOMING', amt('0.3', COIN))),
