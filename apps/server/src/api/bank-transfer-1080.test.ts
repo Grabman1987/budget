@@ -314,9 +314,10 @@ it('conserves valuation when the recipient date precedes the debit date', async 
   ).toEqual([60000, 60000, 60000, 60000, 60000, 60000]);
 });
 
-it.each(['cash', 'brokerage', 'credit_card'] as const)(
+it.each(['cash', 'brokerage', 'crypto', 'p2p', 'credit_card'] as const)(
   'refuses bankLegs for %s before writing',
   async (type) => {
+    const investment = type === 'brokerage' || type === 'crypto' || type === 'p2p';
     accounts.create(
       opened.db,
       {
@@ -324,8 +325,8 @@ it.each(['cash', 'brokerage', 'credit_card'] as const)(
         name: 'Other',
         openingDate: '2026-01-01',
         type,
-        role: type === 'brokerage' ? 'investment' : 'budget',
-        onBudget: type !== 'brokerage',
+        role: investment ? 'investment' : 'budget',
+        onBudget: !investment,
       },
       { actor: 'fixture1080' },
     );

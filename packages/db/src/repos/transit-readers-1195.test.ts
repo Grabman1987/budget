@@ -214,6 +214,48 @@ it('attributes transit only to the selected recipient, without implying a househ
     cashIncludingTransitCents: 0,
   });
 });
+it('reconciles only bank cash while retaining separate investment cash positions', () => {
+  for (const [type, openingBalanceCents] of [
+    ['brokerage', 12345],
+    ['crypto', 23456],
+    ['p2p', 34567],
+  ] as const)
+    accounts.create(
+      opened.db,
+      {
+        id: type,
+        name: type,
+        type,
+        role: 'investment',
+        onBudget: false,
+        allocationScope: 'included',
+        openingDate: '2026-01-01',
+        openingBalanceCents,
+      },
+      ctx,
+    );
+  transfer(false);
+  const before = snapshot();
+  const asOf = '2026-11-01';
+  const input = allocationInputsAsOf(opened.db, asOf);
+  expect(input.cashReconciliation).toMatchObject({
+    accountIds: ['recipient', 'source'],
+    rawCashCents: 50000,
+    transitCents: 10000,
+    cashIncludingTransitCents: 60000,
+  });
+  expect(input.positions).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({ accountId: 'brokerage', valueCents: 12345 }),
+      expect.objectContaining({ accountId: 'crypto', valueCents: 23456 }),
+      expect.objectContaining({ accountId: 'p2p', valueCents: 34567 }),
+    ]),
+  );
+  expect(input.valueCents).toBe(120368);
+  expect(netWorthAsOf(opened.db, asOf).totalCents).toBe(130368);
+  expect(snapshot()).toBe(before);
+});
+
 it('withholds the cash bridge for missing FX, preserving native bank facts and existing allocation unavailability', () => {
   opened.close();
   opened = createTestDatabase();
