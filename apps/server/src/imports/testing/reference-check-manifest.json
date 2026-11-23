@@ -1,0 +1,44 @@
+{
+  "version": 1,
+  "items": [
+    {
+      "figure": "account-balance",
+      "accountId": "fixture-cash",
+      "date": "2026-05-10",
+      "expected": 18802,
+      "tolerance": 0
+    },
+    {
+      "figure": "category-activity",
+      "categoryId": "fixture-want",
+      "month": "2026-05",
+      "expected": -1201,
+      "tolerance": 0
+    },
+    {
+      "figure": "net-worth",
+      "date": "2026-05-10",
+      "expected": 19502,
+      "tolerance": 0
+    },
+    {
+      "figure": "holding-units",
+      "securityId": "fixture-security",
+      "date": "2026-05-10",
+      "expected": 175000000,
+      "tolerance": 0
+    },
+    {
+      "figure": "investable-amount",
+      "date": "2026-05-10",
+      "expected": 15638,
+      "tolerance": 0
+    },
+    {
+      "figure": "free-until-payday",
+      "date": "2026-05-10",
+      "expected": 17801,
+      "tolerance": 0
+    }
+  ]
+}

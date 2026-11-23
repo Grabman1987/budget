@@ -51,3 +51,43 @@ Every delivery (pull request or release note for acceptance) uses these four par
 2. **What proves it.** Tests, comparisons or owner checks, with the tolerance row from section 1 that applies.
 3. **What stays uncertain.** Known gaps, assumptions and anything not yet compared.
 4. **What still blocks the replacement.** What must still be true before the old tool can be switched off.
+
+## 4. Reference check operator command (#1294)
+
+Run on the owner machine against a stable, standalone snapshot of the current database schema.
+Create the snapshot separately using SQLite's `VACUUM INTO` or an equivalent consistent snapshot in
+rollback journal mode. A bare copy of a live WAL database can miss committed transactions. The
+runner refuses WAL-mode input to avoid creating sidecar files. It opens the snapshot read-only,
+reads all items in one transaction, and never migrates or adjusts the database.
+
+With `DATABASE_PATH` set to the snapshot path, run from a built checkout:
+
+```text
+node apps/server/dist/migrate-cli.js reference-check --manifest <file>
+```
+
+The UTF-8 JSON manifest contains `version: 1` and a non-empty `items` array. Every item requires
+`figure`, `expected` (a safe integer), and `tolerance: 0`. The supported figures are exact
+at their stated precision. Positive and negative cent values keep their signs.
+
+| `figure` | Other required fields | Compared value |
+| --- | --- | --- |
+| `account-balance` | `accountId`, `date` | Pending-inclusive balance in the account currency's cents, through the date |
+| `category-activity` | `categoryId`, `month` | Signed Plan activity in EUR cents for the whole month |
+| `net-worth` | `date` | Shared valuation total in EUR cents, including bank transfers in transit and documented valuation fallbacks |
+| `holding-units` | `securityId`, `date` | Units across depots in integer 1e-8 steps (1 unit = 100,000,000 steps). A known security with no position has zero units |
+| `investable-amount` | `date` | Investable headline in EUR cents, floored at zero |
+| `free-until-payday` | `date` | Heute lead figure in EUR cents, with outflows due strictly before payday. An included outflow with missing FX makes the comparison unavailable |
+
+Use stored IDs, dates as `YYYY-MM-DD`, and months as `YYYY-MM` (years 1900–9899).
+See the [synthetic manifest](../apps/server/src/imports/testing/reference-check-manifest.json) for
+a complete example. Vitest seeds a temporary database and runs this manifest through the same
+operator entry point in CI.
+
+Standard output contains one JSON object per item in input order, with the one-based `item` number,
+`figure`, `expected`, `actual`, `tolerance`, and `pass` fields. Missing targets or unavailable
+values fail with `actual: null` and a `reason`. Exit status is 0 if all items pass, 1 if any item
+fails, and 2 for invalid command input, a malformed manifest, or an unusable snapshot at open.
+Keep the private manifest, SQLite snapshot, and terminal output outside the public repository.
+The comparison supports the parallel-run protocol in section 2. Owner review and sign-off
+remain separate steps.

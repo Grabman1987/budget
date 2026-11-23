@@ -523,6 +523,32 @@ function requiredAccountValue(
   throw new PriceUnavailableError(id, valuation.missingPriceByAccount[id]![0]!, today);
 }
 
+/** The canonical Heute lead, with incomplete outflows withheld for reference comparisons. */
+export function freeUntilPaydayAsOf(
+  db: Executor,
+  today: string,
+): FreeUntilPayday | HeuteUnavailable {
+  return availableSection(() => {
+    const facts = loadFacts(db, lastDayOfMonth(monthOf(today)));
+    const inputs = liquidityPlanningInputs(facts, today);
+    const payday = nextPayday(today).day;
+    const missing = inputs.missingFx.find(
+      (item) =>
+        item.dueDate < payday &&
+        facts.payments.some(
+          (payment) => payment.id === item.paymentId && payment.kind === 'outflow',
+        ),
+    );
+    if (missing) throw new MissingFxRateError(missing.currency, today);
+    return freeUntilPayday({
+      accounts: inputs.cashAccounts,
+      openOutflows: inputs.openOutflows,
+      payday,
+      today,
+    });
+  });
+}
+
 export function investableAmountAsOf(
   db: Executor,
   today: string,

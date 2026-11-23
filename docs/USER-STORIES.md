@@ -325,3 +325,7 @@ reconciliation or repayment dates. The explicit override is audited with the
 booking change. Repayments keep their bank amounts and any released allocation
 becomes contact credit. A changed reconciliation balance remains visible in
 Prüfen. One Undo restores the booking and its affected links.
+
+F4/F9 (#1294): The operator can compare fixed expected values with a read-only database snapshot
+and get a pass or fail for each figure. The synthetic twin runs in CI. Private parallel-run
+evidence and owner sign-off remain open. See the [reference check](acceptance-tolerances.md#4-reference-check-operator-command-1294).
