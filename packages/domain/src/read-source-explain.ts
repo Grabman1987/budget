@@ -78,34 +78,47 @@ export function summarizeOperation(op: SourceOperation): OperationSummary {
       t.amount.assetId ? 'asset:' + t.amount.assetId : 'currency:' + t.amount.currencyId,
     );
   const primary = op.transactions.filter((t) => !SECONDARY_TX.has(t.type) && !isInternalLeg(t));
-  const byAsset = new Map<string, OperationAssetEffect & { incoming: boolean }>();
+  const byAsset = new Map<string, OperationAssetEffect>();
   const effect = (assetId: string) => {
-    const e = byAsset.get(assetId) ?? { assetId, grossE8: 0, feeE8: 0, netE8: 0, incoming: false };
+    const e = byAsset.get(assetId) ?? { assetId, grossE8: 0, feeE8: 0, netE8: 0 };
     byAsset.set(assetId, e);
     return e;
   };
   if (!internal) {
+    const explicitFees = op.transactions.filter((t) => t.type === 'fee' && t.amount.assetId);
+    const inlineFees = new Set<string>();
+    const tradeIds = new Set(op.transactions.flatMap((t) => (t.tradeId ? [t.tradeId] : [])));
+    const addInlineFee = (fee: Tx['fee'], tx: Tx, shared: boolean) => {
+      if (!fee?.assetId) return;
+      if (
+        explicitFees.some(
+          (t) =>
+            t.amount.assetId === fee.assetId &&
+            (t.tradeId === tx.tradeId || (t.tradeId === null && tradeIds.size <= 1)),
+        )
+      )
+        return;
+      const id = JSON.stringify([tx.tradeId ?? tx.id, fee.assetId]);
+      if (shared && inlineFees.has(id)) return;
+      if (shared || tx.tradeFee?.assetId === fee.assetId) inlineFees.add(id);
+      const e = effect(fee.assetId);
+      e.feeE8 = sum(e.feeE8, units(fee.value));
+    };
     for (const t of op.transactions) {
       const assetId = t.amount.assetId;
       if (!assetId || isInternalLeg(t)) continue;
       const e = effect(assetId);
       if (t.type === 'fee' || t.type === 'tax') e.feeE8 = sum(e.feeE8, units(t.amount.value));
       else if (!SECONDARY_TX.has(t.type)) {
-        e.grossE8 = sum(e.grossE8, units(t.amount.value));
-        if (t.flow === 'INCOMING') e.incoming = true;
-        if (t.fee?.assetId === assetId) e.feeE8 = sum(e.feeE8, units(t.fee.value));
+        const gross = units(t.amount.value);
+        e.grossE8 = sum(e.grossE8, gross);
+        e.netE8 = sum(e.netE8, gross === null ? null : t.flow === 'INCOMING' ? gross : -gross);
       }
     }
+    for (const t of primary) addInlineFee(t.fee, t, false);
+    for (const t of primary) addInlineFee(t.tradeFee, t, true);
     for (const e of byAsset.values()) {
-      // A fee-only effect (no primary leg) always reduces the holding.
-      const net =
-        e.grossE8 === null || e.feeE8 === null
-          ? null
-          : e.grossE8 === 0
-            ? sum(-e.feeE8)
-            : e.incoming
-              ? sum(e.grossE8, -e.feeE8)
-              : sum(-e.grossE8, -e.feeE8);
+      const net = sum(e.netE8, e.feeE8 === null ? null : -e.feeE8);
       e.netE8 = net === 0 ? 0 : net;
     }
   }
@@ -118,7 +131,14 @@ export function summarizeOperation(op: SourceOperation): OperationSummary {
   if (internal) cls = 'staking_transfer';
   else if (!primary.length) cls = 'fee_only';
   else if (hasAsset && incomingAsset && outgoingAsset) cls = 'swap';
-  else if (hasAsset && !hasFiat && REWARD.test(op.type)) cls = 'reward';
+  else if (
+    hasAsset &&
+    incomingAsset &&
+    !outgoingAsset &&
+    (REWARD.test(op.type) || primary.some((t) => t.amount.assetId && REWARD.test(t.type))) &&
+    primary.every((t) => t.amount.assetId || REWARD.test(t.type))
+  )
+    cls = 'reward';
   else if (hasAsset && hasFiat && incomingAsset) cls = 'purchase';
   else if (hasAsset && hasFiat && outgoingAsset) cls = 'sale';
   else if (hasAsset && primary.every((t) => t.type === 'transfer')) cls = 'token_transfer';
@@ -127,9 +147,7 @@ export function summarizeOperation(op: SourceOperation): OperationSummary {
   else if (!hasAsset && hasFiat) cls = 'fiat_transfer';
   return {
     class: cls,
-    assets: [...byAsset.values()]
-      .map(({ assetId, grossE8, feeE8, netE8 }) => ({ assetId, grossE8, feeE8, netE8 }))
-      .sort((a, b) => a.assetId.localeCompare(b.assetId)),
+    assets: [...byAsset.values()].sort((a, b) => a.assetId.localeCompare(b.assetId)),
     fiatCents: fiat.length ? sum(...fiat.map((t) => Math.abs(t.amount.cents!))) : null,
   };
 }

@@ -1223,4 +1223,94 @@ describe('ledger matching (Abgleich)', () => {
     expect(row('miss').title).toBe('Quellbewegung fehlt in der App: Anlage prüfen');
     expect(opened.db.select().from(schema.trade).all()).toHaveLength(1);
   });
+
+  it('reconciles a three-date savings plan across pages and undoes the complete decision', () => {
+    mapAll();
+    const purchase = buy('synthetic-plan-execution', '2026-03-10');
+    const reservation = deposit('synthetic-plan-reservation', '2026-03-06', 50);
+    reservation.type = 'savings_plan';
+    reservation.transactions[0]!.tradeId = purchase.transactions[0]!.tradeId;
+    const bookedTrade = appTrade('2026-03-10', 50_000_000, 50);
+    stage([reservation]);
+    stage([purchase]);
+    expect(JSON.parse(row(reservation.id).detail!).reconciliation).toEqual({
+      status: 'missing',
+      refs: [{ type: 'trade', id: bookedTrade.trade.id, kind: 'buy', date: '2026-03-10' }],
+      missingLegs: [{ key: 'currency:eur', incoming: true, day: '2026-03-06', cents: 5000 }],
+    });
+    expect(row(purchase.id).resolvedAt).toBeNull();
+    reconcileReadSource(opened.db, ctx);
+    const warningDetails = () =>
+      inbox()
+        .filter((i) => i.kind === 'reconciliation' && !i.resolvedAt)
+        .map((i) => i.detail);
+    const originalWarnings = warningDetails();
+    expect(originalWarnings.map((detail) => JSON.parse(detail!))).toContainEqual(
+      expect.objectContaining({
+        key: 'asset:coin',
+        cause: 'real_difference',
+        local: 50_000_003,
+        openMovementCount: 0,
+      }),
+    );
+    createEntity(
+      opened.db,
+      schema.account,
+      {
+        id: 'synthetic-bank',
+        name: 'Synthetic bank',
+        type: 'checking',
+        role: 'budget',
+        onBudget: true,
+        openingDate: '2026-01-01',
+        openingBalanceCents: 6001,
+      },
+      ctx,
+    );
+    const debit = createTransfer(
+      opened.db,
+      {
+        fromAccountId: 'synthetic-bank',
+        toAccountId: 'cash',
+        date: '2026-03-01',
+        amountCents: 5000,
+      },
+      ctx,
+    );
+    const ledger = () => ({
+      trades: opened.db.select().from(schema.trade).all(),
+      bookings: opened.db.select().from(schema.booking).all(),
+    });
+    const before = ledger();
+    expect(before.bookings.find((b) => b.id === debit.fromBookingId)?.amountCents).toBe(-5000);
+    expect(before.bookings.find((b) => b.id === debit.toBookingId)?.amountCents).toBe(5000);
+    const decision = reconcileReadSource(opened.db, ctx);
+    expect(decision).toMatchObject({ matched: 2, missing: 0, changed: 2 });
+    expect(warningDetails().map((detail) => JSON.parse(detail!))).toContainEqual(
+      expect.objectContaining({ key: 'currency:eur', local: 6234 }),
+    );
+    const accepted = inbox();
+    stage([purchase, reservation]);
+    expect(reconcileReadSource(opened.db, ctx).groupId).toBeNull();
+    expect(inbox()).toEqual(accepted);
+    undo(opened.db, { groupId: decision.groupId! }, ctx);
+    expect(row(purchase.id).resolvedAt).toBeNull();
+    expect(row(reservation.id).resolvedAt).toBeNull();
+    expect(warningDetails()).toEqual(originalWarnings);
+    expect(ledger()).toEqual(before);
+  });
+
+  it('rechecks a former group member when a replay changes the provider trade reference', () => {
+    mapAll();
+    appTrade('2026-03-10', 50_000_000, 50);
+    const purchase = buy('synthetic-corrected-trade', '2026-03-10');
+    const [cashLeg, assetLeg] = purchase.transactions;
+    const cashSide = { ...purchase, id: 'synthetic-cash-side', transactions: [cashLeg!] };
+    const assetSide = { ...purchase, transactions: [assetLeg!] };
+    stage([cashSide, assetSide]);
+    expect(row(cashSide.id).resolvedAt).toBeTruthy();
+    stage([{ ...assetSide, transactions: [{ ...assetLeg!, tradeId: 'corrected-synthetic-ref' }] }]);
+    expect(row(cashSide.id).resolvedAt).toBeNull();
+    expect(row(assetSide.id).resolvedAt).toBeTruthy();
+  });
 });

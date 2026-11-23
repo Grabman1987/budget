@@ -325,3 +325,14 @@ reconciliation or repayment dates. The explicit override is audited with the
 booking change. Repayments keep their bank amounts and any released allocation
 becomes contact credit. A changed reconciliation balance remains visible in
 Prüfen. One Undo restores the booking and its affected links.
+
+## Crypto operation matching (#1205)
+
+After fetching or running **Abgleich neu ausführen**, movements with the same
+provider transaction or trade reference are checked together, even if they
+arrived on different pages. An existing savings-plan trade can be shown beside
+an open funding leg. The funding check compares exact cents with the existing
+cash booking in the savings-plan date window. A token fee is included once in
+that token's unit effect, and balanced staking transfers are informational.
+Repeat runs preserve the result. Undo restores the operation and balance-review
+decisions together. The comparison reads the existing ledger and holdings.

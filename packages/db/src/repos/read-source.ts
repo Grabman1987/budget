@@ -8,6 +8,7 @@ import {
   isAutomaticResolution,
   matchedResolution,
   explainHoldingDifference,
+  groupSourceOperations,
   summarizeOperation,
   type OperationVerdict,
   type SourceBalance,
@@ -342,6 +343,27 @@ export function stageSourcePage(
     const verdicts = operations.length
       ? evaluateReadSource(tx, readSourceMappings(tx), since, operations)
       : new Map<string, OperationVerdict>();
+    if (verdicts.size) {
+      const incomingIds = new Set(operations.map((op) => op.id));
+      const staged = stagedOperations(tx).filter(
+        ({ day }) => since === null || day === null || day >= since,
+      );
+      const previous = staged.filter(({ op }) => !incomingIds.has(op.id));
+      const affected = new Set(
+        [
+          ...groupSourceOperations(staged.map(({ op }) => op)),
+          ...groupSourceOperations([...previous.map(({ op }) => op), ...operations]),
+        ]
+          .filter(({ members }) => members.some(({ id }) => incomingIds.has(id)))
+          .flatMap(({ members }) => members.map(({ id }) => id)),
+      );
+      for (const { row, op } of previous) {
+        const verdict = verdicts.get(op.id);
+        if (!verdict || !affected.has(op.id)) continue;
+        if (row.resolvedAt && !isAutomaticResolution(row.resolution)) continue;
+        applyVerdict(tx, row, op, verdict, grouped);
+      }
+    }
     for (const op of operations) {
       const day = since === null ? null : operationDay(op);
       const key = 'operation:' + op.id;
@@ -491,10 +513,23 @@ function compareSourceBalances(
     ...holdings.missingPricePositions,
   ];
   const mappings = readSourceMappings(tx);
-  const openOperations = stagedOperations(tx)
-    .filter(({ row }) => !row.resolvedAt)
+  const since = readSourceSince(tx);
+  const staged = stagedOperations(tx).filter(
+    ({ day: operationDate }) => since === null || operationDate === null || operationDate >= since,
+  );
+  const openIds = new Set(staged.filter(({ row }) => !row.resolvedAt).map(({ op }) => op.id));
+  const openOperations = groupSourceOperations(staged.map(({ op }) => op))
+    .filter(({ members, conflicting }) => !conflicting && members.some(({ id }) => openIds.has(id)))
     .map(({ op }) => op);
-  const verdicts = evaluateReadSource(tx, mappings, readSourceSince(tx));
+  const verdicts = evaluateReadSource(tx, mappings, since);
+  const openForAsset = (key: string) =>
+    openOperations.filter((op) => {
+      const verdict = verdicts.get(op.id);
+      if (verdict?.status !== 'missing' || !verdict.refs?.some((ref) => ref.type === 'trade'))
+        return true;
+      // A matched execution with only funding outstanding does not explain missing token units.
+      return !verdict.missingLegs?.length || verdict.missingLegs.some((leg) => leg.key === key);
+    });
   const causeOf = (
     key: string,
     mapped: boolean,
@@ -508,7 +543,7 @@ function compareSourceBalances(
           appE8,
           sourceE8,
           sourceUnreadable,
-          openOperations,
+          openOperations: openForAsset(key),
           assetId: key.slice('asset:'.length),
         })
       : null;
@@ -631,7 +666,7 @@ function compareSourceBalances(
                 fetchedAt: fetchedAt === undefined ? now : fetchedAt,
                 comparedOn: day,
                 securityId: mapping?.securityId ?? null,
-                operations: openOperations.flatMap((op) => {
+                operations: openForAsset(balance.key).flatMap((op) => {
                   const summary = summarizeOperation(op);
                   if (
                     !summary.assets.some(

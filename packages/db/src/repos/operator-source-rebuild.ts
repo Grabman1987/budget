@@ -412,6 +412,7 @@ export function applySourceRebuild(
                   ...t,
                   amount: { ...t.amount, value: unitText(rebuildAssetUnits(t, op.transactions)) },
                   fee: null,
+                  tradeId: null, // This synthetic row is matched as one already-netted reward leg.
                   tradeFee: null,
                 },
               ],
