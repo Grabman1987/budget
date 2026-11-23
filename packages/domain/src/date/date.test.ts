@@ -1,3 +1,4 @@
+import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
 import {
   addDays,
@@ -17,6 +18,29 @@ describe('todayInVienna', () => {
     expect(todayInVienna(new Date('2026-12-31T23:30:00Z'))).toBe('2027-01-01'); // 00:30 CET
     expect(todayInVienna(new Date('2026-03-28T23:30:00Z'))).toBe('2026-03-29'); // before the switch
     expect(todayInVienna(new Date('2026-10-24T22:30:00Z'))).toBe('2026-10-25'); // 00:30 CEST
+  });
+
+  it('changes months at Vienna midnight in both winter and summer', () => {
+    fc.assert(
+      fc.property(fc.integer({ min: 2000, max: 2099 }), (year) => {
+        for (const [utcHour, end, start] of [
+          [23, '02', '03'],
+          [22, '03', '04'],
+          [22, '09', '10'],
+          [23, '10', '11'],
+        ] as const) {
+          const previousMonth = `${year}-${end}`;
+          const newMonth = `${year}-${start}`;
+          // Date.UTC normalizes day zero to the previous month's last calendar day.
+          const localMidnight = Date.UTC(year, Number(start) - 1, 0, utcHour);
+          expect(monthOf(todayInVienna(new Date(localMidnight - 1)))).toBe(previousMonth);
+          expect(todayInVienna(new Date(localMidnight))).toBe(`${newMonth}-01`);
+          expect(lastDayOfMonth(previousMonth)).toBe(
+            new Date(localMidnight).toISOString().slice(0, 10),
+          );
+        }
+      }),
+    );
   });
 });
 

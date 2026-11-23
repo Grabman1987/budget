@@ -329,3 +329,12 @@ Prüfen. One Undo restores the booking and its affected links.
 F4/F9 (#1294): The operator can compare fixed expected values with a read-only database snapshot
 and get a pass or fail for each figure. The synthetic twin runs in CI. Private parallel-run
 evidence and owner sign-off remain open. See the [reference check](acceptance-tolerances.md#4-reference-check-operator-command-1294).
+## Bank feed at month boundaries (#1293)
+
+When a bank authorization becomes booked under the same source reference, its
+final date and amount stay available for review if the feed later repeats the
+pending authorization. If both versions arrive together, Budget uses the
+booked version when it can match the pair to a recorded source identity.
+If I already recorded the booking,
+I review any reported change and correct the existing booking explicitly.
+One Undo restores its previous date, amount and allocations.
