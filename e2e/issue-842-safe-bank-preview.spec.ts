@@ -111,8 +111,9 @@ test('K5: safe source-backed rule preview is read-only until confirmation and us
       await page.setViewportSize({ width, height: 900 });
       const row = page.locator('.bank-v1-row').filter({ hasText: longPayee });
       await expect(row).toBeVisible();
-      await expect(row.locator('.bank-v1-payee strong')).toHaveText(longPayee);
-      await expect(row.locator('.bank-v1-payee strong')).toHaveCSS('display', 'block');
+      // The payee name is the picker button; the long raw bank text is its own truncated line.
+      await expect(row.locator('.bank-v1-raw')).toHaveText(longPayee);
+      await expect(row.locator('.bank-v1-raw')).toHaveCSS('display', 'block');
       if (path.startsWith('/konten/pruefen')) {
         if (width >= 768) await expect(page.getByLabel('Datumssortierung')).toBeVisible();
         const toolbar = page.locator('.konten-frame-inbox .konten-view-bar');

@@ -241,11 +241,11 @@ test('phone review keeps equal segments, separate metadata and grouped actions',
     const meta = (await row.locator('.bank-v1-meta').boundingBox())!;
     expect(meta.y).toBeGreaterThanOrEqual(payee.y + payee.height);
     const chips = row.locator('.bank-suggestion-pill');
-    await expect(chips).toHaveCount(3);
+    await expect(chips).toHaveCount(1);
     for (const chip of await chips.all())
       expect((await chip.boundingBox())!.y).toBeGreaterThanOrEqual(meta.y + meta.height);
     const actions = row.locator('.inbox-row-actions button, .bank-row-full-form');
-    await expect(actions).toHaveCount(3);
+    await expect(actions).toHaveCount(2);
     const actionBoxes = await Promise.all(
       (await actions.all()).map(async (action) => (await action.boundingBox())!),
     );

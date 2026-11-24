@@ -386,15 +386,34 @@ export const BankCandidateRow = memo(function BankCandidateRow({
         : rule
           ? `Regel: ${rule.name}`
           : [payee?.name, category?.name].filter(Boolean).join(' · ');
+  // The payee has its own button; with neither payee nor category the category comes first.
+  const pickCategory =
+    missing?.cell === 'category' || (missing?.cell === 'payee' && !category && !transferring);
   const PREPARING = 'Vorschläge werden geprüft.';
   // While the row is still being checked, the list's own preparation label stands in.
   const listLabel = item.bankCandidate?.suggestion?.label;
-  const serverLabel =
-    !listLabel || listLabel.startsWith('Kategorie prüfen') ? 'Vorschläge prüfen' : listLabel;
+  const listLabelText =
+    !listLabel || listLabel.startsWith('Kategorie prüfen') ? undefined : listLabel;
   const openEditor = (cell: 'payee' | 'suggestion' | 'category') => {
     setActive(true);
     setEditing(cell);
   };
+  const editPencil = (
+    <button
+      type="button"
+      className="bank-row-full-form"
+      aria-label="Vorschlag ändern"
+      title="Vorschlag ändern"
+      disabled={locked}
+      onClick={() =>
+        openEditor(
+          transferId || target || suggestions.length || targets.length ? 'suggestion' : 'category',
+        )
+      }
+    >
+      <Pencil size={16} aria-hidden="true" />
+    </button>
+  );
   return (
     <tr
       ref={row}
@@ -470,7 +489,7 @@ export const BankCandidateRow = memo(function BankCandidateRow({
             type="button"
             className="bank-payee-btn"
             aria-label={payee ? `Empfänger ändern: ${payee.name}` : 'Empfänger wählen'}
-            title={missing?.cell === 'payee' ? missing.reason : 'Empfänger ändern'}
+            title={missing?.cell === 'payee' ? missing.reason : (payee?.name ?? 'Empfänger wählen')}
             disabled={locked}
             onClick={() => openEditor('payee')}
           >
@@ -480,7 +499,9 @@ export const BankCandidateRow = memo(function BankCandidateRow({
         <div className="bank-v1-meta">
           <span>{item.bankCandidate ? shortDay(item.bankCandidate.date) : ''}</span>
           {!transferring && rawName !== payee?.name && (
-            <small className="bank-v1-raw">{rawName}</small>
+            <small className="bank-v1-raw" title={rawName}>
+              {rawName}
+            </small>
           )}
           <small className="bank-v1-phone-source">
             {item.bankCandidate?.accountName} · Bank-Sync
@@ -566,30 +587,29 @@ export const BankCandidateRow = memo(function BankCandidateRow({
         ) : (
           <div className="bank-suggestion-actions">
             {missing ? (
-              <button
-                type="button"
-                className="bank-suggestion-pill is-missing"
-                title={missing.reason}
-                disabled={locked || missing.cell === 'source'}
-                onClick={() =>
-                  openEditor(
-                    missing.cell === 'payee'
-                      ? 'payee'
-                      : missing.cell === 'category'
-                        ? 'category'
-                        : 'suggestion',
-                  )
-                }
-              >
-                <CircleHelp size={14} aria-hidden="true" />
-                {missing.cell === 'category'
-                  ? 'Kategorie wählen'
-                  : missing.cell === 'payee'
-                    ? 'Empfänger wählen'
-                    : missing.reason === PREPARING
-                      ? serverLabel
-                      : missing.reason}
-              </button>
+              <>
+                <button
+                  type="button"
+                  className="bank-suggestion-pill is-missing"
+                  title={missing.reason}
+                  disabled={locked || missing.cell === 'source'}
+                  onClick={() =>
+                    openEditor(
+                      pickCategory ? 'category' : missing.cell === 'payee' ? 'payee' : 'suggestion',
+                    )
+                  }
+                >
+                  <CircleHelp size={14} aria-hidden="true" />
+                  {pickCategory
+                    ? 'Kategorie wählen'
+                    : missing.cell === 'payee'
+                      ? 'Empfänger fehlt'
+                      : missing.reason === PREPARING
+                        ? (listLabelText ?? 'Vorschläge prüfen')
+                        : (listLabelText ?? missing.reason)}
+                </button>
+                {missing.cell === 'suggestion' && editPencil}
+              </>
             ) : (
               <>
                 <button
@@ -603,22 +623,7 @@ export const BankCandidateRow = memo(function BankCandidateRow({
                   <Check size={14} aria-hidden="true" />
                   {confirmLabel}
                 </button>
-                <button
-                  type="button"
-                  className="bank-row-full-form"
-                  aria-label="Vorschlag ändern"
-                  title="Vorschlag ändern"
-                  disabled={locked}
-                  onClick={() =>
-                    openEditor(
-                      transferId || target || suggestions.length || targets.length
-                        ? 'suggestion'
-                        : 'category',
-                    )
-                  }
-                >
-                  <Pencil size={16} aria-hidden="true" />
-                </button>
+                {editPencil}
               </>
             )}
           </div>

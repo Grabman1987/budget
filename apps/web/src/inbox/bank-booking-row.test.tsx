@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ToastProvider } from '@budget/ui';
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { BankBookingRow } from './bank-booking-row';
 import type { InboxBooking } from './api';
@@ -34,6 +34,7 @@ const base: InboxBooking = {
   },
 };
 let client: QueryClient;
+let matchBody: object;
 beforeEach(() => {
   client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   vi.stubGlobal('matchMedia', () => ({
@@ -41,10 +42,11 @@ beforeEach(() => {
     addEventListener() {},
     removeEventListener() {},
   }));
+  matchBody = { merge: [], transfers: [], suggestions: [] };
   vi.stubGlobal(
     'fetch',
     async () =>
-      new Response(JSON.stringify({ merge: [], transfers: [], suggestions: [] }), {
+      new Response(JSON.stringify(matchBody), {
         status: 200,
         headers: { 'content-type': 'application/json' },
       }),
@@ -127,4 +129,18 @@ it('hands the row choice to the full form via Bearbeiten', () => {
     categoryId: 'c1',
     categoryName: 'Haushalt',
   });
+});
+
+it('shows a single action directly and the menu only with 2+ actions', async () => {
+  renderRow(base);
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Bearbeiten' })).toBeTruthy());
+  expect(screen.queryByLabelText('Weitere Aktionen')).toBeNull();
+  cleanup();
+  matchBody = {
+    merge: [{ id: 'm1', date: '2026-10-14', accountName: 'Konto Beispiel', amountCents: -1500 }],
+    transfers: [],
+    suggestions: [],
+  };
+  renderRow(base);
+  await waitFor(() => expect(screen.getByLabelText('Weitere Aktionen')).toBeTruthy());
 });

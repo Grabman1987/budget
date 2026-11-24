@@ -2,6 +2,7 @@ import { Button, Select, useAmountPrivacy, useIsPhone } from '@budget/ui';
 import { useQuery } from '@tanstack/react-query';
 import { Check, CircleHelp, MoreHorizontal, Pencil } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from 'react';
+import { bookingAssignmentQuery } from '../assignment/api';
 import { BookingAssignmentReview } from '../assignment/review';
 import { CategoryCombobox } from '../ledger/category-picker';
 import { pickableCategories } from '../ledger/capture-model';
@@ -10,7 +11,11 @@ import { KontenMenu } from '../ledger/konten-menu';
 import { lookupsQuery, payeesQuery } from '../ledger/queries';
 import type { BookingPatch } from '../ledger/api';
 import type { InboxBooking } from './api';
-import { BankBookingMerge, type PreparedBankSuggestion } from './bank-candidate';
+import {
+  BankBookingMerge,
+  bankBookingMatchesQuery,
+  type PreparedBankSuggestion,
+} from './bank-candidate';
 
 /** The row's current payee/category choice, handed to the full booking form. */
 export type BookingPrefill = {
@@ -54,7 +59,8 @@ export function BankBookingRow({
   const isPhone = useIsPhone();
   const row = useRef<HTMLTableRowElement>(null);
   const [active, setActive] = useState(false);
-  const [moreSeen, setMoreSeen] = useState(false);
+  // Rule and merge availability is cheap; it decides whether "Weitere Aktionen" has 2+ entries.
+  const [visible, setVisible] = useState(typeof IntersectionObserver === 'undefined');
   const [draft, setDraft] = useState<Draft>({});
   const [editing, setEditing] = useState<'payee' | 'category'>();
   const [merge, setMerge] = useState<PreparedBankSuggestion>();
@@ -74,6 +80,33 @@ export function BankBookingRow({
       ),
     [],
   );
+  useEffect(() => {
+    if (visible || !row.current || typeof IntersectionObserver === 'undefined') return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          setVisible(true);
+          observer.disconnect();
+        }
+      },
+      { rootMargin: '200px' },
+    );
+    observer.observe(row.current);
+    return () => observer.disconnect();
+  }, [visible]);
+  const rules = useQuery({
+    ...bookingAssignmentQuery(item.bookingId),
+    enabled: visible,
+    subscribed: visible,
+  });
+  const matches = useQuery({
+    ...bankBookingMatchesQuery(item.bookingId),
+    enabled: visible && item.status === 'pending',
+    subscribed: visible,
+  });
+  const hasRule = (rules.data?.suggestions.length ?? 0) > 0;
+  const hasMerge = Boolean(matches.data?.merge.length || matches.data?.transfers.length);
+  const needsMenu = hasRule || hasMerge || (Boolean(onSelect) && isPhone);
   useEffect(() => {
     if (editing)
       row.current
@@ -196,7 +229,7 @@ export function BankBookingRow({
             type="button"
             className="bank-payee-btn"
             aria-label={payeeName ? `Empfänger ändern: ${payeeName}` : 'Empfänger wählen'}
-            title="Empfänger ändern"
+            title={payeeName || 'Empfänger wählen'}
             disabled={locked}
             onClick={() => openEditor('payee')}
           >
@@ -205,7 +238,11 @@ export function BankBookingRow({
         )}
         <div className="bank-v1-meta">
           <span>{shortDay(item.date)}</span>
-          {rawText && <small className="bank-v1-raw">{rawText}</small>}
+          {rawText && (
+            <small className="bank-v1-raw" title={rawText}>
+              {rawText}
+            </small>
+          )}
           <small className="bank-v1-phone-source">{item.accountName} · Bankbuchung</small>
         </div>
       </td>
@@ -277,13 +314,20 @@ export function BankBookingRow({
         )}
       </td>
       <td className="bank-v1-amount num">{nativeCurrency(item.amountCents, item.currency)}</td>
-      <td className="bank-v1-action" />
+      <td className="bank-v1-action">
+        {!needsMenu && (
+          <Button
+            variant="ghost"
+            size="sm"
+            disabled={locked}
+            onClick={() => onEdit(item.bookingId, prefill())}
+          >
+            Bearbeiten
+          </Button>
+        )}
+      </td>
       <td className="bank-v1-more">
-        <span
-          onClickCapture={() => setMoreSeen(true)}
-          onFocusCapture={() => setMoreSeen(true)}
-          style={{ display: 'contents' }}
-        >
+        {needsMenu && (
           <KontenMenu
             label="Weitere Aktionen"
             icon={<MoreHorizontal size={16} aria-hidden="true" />}
@@ -297,22 +341,18 @@ export function BankBookingRow({
             >
               Bearbeiten
             </Button>
-            {moreSeen && (
-              <>
-                <BookingAssignmentReview
-                  id={item.bookingId}
-                  onPrepared={prepareRule}
-                  onApplied={(canLearn) => {
-                    if (canLearn) onConfirmed(item.bookingId);
-                  }}
-                />
-                {item.status === 'pending' && (
-                  <BankBookingMerge bookingId={item.bookingId} onPrepared={setMerge} />
-                )}
-              </>
+            {hasRule && (
+              <BookingAssignmentReview
+                id={item.bookingId}
+                onPrepared={prepareRule}
+                onApplied={(canLearn) => {
+                  if (canLearn) onConfirmed(item.bookingId);
+                }}
+              />
             )}
+            {hasMerge && <BankBookingMerge bookingId={item.bookingId} onPrepared={setMerge} />}
           </KontenMenu>
-        </span>
+        )}
       </td>
     </tr>
   );

@@ -187,16 +187,19 @@
   width: 44px;
 }
 .bank-v1-table th:nth-child(2) {
-  width: 26%;
+  width: 34%;
 }
 .bank-v1-table th:nth-child(3) {
-  width: 19%;
+  width: 14%;
 }
 .bank-v1-table th:nth-child(4) {
-  width: 30%;
+  width: 28%;
 }
 .bank-v1-table th:nth-child(5) {
-  width: 118px;
+  width: 108px;
+}
+.bank-v1-table th:nth-child(6) {
+  width: 56px;
 }
 .bank-v1-table th:last-child {
   width: 52px;
@@ -229,7 +232,11 @@
   display: none;
 }
 .bank-v1-amount {
-  font-family: var(--font-tech);
+  /* Body face with tabular figures: no condensed technical face or tracking on amounts. */
+  font-family: inherit;
+  font-variant-numeric: tabular-nums;
+  font-stretch: normal;
+  letter-spacing: normal;
   font-weight: 650;
   white-space: nowrap;
 }
@@ -720,23 +727,25 @@
   display: none;
 }
 .bank-v1-table th:nth-child(2) {
-  width: 22%;
+  width: 32%;
 }
 .bank-v1-table th:nth-child(3) {
   width: 14%;
 }
 .bank-v1-table th:nth-child(4) {
-  width: 32%;
+  width: 30%;
 }
 .bank-v1-table th:nth-child(5) {
-  width: 110px;
+  width: 108px;
 }
 .bank-v1-table th:nth-child(6) {
-  width: 100px;
+  width: 56px;
 }
 /* One suggestion per row: the pill confirms, the pencil edits; the payee name is the picker. */
 .bank-payee-btn {
-  display: block;
+  display: flex;
+  align-items: flex-start;
+  width: 100%;
   max-width: 100%;
   min-height: var(--touch);
   padding: 0;
@@ -746,6 +755,31 @@
   font: inherit;
   text-align: start;
   cursor: pointer;
+}
+/* Desktop: the 44px touch box spans the cell; the meta line sits at its lower edge. */
+@media (min-width: 768px) {
+  .bank-v1-table .bank-v1-payee {
+    position: relative;
+    vertical-align: top;
+  }
+  .bank-v1-table .bank-v1-meta {
+    position: absolute;
+    inset-block-end: 2px;
+    max-width: calc(100% - 16px);
+    pointer-events: none;
+  }
+}
+.bank-payee-btn strong {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.bank-v1-raw {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--fs-meta);
+  color: var(--ink-2);
 }
 .bank-payee-btn:hover strong {
   text-decoration: underline;
@@ -961,6 +995,23 @@
 .bank-v1-meta {
   display: contents;
 }
+/* Desktop: one compact line "date · raw bank text", truncated. */
+@media (min-width: 768px) {
+  .bank-v1-table .bank-v1-meta {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    min-width: 0;
+  }
+  .bank-v1-table .bank-v1-meta > span {
+    flex: none;
+  }
+  .bank-v1-table .bank-v1-meta > .bank-v1-raw {
+    flex: 1 1 auto;
+    min-width: 0;
+    margin-block-start: 2px;
+  }
+}
 @media (max-width: 767px) {
   .konten-inbox-actions-slot {
     width: 100%;
@@ -988,6 +1039,11 @@
     min-width: 0;
     max-width: none;
   }
+  .bank-editable-row .bank-v1-payee .bank-payee-btn {
+    flex: 1 1 0;
+    width: auto;
+    min-width: 0;
+  }
   .kinbox-v1 .bank-v1-table .bank-editable-row .bank-v1-amount {
     order: 1;
   }
@@ -1012,7 +1068,7 @@
     min-width: 0;
     overflow-wrap: anywhere;
   }
-  .bank-editable-row :is(.bank-suggestion-pill, .bank-row-editor) {
+  .bank-editable-row :is(.bank-suggestion-actions, .bank-suggestion-pill, .bank-row-editor) {
     order: 3;
     max-width: 100%;
   }
