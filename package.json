@@ -25,6 +25,7 @@
     "db:seed": "tsx scripts/db-seed.ts --fresh",
     "fixtures:ynab": "tsx scripts/ynab-export.ts",
     "fixtures:pp": "tsx scripts/pp-export.ts",
+    "recognition-check": "node --import tsx apps/server/src/document-intake/recognition-check.ts",
     "db:generate": "npm run generate -w @budget/db",
     "build:e2e": "npm run build -w @budget/web -- --mode e2e && npm run build -w @budget/server"
   },

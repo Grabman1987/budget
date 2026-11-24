@@ -91,3 +91,64 @@ fails, and 2 for invalid command input, a malformed manifest, or an unusable sna
 Keep the private manifest, SQLite snapshot, and terminal output outside the public repository.
 The comparison supports the parallel-run protocol in section 2. Owner review and sign-off
 remain separate steps.
+
+## 5. Document recognition check (#1310)
+
+From a development checkout with dependencies installed, run the public synthetic set with:
+
+```sh
+npm run --silent recognition-check -- --dir packages/fixtures/recognition
+```
+
+For a held-out run, put copies of the documents in an owner-controlled local folder outside
+the repository and Dropbox, for example `C:\FinanzApp_local\recognition-heldout`. Use a flat
+folder. Give each document a unique stem and add a UTF-8 sidecar, for example `sample.pdf` and
+`sample.expected.json`. Transcribe the expected values independently from the originals before
+running the checker. Keep originals, sidecars and output local. They can contain personal data.
+
+```json
+{
+  "type": "receipt",
+  "fields": {
+    "totalCents": -1240,
+    "date": "2026-10-07"
+  }
+}
+```
+
+Use signed integer cents, ISO dates (`YYYY-MM-DD`) and ISO payroll months (`YYYY-MM`).
+Each field is a dot path to a scalar or an ordered array of scalars. Use `null` for a field
+the parser explicitly leaves empty. An absent path fails, including when `null` was expected.
+An empty `fields` object checks type alone.
+
+| Expected type | Example fields |
+| --- | --- |
+| `payslip`, `bonus`, `pension` | `payoutDate`, `draft.month`, `draft.netCents`, `draft.lines.0.amountCents` |
+| `card_statement` | `layout`, `summary.debitDate`, `summary.payableCents`, `rows.0.amountCents`, `rows.0.bookingDate` |
+| `bank_statement` | `summary.reference`, `summary.issueDate`, `summary.periodTo` |
+| `receipt` | `totalCents`, `currency`, `date`, `payee`, `bookingMatches` |
+| `trade_confirmation` | `date`, `amountCents`, `unitsE8` |
+| Any type, including `unreadable` | `confidence`, `hints.mime` |
+
+Run the same command with the local folder path in quotes. The checker uses the central
+detector and default payroll mappings. Card extraction runs stand-alone in EUR with no previous
+statement or account mapping. To check short card dates against a known billing cycle, supply
+`cardPeriod` with ISO `from` and `to` dates, as in the
+[year-boundary fixture](../packages/fixtures/recognition/card-year-boundary.expected.json).
+To check booking suggestions, provide an explicit `bookingCandidates` array and use
+`bookingMatches` for the expected booking IDs in ranked order. The
+[credit-note fixture](../packages/fixtures/recognition/credit-note.expected.json) shows the
+candidate fields. Image-only inputs use the app's existing type detection without OCR.
+
+Standard output is JSON Lines. Each comparison gives the document, field, expected value,
+actual value and pass flag. Type detection and field extraction are scored independently.
+Fields are extracted using the labelled type, so a wrong classification still permits checking
+the expected parser. Each expected type has separate field and type accuracy ratios and counts.
+Encrypted PDFs report `skipped: "encrypted"` without using a password and are excluded from both
+accuracy denominators. Accuracy is `null` when there were no comparisons.
+
+Exit status is 0 when all evaluated comparisons pass, 1 for any mismatch, and 2 for invalid
+input. A run containing only encrypted documents exits 0 with no measured accuracy.
+The command reads local inputs without opening a database, calling the network, uploading files
+or changing bookings. The Vitest CI suite invokes the same CLI with the public PDFs and checks
+that a deliberately wrong one-cent expectation produces a field-level failure.
