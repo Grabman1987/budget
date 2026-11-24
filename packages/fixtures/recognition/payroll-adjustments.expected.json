@@ -1,0 +1,12 @@
+{
+  "type": "payslip",
+  "fields": {
+    "draft.month": "2026-09",
+    "payoutDate": "2026-09-30",
+    "draft.grossCents": 400000,
+    "draft.netCents": 297500,
+    "draft.svCents": 70000,
+    "draft.taxCents": 50000,
+    "differenceCents": 0
+  }
+}

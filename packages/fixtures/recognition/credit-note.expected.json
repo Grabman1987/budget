@@ -1,0 +1,92 @@
+{
+  "type": "receipt",
+  "fields": {
+    "totalCents": -1240,
+    "currency": "EUR",
+    "date": "2026-10-07",
+    "payee": "Synthetic Trading GmbH",
+    "bookingMatches": ["matching-payee", "nearer"]
+  },
+  "bookingCandidates": [
+    {
+      "id": "nearer",
+      "date": "2026-10-07",
+      "accountId": "synthetic-account",
+      "amountCents": 1240,
+      "currency": "EUR",
+      "payee": "Other merchant",
+      "transfer": false,
+      "receipted": false
+    },
+    {
+      "id": "matching-payee",
+      "date": "2026-10-12",
+      "accountId": "synthetic-account",
+      "amountCents": 1240,
+      "currency": "EUR",
+      "payee": "Synthetic Trading GmbH",
+      "transfer": false,
+      "receipted": false
+    },
+    {
+      "id": "out-of-window",
+      "date": "2026-10-13",
+      "accountId": "synthetic-account",
+      "amountCents": 1240,
+      "currency": "EUR",
+      "payee": "Other merchant",
+      "transfer": false,
+      "receipted": false
+    },
+    {
+      "id": "purchase",
+      "date": "2026-10-07",
+      "accountId": "synthetic-account",
+      "amountCents": -1240,
+      "currency": "EUR",
+      "payee": "Other merchant",
+      "transfer": false,
+      "receipted": false
+    },
+    {
+      "id": "one-cent-off",
+      "date": "2026-10-07",
+      "accountId": "synthetic-account",
+      "amountCents": 1241,
+      "currency": "EUR",
+      "payee": "Other merchant",
+      "transfer": false,
+      "receipted": false
+    },
+    {
+      "id": "other-currency",
+      "date": "2026-10-07",
+      "accountId": "synthetic-account",
+      "amountCents": 1240,
+      "currency": "USD",
+      "payee": "Other merchant",
+      "transfer": false,
+      "receipted": false
+    },
+    {
+      "id": "transfer",
+      "date": "2026-10-07",
+      "accountId": "synthetic-account",
+      "amountCents": 1240,
+      "currency": "EUR",
+      "payee": "Other merchant",
+      "transfer": true,
+      "receipted": false
+    },
+    {
+      "id": "already-linked",
+      "date": "2026-10-07",
+      "accountId": "synthetic-account",
+      "amountCents": 1240,
+      "currency": "EUR",
+      "payee": "Other merchant",
+      "transfer": false,
+      "receipted": true
+    }
+  ]
+}
