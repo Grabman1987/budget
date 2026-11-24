@@ -109,22 +109,22 @@ for (const theme of ['light', 'dark']) {
     await expect(rows.nth(1)).toBeFocused();
     await rows.nth(1).press('ArrowUp');
     await expect(rows.first()).toBeFocused();
-    await a.getByRole('button', { name: /^Empfänger bearbeiten/ }).click();
+    await a.getByRole('button', { name: /^Empfänger (ändern|wählen)/ }).click();
     await a.getByRole('combobox', { name: 'Empfänger', exact: true }).selectOption(incomplete.id);
-    await expect(a.getByRole('button', { name: 'Übernehmen', exact: true })).toBeDisabled();
-    await expect(a.locator('.bank-v1-action > div > span')).toHaveAttribute(
-      'title',
-      'Kategorie fehlt.',
-    );
-    await expect(a.locator('.bank-v1-category .is-missing')).toBeVisible();
-    await a.getByRole('button', { name: /^Empfänger bearbeiten/ }).click();
+    // Incomplete: no confirming pill, the cell offers "Kategorie wählen" with the reason.
+    await expect(a.getByRole('button', { name: /^Vorschlag bestätigen/ })).toHaveCount(0);
+    const chooseCategory = a.getByRole('button', { name: 'Kategorie wählen', exact: true });
+    await expect(chooseCategory).toHaveAttribute('title', 'Kategorie fehlt.');
+    await expect(chooseCategory).toHaveClass(/is-missing/);
+    await a.getByRole('button', { name: /^Empfänger (ändern|wählen)/ }).click();
     await a.getByRole('combobox', { name: 'Empfänger', exact: true }).selectOption(payee.id);
-    await expect(a.locator('.bank-v1-category .bank-suggestion-pill')).toContainText(category.name);
-    await expect(a.locator('.bank-v1-category .bank-suggestion-pill')).not.toHaveClass(/is-safe/);
-    await a.getByRole('button', { name: /^Kategorie bearbeiten/ }).click();
+    await expect(a.getByRole('button', { name: /^Vorschlag bestätigen/ })).toContainText(
+      category.name,
+    );
+    await a.getByRole('button', { name: 'Vorschlag ändern', exact: true }).click();
     await a.getByRole('combobox', { name: 'Kategorie', exact: true }).press('Escape');
-    await expect(a.locator('.bank-v1-category .bank-suggestion-pill')).not.toHaveClass(/is-safe/);
-    await a.getByRole('button', { name: /^Kategorie bearbeiten/ }).click();
+    await expect(a.getByRole('button', { name: /^Vorschlag bestätigen/ })).toBeVisible();
+    await a.getByRole('button', { name: 'Vorschlag ändern', exact: true }).click();
     const categoryChoice = a.getByRole('option', {
       name: `${category.name} · Vorschlag`,
       exact: true,
@@ -139,7 +139,9 @@ for (const theme of ['light', 'dark']) {
       }),
     ).toBe(true);
     await a.getByRole('option', { name: `${category.name} · Vorschlag`, exact: true }).click();
-    await expect(a.locator('.bank-v1-category .bank-suggestion-pill')).toHaveClass(/is-safe/);
+    await expect(a.getByRole('button', { name: /^Vorschlag bestätigen/ })).toContainText(
+      category.name,
+    );
     const bookings = async () =>
       (await (await request.get(`${origin}/api/bookings?accountId=${account.id}`)).json()).items;
     expect(await bookings()).toHaveLength(0);
@@ -160,7 +162,7 @@ for (const theme of ['light', 'dark']) {
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
       true,
     );
-    await a.getByRole('button', { name: 'Übernehmen', exact: true }).click();
+    await a.getByRole('button', { name: /^Vorschlag bestätigen/ }).click();
     await expect(a).toHaveCount(0);
     const saved = await bookings();
     expect(saved).toHaveLength(1);
@@ -172,7 +174,7 @@ for (const theme of ['light', 'dark']) {
     await toast(page).getByRole('button', { name: 'Rückgängig', exact: true }).click();
     await expect(a).toBeVisible();
     expect(await bookings()).toHaveLength(0);
-    await a.getByRole('button', { name: /^Kategorie bearbeiten/ }).click();
+    await a.getByRole('button', { name: /^(Vorschlag ändern|Kategorie wählen)$/ }).click();
     const categorySelect = a.getByRole('combobox', { name: 'Kategorie', exact: true });
     await expect(categorySelect).toBeVisible();
     await expect(toast(page)).toBeVisible();

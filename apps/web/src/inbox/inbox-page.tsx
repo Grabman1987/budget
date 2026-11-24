@@ -1232,7 +1232,6 @@ function InboxBodyContent({
                   <th scope="col">Empfänger</th>
                   <th scope="col">Konto · Quelle</th>
                   <th scope="col">Vorschlag</th>
-                  <th scope="col">Kategorie</th>
                   <th scope="col" className="num">
                     Betrag
                   </th>
@@ -1268,7 +1267,7 @@ function InboxBodyContent({
                     }
                   >
                     {!account && <td className="rev-mark" />}
-                    <th scope="rowgroup" colSpan={account ? 8 : bankLayout ? 7 : 2}>
+                    <th scope="rowgroup" colSpan={account ? 7 : bankLayout ? 6 : 2}>
                       {account ? (
                         <BankAccountHeader
                           account={account}
@@ -1319,7 +1318,7 @@ function InboxBodyContent({
                           total > 1 || groupByTitle ? (
                             <tr className="inbox-cause" key={`cause-${item.id}`}>
                               <td />
-                              <td colSpan={bankLayout ? 7 : 2}>
+                              <td colSpan={bankLayout ? 6 : 2}>
                                 <Button
                                   variant="ghost"
                                   aria-expanded={expanded}
@@ -1479,7 +1478,7 @@ function InboxRow({
         <td className="rev-mark">
           <InboxTypeIcon entry={item} />
         </td>
-        <td className="rev-what" colSpan={bankLayout ? 5 : undefined}>
+        <td className="rev-what" colSpan={bankLayout ? 4 : undefined}>
           <strong>{item.title}</strong>
           {detailView ? <SpritmonitorReview rowKey={item.refId} /> : <span>{item.detail}</span>}
         </td>
@@ -1529,7 +1528,7 @@ function InboxRow({
           <InboxTypeIcon entry={item} />
         </div>
       </td>
-      <td className="rev-what" colSpan={bankLayout ? 5 : undefined}>
+      <td className="rev-what" colSpan={bankLayout ? 4 : undefined}>
         <strong>
           {item.type === 'booking'
             ? `${item.payeeName ?? 'Buchung ohne Empfänger'} · ${nativeCurrency(item.amountCents, item.currency)}`
@@ -1844,7 +1843,6 @@ function BankInboxRow({
               'Unbekannt'}
           </span>
         </td>
-        <td className="bank-v1-category">Im Formular prüfen</td>
         <td className="bank-v1-amount num">
           {data ? nativeCurrency(data.amountCents, data.currency) : '—'}
         </td>

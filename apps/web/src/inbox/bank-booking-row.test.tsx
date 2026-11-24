@@ -82,13 +82,15 @@ function renderRow(item: InboxBooking) {
   return { onConfirmInline, onEdit };
 }
 
-it('shows the suggested payee and category and confirms with one patch', () => {
+it('shows the suggested payee and category in one pill that confirms with one patch', () => {
   const { onConfirmInline } = renderRow(base);
-  expect(screen.getAllByText('Shop Beispiel').length).toBeGreaterThan(0);
-  expect(screen.getByText('Shop Beispiel · Haushalt')).toBeTruthy();
-  expect(screen.getByRole('button', { name: /Kategorie bearbeiten: Haushalt/ })).toBeTruthy();
+  expect(screen.getByRole('button', { name: 'Empfänger ändern: Shop Beispiel' })).toBeTruthy();
   expect(screen.getByText('SHOP BEISPIEL PAYMENTS EUROPE')).toBeTruthy();
-  fireEvent.click(screen.getByRole('button', { name: 'Bestätigen' }));
+  expect(screen.queryByRole('button', { name: 'Bestätigen' })).toBeNull();
+  expect(document.querySelector('.bank-v1-category')).toBeNull();
+  fireEvent.click(
+    screen.getByRole('button', { name: 'Vorschlag bestätigen: Shop Beispiel · Haushalt' }),
+  );
   expect(onConfirmInline).toHaveBeenCalledWith('b1', {
     status: 'confirmed',
     acceptInReview: true,
@@ -97,16 +99,23 @@ it('shows the suggested payee and category and confirms with one patch', () => {
   });
 });
 
-it('disables Bestätigen with a reason while no category is chosen', () => {
+it('offers "Kategorie wählen" instead of a confirm pill while no category is known', () => {
   const { onConfirmInline } = renderRow({
     ...base,
     suggestion: { ...base.suggestion!, categoryId: null, categoryName: null, basis: null },
   });
-  const button = screen.getByRole('button', { name: 'Bestätigen' }) as HTMLButtonElement;
-  expect(button.disabled).toBe(true);
-  expect(button.closest('span')?.getAttribute('title')).toBe('Kategorie wählen, um zu bestätigen.');
-  fireEvent.click(button);
+  expect(screen.queryByRole('button', { name: /^Vorschlag bestätigen/ })).toBeNull();
+  const open = screen.getByRole('button', { name: 'Kategorie wählen' });
+  expect(open.getAttribute('title')).toBe('Kategorie wählen, um zu bestätigen.');
+  fireEvent.click(open);
   expect(onConfirmInline).not.toHaveBeenCalled();
+});
+
+it('disables the pill for a booking with several splits', () => {
+  renderRow({ ...base, suggestion: { ...base.suggestion!, singleSplit: false } });
+  const pill = screen.getByRole('button', { name: /^Vorschlag bestätigen/ }) as HTMLButtonElement;
+  expect(pill.disabled).toBe(true);
+  expect(pill.title).toBe('Mehrere Teilbuchungen. Bitte im Formular bearbeiten.');
 });
 
 it('hands the row choice to the full form via Bearbeiten', () => {

@@ -193,12 +193,9 @@
   width: 19%;
 }
 .bank-v1-table th:nth-child(4) {
-  width: 18%;
+  width: 30%;
 }
 .bank-v1-table th:nth-child(5) {
-  width: 120px;
-}
-.bank-v1-table th:nth-child(6) {
   width: 118px;
 }
 .bank-v1-table th:last-child {
@@ -729,16 +726,40 @@
   width: 14%;
 }
 .bank-v1-table th:nth-child(4) {
-  width: 18%;
+  width: 32%;
 }
 .bank-v1-table th:nth-child(5) {
-  width: 18%;
-}
-.bank-v1-table th:nth-child(6) {
   width: 110px;
 }
-.bank-v1-table th:nth-child(7) {
+.bank-v1-table th:nth-child(6) {
   width: 100px;
+}
+/* One suggestion per row: the pill confirms, the pencil edits; the payee name is the picker. */
+.bank-payee-btn {
+  display: block;
+  max-width: 100%;
+  min-height: var(--touch);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+.bank-payee-btn:hover strong {
+  text-decoration: underline;
+}
+.bank-suggestion-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+.bank-suggestion-actions .bank-suggestion-confirm {
+  flex: 1 1 auto;
+  min-width: 0;
+  text-align: start;
 }
 .bank-editable-row:focus-visible {
   outline: 2px solid var(--line);
@@ -782,10 +803,7 @@
 }
 @media (max-width: 767px) {
   .bank-v1-table .bank-editable-row {
-    grid-template-areas: 'payee payee payee' 'suggestion action more' 'category category category';
-  }
-  .bank-v1-table .bank-editable-row .bank-v1-category {
-    grid-area: category;
+    grid-template-areas: 'payee payee payee' 'suggestion action more';
   }
   .bank-editable-row .bank-row-full-form {
     display: inline-flex;
@@ -796,10 +814,7 @@
 }
 @media (min-width: 768px) and (max-width: 1100px) {
   .kinbox-v1 .bank-v1-table .bank-editable-row {
-    grid-template-areas: 'select payee amount more' 'select source source more' '. suggestion action action' '. category category category';
-  }
-  .bank-editable-row .bank-v1-category {
-    grid-area: category;
+    grid-template-areas: 'select payee amount more' 'select source source more' '. suggestion action action';
   }
 }
 
@@ -965,10 +980,7 @@
     padding-block: var(--space-sm);
     border-width: var(--stroke-hairline);
   }
-  .kinbox-v1
-    .bank-v1-table
-    .bank-editable-row
-    > :is(.bank-v1-payee, .bank-v1-suggestion, .bank-v1-category) {
+  .kinbox-v1 .bank-v1-table .bank-editable-row > :is(.bank-v1-payee, .bank-v1-suggestion) {
     display: contents;
   }
   .bank-editable-row .bank-v1-payee strong {

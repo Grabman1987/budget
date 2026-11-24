@@ -144,7 +144,7 @@ test('three prepared bank rows are explicitly reviewed with progress and individ
   // Case-sensitive memo match: the rule-categorised row also shows the category name "... category 562".
   const categoryRow = page.getByTestId('inbox-row').filter({ hasText: /Category 562/ });
   if (await redesignLoaded(page)) {
-    await expect(categoryRow.locator('.bank-v1-category')).toContainText('Kategorie fehlt');
+    await expect(categoryRow.locator('.bank-v1-suggestion')).toContainText('Kategorie wählen');
   } else await expect(categoryRow).toContainText('Kategorie prüfen');
   expect(writes).toEqual([]);
   expect(

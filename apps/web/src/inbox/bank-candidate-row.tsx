@@ -322,22 +322,79 @@ export const BankCandidateRow = memo(function BankCandidateRow({
       }
     }
   };
-  const pill = (cell: 'payee' | 'category' | 'suggestion', text: string, fixed: boolean) => (
-    <button
-      type="button"
-      className={`bank-suggestion-pill${fixed ? ' is-safe' : ''}${missing?.cell === cell ? ' is-missing' : ''}`}
-      aria-label={`${cell === 'payee' ? 'Empfänger' : cell === 'category' ? (transferId || target ? 'Gegenkonto' : 'Kategorie') : 'Vorschlag'} bearbeiten: ${text}`}
-      title={missing?.cell === cell ? missing.reason : text}
-      disabled={locked}
-      onClick={() => {
-        setActive(true);
-        setEditing((transferId || target) && cell === 'category' ? 'suggestion' : cell);
-      }}
-    >
-      {fixed ? <Check size={14} aria-hidden="true" /> : <CircleHelp size={14} aria-hidden="true" />}
-      {text}
-    </button>
-  );
+  const confirm = () => {
+    if (!data || missing) return;
+    setSaving(true);
+    void write(
+      () =>
+        request<{ groupId: string; bookingId?: string }>(
+          'POST',
+          `/api/bank-sync/candidates/${encodeURIComponent(id)}/${target?.action ?? 'confirm'}`,
+          target
+            ? {
+                bookingId: target.id,
+                ...(!draft && counterAccount && { candidateRevision: data.candidateRevision }),
+              }
+            : rule
+              ? {
+                  categoryId: null,
+                  candidateRevision: data.candidateRevision,
+                  ...(counterAccount && { verifyNewTransfer: true }),
+                  ...(ruleOverrides
+                    ? {
+                        actions: {
+                          ...rule.actions,
+                          ...(draft?.payeeId !== undefined ? { payeeId } : {}),
+                          ...(categoryId && !ruleTarget ? { categoryId } : {}),
+                        },
+                      }
+                    : { ruleId: rule.id, revision: rule.revision }),
+                }
+              : counterAccount
+                ? {
+                    categoryId: null,
+                    candidateRevision: data.candidateRevision,
+                    verifyNewTransfer: true,
+                    actions: { transferAccountId: counterAccount.id },
+                  }
+                : {
+                    categoryId,
+                    candidateRevision: data.candidateRevision,
+                    actions: { categoryId, payeeId },
+                  },
+        ),
+      () => 'Bankumsatz als Buchung bestätigt.',
+    )
+      .then((result) => {
+        if (
+          result?.bookingId &&
+          !target &&
+          (rule
+            ? rule.actions.categoryId || rule.actions.splits || (!ruleTarget && categoryId)
+            : categoryId)
+        )
+          onConfirmed(result.bookingId);
+      })
+      .finally(() => setSaving(false));
+  };
+  const rawName = item.bankCandidate?.payeeName || item.bankCandidate?.memo || item.title;
+  const confirmLabel =
+    target?.action === 'transfer' || counterAccount
+      ? `Überweisung an ${target?.accountName ?? counterAccount?.name}`
+      : target
+        ? `Zusammenführen: ${target.accountName}`
+        : rule
+          ? `Regel: ${rule.name}`
+          : [payee?.name, category?.name].filter(Boolean).join(' · ');
+  const PREPARING = 'Vorschläge werden geprüft.';
+  // While the row is still being checked, the list's own preparation label stands in.
+  const listLabel = item.bankCandidate?.suggestion?.label;
+  const serverLabel =
+    !listLabel || listLabel.startsWith('Kategorie prüfen') ? 'Vorschläge prüfen' : listLabel;
+  const openEditor = (cell: 'payee' | 'suggestion' | 'category') => {
+    setActive(true);
+    setEditing(cell);
+  };
   return (
     <tr
       ref={row}
@@ -380,39 +437,51 @@ export const BankCandidateRow = memo(function BankCandidateRow({
         )}
       </td>
       <td className="bank-v1-payee">
-        <strong>{item.bankCandidate?.payeeName || item.bankCandidate?.memo || item.title}</strong>
-        {!transferring &&
-          (editing === 'payee' ? (
-            <div className="bank-row-editor">
-              <Select
-                aria-label="Empfänger"
-                value=""
-                onChange={(event) =>
-                  choose({
-                    payeeId: event.target.value,
-                    ruleId: null,
-                    target: undefined,
-                  })
-                }
-              >
-                <option value="" disabled hidden>
-                  Empfänger wählen
-                </option>
-                {payee && <option value={payee.id}>{payee.name} · Vorschlag</option>}
-                {payees.data?.payees
-                  .filter((entry) => !entry.systemKind && entry.id !== payeeId)
-                  .map((payee) => (
-                    <option key={payee.id} value={payee.id}>
-                      {payee.name}
-                    </option>
-                  ))}
-              </Select>
-            </div>
-          ) : (
-            pill('payee', payee?.name ?? 'Empfänger fehlt', draft?.payeeId !== undefined)
-          ))}
+        {transferring ? (
+          <strong>{rawName}</strong>
+        ) : editing === 'payee' ? (
+          <div className="bank-row-editor">
+            <Select
+              aria-label="Empfänger"
+              value=""
+              onChange={(event) =>
+                choose({
+                  payeeId: event.target.value,
+                  ruleId: null,
+                  target: undefined,
+                })
+              }
+            >
+              <option value="" disabled hidden>
+                Empfänger wählen
+              </option>
+              {payee && <option value={payee.id}>{payee.name} · Vorschlag</option>}
+              {payees.data?.payees
+                .filter((entry) => !entry.systemKind && entry.id !== payeeId)
+                .map((payee) => (
+                  <option key={payee.id} value={payee.id}>
+                    {payee.name}
+                  </option>
+                ))}
+            </Select>
+          </div>
+        ) : (
+          <button
+            type="button"
+            className="bank-payee-btn"
+            aria-label={payee ? `Empfänger ändern: ${payee.name}` : 'Empfänger wählen'}
+            title={missing?.cell === 'payee' ? missing.reason : 'Empfänger ändern'}
+            disabled={locked}
+            onClick={() => openEditor('payee')}
+          >
+            <strong>{payee?.name ?? 'Empfänger wählen'}</strong>
+          </button>
+        )}
         <div className="bank-v1-meta">
           <span>{item.bankCandidate ? shortDay(item.bankCandidate.date) : ''}</span>
+          {!transferring && rawName !== payee?.name && (
+            <small className="bank-v1-raw">{rawName}</small>
+          )}
           <small className="bank-v1-phone-source">
             {item.bankCandidate?.accountName} · Bank-Sync
           </small>
@@ -453,6 +522,8 @@ export const BankCandidateRow = memo(function BankCandidateRow({
                     ? event.target.value
                     : undefined,
                 });
+                // Manual assignment continues straight in the category picker.
+                if (event.target.value === 'manual' && !transferring) setEditing('category');
               }}
             >
               <option value="" disabled hidden>
@@ -477,67 +548,81 @@ export const BankCandidateRow = memo(function BankCandidateRow({
               <option value="manual">Manuell zuordnen</option>
             </Select>
           </div>
+        ) : editing === 'category' && !transferring ? (
+          <div className="bank-row-editor">
+            <CategoryCombobox
+              label="Kategorie"
+              categories={categories.filter((entry) => entry.id !== category?.id)}
+              capturePicker
+              overlayAvoid=".konten-inbox-safe-slot:has(.inbox-safe-action), .tabbar, .toast.is-open"
+              allowCreate
+              selectedName={category?.name ?? ''}
+              leading={category ? [{ id: category.id, label: `${category.name} · Vorschlag` }] : []}
+              onSelect={(id) =>
+                choose({ categoryId: id, ruleId: null, payeeId, target: undefined })
+              }
+            />
+          </div>
         ) : (
-          pill(
-            'suggestion',
-            target?.action === 'transfer' || counterAccount
-              ? `Überweisung an ${target?.accountName ?? counterAccount?.name}`
-              : target
-                ? `Zusammenführen: ${target.accountName}`
-                : rule
-                  ? `Regel: ${rule.name}`
-                  : active && ready
-                    ? 'Manuell zuordnen'
-                    : item.bankCandidate?.suggestion?.label?.startsWith('Kategorie prüfen')
-                      ? 'Vorschläge prüfen'
-                      : (item.bankCandidate?.suggestion?.label ?? 'Vorschläge prüfen'),
-            draft?.ruleId !== undefined,
-          )
+          <div className="bank-suggestion-actions">
+            {missing ? (
+              <button
+                type="button"
+                className="bank-suggestion-pill is-missing"
+                title={missing.reason}
+                disabled={locked || missing.cell === 'source'}
+                onClick={() =>
+                  openEditor(
+                    missing.cell === 'payee'
+                      ? 'payee'
+                      : missing.cell === 'category'
+                        ? 'category'
+                        : 'suggestion',
+                  )
+                }
+              >
+                <CircleHelp size={14} aria-hidden="true" />
+                {missing.cell === 'category'
+                  ? 'Kategorie wählen'
+                  : missing.cell === 'payee'
+                    ? 'Empfänger wählen'
+                    : missing.reason === PREPARING
+                      ? serverLabel
+                      : missing.reason}
+              </button>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  className="bank-suggestion-pill is-safe bank-suggestion-confirm"
+                  aria-label={`Vorschlag bestätigen: ${confirmLabel}`}
+                  title={confirmLabel}
+                  disabled={locked}
+                  onClick={confirm}
+                >
+                  <Check size={14} aria-hidden="true" />
+                  {confirmLabel}
+                </button>
+                <button
+                  type="button"
+                  className="bank-row-full-form"
+                  aria-label="Vorschlag ändern"
+                  title="Vorschlag ändern"
+                  disabled={locked}
+                  onClick={() =>
+                    openEditor(
+                      transferId || target || suggestions.length || targets.length
+                        ? 'suggestion'
+                        : 'category',
+                    )
+                  }
+                >
+                  <Pencil size={16} aria-hidden="true" />
+                </button>
+              </>
+            )}
+          </div>
         )}
-      </td>
-      <td className="bank-v1-category">
-        {!transferring &&
-          (editing === 'category' ? (
-            <div className="bank-row-editor">
-              <CategoryCombobox
-                label="Kategorie"
-                categories={categories.filter((entry) => entry.id !== category?.id)}
-                capturePicker
-                overlayAvoid=".konten-inbox-safe-slot:has(.inbox-safe-action), .tabbar, .toast.is-open"
-                allowCreate
-                selectedName={category?.name ?? ''}
-                leading={
-                  category ? [{ id: category.id, label: `${category.name} · Vorschlag` }] : []
-                }
-                onSelect={(id) =>
-                  choose({ categoryId: id, ruleId: null, payeeId, target: undefined })
-                }
-              />
-            </div>
-          ) : (
-            pill(
-              'category',
-              target
-                ? target.accountName
-                : transferId
-                  ? (counterAccount?.name ?? 'Gegenkonto fehlt')
-                  : (category?.name ??
-                    (rule?.actions.splits
-                      ? 'Aufteilung laut Regel'
-                      : rule?.actions.incomeTypeId
-                        ? 'Einkommen laut Regel'
-                        : 'Kategorie fehlt')),
-              draft?.categoryId !== undefined ||
-                Boolean(
-                  draft?.ruleId &&
-                  (target ||
-                    transferId ||
-                    rule?.actions.categoryId ||
-                    rule?.actions.splits ||
-                    rule?.actions.incomeTypeId),
-                ),
-            )
-          ))}
       </td>
       <td className="bank-v1-amount num">
         {item.bankCandidate
@@ -546,74 +631,6 @@ export const BankCandidateRow = memo(function BankCandidateRow({
       </td>
       <td className="bank-v1-action">
         <div className="inbox-row-actions">
-          <span title={missing?.reason ?? 'Übernehmen'}>
-            <button
-              type="button"
-              className="kstatus-btn"
-              aria-label="Übernehmen"
-              disabled={locked || Boolean(missing)}
-              onClick={() => {
-                if (!data || missing) return;
-                setSaving(true);
-                void write(
-                  () =>
-                    request<{ groupId: string; bookingId?: string }>(
-                      'POST',
-                      `/api/bank-sync/candidates/${encodeURIComponent(id)}/${target?.action ?? 'confirm'}`,
-                      target
-                        ? {
-                            bookingId: target.id,
-                            ...(!draft &&
-                              counterAccount && { candidateRevision: data.candidateRevision }),
-                          }
-                        : rule
-                          ? {
-                              categoryId: null,
-                              candidateRevision: data.candidateRevision,
-                              ...(counterAccount && { verifyNewTransfer: true }),
-                              ...(ruleOverrides
-                                ? {
-                                    actions: {
-                                      ...rule.actions,
-                                      ...(draft?.payeeId !== undefined ? { payeeId } : {}),
-                                      ...(categoryId && !ruleTarget ? { categoryId } : {}),
-                                    },
-                                  }
-                                : { ruleId: rule.id, revision: rule.revision }),
-                            }
-                          : counterAccount
-                            ? {
-                                categoryId: null,
-                                candidateRevision: data.candidateRevision,
-                                verifyNewTransfer: true,
-                                actions: { transferAccountId: counterAccount.id },
-                              }
-                            : {
-                                categoryId,
-                                candidateRevision: data.candidateRevision,
-                                actions: { categoryId, payeeId },
-                              },
-                    ),
-                  () => 'Bankumsatz als Buchung bestätigt.',
-                )
-                  .then((result) => {
-                    if (
-                      result?.bookingId &&
-                      !target &&
-                      (rule
-                        ? rule.actions.categoryId ||
-                          rule.actions.splits ||
-                          (!ruleTarget && categoryId)
-                        : categoryId)
-                    )
-                      onConfirmed(result.bookingId);
-                  })
-                  .finally(() => setSaving(false));
-              }}
-            >
-              <Check size={16} aria-hidden="true" />
-            </button>
-          </span>
           <button
             type="button"
             className="kstatus-btn"

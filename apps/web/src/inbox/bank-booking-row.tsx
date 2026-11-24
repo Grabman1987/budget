@@ -1,6 +1,6 @@
 import { Button, Select, useAmountPrivacy, useIsPhone } from '@budget/ui';
 import { useQuery } from '@tanstack/react-query';
-import { Check, CircleHelp, MoreHorizontal } from 'lucide-react';
+import { Check, CircleHelp, MoreHorizontal, Pencil } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { BookingAssignmentReview } from '../assignment/review';
 import { CategoryCombobox } from '../ledger/category-picker';
@@ -138,24 +138,11 @@ export function BankBookingRow({
       row.current?.focus();
     }
   };
-  const label = [payeeName, categoryName].filter(Boolean).join(' · ') || undefined;
-  const missingCell = !categoryId ? 'category' : undefined;
-  const pill = (cell: 'payee' | 'category', text: string, fixed: boolean) => (
-    <button
-      type="button"
-      className={`bank-suggestion-pill${fixed ? ' is-safe' : ''}${missingCell === cell ? ' is-missing' : ''}`}
-      aria-label={`${cell === 'payee' ? 'Empfänger' : 'Kategorie'} bearbeiten: ${text}`}
-      title={missingCell === cell ? reason : (basis ?? text)}
-      disabled={locked}
-      onClick={() => {
-        setActive(true);
-        setEditing(cell);
-      }}
-    >
-      {fixed ? <Check size={14} aria-hidden="true" /> : <CircleHelp size={14} aria-hidden="true" />}
-      {text}
-    </button>
-  );
+  const label = [payeeName, categoryName].filter(Boolean).join(' · ');
+  const openEditor = (cell: 'payee' | 'category') => {
+    setActive(true);
+    setEditing(cell);
+  };
   const rawText = item.memo && item.memo !== payeeName ? item.memo : null;
   const select = (
     <label className="bank-select">
@@ -178,7 +165,6 @@ export function BankBookingRow({
     >
       <td className="bank-v1-select">{onSelect && !isPhone && select}</td>
       <td className="bank-v1-payee">
-        <strong>{payeeName || item.memo || 'Bankumsatz'}</strong>
         {editing === 'payee' ? (
           <div className="bank-row-editor">
             <Select
@@ -187,7 +173,7 @@ export function BankBookingRow({
               onChange={(event) => {
                 const picked = payees.data?.payees.find((p) => p.id === event.target.value);
                 if (!picked) return;
-                setDraft({ payeeId: picked.id, payeeName: picked.name });
+                setDraft((current) => ({ ...current, payeeId: picked.id, payeeName: picked.name }));
                 setEditing(undefined);
                 row.current?.focus();
               }}
@@ -206,7 +192,16 @@ export function BankBookingRow({
             </Select>
           </div>
         ) : (
-          pill('payee', payeeName || 'Empfänger fehlt', payeeChanged)
+          <button
+            type="button"
+            className="bank-payee-btn"
+            aria-label={payeeName ? `Empfänger ändern: ${payeeName}` : 'Empfänger wählen'}
+            title="Empfänger ändern"
+            disabled={locked}
+            onClick={() => openEditor('payee')}
+          >
+            <strong>{payeeName || 'Empfänger wählen'}</strong>
+          </button>
         )}
         <div className="bank-v1-meta">
           <span>{shortDay(item.date)}</span>
@@ -219,16 +214,6 @@ export function BankBookingRow({
         <small>Bankbuchung</small>
       </td>
       <td className="bank-v1-suggestion">
-        <span title={basis} className={`bank-suggestion-pill${prepared ? ' is-safe' : ''}`}>
-          {prepared ? (
-            <Check size={14} aria-hidden="true" />
-          ) : (
-            <CircleHelp size={14} aria-hidden="true" />
-          )}
-          {prepared?.label ?? label ?? 'Unbekannt'}
-        </span>
-      </td>
-      <td className="bank-v1-category">
         {editing === 'category' ? (
           <div className="bank-row-editor">
             <CategoryCombobox
@@ -254,20 +239,45 @@ export function BankBookingRow({
               }}
             />
           </div>
+        ) : categoryId ? (
+          <div className="bank-suggestion-actions">
+            <button
+              type="button"
+              className="bank-suggestion-pill is-safe bank-suggestion-confirm"
+              aria-label={`Vorschlag bestätigen: ${label}`}
+              title={reason ?? basis ?? label}
+              disabled={locked || Boolean(reason)}
+              onClick={confirm}
+            >
+              <Check size={14} aria-hidden="true" />
+              {label}
+            </button>
+            <button
+              type="button"
+              className="bank-row-full-form"
+              aria-label="Vorschlag ändern"
+              title="Vorschlag ändern"
+              disabled={locked}
+              onClick={() => openEditor('category')}
+            >
+              <Pencil size={16} aria-hidden="true" />
+            </button>
+          </div>
         ) : (
-          pill('category', categoryName || 'Kategorie fehlt', draft.categoryId !== undefined)
+          <button
+            type="button"
+            className="bank-suggestion-pill is-missing"
+            title="Kategorie wählen, um zu bestätigen."
+            disabled={locked}
+            onClick={() => openEditor('category')}
+          >
+            <CircleHelp size={14} aria-hidden="true" />
+            Kategorie wählen
+          </button>
         )}
       </td>
       <td className="bank-v1-amount num">{nativeCurrency(item.amountCents, item.currency)}</td>
-      <td className="bank-v1-action">
-        <div className="inbox-row-actions">
-          <span title={reason ?? 'Bestätigen'}>
-            <Button size="sm" disabled={locked || Boolean(reason)} onClick={confirm}>
-              Bestätigen
-            </Button>
-          </span>
-        </div>
-      </td>
+      <td className="bank-v1-action" />
       <td className="bank-v1-more">
         <span
           onClickCapture={() => setMoreSeen(true)}
