@@ -229,7 +229,7 @@ it('includes the visible fallback and category in the source name without repeat
   container.querySelector('details[data-r8-detail="contact-history"]')!.setAttribute('open', '');
   expect(
     screen.getByRole('button', {
-      name: 'Ursprungsbuchung öffnen · Rückzahlung 01.10.2026 · Rückzahlung Kategorie: Beispielauslagen · Kontaktanteil +50,00 €',
+      name: 'Ursprungsbuchung öffnen · Rückzahlung 01.10.2026 · Rückzahlung Kategorie: Beispielauslagen · Kontaktanteil +50,00 € · Beispiel Vorauszahlung',
     }),
   ).toBeTruthy();
 });

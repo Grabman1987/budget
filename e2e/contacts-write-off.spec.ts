@@ -110,7 +110,7 @@ test('contacts: cashless credit adoption from list and partial debt forgiveness 
   await dialog.getByRole('button', { name: 'Ausgleich speichern' }).click();
   await expect(dialog).toBeHidden();
   await expect(detail.locator('.contacts-balance')).toContainText('61,00 €');
-  await expect(detail).toContainText('Ausgleich Kontakt');
+  await expect(detail.getByRole('button', { name: /Ausgleich Kontakt/ })).toBeVisible();
   expect((await read('/accounts')).accounts[0].balanceCents).toBe(cashBefore);
   const plan = await read('/budget/2026-10');
   expect(

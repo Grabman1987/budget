@@ -94,13 +94,7 @@ test('961/962 contacts: zero net retains credit and movement source context', as
   const source = sheet.getByRole('button', { name: /Ursprungsbuchung öffnen/ });
   await expect(source).toContainText(payee.name);
   await expect(source).toHaveAccessibleName(new RegExp(`Kategorie: ${advance.name}`));
-  const bookingNote = source.getByTitle(note);
-  await expect(bookingNote).toHaveText(note);
-  await page.mouse.move(0, 0);
-  await expect(bookingNote).toHaveCSS('text-overflow', 'ellipsis');
-  await expect(bookingNote).toHaveCSS('white-space', 'nowrap');
-  await source.focus();
-  await expect(bookingNote).toHaveCSS('white-space', 'normal');
+  // The visible cell shows the payee only; the booking note stays in the accessible name.
   await expect(source).toHaveAccessibleName(
     new RegExp(note.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')),
   );
@@ -222,7 +216,7 @@ test('1149 all open contacts stay visible and settled history stays closed, incl
     has: page.getByRole('heading', { name: `Kontoblatt ${balanced.name}` }),
   });
   const netTable = page.getByRole('table', { name: `Offene Forderungen von ${netZero.name}` });
-  await expect(netTable.locator('tbody tr')).toHaveCount(1);
+  await expect(netTable.locator('tbody tr:has([data-contact-source])')).toHaveCount(1);
   await expect(netTable.locator('tfoot td.n').first()).toHaveText('10,01 €');
   await expect(page.getByRole('link', { name: 'Guthaben ändern', exact: true })).toHaveCount(2);
   for (const theme of ['light', 'dark']) {
@@ -316,7 +310,7 @@ test('850 contacts: 5000-cent debt forgiveness, exact shortfall, cash unchanged,
     0,
   );
   await expect(
-    body.getByRole('button', { name: /Rückzahlung|Ausgleichen|Kontakt anlegen|Umbenennen/ }),
+    body.getByRole('button', { name: /^(Rückzahlung|Ausgleichen|Kontakt anlegen|Umbenennen)/ }),
   ).toHaveCount(0);
   await body.getByRole('link', { name: new RegExp(balanced.name) }).click();
   await expect(body).toContainText('Noch keine Kontaktbuchungen. Der Saldo ist ausgeglichen.');

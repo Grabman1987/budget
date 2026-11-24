@@ -139,6 +139,7 @@ export function ContactMovementTable({
     const { outlay, giftedCents, waived, rest } = rowInfo(movement);
     const repayment = statement.receipts.find((row) => row.receiptSplitId === movement.splitId);
     const bookingNote = movement.bookingMemo?.trim();
+    const visible = recipient(movement, name);
     const sourceLabel = [
       `${description(movement)} ${longDay(movement.date)} · ${movementKind(movement)}`,
       movement.payeeName && maskMoneyText(movement.payeeName),
@@ -164,7 +165,7 @@ export function ContactMovementTable({
             type="button"
             className="contact-source"
             data-contact-source={movement.splitId}
-            aria-label={`Ursprungsbuchung öffnen · ${sourceLabel} · Kontaktanteil ${eur(movement.amountCents, { sign: true })}`}
+            aria-label={`Ursprungsbuchung öffnen · ${sourceLabel} · Kontaktanteil ${eur(movement.amountCents, { sign: true })}${sourceLabel.toLowerCase().includes(visible.toLowerCase()) ? '' : ` · ${visible}`}`}
             onClick={() => onOpen(movement)}
           >
             {recipient(movement, name)}
