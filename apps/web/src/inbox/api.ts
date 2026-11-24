@@ -42,6 +42,16 @@ export interface InboxBooking {
   status: 'pending' | 'confirmed' | 'reconciled';
   source: 'manual' | 'bank' | 'import' | 'migration' | 'system';
   missingSplits: number;
+  /** Server-side proposal for the inline row (payee from bank text, category from history). */
+  suggestion?: {
+    payeeId: string | null;
+    payeeName: string | null;
+    categoryId: string | null;
+    categoryName: string | null;
+    basis: string | null;
+    ruleId?: string;
+    singleSplit: boolean;
+  };
 }
 export interface InboxStored {
   payslipDocument?: PayslipDocumentMetadata;

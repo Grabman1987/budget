@@ -62,8 +62,9 @@ test('Prüfen suggests provider funding and links both legs only after confirmat
   await page.goto('/konten/pruefen?von=%2F');
   await openPruefenPart(page, 'Umsätze');
   const row = page.getByTestId('inbox-row').filter({ hasText: 'Zahlungsdienst Aufladung' });
-  await row.getByRole('button', { name: 'Prüfen', exact: true }).click();
-  const dialog = page.getByRole('dialog', { name: 'Buchung prüfen' });
+  // Counterpart choices sit in the row's "Weitere Aktionen" menu.
+  await row.locator('summary').click();
+  const dialog = row;
   await expect(dialog.getByLabel('Vorgeschlagene Gegenbuchung')).toHaveValue(credit);
   expect(await booking(debit)).toMatchObject({ transferId: null, amountCents: -1703 });
   expect(await booking(credit)).toMatchObject({ transferId: null, amountCents: 1703 });

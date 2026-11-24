@@ -432,7 +432,8 @@ export function bookingRoutes(db: Db, today = () => todayInVienna()): Hono {
         acceptInReview &&
         (previous.status !== 'pending' ||
           patch.status !== 'confirmed' ||
-          Object.keys(patch).length !== 1 ||
+          // Prüfen may confirm together with the payee and category chosen in the row.
+          Object.keys(patch).some((key) => !['status', 'payeeId', 'splits'].includes(key)) ||
           repeat)
       )
         throw new ApiError(

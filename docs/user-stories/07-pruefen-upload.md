@@ -28,6 +28,22 @@ Bildschirm Prüfen: `/konten/pruefen` (Konten › Prüfen). Zähler: „Umsätze
 - **Status:** teilweise — **Verweis:** Y16, #1187
   Zeilenbearbeitung, Kategorie-Spalte, Hakerl/X und Tastaturwege für offene Bankkandidaten sind implementiert; Review und Live-Abnahme offen. Bereits gebuchte ungeprüfte Zeilen behalten ihre bestehenden Zuordnungsdialoge. Die Kopfzeilenkorrektur aus #1188 ist enthalten; Rücklink und Ansichtsmenü teilen sich die Werkzeugleiste.
 
+### I-01d – Bereits gebuchte Bankumsätze direkt in der Zeile bestätigen
+- **Story:** Als Nutzer möchte ich bei einer vom Bank-Sync schon angelegten, noch nicht zugeordneten Bankbuchung Empfänger und Kategorie vorgeschlagen bekommen und direkt in der Zeile korrigieren und bestätigen, damit ich nicht erst ein Menü und das volle Formular öffnen muss.
+- **Ausgangslage:** Konten › Prüfen › Umsätze zeigt eine vorgemerkte Bankbuchung ohne Kategorie, z. B. Bankvermerk „SHOP BEISPIEL PAYMENTS EUROPE“, während der Empfänger „Shop Beispiel“ mit kategorisierter Historie existiert.
+- **Ablauf:**
+  1. Die Zeile zeigt den vorgeschlagenen Empfänger (ganzes Wort am Anfang des Bankvermerks, längster Treffer; bei Gleichstand kein Vorschlag), der Bankvermerk steht als zweite Zeile darunter. Der Vorschlag „Shop Beispiel · Haushalt“ nennt per Tooltip die Grundlage (Standardkategorie, Regel oder häufigste Kategorie der letzten 12 Monate).
+  2. Empfänger und Kategorie lassen sich über die Zellen ändern (gleiche Auswahl wie bei Bankkandidaten).
+  3. „Bestätigen“ speichert in EINEM Schritt Empfänger, Kategorie und Status „Bestätigt“. Ohne Kategorie ist die Taste gesperrt; der Tooltip nennt den Grund. Bei mehreren Teilbuchungen bleibt nur das Formular.
+  4. „Weitere Aktionen“ enthält „Bearbeiten“ (öffnet das Formular mit den Werten der Zeile vorbelegt), Regelvorschlag und Zusammenführen.
+- **Ergebnis:** Eine Buchung mit Empfänger, Kategorie und Status „Bestätigt“; Rückgängig wie bei jeder Buchungsänderung.
+- **Abnahmekriterien:**
+  1. Der Vorschlag verändert nichts, solange nicht „Bestätigen“ geklickt wird.
+  2. Einnahmekategorien werden bei Ausgaben nie vorgeschlagen; versteckte Kategorien nie.
+  3. Das Formular über „Bearbeiten“ erscheint mit Empfänger und Kategorie der Zeile, überschreibt aber nie vorhandene Werte der Buchung.
+  4. Ablehnen/Löschen einer Bankbuchung gibt es hier nicht (bestehendes Verhalten, nicht erweitert).
+- **Status:** umgesetzt zur Durchsicht — **Verweis:** #1187
+
 ### I-01c – Review one list per account (#1191)
 
 - **Flow:** Open Konten › Prüfen › Umsätze. Each account header contains its latest fetch date and result counts directly above the existing rows. Accounts with open rows start expanded; the device remembers explicit collapse choices. Accounts without open rows occupy one muted line. Multiple sources mapped to the same account share one group; identically named accounts remain separate.
