@@ -1,12 +1,12 @@
 import { expect, sampleTest as test } from './sample';
+import { bookingSearch } from './ledger-helpers';
 
 test('S3 ordinary filtering replaces history and an entity push restores filter, period and scroll on Back', async ({
   page,
 }) => {
   await page.goto('/konten/buchungen?monat=2026-09&kategorie=cat-miete');
   const redesign = (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
-  const input = page.getByRole('searchbox', { name: 'In Buchungen suchen', exact: true });
-  await expect(input).toBeVisible();
+  const input = await bookingSearch(page);
   const historyLength = await page.evaluate(() => history.length);
   await input.fill('Hausverwaltung');
   await expect(page).toHaveURL((url) => url.searchParams.get('q') === 'Hausverwaltung');

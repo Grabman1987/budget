@@ -1,5 +1,6 @@
 import { expect, type APIRequestContext, type Page, type Route } from '@playwright/test';
 import { test } from './isolated-ledger';
+import { bookingSearch } from './ledger-helpers';
 
 test.use({ ledgerToday: '2026-10-18' });
 
@@ -156,7 +157,7 @@ test('same-page search keeps its input state and focus after a delayed guard', a
   await seed(request, baseURL!);
   await openRegister(page, '/konten/buchungen');
   await expect(page.locator('[data-booking]')).toHaveCount(2);
-  const input = page.getByLabel('In Buchungen suchen');
+  const input = await bookingSearch(page);
   let release!: () => void;
   const gate = new Promise<void>((resolve) => {
     release = resolve;

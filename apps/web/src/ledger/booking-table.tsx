@@ -1,4 +1,5 @@
 import { useAmountPrivacy, cx, type SwatchKind } from '@budget/ui';
+import { usePhoneRows } from './use-phone-rows';
 import { InlineBookingCell } from './inline-booking-cell';
 import { CREATE_CATEGORY, CreatePickerCategory } from './create-picker-category';
 import type { BookingPatch } from './api';
@@ -86,6 +87,7 @@ export function BookingTable({
   monthlyKind,
 }: BookingTableProps) {
   useAmountPrivacy();
+  const phone = usePhoneRows();
   // Mount the responsive overlay on first use, then retain it for native close/focus return.
   const [inspected, setInspected] = useState<ListedBooking | null>();
   const classes = useCategoryClasses();
@@ -375,7 +377,9 @@ export function BookingTable({
               {upcoming.open && entries.length > 0 && (
                 <tr className="kupcoming-sum" data-testid="register-planned-sum">
                   <td colSpan={columns}>
-                    Geplant (nicht in den Monatssummen): {registerAmount(plannedCents(entries))}
+                    {phone
+                      ? `Geplant · nicht in Monatssummen · ${registerAmount(plannedCents(entries))}`
+                      : `Geplant (nicht in den Monatssummen): ${registerAmount(plannedCents(entries))}`}
                   </td>
                 </tr>
               )}
@@ -388,6 +392,7 @@ export function BookingTable({
                       today={upcoming.today}
                       all={all}
                       blankCheck={!!selection}
+                      phone={phone}
                       balance={upcoming.balances.get(entry.id) ?? null}
                       showBalance={runColumn}
                     />
@@ -496,6 +501,7 @@ function Row({
   showRunningBalance?: boolean;
 }) {
   useAmountPrivacy();
+  const phone = usePhoneRows();
   const flashing = useFlashing(b.id);
   const [editing, setEditing] = useState(false);
   const [creatingCategory, setCreatingCategory] = useState(false);
@@ -505,7 +511,7 @@ function Row({
   const label = `${b.payeeName ?? 'Buchung'} am ${shortDay(b.date)}`;
   const amountContent = (
     <>
-      {selectionMode ? (
+      {selectionMode || phone ? (
         <span className={b.currency === 'EUR' ? undefined : 'kfx-money'}>
           {valuedCurrency(b.amountCents, b.currency, b.amountValuation, true)}
         </span>
@@ -589,7 +595,7 @@ function Row({
                 : {})}
           />
         </button>
-        {REDESIGN_ENABLED && !selectionMode && (
+        {REDESIGN_ENABLED && !selectionMode && !phone && (
           <div className="kpayee-inline">
             <InlineBookingCell
               booking={b}
@@ -603,7 +609,7 @@ function Row({
             </InlineBookingCell>
           </div>
         )}
-        {REDESIGN_ENABLED && !selectionMode && (
+        {REDESIGN_ENABLED && !selectionMode && !phone && (
           <button
             type="button"
             className="btn btn-ghost booking-inspect-trigger"

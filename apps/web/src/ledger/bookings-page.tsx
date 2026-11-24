@@ -93,6 +93,7 @@ export function BookingsPage() {
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
   const [selecting, setSelecting] = useState(false),
     [outcome, setOutcome] = useState<BulkOutcome | null>(null);
+  const [summaryOpen, setSummaryOpen] = useState(false);
   const isPhone = useIsPhone(),
     pending = writes.bulk.isPending || linking;
   /** Bulk delete asks once more; any change of the selection withdraws the question. */
@@ -187,6 +188,13 @@ export function BookingsPage() {
         : { sortierung: key, richtung: key === 'date' ? 'desc' : 'asc' },
     );
 
+  // The redesign shows count and month sums in the month header: the line stays readable for
+  // assistive technology, but is only drawn where it adds something (category net, foreign currency).
+  const showSum =
+    !REDESIGN_ENABLED ||
+    first?.categorySpendingCents !== undefined ||
+    !!first?.nativeTotals?.some((total) => total.currency !== 'EUR') ||
+    (!!filteredAccount && filteredAccount.currency !== 'EUR');
   const filters = (
     <section aria-labelledby="filter-title">
       <h2 className="sr-only" id="filter-title">
@@ -211,7 +219,7 @@ export function BookingsPage() {
       </fieldset>
 
       {first && (
-        <p className="ksum" aria-live="polite">
+        <p className={showSum ? 'ksum' : 'ksum sr-only'} aria-live="polite">
           {first.nativeTotalsPending ? 'Anzahl wird aktualisiert …' : pluralBookings(first.total)} ·{' '}
           {first.nativeTotalsPending
             ? 'Summe wird aktualisiert …'
@@ -266,6 +274,19 @@ export function BookingsPage() {
           <MoreHorizontal size={20} strokeWidth={1.5} aria-hidden="true" />
         </summary>
         <div className="kregister-menu">
+          {REDESIGN_ENABLED && isPhone && (
+            <button
+              type="button"
+              className="btn btn-ghost"
+              onClick={(event) => {
+                const menu = event.currentTarget.closest('details');
+                if (menu) menu.open = false;
+                setSummaryOpen(true);
+              }}
+            >
+              Auswertung des Filters
+            </button>
+          )}
           <BookingViews
             search={search}
             disabled={pending}
@@ -305,6 +326,8 @@ export function BookingsPage() {
             kind={first?.monthlyKind}
             today={today}
             pending={list.isFetching || !!first?.nativeTotalsPending}
+            sheetOpen={summaryOpen}
+            onSheetClose={() => setSummaryOpen(false)}
           />
         ) : undefined
       }
@@ -505,47 +528,70 @@ function FilterRow({
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [q]);
-  const chips = keys.map((key) => {
-    const label = filterChipLabel(key, search[key]!, accounts, lookups);
-    return (
+  const phone = useIsPhone();
+  // The status already shows in the segmented control of the redesign: no second chip for it.
+  const chips = keys
+    .filter((key) => !(REDESIGN_ENABLED && key === 'status'))
+    .map((key) => {
+      const label = filterChipLabel(key, search[key]!, accounts, lookups);
+      return (
+        <Button
+          key={key}
+          variant="ghost"
+          className="kfilter-chip"
+          aria-label={`${label} entfernen`}
+          onClick={() => setSearch({ [key]: undefined })}
+        >
+          {label}
+          <X size={16} strokeWidth={1.75} aria-hidden="true" />
+        </Button>
+      );
+    });
+  // On the phone the text search lives in the filter sheet; an active search stays visible as chip.
+  if (phone && search.q) {
+    chips.push(
       <Button
-        key={key}
+        key="q"
         variant="ghost"
         className="kfilter-chip"
-        aria-label={`${label} entfernen`}
-        onClick={() => setSearch({ [key]: undefined })}
+        aria-label={`Suche: ${search.q} entfernen`}
+        onClick={() => setSearch({ q: undefined })}
       >
-        {label}
+        Suche: {search.q}
         <X size={16} strokeWidth={1.75} aria-hidden="true" />
-      </Button>
+      </Button>,
     );
-  });
+  }
+  const searchField = (
+    <div className="kf kf-search">
+      <Field label="In Buchungen suchen">
+        {({ id }) => (
+          <TextInput
+            id={id}
+            type="search"
+            value={q}
+            placeholder="Empfänger, Notiz, Kategorie"
+            autoComplete="off"
+            onChange={(event) => setQ(event.target.value)}
+          />
+        )}
+      </Field>
+    </div>
+  );
+  const activeCount = keys.length + (phone && search.q ? 1 : 0);
   return (
     <>
       <div className="kfilter-phone">
         <div className="kfilter-search-row">
-          <div className="kf kf-search">
-            <Field label="In Buchungen suchen">
-              {({ id }) => (
-                <TextInput
-                  id={id}
-                  type="search"
-                  value={q}
-                  placeholder="Empfänger, Notiz, Kategorie"
-                  autoComplete="off"
-                  onChange={(event) => setQ(event.target.value)}
-                />
-              )}
-            </Field>
-          </div>
+          {!phone && searchField}
           <Button
             variant="ghost"
-            aria-label={`Filter (${keys.length})`}
+            aria-label={`Filter (${activeCount})`}
             aria-haspopup="dialog"
             aria-expanded={open}
             onClick={() => setOpen(true)}
           >
-            {REDESIGN_ENABLED ? 'Filter' : `Filter (${keys.length})`}{' '}
+            {REDESIGN_ENABLED ? 'Filter' : `Filter (${activeCount})`}{' '}
             <ChevronDown size={16} strokeWidth={1.75} aria-hidden="true" />
           </Button>
         </div>
@@ -563,7 +609,7 @@ function FilterRow({
       </div>
       <BottomSheet open={open} onClose={() => setOpen(false)} title="Buchungen filtern">
         <div className="kfilter-sheet">
-          <p>Änderungen wirken sofort. Der aktuelle Filter steht in der URL.</p>
+          {phone && searchField}
           <div className="kfilter">
             <FilterControls
               phone
@@ -576,6 +622,7 @@ function FilterRow({
               onClick={() => {
                 const patch: Partial<BookingsSearch> = {};
                 for (const key of keys) patch[key] = undefined;
+                if (phone) patch.q = undefined;
                 setSearch(patch);
               }}
             >
@@ -632,6 +679,16 @@ function FilterControls({
   phone?: boolean;
 }) {
   const [showClosed, setShowClosed] = useState(false);
+  const closedToggle = accounts.some((a) => a.closedAt) ? (
+    <label className="kf-closed">
+      <input
+        type="checkbox"
+        checked={showClosed}
+        onChange={(e) => setShowClosed(e.target.checked)}
+      />
+      Geschlossene Konten zeigen
+    </label>
+  ) : null;
   return (
     <>
       <div className="kf kf-sort">
@@ -669,17 +726,9 @@ function FilterControls({
             </Select>
           )}
         </Field>
-        {accounts.some((a) => a.closedAt) && (
-          <label className="kf-closed">
-            <input
-              type="checkbox"
-              checked={showClosed}
-              onChange={(e) => setShowClosed(e.target.checked)}
-            />
-            Geschlossene Konten zeigen
-          </label>
-        )}
+        {!phone && closedToggle}
       </div>
+      {phone && closedToggle && <div className="kf kf-closed-row">{closedToggle}</div>}
       <div className="kf kf-cat">
         <CategoryFilter
           value={search.kategorie ?? ''}
