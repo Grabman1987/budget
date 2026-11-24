@@ -14,6 +14,7 @@ import {
 import { LinkProposalAction } from './link-proposal';
 import { BankBulkActions, isBankInboxRow, bankSelectionIds } from './bank-bulk-actions';
 import { BankCandidateRow } from './bank-candidate-row';
+import { BankBookingRow, type BookingPrefill } from './bank-booking-row';
 import type { BankSyncRecapData } from './bank-sync-recap';
 import {
   bankAccountGroups,
@@ -67,6 +68,7 @@ import { useLedgerWrites } from '../ledger/mutations';
 import { LEDGER_KEY } from '../ledger/queries';
 import { EmptyNote, ErrorNote, LoadingNote } from '../ledger/states';
 import type { ListedBooking } from '../ledger/types';
+import type { BookingPatch } from '../ledger/api';
 import { PAGES } from '../nav/pages';
 import { KontenFrame, useKontenSlot } from '../ledger/konten-frame';
 import { AppLink } from '../shell/app-link';
@@ -289,7 +291,7 @@ export function InboxWorkflow({
   const [loading, setLoading] = useState<string | null>(null);
   const toast = useToast();
   const qc = useQueryClient();
-  const edit = async (id: string) => {
+  const edit = async (id: string, prefill?: BookingPrefill) => {
     if (loading) return;
     trigger.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     setLoading(id);
@@ -298,7 +300,7 @@ export function InboxWorkflow({
         'GET',
         `/api/bookings/${encodeURIComponent(id)}`,
       );
-      setEditing(booking);
+      setEditing(prefillBooking(booking, prefill));
     } catch (error) {
       toast.show({ message: errorText(error) });
       void qc.invalidateQueries({ queryKey: LEDGER_KEY });
@@ -313,7 +315,7 @@ export function InboxWorkflow({
       bankSource={bankSource}
       bankAccountId={bankAccountId}
       readSource={readSource}
-      onEdit={(id) => void edit(id)}
+      onEdit={(id, prefill) => void edit(id, prefill)}
       loadingId={loading}
       onSavings={(item) => {
         proposalTrigger.current = document.activeElement as HTMLElement;
@@ -344,6 +346,33 @@ export function InboxWorkflow({
   );
 }
 
+/** Carry the inline row's choice into the form, but never overwrite what the booking holds. */
+function prefillBooking(
+  booking: ListedBooking,
+  prefill: BookingPrefill | undefined,
+): ListedBooking {
+  if (!prefill) return booking;
+  const [only] = booking.splits;
+  const open =
+    booking.splits.length === 1 &&
+    only &&
+    !only.categoryId &&
+    !only.incomeTypeId &&
+    !only.contactId &&
+    !only.transferId;
+  return {
+    ...booking,
+    ...(!booking.payeeId && prefill.payeeId
+      ? { payeeId: prefill.payeeId, payeeName: prefill.payeeName }
+      : {}),
+    ...(open && prefill.categoryId
+      ? {
+          splits: [{ ...only, categoryId: prefill.categoryId, categoryName: prefill.categoryName }],
+        }
+      : {}),
+  };
+}
+
 function InboxBody({
   entryIds,
   detailEntry,
@@ -359,7 +388,7 @@ function InboxBody({
   bankSource?: string | undefined;
   bankAccountId?: string | undefined;
   readSource?: string | undefined;
-  onEdit: (id: string) => void;
+  onEdit: (id: string, prefill?: BookingPrefill) => void;
   loadingId: string | null;
   onSavings: (proposal: SavingsExecutionProposal) => void;
 }) {
@@ -423,7 +452,7 @@ function InboxBody({
 }
 
 type InboxBodyProps = {
-  onEdit: (id: string) => void;
+  onEdit: (id: string, prefill?: BookingPrefill) => void;
   loadingId: string | null;
   onSavings: (proposal: SavingsExecutionProposal) => void;
 };
@@ -1366,6 +1395,9 @@ function InboxBodyContent({
                                       patch: { status: 'confirmed', acceptInReview: true },
                                     })
                                   }
+                                  onConfirmInline={(id, patch) =>
+                                    writes.patch.mutate({ id, patch })
+                                  }
                                   confirming={writes.patch.isPending}
                                 />
                               ))),
@@ -1421,6 +1453,7 @@ function InboxRow({
   onSavings,
   onResolve,
   onConfirm,
+  onConfirmInline,
   confirming,
 }: {
   bankLayout?: boolean;
@@ -1431,10 +1464,11 @@ function InboxRow({
   onBankConfirmed: (id: string) => void;
   item: TaskEntry;
   busy: boolean;
-  onEdit: (id: string) => void;
+  onEdit: (id: string, prefill?: BookingPrefill) => void;
   onSavings: (proposal: SavingsExecutionProposal) => void;
   onResolve: () => void;
   onConfirm: (id: string) => void;
+  onConfirmInline: (id: string, patch: BookingPatch) => void;
   confirming: boolean;
 }) {
   useAmountPrivacy();
@@ -1483,6 +1517,7 @@ function InboxRow({
         onConfirmed={onBankConfirmed}
         onEdit={onEdit}
         onConfirm={onConfirm}
+        onConfirmInline={onConfirmInline}
         onResolve={onResolve}
         busy={busy || confirming}
       />
@@ -1632,6 +1667,7 @@ function BankInboxRow({
   onConfirmed,
   onEdit,
   onConfirm,
+  onConfirmInline,
   onResolve,
   busy,
 }: {
@@ -1641,8 +1677,9 @@ function BankInboxRow({
   onSelect: ((checked: boolean) => void) | undefined;
   onPrepared: (id: string, suggestion: PreparedBankSuggestion | undefined) => void;
   onConfirmed: (id: string) => void;
-  onEdit: (id: string) => void;
+  onEdit: (id: string, prefill?: BookingPrefill) => void;
   onConfirm: (id: string) => void;
+  onConfirmInline: (id: string, patch: BookingPatch) => void;
   onResolve: () => void;
   busy: boolean;
 }) {
@@ -1686,12 +1723,25 @@ function BankInboxRow({
   );
   // Candidate preparation is reported by its form; booking preparation combines merge/rule paths.
   useEffect(() => {
-    if (item.type === 'booking') onPrepared(item.id, prepared);
-  }, [item.type, item.id, onPrepared, prepared]);
+    if (item.type === 'booking' && !bankLayout) onPrepared(item.id, prepared);
+  }, [item.type, item.id, onPrepared, prepared, bankLayout]);
   const data =
     item.type === 'booking' ? item : item.type === 'stored' ? item.bankCandidate : undefined;
   const suggestion = item.type === 'stored' ? item.bankCandidate?.suggestion : undefined;
   const rowPrepared = item.type === 'booking' ? prepared : candidate;
+  if (bankLayout && item.type === 'booking')
+    return (
+      <BankBookingRow
+        item={item}
+        selected={selected}
+        onSelect={onSelect ? selectRow : undefined}
+        onPrepared={onPrepared}
+        onEdit={onEdit}
+        onConfirmed={onConfirmed}
+        onConfirmInline={onConfirmInline}
+        busy={busy}
+      />
+    );
   if (bankLayout && item.type === 'stored' && item.refId)
     return (
       <BankCandidateRow

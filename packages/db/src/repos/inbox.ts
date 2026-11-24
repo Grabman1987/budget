@@ -22,12 +22,14 @@ import {
 } from '@budget/domain';
 import { categoryTree } from './categories';
 import { budget } from './queries';
+import { getBooking } from './bookings';
 import {
   account,
   accountReconciliation,
   auditLog,
   booking,
   bookingSplit,
+  category,
   inboxItem,
   payee,
   bankSyncAccount,
@@ -45,7 +47,8 @@ import { savingsExecutionProposals, type SavingsExecutionProposal } from './savi
 import { candidateMatches } from './bank-followups';
 import { LINK_PROPOSAL_REF, parseLinkProposalId } from './expected-auto-link';
 import { payslipDocumentMetadata } from './payslip-intake';
-import { readAssignmentCandidate } from './assignment-rules';
+import { readAssignmentCandidate, readBookingAssignments } from './assignment-rules';
+import { suggestedBookingCategory } from './booking-category-suggestion';
 import { bookedBalance } from './reconciliation';
 import { heldSecurityIds } from './quote-source-decision';
 import { AUTO_RESOLVED_HISTORY_DAYS, autoResolvedWarnings } from './market';
@@ -72,6 +75,18 @@ export interface InboxBooking {
   status: typeof booking.$inferSelect.status;
   source: typeof booking.$inferSelect.source;
   missingSplits: number;
+  /** Read-only proposal for the inline row, set only on the returned page (never mutates). */
+  suggestion?: InboxBookingSuggestion;
+}
+export interface InboxBookingSuggestion {
+  payeeId: string | null;
+  payeeName: string | null;
+  categoryId: string | null;
+  categoryName: string | null;
+  basis: string | null;
+  ruleId?: string;
+  /** The booking has exactly one split, so one category can be assigned in the row. */
+  singleSplit: boolean;
 }
 export interface InboxStored {
   type: 'stored';
@@ -175,10 +190,56 @@ function reconciliationTasks(db: Executor, today: string): InboxStored[] {
   });
 }
 
+function withBookingSuggestion(db: Executor, entry: InboxBooking): InboxBooking {
+  try {
+    const row = getBooking(db, entry.bookingId);
+    if (!row) return entry;
+    const { cleanup, suggestions } = readBookingAssignments(db, entry.bookingId);
+    const payeeId = row.payeeId ?? cleanup.payeeId;
+    const payeeName = row.payeeId
+      ? (db.select().from(payee).where(eq(payee.id, row.payeeId)).get()?.name ?? null)
+      : cleanup.payeeName;
+    let categoryId: string | null = null;
+    let categoryName: string | null = null;
+    let basis: string | null = null;
+    let ruleId: string | undefined;
+    const withCategory = suggestions.filter((r) => !r.unavailable && r.actions.categoryId);
+    if (withCategory.length === 1) {
+      const rule = withCategory[0]!;
+      const c = db.select().from(category).where(eq(category.id, rule.actions.categoryId!)).get();
+      if (c && !c.deletedAt) {
+        categoryId = c.id;
+        categoryName = c.name;
+        basis = `Regel: ${rule.name}`;
+        ruleId = rule.id;
+      }
+    }
+    if (!categoryId && payeeId && row.splits.length === 1) {
+      const found = suggestedBookingCategory(db, payeeId, entry.amountCents);
+      if (found) ({ categoryId, categoryName, basis } = found);
+    }
+    return {
+      ...entry,
+      suggestion: {
+        payeeId,
+        payeeName,
+        categoryId,
+        categoryName,
+        basis,
+        singleSplit: row.splits.length === 1,
+        ...(ruleId ? { ruleId } : {}),
+      },
+    };
+  } catch {
+    return entry;
+  }
+}
+
 /** Enrich only the response page. The booking dialog recomputes guarded choices before writing. */
 export function prepareInboxBankSuggestions(db: Executor, entries: InboxEntry[]): InboxEntry[] {
   return runInTransaction(db, (tx) =>
     entries.map((entry) => {
+      if (entry.type === 'booking') return withBookingSuggestion(tx, entry);
       if (entry.type !== 'stored' || !entry.bankCandidate || !entry.refId) return entry;
       let suggestion: BankSuggestion = {
         label: 'Kategorie prüfen · Zu verteilen',

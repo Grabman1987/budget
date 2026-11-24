@@ -266,15 +266,14 @@ test('65 compact bank rows, prepared bulk confirmation, one undo, date controls 
     .locator('.bank-inbox-row')
     .filter({ hasText: redesign ? 'Shop A' : 'Shop A ·' })
     .all()) {
+    // The rule suggestion sits in the row's "Weitere Aktionen" menu (both layouts).
+    await row.locator('summary').click();
     if (redesign) {
-      await row.getByRole('button', { name: 'Prüfen', exact: true }).click();
-      const review = page.getByRole('dialog', { name: 'Buchung prüfen', exact: true });
       await expect(
-        review.getByRole('button', { name: 'Vorschlag übernehmen', exact: true }),
+        row.getByRole('button', { name: 'Vorschlag übernehmen', exact: true }),
       ).toBeVisible();
-      await review.getByRole('button', { name: 'Schließen', exact: true }).click();
-      await expect(review).toBeHidden();
-    } else await row.locator('summary').click();
+      await row.locator('summary').click();
+    }
   }
   if (!redesign)
     await expect(
@@ -318,14 +317,8 @@ test('65 compact bank rows, prepared bulk confirmation, one undo, date controls 
   await inboxFilters(page);
   await page.getByLabel('Ab Datum', { exact: true }).fill('2026-10-02');
   await expect(page.locator('.bank-inbox-row')).toHaveCount(5);
-  if (redesign) {
-    await page.keyboard.press('Escape');
-    await page
-      .locator('.bank-inbox-row')
-      .first()
-      .getByRole('button', { name: 'Prüfen', exact: true })
-      .click();
-  } else await page.locator('.bank-inbox-row').first().locator('summary').click();
+  if (redesign) await page.keyboard.press('Escape');
+  await page.locator('.bank-inbox-row').first().locator('summary').click();
   await expect(
     page.getByRole('button', { name: 'Vorschlag übernehmen', exact: true }),
   ).toBeVisible();

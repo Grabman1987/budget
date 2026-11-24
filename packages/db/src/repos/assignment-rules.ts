@@ -309,13 +309,35 @@ export function suggestedBankPayee(
     ? payees.find((p) => p.id === alias.payeeId)
     : named.length === 1
       ? named[0]
-      : undefined;
+      : named.length === 0
+        ? prefixPayee(payees, bankAliasKey(cleaned))
+        : undefined;
   return {
     cleaned,
     payeeId: found?.id ?? null,
     payeeName: found?.name ?? null,
     learned: !!alias && !!found,
   };
+}
+
+/**
+ * Fallback without alias or exact name: a payee whose name is a whole-word prefix of the cleaned
+ * bank text ("Amazon" for "AMAZON PAYMENTS EUROPE S.C.A."). The longest name wins; a tie between
+ * different payees gives no suggestion.
+ */
+function prefixPayee<T extends { name: string }>(payees: T[], cleanedKey: string): T | undefined {
+  let best: T[] = [];
+  let bestLength = 0;
+  for (const p of payees) {
+    const key = bankAliasKey(p.name);
+    if (key.length < 4 || key.length < bestLength || !cleanedKey.startsWith(key)) continue;
+    const next = cleanedKey.charAt(key.length);
+    if (next !== '' && /[\p{L}\p{N}]/u.test(next)) continue;
+    if (key.length > bestLength) best = [];
+    bestLength = key.length;
+    best.push(p);
+  }
+  return best.length === 1 ? best[0] : undefined;
 }
 
 export function assignmentSuggestions(db: Executor, row: AssignmentRow) {

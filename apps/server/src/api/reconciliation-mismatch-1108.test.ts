@@ -281,3 +281,27 @@ it('does not reinterpret unaudited checkpoints or let future/deleted checks hide
   // No fabricated acceptance, and the latest legacy checkpoint supersedes the older one.
   expect(await findings()).toEqual([]);
 });
+
+it('accepts in Prüfen together with payee and one category, but nothing else', async () => {
+  const pending = createBooking(
+    opened.db,
+    {
+      accountId: 'giro',
+      date: '2026-09-03',
+      amountCents: -1001,
+      status: 'pending',
+      splits: [{ amountCents: -1001 }],
+    },
+    testCtx,
+  );
+  const path = `/bookings/${pending}`;
+  await request(path, 'PATCH', { status: 'confirmed', acceptInReview: true, memo: 'Zusatz' }, 409);
+  await request(path, 'PATCH', {
+    status: 'confirmed',
+    acceptInReview: true,
+    splits: [{ amountCents: -1001, categoryId: 'essen' }],
+  });
+  expect(await request(path)).toMatchObject({
+    booking: { status: 'confirmed', splits: [{ categoryId: 'essen', amountCents: -1001 }] },
+  });
+});
