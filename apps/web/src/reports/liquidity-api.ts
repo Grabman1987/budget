@@ -11,6 +11,7 @@ import type {
 import type { LiquidityHorizon, LiquidityLeverId } from '@budget/domain';
 import { queryOptions } from '@tanstack/react-query';
 import { request } from '../api/http';
+import { HEAVY_READ_STALE_MS } from '../api/stale-times';
 import { LEDGER_KEY } from '../ledger/queries';
 import type { AccountRow, WriteResult } from '../ledger/types';
 
@@ -56,6 +57,7 @@ export const liquidityQuery = (
       includeRepaymentComparison,
     ],
     retry: false,
+    staleTime: HEAVY_READ_STALE_MS,
     queryFn: () =>
       request<LiquidityReportView>(
         'GET',

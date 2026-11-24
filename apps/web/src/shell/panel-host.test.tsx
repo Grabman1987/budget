@@ -37,23 +37,24 @@ it.each([
   '/konten/kontakte/synthetic-contact',
   '/konten/posteingang/synthetic-contact',
   '/konten/synthetic-contact',
-])('passes account context only from an account page: %s', (path) => {
+])('passes account context only from an account page: %s', async (path) => {
   pathname = path;
   render(<PanelHost />);
-  expect(screen.getByLabelText('Capture account').textContent).toBe(
+  // The capture panel is a lazy chunk: it appears once loaded.
+  expect((await screen.findByLabelText('Capture account')).textContent).toBe(
     path === '/konten/synthetic-contact' ? 'synthetic-contact' : '',
   );
 });
 
 it.each([false, true])(
   'closes capture once before navigation reads finish and reopens (in-app: %s)',
-  (inApp) => {
+  async (inApp) => {
     navigate.mockClear();
     back.mockClear();
     openedInApp = inApp;
     panel = 'buchung';
     const view = render(<PanelHost />);
-    expect(screen.getByLabelText('Capture open').textContent).toBe('open');
+    expect((await screen.findByLabelText('Capture open')).textContent).toBe('open');
     fireEvent.click(screen.getByRole('button', { name: 'Saved' }));
     expect(inApp ? back : navigate).toHaveBeenCalledOnce();
     expect(screen.getByLabelText('Capture open').textContent).toBe('closed');

@@ -1,9 +1,30 @@
 import { useLocation, useNavigate, useParams, useRouter, useSearch } from '@tanstack/react-router';
-import { useState } from 'react';
-import { BookingPanel } from '../ledger/booking-panel';
+import { lazy, Suspense, useState } from 'react';
 import type { PanelSearch } from './panel-state';
 import { type PanelId } from './panels';
-import { AssetClassSettingsPanel } from '../pages/asset-classes-settings';
+
+// The capture form (the largest editor) and the settings panels load when a panel is first
+// opened; `preloadPanels` fetches them when the browser is idle so opening stays instant.
+const loadBookingPanel = () => import('../ledger/booking-panel');
+const loadAssetClassPanel = () => import('../pages/asset-classes-settings');
+const BookingPanel = lazy(() => loadBookingPanel().then((m) => ({ default: m.BookingPanel })));
+const AssetClassSettingsPanel = lazy(() =>
+  loadAssetClassPanel().then((m) => ({ default: m.AssetClassSettingsPanel })),
+);
+
+/** Loads the panel chunks in the background (idle time), never on the start page's critical path. */
+export function preloadPanels(): () => void {
+  const run = () => {
+    void loadBookingPanel().catch(() => undefined);
+    void loadAssetClassPanel().catch(() => undefined);
+  };
+  if (typeof requestIdleCallback === 'function') {
+    const handle = requestIdleCallback(run, { timeout: 5000 });
+    return () => cancelIdleCallback(handle);
+  }
+  const handle = setTimeout(run, 2000);
+  return () => clearTimeout(handle);
+}
 
 /**
  * Existing input editors driven by `?panel=`. The state lives in the URL,
@@ -19,6 +40,9 @@ export function PanelHost() {
   if (panel && panel !== shown) setShown(panel);
   // Closing a confirmed form must not wait for the navigation's session/read guards.
   const [closing, setClosing] = useState<PanelId>();
+  // The closed capture dialog is not mounted (nor its chunk loaded) before the first opening.
+  const [opened, setOpened] = useState(false);
+  if (panel && !opened) setOpened(true);
   if (closing && panel !== closing) setClosing(undefined);
   // Looking at an account: a new booking starts on it.
   const { id } = useParams({ strict: false }) as { id?: string };
@@ -45,12 +69,14 @@ export function PanelHost() {
 
   // "+ Buchung": the capture panel (P2b), with its own URL (`?panel=buchung`).
   if (shown === 'buchung') {
-    return (
-      <BookingPanel
-        state={panel === 'buchung' && closing !== panel ? { mode: 'create', accountId } : null}
-        onClose={close}
-      />
-    );
+    return opened ? (
+      <Suspense fallback={null}>
+        <BookingPanel
+          state={panel === 'buchung' && closing !== panel ? { mode: 'create', accountId } : null}
+          onClose={close}
+        />
+      </Suspense>
+    ) : null;
   }
 
   if (shown === 'posteingang') return null;
@@ -63,6 +89,10 @@ export function PanelHost() {
       'instrument',
     ].includes(shown)
   )
-    return <AssetClassSettingsPanel open={panel === shown} onClose={close} mode={shown} />;
+    return opened ? (
+      <Suspense fallback={null}>
+        <AssetClassSettingsPanel open={panel === shown} onClose={close} mode={shown} />
+      </Suspense>
+    ) : null;
   return null;
 }

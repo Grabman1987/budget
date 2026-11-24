@@ -23,7 +23,7 @@ vi.mock('./redesign-flag', () => ({
 vi.mock('./page-meta', () => ({ useActivePage: () => active.page }));
 vi.mock('./inbox', () => ({ useInboxCount: () => ({ count: 0, label: 'Prüfen, 0 offen' }) }));
 vi.mock('./sidebar', () => ({ Sidebar: () => null }));
-vi.mock('./panel-host', () => ({ PanelHost: () => null }));
+vi.mock('./panel-host', () => ({ PanelHost: () => null, preloadPanels: () => () => undefined }));
 vi.mock('./capture-shortcut', () => ({ useCaptureShortcut: () => {} }));
 vi.mock('./header-status', () => ({ MobileStatusLine: () => null, OfflineStatus: () => null }));
 vi.mock('./global-search', () => ({ GlobalSearch: () => <button>Suchen</button> }));
