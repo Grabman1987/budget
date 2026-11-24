@@ -1,0 +1,13 @@
+{
+  "type": "card_statement",
+  "cardPeriod": { "from": "2030-12-05", "to": "2031-01-04" },
+  "fields": {
+    "layout": "issued_card",
+    "summary.issueDate": "2031-01-04",
+    "summary.debitDate": "2031-01-12",
+    "summary.payableCents": 17001,
+    "rows.0.amountCents": -7001,
+    "rows.0.transactionDate": "2030-12-30",
+    "rows.0.bookingDate": "2030-12-31"
+  }
+}

@@ -321,6 +321,62 @@ describe('rewards and deliveries', () => {
 });
 
 describe('informational and unmapped operations', () => {
+  it.each([
+    { type: 'stake', flow: 'OUTGOING' },
+    { type: 'unstake', flow: 'INCOMING' },
+    { type: 'stake', flow: 'OUTGOING', fee: coin('0.01') },
+  ] as const)('resolves a single $type $flow leg as internal', (leg) => {
+    const movement = op('single', leg.type, { ...leg, amount: coin('1') });
+    expect(verdictOf(movement, ledger(), [])).toEqual({
+      status: 'informational',
+      reason: 'internal',
+    });
+  });
+  it('keeps an unreadable stake amount unreadable', () => {
+    const stake = op('st', 'stake', {
+      type: 'stake',
+      flow: 'OUTGOING',
+      amount: coin('0.000000001'),
+    });
+    expect(verdictOf(stake, ledger())).toEqual({
+      status: 'unreadable',
+      field: 'transactions[0].amount.value',
+    });
+  });
+  it('still checks a buy alongside a stake leg', () => {
+    const purchase = op(
+      'mixed',
+      'buy',
+      {
+        type: 'buy',
+        flow: 'OUTGOING',
+        amount: { value: '50.01', assetId: null, currencyId: EUR, cents: 5001 },
+      },
+      { type: 'buy', flow: 'INCOMING', amount: coin('0.5') },
+      { type: 'stake', flow: 'OUTGOING', amount: coin('1'), fee: coin('0.01') },
+    );
+    const matched = trade({ id: 'synthetic-buy', unitsE8: 50_000_000, amountCents: 5001 });
+    expect(verdictOf(purchase, ledger([matched]))).toEqual({
+      status: 'matched',
+      refs: [{ type: 'trade', id: matched.id, kind: 'buy', date: '2026-03-10' }],
+    });
+    const unrelated = trade({ unitsE8: 49_000_000, amountCents: 9000 });
+    expect(verdictOf(purchase, ledger([unrelated]))).toEqual({
+      status: 'missing',
+      refs: [],
+      missingLegs: [{ key: 'asset:' + COIN, incoming: true, day: '2026-03-10', cents: 5001 }],
+    });
+  });
+  it('keeps one-sided platform transfers open', () => {
+    for (const type of ['transfer', 'stake']) {
+      const movement = op('transfer', type, {
+        type: 'transfer',
+        flow: 'OUTGOING',
+        amount: coin('1'),
+      });
+      expect(status(movement, ledger())).toBe('missing');
+    }
+  });
   it('resolves stake and unstake as informational, even without any mapping', () => {
     const stake = op(
       'st',
@@ -655,7 +711,7 @@ it('reconciles separate staking wallet legs by their shared reference without a 
     amount: coin('0.3'),
     tradeId: 'stake-reference',
   });
-  expect(verdictOf(out, ledger())).toMatchObject({ status: 'missing' });
+  expect(verdictOf(out, ledger())).toEqual({ status: 'informational', reason: 'internal' });
   const verdicts = matchSourceOperations([out, into], mappings, ledger());
   expect(verdicts.get(out.id)).toEqual({ status: 'informational', reason: 'internal' });
   expect(verdicts.get(into.id)).toEqual(verdicts.get(out.id));

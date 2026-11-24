@@ -1,5 +1,6 @@
 import {
   resolveInboxItem,
+  accountSummaries,
   createBooking,
   createTrade,
   createTransfer,
@@ -24,7 +25,12 @@ import {
   sqliteOf,
   type OpenedDatabase,
 } from '@budget/db';
-import type { ReadSource, SourceBalance, SourceOperation } from '@budget/domain';
+import {
+  informationalResolution,
+  type ReadSource,
+  type SourceBalance,
+  type SourceOperation,
+} from '@budget/domain';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SourceReadError } from './errors';
 import { refreshReadSource, refreshReadSourceIfDue } from './refresh';
@@ -884,6 +890,73 @@ describe('ledger matching (Abgleich)', () => {
     expect(row('b1')).toMatchObject({ resolvedAt: null, title: 'Quellbewegung: Zuordnung fehlt' });
     expect(row('s1').resolvedAt).toBeTruthy();
     expect(row('s1').resolution).toMatch(/^Informativ: /);
+  });
+  it('preserves informational staking items, resolves open ones in one group and leaves the ledger intact', () => {
+    const single = (id: string, type: 'stake' | 'unstake', leg: number): SourceOperation => ({
+      id,
+      type,
+      transactions: [{ ...stake(id, '2026-03-10').transactions[leg]!, type }],
+    });
+    const ops = [
+      single('kept', 'stake', 0),
+      single('stake', 'stake', 0),
+      single('unstake', 'unstake', 1),
+    ];
+    stage(ops);
+    close('kept', informationalResolution('internal'));
+    for (const id of ['stake', 'unstake'])
+      updateEntity(
+        opened.db,
+        schema.inboxItem,
+        row(id).id,
+        { resolvedAt: null, resolution: null },
+        ctx,
+      );
+    createBooking(
+      opened.db,
+      { accountId: 'cash', date: '2026-03-10', amountCents: 2501, splits: [{ amountCents: 2501 }] },
+      ctx,
+    );
+    createTrade(
+      opened.db,
+      {
+        accountId: 'depot',
+        securityId: 'coin',
+        date: '2026-03-10',
+        kind: 'buy',
+        unitsE8: 50_000_000,
+        amountCents: 5001,
+      },
+      ctx,
+    );
+    const ledgerState = () => ({
+      bookings: opened.db.select().from(schema.booking).all(),
+      trades: opened.db.select().from(schema.trade).all(),
+      holdings: opened.db.select().from(schema.holding).all(),
+      cash: accountSummaries(opened.db, '2026-03-10').find((a) => a.id === 'cash'),
+    });
+    const ledgerBefore = ledgerState();
+    expect(ledgerBefore.cash).toMatchObject({ balanceCents: 3735 });
+    const inboxBefore = inbox();
+    const kept = row('kept');
+    const first = reconcileReadSource(opened.db, ctx);
+    expect(first).toMatchObject({
+      informational: 3,
+      missing: 0,
+      changed: 2,
+      groupId: expect.any(String),
+    });
+    expect(row('kept')).toEqual(kept);
+    for (const id of ['stake', 'unstake'])
+      expect(row(id)).toMatchObject({
+        resolvedAt: expect.any(String),
+        resolution: informationalResolution('internal'),
+      });
+    expect(reconcileReadSource(opened.db, ctx)).toMatchObject({ changed: 0, groupId: null });
+    expect(ledgerState()).toEqual(ledgerBefore);
+    undo(opened.db, { groupId: first.groupId! }, ctx);
+    expect(inbox()).toEqual(inboxBefore);
+    expect(ledgerState()).toEqual(ledgerBefore);
   });
   it('matches cash deposits on the mapped cash account, ignoring internal transfers', () => {
     mapAll();

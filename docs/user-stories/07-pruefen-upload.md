@@ -299,3 +299,14 @@ Bildschirm Prüfen: `/konten/pruefen` (Konten › Prüfen). Zähler: „Umsätze
 As a household member reviewing bank activity, I can choose a suggested opposite booking and explicitly link the two funding legs as an internal transfer. When several eligible counterparts match, the most recently confirmed one is proposed. I can change the selection before confirming or undo both legs together afterwards.
 
 The categorised purchase and its refunds are separate bookings. Their signed category amounts determine spending in reports, Heute and the forecast. Linked funding and return transfers between budget accounts contribute zero spending.
+
+### Document recognition check (#1310)
+
+As an operator, I can compare document recognition against independently transcribed values
+so I can measure where the app recognises a type or extracts a field incorrectly.
+I run the local checker with a document folder and one expected-values file per document.
+It shows each expected and actual value, with separate type and field accuracy per document type.
+A one-cent difference is a failure. Encrypted documents report a skip and are excluded from scoring.
+The check leaves source files and bookings untouched.
+The public synthetic suite exercises the command in CI. Held-out evaluation takes place locally
+using the [acceptance procedure](../acceptance-tolerances.md#5-document-recognition-check-1310).

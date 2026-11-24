@@ -1,0 +1,7 @@
+{
+  "type": "trade_confirmation",
+  "fields": {
+    "date": "2026-11-09",
+    "amountCents": null
+  }
+}

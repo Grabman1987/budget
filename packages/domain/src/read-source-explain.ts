@@ -2,6 +2,8 @@ import {
   sourceInteger,
   internalTransferKeys,
   isInternalStakeType,
+  isStakeMovement,
+  sourceOperationUnreadableField,
   type SourceOperation,
 } from './read-source';
 
@@ -62,21 +64,18 @@ type Tx = SourceOperation['transactions'][number];
 export function summarizeOperation(op: SourceOperation): OperationSummary {
   const internalKeys = internalTransferKeys(op);
   const movements = op.transactions.filter((t) => t.type !== 'fee' && t.type !== 'tax');
-  const internal =
-    isInternalStakeType(op.type) &&
-    movements.length > 0 &&
-    movements.every(
-      (t) =>
-        (t.type === 'transfer' || isInternalStakeType(t.type)) &&
-        internalKeys.has(
-          t.amount.assetId ? 'asset:' + t.amount.assetId : 'currency:' + t.amount.currencyId,
-        ),
-    );
+  const readableStaking =
+    movements.some(isStakeMovement) && sourceOperationUnreadableField(op) === null;
   const isInternalLeg = (t: Tx) =>
-    (t.type === 'transfer' || isInternalStakeType(t.type)) &&
-    internalKeys.has(
-      t.amount.assetId ? 'asset:' + t.amount.assetId : 'currency:' + t.amount.currencyId,
-    );
+    (readableStaking && isStakeMovement(t)) ||
+    ((t.type === 'transfer' || isInternalStakeType(t.type)) &&
+      internalKeys.has(
+        t.amount.assetId ? 'asset:' + t.amount.assetId : 'currency:' + t.amount.currencyId,
+      ));
+  const internal =
+    (isInternalStakeType(op.type) || readableStaking) &&
+    movements.length > 0 &&
+    movements.every(isInternalLeg);
   const primary = op.transactions.filter((t) => !SECONDARY_TX.has(t.type) && !isInternalLeg(t));
   const byAsset = new Map<string, OperationAssetEffect>();
   const effect = (assetId: string) => {
