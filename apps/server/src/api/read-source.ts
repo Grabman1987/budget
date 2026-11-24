@@ -6,6 +6,8 @@ import {
   listEntities,
   mapReadSource,
   readSourceMappings,
+  readSourceIgnoredKeys,
+  setReadSourceIgnored,
   readSourceMatchSummary,
   reconcileReadSource,
   writesHeld,
@@ -36,6 +38,7 @@ export function readSourceRoutes(
       status,
       balances,
       mappings: readSourceMappings(db),
+      ignored: readSourceIgnoredKeys(db),
       since: readSourceSince(db),
       match: readSourceMatchSummary(db),
       accounts: listEntities(db, account, {
@@ -66,6 +69,13 @@ export function readSourceRoutes(
   app.put('/mapping', passkeySession, async (c) => {
     const body = await readBody(c, sourceMappingSchema);
     return c.json(mapReadSource(db, body, { actor: ACTOR }));
+  });
+  app.put('/ignore', passkeySession, async (c) => {
+    const body = await readBody(
+      c,
+      z.object({ key: z.string().min(1).max(210), ignored: z.boolean() }).strict(),
+    );
+    return c.json(setReadSourceIgnored(db, body.key, body.ignored, { actor: ACTOR }));
   });
   app.put('/since', passkeySession, async (c) => {
     const body = await readBody(

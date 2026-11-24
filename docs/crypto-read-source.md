@@ -163,6 +163,20 @@ currency to its cash account and every asset to its investment account and instr
 (Einstellungen › Datenquellen), set "Bewegungen ab", then run "Abgleich neu ausführen". Assets
 without mapping stay open as "Zuordnung fehlt"; after mapping, run it again.
 
+### Nicht abbilden
+
+A source balance key (fiat wallet or asset) can be marked "Nicht abbilden" in Einstellungen ›
+Datenquellen. This is the way out for a wallet whose currency has no app account (the app only
+has EUR accounts). The choice lives in `app_setting` (`source.crypto.ignored`, a JSON list of
+keys, no migration) and replaces a mapping of that key, as a new mapping replaces the choice.
+Effects: no balance comparison for the key (an open balance warning is resolved with "Bewusst nicht
+abgebildet"); an operation whose only unmapped legs belong to ignored keys is informational with
+the reason `ignored` ("Informativ: Bewusst nicht abgebildet ..."), while legs on mapped keys of
+the same operation are still checked and an unmapped, not ignored key still yields "Zuordnung
+fehlt". The change takes effect with the next "Abgleich neu ausführen" (one undoable audit group).
+Bookings, trades, holdings and balances are never changed. "Wieder abbilden" clears the choice.
+`PUT /api/sources/crypto/ignore` takes `{ key, ignored }`.
+
 ## Remaining acceptance
 
 For owner-authorized repair of an incomplete migrated depot, use the separate

@@ -7,8 +7,16 @@ import {
   type SourceMapping,
   type SourceOperation,
 } from '@budget/domain';
-import { booking, inboxItem, trade } from '../schema';
+import { appSetting, booking, inboxItem, trade } from '../schema';
+import { getEntity } from './entities';
 import type { Executor } from './types';
+
+export const ignoredKeysSetting = 'source.crypto.ignored';
+/** Source balance keys the owner marked "Nicht abbilden" (stored as JSON in app_setting). */
+export function readSourceIgnoredKeys(db: Executor): string[] {
+  const row = getEntity(db, appSetting, ignoredKeysSetting);
+  return row ? (JSON.parse(row.value) as string[]) : [];
+}
 
 type InboxRow = typeof inboxItem.$inferSelect;
 
@@ -109,5 +117,10 @@ export function evaluateReadSource(
     if (since === null || day === null || day >= since) byId.set(op.id, op);
     else byId.delete(op.id);
   }
-  return matchSourceOperations([...byId.values()], mappings, loadMatchLedger(db, mappings));
+  return matchSourceOperations(
+    [...byId.values()],
+    mappings,
+    loadMatchLedger(db, mappings),
+    readSourceIgnoredKeys(db),
+  );
 }

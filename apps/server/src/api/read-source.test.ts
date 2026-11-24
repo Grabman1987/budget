@@ -148,3 +148,17 @@ it('reports the match summary and re-runs the reconciliation behind a passkey se
   expect(opened.db.select().from(schema.booking).all()).toHaveLength(0);
   expect(opened.db.select().from(schema.trade).all()).toHaveLength(0);
 });
+it('saves "Nicht abbilden" behind a passkey session with a strict body and rejects unknown keys', async () => {
+  passkeyOk = false;
+  expect((await put('/ignore', { key: 'currency:usd', ignored: true })).status).toBe(403);
+  passkeyOk = true;
+  expect((await put('/ignore', { key: 'currency:usd', ignored: true, extra: 1 })).status).toBe(400);
+  expect((await put('/ignore', { key: 'currency:usd' })).status).toBe(400);
+  // The key must exist in the last fetched balances.
+  expect((await put('/ignore', { key: 'currency:usd', ignored: true })).status).toBe(409);
+  const status = (await (await app.request('/api/sources/crypto')).json()) as {
+    ignored: string[];
+  };
+  expect(status.ignored).toEqual([]);
+  expect((await put('/ignore', { key: 'currency:usd', ignored: false })).status).toBe(200);
+});

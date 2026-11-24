@@ -26,6 +26,8 @@ interface SourceStatus {
   status: 'idle' | 'ok' | 'partial' | 'failed';
   balances: SourceBalance[];
   mappings: SourceMapping[];
+  /** Source keys the owner deliberately does not map. */
+  ignored?: string[];
   since: string | null;
   match: MatchCounts;
   accounts: (Pick<AccountRow, 'id' | 'name' | 'onBudget' | 'sortOrder' | 'closedAt'> & {
@@ -460,6 +462,25 @@ function Mapping({ balance, data }: { balance: SourceBalance; data: SourceStatus
   const accounts = data.accounts.filter((a) =>
     asset ? ['brokerage', 'crypto'].includes(a.type) : a.currency === balance.currency,
   );
+  const ignored = (data.ignored ?? []).includes(balance.key);
+  async function setIgnored(value: boolean) {
+    setBusy(true);
+    setMessage('');
+    try {
+      await request('PUT', path + '/ignore', { key: balance.key, ignored: value });
+      await client.invalidateQueries({ queryKey: key });
+      await client.invalidateQueries({ queryKey: INBOX_KEY });
+      setMessage(
+        value
+          ? 'Bewusst nicht abgebildet. Der nächste Abgleich stuft die Bewegungen als informativ ein.'
+          : 'Wieder abbilden: Konto auswählen und Zuordnung speichern.',
+      );
+    } catch {
+      setMessage('Auswahl nicht gespeichert. Anmeldung prüfen.');
+    } finally {
+      setBusy(false);
+    }
+  }
   async function save() {
     setBusy(true);
     setMessage('');
@@ -500,44 +521,74 @@ function Mapping({ balance, data }: { balance: SourceBalance; data: SourceStatus
           </>
         )}
       </p>
-      <Field label={asset ? 'Anlagekonto' : 'Verrechnungskonto'}>
-        {({ id }) => (
-          <Select
-            data-source-mapping={!saved ? '' : undefined}
-            id={id}
-            value={accountId}
+      {ignored ? (
+        <>
+          <p>Bewusst nicht abgebildet</p>
+          <Button
+            type="button"
+            variant="ghost"
             disabled={busy}
-            required
-            onChange={(e) => setAccountId(e.target.value)}
+            onClick={() => void setIgnored(false)}
           >
-            <option value="">Konto auswählen</option>
-            <AccountOptions accounts={accounts} keepId={accountId} />
-          </Select>
-        )}
-      </Field>
-      {asset && (
-        <Field label="Instrument">
-          {({ id }) => (
-            <Select
-              id={id}
-              value={securityId}
-              disabled={busy}
-              required
-              onChange={(e) => setSecurityId(e.target.value)}
-            >
-              <option value="">Instrument auswählen</option>
-              {data.securities.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name}
-                </option>
-              ))}
-            </Select>
+            Wieder abbilden
+          </Button>
+        </>
+      ) : (
+        <>
+          <Field label={asset ? 'Anlagekonto' : 'Verrechnungskonto'}>
+            {({ id }) => (
+              <Select
+                data-source-mapping={!saved && !ignored ? '' : undefined}
+                id={id}
+                value={accountId}
+                disabled={busy}
+                required
+                onChange={(e) => setAccountId(e.target.value)}
+              >
+                <option value="">Konto auswählen</option>
+                <AccountOptions accounts={accounts} keepId={accountId} />
+              </Select>
+            )}
+          </Field>
+          {asset && (
+            <Field label="Instrument">
+              {({ id }) => (
+                <Select
+                  id={id}
+                  value={securityId}
+                  disabled={busy}
+                  required
+                  onChange={(e) => setSecurityId(e.target.value)}
+                >
+                  <option value="">Instrument auswählen</option>
+                  {data.securities.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name}
+                    </option>
+                  ))}
+                </Select>
+              )}
+            </Field>
           )}
-        </Field>
+          <Button type="submit" disabled={busy || !accountId || (asset && !securityId)}>
+            Zuordnung speichern
+          </Button>
+          {accounts.length === 0 && (
+            <p>
+              Kein Konto in {balance.currency ?? 'dieser Währung'}. Diese Wallet kann nicht
+              abgebildet werden.
+            </p>
+          )}
+          <Button
+            type="button"
+            variant="ghost"
+            disabled={busy}
+            onClick={() => void setIgnored(true)}
+          >
+            Nicht abbilden
+          </Button>
+        </>
       )}
-      <Button type="submit" disabled={busy || !accountId || (asset && !securityId)}>
-        Zuordnung speichern
-      </Button>
       {message && <p role="status">{message}</p>}
     </form>
   );
