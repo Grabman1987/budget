@@ -28,20 +28,23 @@ Bildschirm Prüfen: `/konten/pruefen` (Konten › Prüfen). Zähler: „Umsätze
 - **Status:** teilweise — **Verweis:** Y16, #1187
   Zeilenbearbeitung, Kategorie-Spalte, Hakerl/X und Tastaturwege für offene Bankkandidaten sind implementiert; Review und Live-Abnahme offen. Bereits gebuchte ungeprüfte Zeilen behalten ihre bestehenden Zuordnungsdialoge. Die Kopfzeilenkorrektur aus #1188 ist enthalten; Rücklink und Ansichtsmenü teilen sich die Werkzeugleiste.
 
-### I-01d – Bereits gebuchte Bankumsätze direkt in der Zeile bestätigen
-- **Story:** Als Nutzer möchte ich bei einer vom Bank-Sync schon angelegten, noch nicht zugeordneten Bankbuchung Empfänger und Kategorie vorgeschlagen bekommen und direkt in der Zeile korrigieren und bestätigen, damit ich nicht erst ein Menü und das volle Formular öffnen muss.
-- **Ausgangslage:** Konten › Prüfen › Umsätze zeigt eine vorgemerkte Bankbuchung ohne Kategorie, z. B. Bankvermerk „SHOP BEISPIEL PAYMENTS EUROPE“, während der Empfänger „Shop Beispiel“ mit kategorisierter Historie existiert.
+### I-01d – Bankumsätze mit einem Klick auf den Vorschlag bestätigen
+- **Story:** Als Nutzer möchte ich bei einer Bankzeile in Prüfen genau einen Vorschlag sehen, ihn mit einem Klick bestätigen oder bei Bedarf ändern, damit ich weder Menü noch Formular öffnen muss.
+- **Ausgangslage:** Konten › Prüfen › Umsätze zeigt Bankzeilen, entweder schon gebucht, aber noch ohne Kategorie (vorgemerkt), oder als Bankkandidat. Die Tabelle hat keine Spalte „Kategorie“ mehr: Spalten sind Auswahl, Empfänger, Konto · Quelle, Vorschlag, Betrag, Aktion und „Weitere Aktionen“.
 - **Ablauf:**
-  1. Die Zeile zeigt den vorgeschlagenen Empfänger (ganzes Wort am Anfang des Bankvermerks, längster Treffer; bei Gleichstand kein Vorschlag), der Bankvermerk steht als zweite Zeile darunter. Der Vorschlag „Shop Beispiel · Haushalt“ nennt per Tooltip die Grundlage (Standardkategorie, Regel oder häufigste Kategorie der letzten 12 Monate).
-  2. Empfänger und Kategorie lassen sich über die Zellen ändern (gleiche Auswahl wie bei Bankkandidaten).
-  3. „Bestätigen“ speichert in EINEM Schritt Empfänger, Kategorie und Status „Bestätigt“. Ohne Kategorie ist die Taste gesperrt; der Tooltip nennt den Grund. Bei mehreren Teilbuchungen bleibt nur das Formular.
-  4. „Weitere Aktionen“ enthält „Bearbeiten“ (öffnet das Formular mit den Werten der Zeile vorbelegt), Regelvorschlag und Zusammenführen.
+  1. Der Empfängername ist selbst die Taste zum Ändern („Empfänger ändern: …“, ohne Empfänger „Empfänger wählen“). Datum und der rohe Bankvermerk stehen darunter. Der Empfänger wird aus einem Wortanfang des Bankvermerks erkannt (längster Treffer; bei Gleichstand kein Vorschlag).
+  2. Die Zelle „Vorschlag“ zeigt EINE Taste, z. B. „Shop Beispiel · Haushalt“ (bei Umbuchung, Zusammenführung oder Regel deren Text) mit Hakerl. Der Tooltip nennt die Grundlage (Standardkategorie, Regel, häufigste Kategorie der letzten 12 Monate). Ein Klick bestätigt genau das Angezeigte: bei einer gebuchten Zeile mit einer Änderung (Empfänger, Kategorie, Status „Bestätigt“), bei einem Bankkandidaten über denselben Weg wie bisher.
+  3. Daneben ändert der Stift „Vorschlag ändern“ den Vorschlag in derselben Zelle (Kategorie-Auswahl, bei Kandidaten mit Regeln oder Gegenbuchungen deren Auswahl; „Manuell zuordnen“ führt direkt in die Kategorie-Auswahl). Danach klickt der Nutzer die Taste, um zu bestätigen.
+  4. Fehlt etwas, ersetzt eine Taste „Kategorie wählen“ (bzw. der Grund, z. B. „Empfänger wählen“) die Bestätigung; sie öffnet die passende Auswahl. Bei einer gebuchten Zeile mit mehreren Teilbuchungen ist die Taste gesperrt, der Tooltip verweist aufs Formular.
+  5. „Weitere Aktionen“ bietet bei gebuchten Zeilen „Bearbeiten“ (Formular mit den Werten der Zeile vorbelegt), Regelvorschlag und Zusammenführen; bei Kandidaten bleibt „Nicht übernehmen“ als X in der Aktionsspalte.
 - **Ergebnis:** Eine Buchung mit Empfänger, Kategorie und Status „Bestätigt“; Rückgängig wie bei jeder Buchungsänderung.
 - **Abnahmekriterien:**
-  1. Der Vorschlag verändert nichts, solange nicht „Bestätigen“ geklickt wird.
-  2. Einnahmekategorien werden bei Ausgaben nie vorgeschlagen; versteckte Kategorien nie.
-  3. Das Formular über „Bearbeiten“ erscheint mit Empfänger und Kategorie der Zeile, überschreibt aber nie vorhandene Werte der Buchung.
-  4. Ablehnen/Löschen einer Bankbuchung gibt es hier nicht (bestehendes Verhalten, nicht erweitert).
+  1. Ein Vorschlag verändert nichts, bis die Vorschlagstaste geklickt wird.
+  2. Einnahmekategorien werden bei Ausgaben nie vorgeschlagen, versteckte Kategorien nie.
+  3. Dieselben Zeilen und Taste gelten am Handy ohne horizontalen Überlauf; die Kategorie-Spalte fehlt auch dort.
+  4. „Bearbeiten“ überschreibt nie vorhandene Werte der Buchung.
+  5. Löschen/Ablehnen einer schon gebuchten Bankzeile gibt es hier nicht (unverändert).
+  6. Sammelauswahl und Sammelbestätigung verhalten sich unverändert.
 - **Status:** umgesetzt zur Durchsicht — **Verweis:** #1187
 
 ### I-01c – Review one list per account (#1191)

@@ -96,7 +96,7 @@ test('visible safe candidate prepares its tick and bulk action without hover or 
   await page.goto('/konten/posteingang?bankSource=' + sourceId);
   test.skip(!(await redesignLoaded(page)), 'Inline rows require the redesign.');
   const row = page.locator('.bank-editable-row');
-  await expect(row.getByRole('button', { name: 'Übernehmen', exact: true })).toBeEnabled();
+  await expect(row.getByRole('button', { name: /^Vorschlag bestätigen/ })).toBeEnabled();
   expect(rowReads).toEqual([]);
   await page.getByRole('button', { name: 'Alle sicheren bestätigen (1)', exact: true }).click();
   const preview = page.getByRole('dialog', { name: 'Bankauswahl prüfen' });

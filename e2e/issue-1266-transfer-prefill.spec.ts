@@ -75,10 +75,10 @@ test('a matching transfer rule displays one state on the phone grid and waits fo
   };
   await page.goto('/konten/pruefen');
   const row = page.getByTestId('inbox-row').filter({ hasText: 'Synthetic platform' });
-  const confirm = row.getByRole('button', { name: 'Übernehmen', exact: true });
+  const confirm = row.getByRole('button', { name: /^Vorschlag bestätigen/ });
   await expect(
     row.getByRole('button', {
-      name: 'Vorschlag bearbeiten: Überweisung an Synthetic depot',
+      name: 'Vorschlag bestätigen: Überweisung an Synthetic depot',
     }),
   ).toBeVisible();
   for (const theme of ['light', 'dark'] as const) {

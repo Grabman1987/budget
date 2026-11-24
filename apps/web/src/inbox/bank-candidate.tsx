@@ -48,6 +48,16 @@ type Match = {
   amountCents: number;
 };
 const NO_MATCHES: Match[] = [];
+/** Counterpart choices of an already booked bank line; shared by the row's menu check. */
+export const bankBookingMatchesQuery = (bookingId: string) => ({
+  queryKey: [...LEDGER_KEY, 'bank-booking-matches', bookingId],
+  queryFn: () =>
+    request<{ merge: Match[]; transfers: Match[] }>(
+      'GET',
+      '/api/bank-sync/bookings/' + encodeURIComponent(bookingId) + '/matches',
+    ),
+  retry: false,
+});
 export type PreparedBankSuggestion = (
   { action: 'rule'; ruleId: string; revision: string } | { action: 'merge'; bookingId: string }
 ) & { candidateRevision?: string; label: string; bulkSafe?: boolean };
@@ -738,15 +748,7 @@ export function BankBookingMerge({
   onPrepared?: PreparedCallback | undefined;
 }) {
   useAmountPrivacy();
-  const matches = useQuery({
-    queryKey: [...LEDGER_KEY, 'bank-booking-matches', bookingId],
-    queryFn: () =>
-      request<{ merge: Match[]; transfers: Match[] }>(
-        'GET',
-        '/api/bank-sync/bookings/' + encodeURIComponent(bookingId) + '/matches',
-      ),
-    retry: false,
-  });
+  const matches = useQuery(bankBookingMatchesQuery(bookingId));
   const [chosen, setChosen] = useState<Partial<Record<'merge' | 'transfer', string>>>({});
   const [busy, setBusy] = useState(false);
   const write = useBudgetWrite();
