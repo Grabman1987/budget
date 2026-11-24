@@ -59,7 +59,7 @@ export interface SourceMatchRef {
 }
 export type OperationVerdict =
   | { status: 'matched'; refs: SourceMatchRef[]; by?: 'id' }
-  | { status: 'informational'; reason: 'internal' | 'no_movement' }
+  | { status: 'informational'; reason: 'internal' | 'no_movement' | 'ignored' }
   | {
       status: 'missing';
       ambiguous?: number;
@@ -96,7 +96,9 @@ export function matchedResolution(refs: SourceMatchRef[]): string {
   if (refs.length > 2) labels.push(`+${refs.length - 2} weitere`);
   return `${MATCHED_RESOLUTION} (${labels.join(', ')})`;
 }
-export function informationalResolution(reason: 'internal' | 'no_movement'): string {
+export function informationalResolution(reason: 'internal' | 'no_movement' | 'ignored'): string {
+  if (reason === 'ignored')
+    return `${INFORMATIONAL_RESOLUTION}: Bewusst nicht abgebildet, die Wallet ist in den Einstellungen als „Nicht abbilden“ markiert.`;
   return reason === 'internal'
     ? `${INFORMATIONAL_RESOLUTION}: Stake/Unstake bzw. Umbuchung verschiebt Bestände innerhalb der Plattform, keine Auswirkung auf das Hauptbuch.`
     : `${INFORMATIONAL_RESOLUTION}: Nur Gebühr, Steuer oder Nullbetrag, keine eigene Buchung nötig.`;
@@ -119,7 +121,8 @@ export const isAutomaticResolution = (resolution: string | null) =>
     CLEANUP_RE.test(resolution) ||
     resolution === START_DAY_RESOLUTION ||
     resolution === informationalResolution('internal') ||
-    resolution === informationalResolution('no_movement'));
+    resolution === informationalResolution('no_movement') ||
+    resolution === informationalResolution('ignored'));
 
 type Tx = SourceOperation['transactions'][number];
 /** Fee, tax and platform-internal legs accompany a movement but are none themselves. */
@@ -493,7 +496,10 @@ export function matchSourceOperations(
   operations: SourceOperation[],
   mappings: SourceMapping[],
   ledger: SourceMatchLedger,
+  /** Source keys the owner deliberately does not map ("Nicht abbilden"). */
+  ignoredKeys: readonly string[] = [],
 ): Map<string, OperationVerdict> {
+  const ignored = new Set(ignoredKeys);
   const mapping = new Map(mappings.map((m) => [m.key, m]));
   const mappedAccounts = new Set(mappings.map((m) => m.accountId));
   const verdicts = new Map<string, OperationVerdict>();
@@ -608,9 +614,24 @@ export function matchSourceOperations(
       );
       continue;
     }
-    const unmapped = [...new Set(legs.map((l) => l.key).filter((k) => !mapping.has(k)))];
-    if (unmapped.length) verdicts.set(op.id, { status: 'unmapped', keys: unmapped });
-    else todo.push({ op, legs, linkedRefs });
+    const unmapped = [
+      ...new Set(legs.map((l) => l.key).filter((k) => !mapping.has(k) && !ignored.has(k))),
+    ];
+    if (unmapped.length) {
+      verdicts.set(op.id, { status: 'unmapped', keys: unmapped });
+      continue;
+    }
+    const checked = legs.filter((l) => mapping.has(l.key) || !ignored.has(l.key));
+    if (!checked.length) {
+      verdicts.set(
+        op.id,
+        linkedRefs.length
+          ? { status: 'matched', refs: linkedRefs, by: 'id' }
+          : { status: 'informational', reason: 'ignored' },
+      );
+      continue;
+    }
+    todo.push({ op, legs: checked, linkedRefs });
   }
   const flat = todo.flatMap(({ legs }) => legs);
   const edges: Edge[] = [];

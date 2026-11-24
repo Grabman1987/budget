@@ -55,6 +55,7 @@ afterEach(() => {
 // /accounts adds the derived purpose field (#1093); its prior fields were verified byte-exact.
 // /profile changed on purpose: it now also carries the six-null `risk` object (#812) and the
 // five-null `family` object (#813).
+// /sources/crypto adds the `ignored` key list ("Nicht abbilden"); its prior fields are unchanged.
 it.each(baseline.responses)(
   'preserves all stock response bytes for $path',
   async ({ path, bytes, sha256 }) => {

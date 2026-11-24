@@ -370,3 +370,17 @@ informational even if the source sent only one wallet leg. Any purchase in the
 same operation is still checked against the ledger. Reconciliation leaves my
 bookings, trades and balances intact, and one Undo restores the review decisions
 changed by that run.
+
+## Krypto-Wallet bewusst nicht abbilden (#1205)
+
+Als ich eine Wallet der Lesequelle sehe, für die es in der App kein Konto in
+ihrer Währung gibt (zum Beispiel ein USD-Guthaben), zeigt mir
+Einstellungen › Datenquellen den Hinweis „Kein Konto in USD. Diese Wallet kann
+nicht abgebildet werden.“ und die Schaltfläche **Nicht abbilden**. Die Wahl
+steht bei jeder Wallet zur Verfügung. Danach steht dort „Bewusst nicht
+abgebildet“, die Wallet zählt nicht als „Zuordnung fehlt“, und es gibt keine
+Meldung „Quellsaldo weicht ab“. Beim nächsten **Abgleich neu ausführen** werden
+Bewegungen, die nur diese Wallet betreffen, als informativ geschlossen; Legs auf
+zugeordneten Wallets derselben Bewegung werden weiter geprüft. Mit **Wieder
+abbilden** nehme ich die Wahl zurück. Buchungen, Trades, Bestände und Salden
+bleiben unverändert, und Rückgängig stellt die Prüfliste wieder her.

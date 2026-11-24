@@ -23,7 +23,14 @@ import { runInTransaction, type Executor } from './types';
 import { accountSummaries } from './ledger-queries';
 import { holdingValuationExportAsOf } from './portfolio';
 import { ConflictError } from './errors';
-import { evaluateReadSource, operationDay, stagedOperations } from './read-source-ledger';
+import {
+  evaluateReadSource,
+  ignoredKeysSetting,
+  operationDay,
+  readSourceIgnoredKeys,
+  stagedOperations,
+} from './read-source-ledger';
+export { readSourceIgnoredKeys };
 
 export interface ReadSourceState {
   lastSuccess: string | null;
@@ -108,6 +115,44 @@ export function mapReadSource(
     )
       throw new ConflictError('Dieses Konto bzw. Instrument ist bereits zugeordnet.');
     setting(tx, mappingKey, [...mappings, mapping], grouped);
+    const ignored = readSourceIgnoredKeys(tx);
+    if (ignored.includes(mapping.key))
+      setting(
+        tx,
+        ignoredKeysSetting,
+        ignored.filter((k) => k !== mapping.key),
+        grouped,
+      );
+    return { groupId: grouped.groupId };
+  });
+}
+/**
+ * "Nicht abbilden": the owner deliberately leaves a source balance key unmapped (e.g. a fiat wallet
+ * in a currency without an app account). Compares no balance and makes movements on that key
+ * informational at the next reconcile. Never touches the ledger; a former mapping is dropped.
+ */
+export function setReadSourceIgnored(
+  db: Executor,
+  key: string,
+  ignore: boolean,
+  ctx: AuditContext,
+) {
+  const grouped = withGroup(ctx);
+  return runInTransaction(db, (tx) => {
+    if (ignore && !readSourceState(tx).balances.some((b) => b.key === key))
+      throw new ConflictError('Unbekannter Quellschlüssel.');
+    const ignored = readSourceIgnoredKeys(tx).filter((k) => k !== key);
+    setting(tx, ignoredKeysSetting, ignore ? [...ignored, key] : ignored, grouped);
+    if (ignore) {
+      const mappings = readSourceMappings(tx);
+      if (mappings.some((m) => m.key === key))
+        setting(
+          tx,
+          mappingKey,
+          mappings.filter((m) => m.key !== key),
+          grouped,
+        );
+    }
     return { groupId: grouped.groupId };
   });
 }
@@ -546,7 +591,8 @@ function compareSourceBalances(
           assetId: key.slice('asset:'.length),
         })
       : null;
-  const resolveBalance = (key: string, detail: string) => {
+  const ignoredKeys = new Set(readSourceIgnoredKeys(tx));
+  const resolveBalance = (key: string, detail: string, text = matchText) => {
     const warning = getEntity(tx, inboxItem, itemId('balance:' + key));
     if (warning && (!warning.resolvedAt || warning.detail !== detail))
       updateEntity(
@@ -555,7 +601,7 @@ function compareSourceBalances(
         warning.id,
         {
           detail,
-          ...(!warning.resolvedAt ? { resolvedAt: now, resolution: matchText } : {}),
+          ...(!warning.resolvedAt ? { resolvedAt: now, resolution: text } : {}),
         },
         grouped,
       );
@@ -608,6 +654,14 @@ function compareSourceBalances(
     );
   }
   for (const balance of balances) {
+    if (ignoredKeys.has(balance.key)) {
+      resolveBalance(
+        balance.key,
+        JSON.stringify({ key: balance.key, reason: 'ignored' }),
+        'Bewusst nicht abgebildet.',
+      );
+      continue;
+    }
     const mapping = mappings.find((m) => m.key === balance.key);
     const acc = accounts.find((a) => a.id === mapping?.accountId);
     const source = balance.issue

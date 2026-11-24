@@ -12,6 +12,8 @@ import {
   schema,
   readSourceState,
   readSourceMappings,
+  readSourceIgnoredKeys,
+  setReadSourceIgnored,
   mapReadSource,
   readSourceSince,
   setReadSourceSince,
@@ -1465,5 +1467,77 @@ describe('ledger matching (Abgleich)', () => {
     undo(opened.db, { groupId: decision }, ctx);
     expect(row(assetSide.id).resolvedAt).toBeTruthy();
     expect(row(cashSide.id).resolvedAt).toBeTruthy();
+  });
+});
+
+describe('Nicht abbilden for a source key', () => {
+  const ledger = () =>
+    JSON.stringify([
+      opened.db.select().from(schema.booking).all(),
+      opened.db.select().from(schema.trade).all(),
+      opened.db.select().from(schema.holding).all(),
+      accountSummaries(opened.db, '2026-10-02'),
+    ]);
+  it('turns movements of an ignored key informational, drops its balance warning and undoes as one group', async () => {
+    await refreshReadSource(opened.db, source(), at);
+    expect(inbox().find((i) => i.kind === 'import')?.title).toBe('Quellbewegung: Zuordnung fehlt');
+    const balanceWarning = () =>
+      inbox().find((i) => i.kind === 'reconciliation' && i.detail?.includes(balance.key));
+    expect(balanceWarning()?.resolvedAt).toBeNull();
+    const before = ledger();
+    expect(() => setReadSourceIgnored(opened.db, 'currency:unknown', true, ctx)).toThrow();
+    setReadSourceIgnored(opened.db, balance.key, true, ctx);
+    expect(readSourceIgnoredKeys(opened.db)).toEqual([balance.key]);
+    expect(readSourceMatchSummary(opened.db)).toMatchObject({ unmapped: 0, informational: 1 });
+    const result = reconcileReadSource(opened.db, ctx);
+    expect(result).toMatchObject({ unmapped: 0, informational: 1 });
+    expect(inbox().find((i) => i.kind === 'import')).toMatchObject({
+      resolvedAt: expect.any(String),
+      resolution: informationalResolution('ignored'),
+    });
+    expect(informationalResolution('ignored')).toContain('Bewusst nicht abgebildet');
+    expect(balanceWarning()?.resolvedAt).toBeTruthy();
+    expect(ledger()).toEqual(before);
+    undo(opened.db, { groupId: result.groupId! }, ctx);
+    expect(inbox().find((i) => i.kind === 'import')?.resolvedAt).toBeNull();
+    expect(ledger()).toEqual(before);
+    // Redo, then the next fetch does not reopen a balance comparison for the ignored key.
+    reconcileReadSource(opened.db, ctx);
+    await refreshReadSource(opened.db, source(), at);
+    expect(balanceWarning()?.resolvedAt).toBeTruthy();
+    expect(inbox().find((i) => i.kind === 'import')?.resolvedAt).toBeTruthy();
+  });
+  it('keeps checking mapped legs of the same operation and lets a mapping replace the choice', async () => {
+    const adapter = source();
+    adapter.operations.mockResolvedValue({
+      nextCursor: null,
+      operations: [
+        {
+          ...operation,
+          type: 'trade',
+          transactions: [
+            operation.transactions[0]!,
+            {
+              ...operation.transactions[0]!,
+              id: 'tx-trade',
+              amount: asset.amount,
+              tradeId: 'trade-synthetic',
+            },
+          ],
+        },
+      ],
+    });
+    await refreshReadSource(opened.db, adapter, at);
+    setReadSourceIgnored(opened.db, balance.key, true, ctx);
+    // The asset leg is still unmapped, so the operation is not informational.
+    expect(reconcileReadSource(opened.db, ctx)).toMatchObject({ unmapped: 1, informational: 0 });
+    mapReadSource(opened.db, { key: asset.key, accountId: 'depot', securityId: 'coin' }, ctx);
+    expect(reconcileReadSource(opened.db, ctx)).toMatchObject({ unmapped: 0, informational: 0 });
+    mapReadSource(opened.db, { key: balance.key, accountId: 'cash', securityId: null }, ctx);
+    expect(readSourceIgnoredKeys(opened.db)).toEqual([]);
+    setReadSourceIgnored(opened.db, asset.key, true, ctx);
+    expect(readSourceMappings(opened.db).map((m) => m.key)).toEqual([balance.key]);
+    setReadSourceIgnored(opened.db, asset.key, false, ctx);
+    expect(readSourceIgnoredKeys(opened.db)).toEqual([]);
   });
 });
