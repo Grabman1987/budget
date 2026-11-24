@@ -143,10 +143,10 @@ test('contacts: open first, balance in words and colour, one title, Ausgleichen 
   await detail.getByRole('button', { name: 'Erläuterung zu Rückzahlung und Ausgleich' }).click();
   await expect(detail.getByText(/Ein Ausgleich übernimmt Guthaben/)).toBeVisible();
   await expect(detail.getByRole('button', { name: 'Ausgleichen', exact: true })).toHaveCount(0);
-  // History in the receivable view: the Auslage is a plus.
+  // History in the owner's cash view: the Auslage is a minus.
   const month = detail.getByRole('table', { name: 'Kontaktbuchungen im aktuellen Monat' });
   await expect(month.locator('tbody tr')).toHaveCount(1);
-  await expect(month.locator('tbody .num')).toHaveText('+45,00 €');
+  await expect(month.locator('tbody .contact-amount')).toHaveText('−45,00 €');
   await detail.getByRole('button', { name: `Weitere Aktionen: ${owes.name}` }).click();
   await expect(
     detail.getByRole('menuitem', { name: 'Ausgleichen ohne Geldbewegung' }),
@@ -177,15 +177,15 @@ test('contacts: open first, balance in words and colour, one title, Ausgleichen 
   }
   await setTheme(page, 'light');
 
-  // Credit: orange words, no minus sign on the balance; the repayment is a minus in the history.
+  // Credit: orange words, no minus sign on the balance; the repayment is a plus in the history.
   await page.goto(`/konten/kontakte/${credit.id}`);
   await expect(detail.locator('.contacts-balance')).toHaveText('Du schuldest 12,00 €');
   await expect(detail.locator('.contacts-balance')).toHaveCSS('color', ROLE.light.minus);
   await expect(
     detail
       .getByRole('table', { name: 'Kontaktbuchungen im aktuellen Monat' })
-      .locator('tbody .num'),
-  ).toHaveText(['+30,00 €', '−42,00 €']);
+      .locator('tbody .contact-amount'),
+  ).toHaveText(['−30,00 €', '+42,00 €']);
 
   // Zero: settled in words, neutral colour, no settle menu and no full-width button.
   await page.goto(`/konten/kontakte/${settled.id}?verlauf=1`);

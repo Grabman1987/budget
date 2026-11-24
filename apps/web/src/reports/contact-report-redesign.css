@@ -152,33 +152,37 @@
 }
 [data-budget-redesign='1'] .contact-report-register {
   table-layout: fixed;
-  min-width: 520px;
+  min-width: 0;
+  width: 100%;
 }
 [data-budget-redesign='1'] .contact-report-register :is(thead, tbody) :is(th, td):first-child {
-  width: 22%;
-  max-width: none;
+  width: 6.5rem;
   font-family: var(--font-tech);
   white-space: nowrap;
 }
 [data-budget-redesign='1'] .contact-report-register :is(thead, tbody) :is(th, td):nth-child(2) {
-  width: 34%;
   text-align: left;
+  overflow-wrap: anywhere;
 }
-[data-budget-redesign='1']
-  .contact-report-register
-  :is(thead, tbody)
-  :is(th, td):nth-last-child(-n + 2) {
-  width: 22%;
+[data-budget-redesign='1'] .contact-report-register :is(thead, tbody) :is(th, td):nth-child(3) {
+  width: 6.5rem;
   font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+[data-budget-redesign='1'] .contact-report-register :is(thead, tbody) :is(th, td):nth-child(4) {
+  width: 4.5rem;
+  text-align: center;
 }
 [data-budget-redesign='1'] .contact-report-register .contact-source {
   min-height: 44px;
   width: 100%;
-  white-space: normal;
-  overflow-wrap: anywhere;
 }
-[data-budget-redesign='1'] .contact-report-register .contact-movement-meta {
-  display: block;
+[data-budget-redesign='1']
+  .contact-report-register
+  :is(.contact-month-head, .contact-month-summary)
+  :is(th, td) {
+  width: auto;
+  font-family: inherit;
   white-space: normal;
 }
 [data-budget-redesign='1'] .contact-report-register tfoot th {
@@ -208,4 +212,19 @@
   display: inline-flex;
   align-items: center;
   min-height: 44px;
+}
+
+[data-budget-redesign='1'] .r4-contact-subhead {
+  margin: 12px 0 0;
+  color: var(--ink-2);
+  font-size: var(--fs-meta);
+  font-weight: 600;
+}
+@media (min-width: 1001px) {
+  [data-budget-redesign='1'] .r4-contact-list {
+    position: sticky;
+    top: 12px;
+    max-height: calc(100vh - 24px);
+    overflow-y: auto;
+  }
 }

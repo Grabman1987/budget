@@ -13,7 +13,7 @@ it('ON exposes only positive-current-debt forgiveness; credit, zero and missing 
   const { rerender } = render(
     <ContactForgivenessAction balance={5000} ready={false} onOpen={open} />,
   );
-  const action = screen.getByRole('button', { name: 'Schulden erlassen' }) as HTMLButtonElement;
+  const action = screen.getByRole('button', { name: 'Kontakt ausgleichen' }) as HTMLButtonElement;
   expect(action.disabled).toBe(true);
   fireEvent.click(action);
   expect(open).not.toHaveBeenCalled();

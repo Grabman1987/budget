@@ -1,4 +1,4 @@
-﻿import type { ContactMovement } from '@budget/domain';
+﻿import type { ContactMovement, OpenContactOutlay } from '@budget/domain';
 import { Button, maskMoneyText, useAmountPrivacy } from '@budget/ui';
 import { useRef, useState } from 'react';
 import {
@@ -6,6 +6,8 @@ import {
   ContactMovementTable,
   type ContactSourceOpening,
 } from '../contacts/contact-movement-table';
+import { currentStretchStart } from '../contacts/contact-statement-rows';
+import { ContactGiftDialog } from '../contacts/contacts-page';
 import { AppLink } from '../shell/app-link';
 import { eur } from '../ledger/format';
 import type { ContactReportStatement } from './contact-api';
@@ -26,41 +28,47 @@ export function ContactReportRows({
   const [opening, setOpening] = useState<ContactSourceOpening | null>(null);
   const generation = useRef(0);
   const root = useRef<HTMLDivElement>(null);
+  const [giftOutlay, setGiftOutlay] = useState<OpenContactOutlay | null>(null);
   const open = statement.outlays.filter((outlay) => outlay.remainingCents > 0);
   const openIds = new Set(open.map((outlay) => outlay.splitId));
-  const past = statement.movements.filter((movement) => !openIds.has(movement.splitId));
+  // Everything since the balance was last zero stays in the main table; older rows are history.
+  const stretchStart = currentStretchStart(statement.movements, openIds);
+  const current = statement.movements.slice(stretchStart);
+  const past = statement.movements.slice(0, stretchStart);
   const lastPage = Math.max(0, Math.ceil(past.length / PAGE_SIZE) - 1);
   const currentPage = Math.min(page, lastPage);
   const settledOutlays = statement.outlays.filter((outlay) => outlay.remainingCents === 0);
   const freeCredit = (statement.credits ?? [])
     .filter((credit) => credit.categoryId === null && credit.remainingCents > 0)
     .reduce((sum, credit) => sum + credit.remainingCents, 0);
+  const creditHref = `/konten/kontakte/${encodeURIComponent(statement.contact.id)}`;
   const onOpen = (movement: ContactMovement) =>
     setOpening({ movement, generation: ++generation.current });
   return (
     <div className="r4-contact-rows" ref={root}>
       {ready && (
         <>
-          {open.length > 0 ? (
+          {current.length > 0 ? (
             <ContactMovementTable
               register
               statement={statement}
-              movements={open}
+              movements={current}
               title={`Offen von ${maskMoneyText(statement.contact.name)}`}
               caption={`Offene Forderungen von ${maskMoneyText(statement.contact.name)}`}
               totalCents={open.reduce((sum, outlay) => sum + outlay.remainingCents, 0)}
+              creditCents={freeCredit}
+              creditHref={creditHref}
               onOpen={onOpen}
+              onGift={setGiftOutlay}
             />
           ) : (
             <p>Keine offenen Auslagen.</p>
           )}
-          {freeCredit > 0 && (
+          {freeCredit > 0 && current.length === 0 && (
             <p className="r4-contact-credit">
               Guthaben von {maskMoneyText(statement.contact.name)}: {eur(freeCredit)}
               {' · '}
-              <AppLink to={`/konten/kontakte/${encodeURIComponent(statement.contact.id)}`}>
-                Guthaben ändern
-              </AppLink>
+              <AppLink to={creditHref}>Guthaben ändern</AppLink>
             </p>
           )}
           {statement.movements.length > 0 && (
@@ -85,6 +93,7 @@ export function ContactReportRows({
                   heading={false}
                   caption="Vergangene Kontaktbuchungen"
                   onOpen={onOpen}
+                  onGift={setGiftOutlay}
                 />
                 <nav
                   aria-label="Vergangene Kontaktbuchungen blättern"
@@ -114,6 +123,18 @@ export function ContactReportRows({
             )}
           </details>
         </>
+      )}
+      {giftOutlay && (
+        <ContactGiftDialog
+          statement={statement}
+          outlay={giftOutlay}
+          ready={ready}
+          onClose={() => setGiftOutlay(null)}
+          onOpenSource={() => {
+            onOpen(giftOutlay);
+            setGiftOutlay(null);
+          }}
+        />
       )}
       <ContactBookingSource
         opening={opening}

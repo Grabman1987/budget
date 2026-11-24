@@ -176,8 +176,8 @@ function mount() {
 const EXPECTED_COPY = [
   'Contact Alpha',
   'Zahlungen im Oktober 2026',
-  '01.10.2026 · Synthetische Auslage · Auslage · +40,00 € · offen 25,00 €',
-  '02.10.2026 · Synthetische Teilzahlung · Rückzahlung · −15,00 €',
+  '01.10.2026 · Synthetische Auslage · −40,00 € · Rest 25,00 €',
+  '02.10.2026 · Contact Alpha · +15,00 €',
   'Gesamtsaldo bis 20.10.2026: Schuldet dir 45,00 €',
 ].join('\n');
 
@@ -190,25 +190,22 @@ it('keeps every movement in its exact section and copies only the named month wi
   });
   expect(within(currentTable).getAllByRole('row')).toHaveLength(3);
   expect(
-    Array.from(currentTable.querySelectorAll('tbody .num'), (node) => node.textContent),
-  ).toEqual(['+40,00 €', '−15,00 €']);
-  expect(within(currentTable).getByRole('columnheader', { name: 'Offen' })).toBeTruthy();
+    Array.from(currentTable.querySelectorAll('tbody .contact-amount'), (node) => node.textContent),
+  ).toEqual(['−40,00 €Rest 25,00 €', '+15,00 €']);
+  expect(within(currentTable).getByRole('columnheader', { name: 'Verrechnen' })).toBeTruthy();
   expect(
     within(currentTable).getByRole('button', {
       name: /Ursprungsbuchung öffnen.*Synthetische Auslage/,
     }),
   ).toBeTruthy();
-  expect(
-    screen.getByRole('table', { name: 'Noch offene Auslagen aus früheren Monaten' }).textContent,
-  ).toContain('Ältere Auslage');
-  expect(
-    screen.getByRole('table', { name: 'Kontaktbuchungen außerhalb des aktuellen Monats' })
-      .textContent,
-  ).not.toContain('Ältere Auslage');
-  expect(
-    screen.getByRole('table', { name: 'Kontaktbuchungen außerhalb des aktuellen Monats' })
-      .textContent,
-  ).toContain('Ältere Teilzahlung');
+  const labels = (name: string) =>
+    Array.from(
+      screen.getByRole('table', { name }).querySelectorAll('[data-contact-source]'),
+      (node) => node.getAttribute('aria-label'),
+    ).join(' ');
+  expect(labels('Noch offene Auslagen aus früheren Monaten')).toContain('Ältere Auslage');
+  expect(labels('Kontaktbuchungen außerhalb des aktuellen Monats')).not.toContain('Ältere Auslage');
+  expect(labels('Kontaktbuchungen außerhalb des aktuellen Monats')).toContain('Ältere Teilzahlung');
   expect(document.querySelector('details.contacts-closed-history')?.hasAttribute('open')).toBe(
     false,
   );
@@ -234,8 +231,8 @@ it('copies masked money under privacy mode without retaining an unmasked fallbac
     [
       'Contact Alpha',
       'Zahlungen im Oktober 2026',
-      '01.10.2026 · Synthetische Auslage · Auslage · ••• € · offen ••• €',
-      '02.10.2026 · Synthetische Teilzahlung · Rückzahlung · ••• €',
+      '01.10.2026 · Synthetische Auslage · ••• € · Rest ••• €',
+      '02.10.2026 · Contact Alpha · ••• €',
       'Gesamtsaldo bis 20.10.2026: Schuldet dir ••• €',
     ].join('\n'),
   );

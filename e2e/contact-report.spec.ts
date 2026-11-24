@@ -121,15 +121,17 @@ test('fixed EUR report preserves credit, running history, source links and recei
   await expect(sheet.locator('.contacts-balance')).toContainText(
     on ? 'Guthaben · 20,00 €' : 'Du schuldest 20,00 €',
   );
-  const movements = sheet.locator(on ? '.report-table tbody tr' : '.contact-movements tbody tr');
+  const movements = sheet.locator(
+    on ? '.report-table tbody tr:has([data-contact-source])' : '.contact-movements tbody tr',
+  );
   await expect(movements).toHaveCount(2);
   const outlay = movements.filter({
     has: page.getByRole('button', { name: /Ursprungsbuchung öffnen · Anteil Haushalt/ }),
   });
-  const receipt = movements.filter({ hasText: '−120,00 €' });
-  await expect(outlay.locator('td').nth(on ? 2 : 1)).toHaveText(on ? '100,00 €' : '+100,00 €');
+  const receipt = movements.filter({ hasText: '+120,00 €' });
+  await expect(outlay.locator('td').nth(2)).toHaveText('−100,00 €');
   await expect(outlay).toContainText('01.09.2026');
-  await expect(receipt.locator('td').nth(on ? 2 : 1)).toHaveText('−120,00 €');
+  await expect(receipt.locator('td').nth(2)).toHaveText('+120,00 €');
   if (!on)
     await expect(
       sheet.getByRole('heading', { name: data.contact.name, exact: true }),
@@ -205,11 +207,8 @@ test('balanced contacts stay hidden by default and retain deep-linked full histo
   await expect(contact).toHaveCount(0);
   if (on) {
     await page.getByRole('checkbox', { name: 'Auch ausgeglichene Kontakte' }).check();
-    await expect(contact).toHaveCount(0);
-    const history = page.locator('.r4-contact-settled');
-    await expect(history).not.toHaveAttribute('open');
-    await history.locator(':scope > summary').click();
-    await history.getByRole('link', { name: data.contact.name, exact: true }).click();
+    await expect(page.getByRole('heading', { name: 'Ausgeglichen' })).toBeVisible();
+    await contact.click();
   } else {
     await page.getByRole('button', { name: 'Alle', exact: true }).click();
     await contact.click();
@@ -221,7 +220,9 @@ test('balanced contacts stay hidden by default and retain deep-linked full histo
   const closed = sheet.locator('.contacts-closed-history > summary');
   if (!on && (await closed.count())) await closed.click();
   await expect(
-    sheet.locator(on ? '.report-table tbody tr' : '.contact-movements tbody tr'),
+    sheet.locator(
+      on ? '.report-table tbody tr:has([data-contact-source])' : '.contact-movements tbody tr',
+    ),
   ).toHaveCount(2);
   await expect(
     sheet.getByRole('button', { name: /Ursprungsbuchung öffnen · Anteil Haushalt/ }),
@@ -231,7 +232,9 @@ test('balanced contacts stay hidden by default and retain deep-linked full histo
   await expect(closed).toBeVisible();
   await closed.click();
   await expect(
-    sheet.locator(on ? '.report-table tbody tr' : '.contact-movements tbody tr'),
+    sheet.locator(
+      on ? '.report-table tbody tr:has([data-contact-source])' : '.contact-movements tbody tr',
+    ),
   ).toHaveCount(2);
   await expect(
     sheet.getByRole('button', { name: /Ursprungsbuchung öffnen · Anteil Haushalt/ }),

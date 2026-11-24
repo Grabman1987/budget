@@ -208,9 +208,7 @@ test('owner confirms locked reallocation, keeps credit and waives an exact conta
     current.outlays.map((outlay: { remainingCents: number }) => outlay.remainingCents),
   ).toEqual([1001, 501]);
   expect(current.creditCents).toBe(701);
-  await sheet
-    .getByRole('button', { name: 'Abgeglichene Beispielauslage als Geschenk übernehmen' })
-    .click();
+  await sheet.getByRole('checkbox', { name: 'Abgeglichene Beispielauslage verrechnen' }).click();
   const gift = page.getByRole('dialog', { name: 'Auslage als Geschenk übernehmen' });
   await expect(gift.getByRole('heading', { name: 'Geschenk an Kontakt' })).toBeVisible();
   await gift.getByRole('textbox', { name: 'Geschenkbetrag' }).fill('5,01');

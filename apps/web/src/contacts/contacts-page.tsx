@@ -669,8 +669,7 @@ export function ContactBody({
 
 function ContactForgivenessGuard({ dirty, busy }: { dirty: boolean; busy: boolean }) {
   useBlocker({
-    shouldBlockFn: () =>
-      busy || (dirty && !window.confirm('Ungespeicherten Schuldenerlass verwerfen?')),
+    shouldBlockFn: () => busy || (dirty && !window.confirm('Ungespeicherten Ausgleich verwerfen?')),
     enableBeforeUnload: dirty || busy,
   });
   return null;
@@ -753,7 +752,7 @@ export function ContactWriteOffDialog({
   const close = () => {
     if (
       busy ||
-      (forgivenessOnly && dirty && !window.confirm('Ungespeicherten Schuldenerlass verwerfen?'))
+      (forgivenessOnly && dirty && !window.confirm('Ungespeicherten Ausgleich verwerfen?'))
     )
       return;
     onClose();
@@ -770,10 +769,10 @@ export function ContactWriteOffDialog({
     <FormDialog
       open
       onClose={onClose}
-      title={forgivenessOnly ? 'Schulden erlassen' : 'Kontakt ausgleichen'}
+      title="Kontakt ausgleichen"
       beforeClose={() =>
         !busy &&
-        (!forgivenessOnly || !dirty || window.confirm('Ungespeicherten Schuldenerlass verwerfen?'))
+        (!forgivenessOnly || !dirty || window.confirm('Ungespeicherten Ausgleich verwerfen?'))
       }
     >
       <form
@@ -791,7 +790,7 @@ export function ContactWriteOffDialog({
                 memo,
                 ...(credit ? { incomeTypeId: chosenType } : { categoryId }),
               }),
-            forgivenessOnly ? 'Schulden erlassen.' : 'Kontakt ausgeglichen.',
+            'Kontakt ausgeglichen.',
           ).then((ok) => {
             setBusy(false);
             if (ok) onClose();
@@ -801,9 +800,7 @@ export function ContactWriteOffDialog({
       >
         {forgivenessOnly && <ContactForgivenessGuard dirty={dirty} busy={busy} />}
         <div className="bk-head">
-          <h2 className="bk-kind bk-kind-fixed">
-            {forgivenessOnly ? 'Schulden erlassen' : 'Kontakt ausgleichen'}
-          </h2>
+          <h2 className="bk-kind bk-kind-fixed">Kontakt ausgleichen</h2>
           <Button variant="ghost" onClick={close} disabled={busy} aria-label="Schließen">
             ×
           </Button>
@@ -817,7 +814,7 @@ export function ContactWriteOffDialog({
           </p>
           {forgivenessOnly && contact.balanceCents <= 0 && (
             <p role="status">
-              Aktuell besteht keine offene Forderung. Ein Schuldenerlass ist nicht möglich.
+              Aktuell besteht keine offene Forderung. Ein Ausgleich ist nicht möglich.
             </p>
           )}
           {forgivenessOnly && !ready && onRecheck && (
@@ -925,7 +922,7 @@ export function ContactWriteOffDialog({
             afterAvailable !== undefined && (
               <div aria-live="polite" className="contact-forgiveness-preview">
                 <p>
-                  Schuldenerlass für {contact.name}: {eur(amountCents)} · höchstens{' '}
+                  Ausgleich für {contact.name}: {eur(amountCents)} · höchstens{' '}
                   {eur(Math.max(0, contact.balanceCents))}.
                 </p>
                 <p>
@@ -977,7 +974,7 @@ export function ContactWriteOffDialog({
             Abbrechen
           </Button>
           <Button type="submit" disabled={busy || !valid}>
-            {forgivenessOnly ? 'Schulden erlassen' : 'Ausgleich speichern'}
+            {forgivenessOnly ? 'Ausgleichen' : 'Ausgleich speichern'}
           </Button>
         </div>
       </form>
@@ -1008,7 +1005,7 @@ function ContactUnlockConfirmation({
   );
 }
 
-function ContactGiftDialog({
+export function ContactGiftDialog({
   statement,
   outlay,
   ready,
