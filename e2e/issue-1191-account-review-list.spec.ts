@@ -141,11 +141,11 @@ for (const theme of ['light', 'dark']) {
     }
     await expect(page.getByRole('region', { name: 'Rückblick nach Bankabruf' })).toHaveCount(0);
     await expect(row).toBeVisible();
-    await row.getByRole('button', { name: /^Empfänger bearbeiten/ }).click();
+    await row.getByRole('button', { name: /^Empfänger (ändern|wählen)/ }).click();
     await row.getByRole('combobox', { name: 'Empfänger', exact: true }).selectOption(payee.id);
-    await row.getByRole('button', { name: /^Kategorie bearbeiten/ }).click();
+    await row.getByRole('button', { name: /^(Vorschlag ändern|Kategorie wählen)$/ }).click();
     await row.getByRole('option', { name: `${category.name} · Vorschlag`, exact: true }).click();
-    await row.getByRole('button', { name: 'Übernehmen', exact: true }).click();
+    await row.getByRole('button', { name: /^Vorschlag bestätigen/ }).click();
     await expect(row).toHaveCount(0);
     const bookings = await (
       await request.get(`${origin}/api/bookings?accountId=${accounts[0].id}`)

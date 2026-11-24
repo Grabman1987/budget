@@ -1,7 +1,8 @@
 import { Button, Select, useAmountPrivacy, useIsPhone } from '@budget/ui';
 import { useQuery } from '@tanstack/react-query';
-import { Check, CircleHelp, MoreHorizontal } from 'lucide-react';
+import { Check, CircleHelp, MoreHorizontal, Pencil } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from 'react';
+import { bookingAssignmentQuery } from '../assignment/api';
 import { BookingAssignmentReview } from '../assignment/review';
 import { CategoryCombobox } from '../ledger/category-picker';
 import { pickableCategories } from '../ledger/capture-model';
@@ -10,7 +11,11 @@ import { KontenMenu } from '../ledger/konten-menu';
 import { lookupsQuery, payeesQuery } from '../ledger/queries';
 import type { BookingPatch } from '../ledger/api';
 import type { InboxBooking } from './api';
-import { BankBookingMerge, type PreparedBankSuggestion } from './bank-candidate';
+import {
+  BankBookingMerge,
+  bankBookingMatchesQuery,
+  type PreparedBankSuggestion,
+} from './bank-candidate';
 
 /** The row's current payee/category choice, handed to the full booking form. */
 export type BookingPrefill = {
@@ -54,7 +59,8 @@ export function BankBookingRow({
   const isPhone = useIsPhone();
   const row = useRef<HTMLTableRowElement>(null);
   const [active, setActive] = useState(false);
-  const [moreSeen, setMoreSeen] = useState(false);
+  // Rule and merge availability is cheap; it decides whether "Weitere Aktionen" has 2+ entries.
+  const [visible, setVisible] = useState(typeof IntersectionObserver === 'undefined');
   const [draft, setDraft] = useState<Draft>({});
   const [editing, setEditing] = useState<'payee' | 'category'>();
   const [merge, setMerge] = useState<PreparedBankSuggestion>();
@@ -74,6 +80,33 @@ export function BankBookingRow({
       ),
     [],
   );
+  useEffect(() => {
+    if (visible || !row.current || typeof IntersectionObserver === 'undefined') return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          setVisible(true);
+          observer.disconnect();
+        }
+      },
+      { rootMargin: '200px' },
+    );
+    observer.observe(row.current);
+    return () => observer.disconnect();
+  }, [visible]);
+  const rules = useQuery({
+    ...bookingAssignmentQuery(item.bookingId),
+    enabled: visible,
+    subscribed: visible,
+  });
+  const matches = useQuery({
+    ...bankBookingMatchesQuery(item.bookingId),
+    enabled: visible && item.status === 'pending',
+    subscribed: visible,
+  });
+  const hasRule = (rules.data?.suggestions.length ?? 0) > 0;
+  const hasMerge = Boolean(matches.data?.merge.length || matches.data?.transfers.length);
+  const needsMenu = hasRule || hasMerge || (Boolean(onSelect) && isPhone);
   useEffect(() => {
     if (editing)
       row.current
@@ -138,24 +171,11 @@ export function BankBookingRow({
       row.current?.focus();
     }
   };
-  const label = [payeeName, categoryName].filter(Boolean).join(' · ') || undefined;
-  const missingCell = !categoryId ? 'category' : undefined;
-  const pill = (cell: 'payee' | 'category', text: string, fixed: boolean) => (
-    <button
-      type="button"
-      className={`bank-suggestion-pill${fixed ? ' is-safe' : ''}${missingCell === cell ? ' is-missing' : ''}`}
-      aria-label={`${cell === 'payee' ? 'Empfänger' : 'Kategorie'} bearbeiten: ${text}`}
-      title={missingCell === cell ? reason : (basis ?? text)}
-      disabled={locked}
-      onClick={() => {
-        setActive(true);
-        setEditing(cell);
-      }}
-    >
-      {fixed ? <Check size={14} aria-hidden="true" /> : <CircleHelp size={14} aria-hidden="true" />}
-      {text}
-    </button>
-  );
+  const label = [payeeName, categoryName].filter(Boolean).join(' · ');
+  const openEditor = (cell: 'payee' | 'category') => {
+    setActive(true);
+    setEditing(cell);
+  };
   const rawText = item.memo && item.memo !== payeeName ? item.memo : null;
   const select = (
     <label className="bank-select">
@@ -178,7 +198,6 @@ export function BankBookingRow({
     >
       <td className="bank-v1-select">{onSelect && !isPhone && select}</td>
       <td className="bank-v1-payee">
-        <strong>{payeeName || item.memo || 'Bankumsatz'}</strong>
         {editing === 'payee' ? (
           <div className="bank-row-editor">
             <Select
@@ -187,7 +206,7 @@ export function BankBookingRow({
               onChange={(event) => {
                 const picked = payees.data?.payees.find((p) => p.id === event.target.value);
                 if (!picked) return;
-                setDraft({ payeeId: picked.id, payeeName: picked.name });
+                setDraft((current) => ({ ...current, payeeId: picked.id, payeeName: picked.name }));
                 setEditing(undefined);
                 row.current?.focus();
               }}
@@ -206,11 +225,24 @@ export function BankBookingRow({
             </Select>
           </div>
         ) : (
-          pill('payee', payeeName || 'Empfänger fehlt', payeeChanged)
+          <button
+            type="button"
+            className="bank-payee-btn"
+            aria-label={payeeName ? `Empfänger ändern: ${payeeName}` : 'Empfänger wählen'}
+            title={payeeName || 'Empfänger wählen'}
+            disabled={locked}
+            onClick={() => openEditor('payee')}
+          >
+            <strong>{payeeName || 'Empfänger wählen'}</strong>
+          </button>
         )}
         <div className="bank-v1-meta">
           <span>{shortDay(item.date)}</span>
-          {rawText && <small className="bank-v1-raw">{rawText}</small>}
+          {rawText && (
+            <small className="bank-v1-raw" title={rawText}>
+              {rawText}
+            </small>
+          )}
           <small className="bank-v1-phone-source">{item.accountName} · Bankbuchung</small>
         </div>
       </td>
@@ -219,16 +251,6 @@ export function BankBookingRow({
         <small>Bankbuchung</small>
       </td>
       <td className="bank-v1-suggestion">
-        <span title={basis} className={`bank-suggestion-pill${prepared ? ' is-safe' : ''}`}>
-          {prepared ? (
-            <Check size={14} aria-hidden="true" />
-          ) : (
-            <CircleHelp size={14} aria-hidden="true" />
-          )}
-          {prepared?.label ?? label ?? 'Unbekannt'}
-        </span>
-      </td>
-      <td className="bank-v1-category">
         {editing === 'category' ? (
           <div className="bank-row-editor">
             <CategoryCombobox
@@ -254,26 +276,58 @@ export function BankBookingRow({
               }}
             />
           </div>
+        ) : categoryId ? (
+          <div className="bank-suggestion-actions">
+            <button
+              type="button"
+              className="bank-suggestion-pill is-safe bank-suggestion-confirm"
+              aria-label={`Vorschlag bestätigen: ${label}`}
+              title={reason ?? basis ?? label}
+              disabled={locked || Boolean(reason)}
+              onClick={confirm}
+            >
+              <Check size={14} aria-hidden="true" />
+              {label}
+            </button>
+            <button
+              type="button"
+              className="bank-row-full-form"
+              aria-label="Vorschlag ändern"
+              title="Vorschlag ändern"
+              disabled={locked}
+              onClick={() => openEditor('category')}
+            >
+              <Pencil size={16} aria-hidden="true" />
+            </button>
+          </div>
         ) : (
-          pill('category', categoryName || 'Kategorie fehlt', draft.categoryId !== undefined)
+          <button
+            type="button"
+            className="bank-suggestion-pill is-missing"
+            title="Kategorie wählen, um zu bestätigen."
+            disabled={locked}
+            onClick={() => openEditor('category')}
+          >
+            <CircleHelp size={14} aria-hidden="true" />
+            Kategorie wählen
+          </button>
         )}
       </td>
       <td className="bank-v1-amount num">{nativeCurrency(item.amountCents, item.currency)}</td>
       <td className="bank-v1-action">
-        <div className="inbox-row-actions">
-          <span title={reason ?? 'Bestätigen'}>
-            <Button size="sm" disabled={locked || Boolean(reason)} onClick={confirm}>
-              Bestätigen
-            </Button>
-          </span>
-        </div>
+        {!needsMenu && (
+          <Button
+            variant="ghost"
+            size="sm"
+            disabled={locked}
+            onClick={() => onEdit(item.bookingId, prefill())}
+          >
+            Bearbeiten
+          </Button>
+        )}
       </td>
       <td className="bank-v1-more">
-        <span
-          onClickCapture={() => setMoreSeen(true)}
-          onFocusCapture={() => setMoreSeen(true)}
-          style={{ display: 'contents' }}
-        >
+        {needsMenu && (
           <KontenMenu
             label="Weitere Aktionen"
             icon={<MoreHorizontal size={16} aria-hidden="true" />}
@@ -287,22 +341,18 @@ export function BankBookingRow({
             >
               Bearbeiten
             </Button>
-            {moreSeen && (
-              <>
-                <BookingAssignmentReview
-                  id={item.bookingId}
-                  onPrepared={prepareRule}
-                  onApplied={(canLearn) => {
-                    if (canLearn) onConfirmed(item.bookingId);
-                  }}
-                />
-                {item.status === 'pending' && (
-                  <BankBookingMerge bookingId={item.bookingId} onPrepared={setMerge} />
-                )}
-              </>
+            {hasRule && (
+              <BookingAssignmentReview
+                id={item.bookingId}
+                onPrepared={prepareRule}
+                onApplied={(canLearn) => {
+                  if (canLearn) onConfirmed(item.bookingId);
+                }}
+              />
             )}
+            {hasMerge && <BankBookingMerge bookingId={item.bookingId} onPrepared={setMerge} />}
           </KontenMenu>
-        </span>
+        )}
       </td>
     </tr>
   );

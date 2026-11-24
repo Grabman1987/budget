@@ -67,7 +67,8 @@ test('explicit inline counter-account suggestion links a transfer and Undo resto
   const row = page
     .locator('.bank-editable-row')
     .filter({ hasText: 'Synthetic transfer candidate' });
-  await row.getByRole('button', { name: /^Vorschlag bearbeiten/ }).click();
+  // The blocked row has one button in the suggestion cell: it opens the choice list.
+  await row.locator('.bank-v1-suggestion button').first().click();
   await expect(row.getByRole('option', { name: /Umbuchung: Synthetic destination/ })).toHaveCount(
     1,
   );
@@ -76,14 +77,14 @@ test('explicit inline counter-account suggestion links a transfer and Undo resto
     .selectOption(`transfer:${bookingId}`);
   await expect(
     row.getByRole('button', {
-      name: 'Vorschlag bearbeiten: Überweisung an Synthetic destination',
+      name: 'Vorschlag bestätigen: Überweisung an Synthetic destination',
     }),
   ).toBeVisible();
-  await expect(row.getByRole('button', { name: /^Kategorie bearbeiten/ })).toHaveCount(0);
+  await expect(row.getByRole('button', { name: 'Kategorie wählen' })).toHaveCount(0);
   const counterpart = async () =>
     (await (await request.get(`${origin}/api/bookings/${bookingId}`)).json()).booking;
   expect((await counterpart()).transferId).toBeNull();
-  await row.getByRole('button', { name: 'Übernehmen', exact: true }).click();
+  await row.getByRole('button', { name: /^Vorschlag bestätigen/ }).click();
   await expect(row).toHaveCount(0);
   const linked = await counterpart();
   expect(linked.transferId).toBeTruthy();
