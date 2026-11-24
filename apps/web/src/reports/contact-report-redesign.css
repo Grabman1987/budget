@@ -213,3 +213,18 @@
   align-items: center;
   min-height: 44px;
 }
+
+[data-budget-redesign='1'] .r4-contact-subhead {
+  margin: 12px 0 0;
+  color: var(--ink-2);
+  font-size: var(--fs-meta);
+  font-weight: 600;
+}
+@media (min-width: 1001px) {
+  [data-budget-redesign='1'] .r4-contact-list {
+    position: sticky;
+    top: 12px;
+    max-height: calc(100vh - 24px);
+    overflow-y: auto;
+  }
+}

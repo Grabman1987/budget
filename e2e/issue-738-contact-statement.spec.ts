@@ -129,7 +129,7 @@ for (const profile of ['desktop', 'phone'] as const)
         });
         await expect(open).toBeVisible();
         await expect(table.getByRole('row')).toHaveCount(2);
-        await expect(table).toContainText('+40,00 €');
+        await expect(table).toContainText('−40,00 €');
         await expect(table).toContainText('40,00 €');
         await expect(region.locator('.contacts-balance')).toHaveText('Schuldet dir 60,00 €');
         await expect(
@@ -196,7 +196,7 @@ for (const profile of ['desktop', 'phone'] as const)
           [
             'Contact Alpha',
             'Zahlungen im Oktober 2026',
-            '01.10.2026 · Synthetischer Geschenkanteil · +40,00 €',
+            '01.10.2026 · Synthetischer Geschenkanteil · −40,00 €',
             'Gesamtsaldo bis 20.10.2026: Schuldet dir 60,00 €',
           ].join('\n'),
         );

@@ -205,11 +205,8 @@ test('balanced contacts stay hidden by default and retain deep-linked full histo
   await expect(contact).toHaveCount(0);
   if (on) {
     await page.getByRole('checkbox', { name: 'Auch ausgeglichene Kontakte' }).check();
-    await expect(contact).toHaveCount(0);
-    const history = page.locator('.r4-contact-settled');
-    await expect(history).not.toHaveAttribute('open');
-    await history.locator(':scope > summary').click();
-    await history.getByRole('link', { name: data.contact.name, exact: true }).click();
+    await expect(page.getByRole('heading', { name: 'Ausgeglichen' })).toBeVisible();
+    await contact.click();
   } else {
     await page.getByRole('button', { name: 'Alle', exact: true }).click();
     await contact.click();

@@ -223,7 +223,6 @@ export function ContactReportPage() {
                         {eur(person.balanceCents)} · {balanceLabel(person.balanceCents)}
                       </strong>
                     </div>
-                    {person.contact.note && <p className="vnote">{person.contact.note}</p>}
                     <p className="vnote">
                       Alle {person.movements.length} Bewegungen bis {longDay(person.asOf)}. Guthaben
                       des Kontakts: {eur(person.creditCents)}.

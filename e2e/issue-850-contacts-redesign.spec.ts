@@ -78,18 +78,15 @@ test('961/962 contacts: zero net retains credit and movement source context', as
     'Guthaben: 1.234,56 €',
   );
   await expect(sheet.locator('.r4-contact-summary')).toHaveText(
-    'Offene Forderung: 0,00 € · Guthaben des Kontakts: 1.234,56 €',
+    'Offen 0,00 € · Guthaben 1.234,56 €',
   );
   await expect(sheet.locator('.contacts-balance')).toHaveText('Guthaben · 1.234,56 €');
   const showAll = page.getByRole('checkbox', { name: 'Auch ausgeglichene Kontakte' });
   await expect(showAll).not.toBeChecked();
   await expect(list.getByRole('link', { name: new RegExp(settled.name) })).toHaveCount(0);
   await showAll.check();
-  await expect(list.getByRole('link', { name: new RegExp(settled.name) })).toHaveCount(0);
-  const settledHistory = page.locator('.r4-contact-settled');
-  await expect(settledHistory).not.toHaveAttribute('open');
-  await settledHistory.locator(':scope > summary').click();
-  await expect(settledHistory.getByRole('link', { name: settled.name, exact: true })).toBeVisible();
+  await expect(list.getByRole('heading', { name: 'Ausgeglichen' })).toBeVisible();
+  await expect(list.getByRole('link', { name: new RegExp(settled.name) })).toBeVisible();
   await showAll.uncheck();
   await expect(list.getByRole('link', { name: new RegExp(credit.name) })).toBeVisible();
   await list.getByRole('link', { name: new RegExp(owed.name) }).click();
@@ -220,14 +217,13 @@ test('1149 all open contacts stay visible and settled history stays closed, incl
     await expect(list.getByRole('link', { name: new RegExp(contact.name) })).toBeVisible();
     await expect(page.getByRole('heading', { name: `Kontoblatt ${contact.name}` })).toBeVisible();
   }
-  await expect(list.getByRole('link', { name: new RegExp(balanced.name) })).toHaveCount(0);
-  const history = page.locator('.r4-contact-settled');
-  await expect(history).not.toHaveAttribute('open');
-  await expect(history.locator(':scope > summary')).toHaveText('Ausgeglichene Kontakte (1)');
+  await expect(list.getByRole('link', { name: new RegExp(balanced.name) })).toBeVisible();
+  const history = page.locator('section.r4-contact-sheet', {
+    has: page.getByRole('heading', { name: `Kontoblatt ${balanced.name}` }),
+  });
   const netTable = page.getByRole('table', { name: `Offene Forderungen von ${netZero.name}` });
   await expect(netTable.locator('tbody tr')).toHaveCount(1);
-  await expect(netTable.locator('tfoot td')).toHaveText('10,01 €');
-  await expect(netTable).not.toContainText('+');
+  await expect(netTable.locator('tfoot td.n').first()).toHaveText('10,01 €');
   await expect(page.getByRole('link', { name: 'Guthaben ändern', exact: true })).toHaveCount(2);
   for (const theme of ['light', 'dark']) {
     await page.evaluate((value) => (document.documentElement.dataset['theme'] = value), theme);
@@ -240,7 +236,7 @@ test('1149 all open contacts stay visible and settled history stays closed, incl
       fullPage: true,
     });
   }
-  await history.locator(':scope > summary').click();
+  await list.getByRole('link', { name: new RegExp(balanced.name) }).click();
   await expect(history.getByRole('heading', { name: `Kontoblatt ${balanced.name}` })).toBeVisible();
   await expect(history.getByRole('table', { name: /Offene Forderungen/ })).toHaveCount(0);
   const past = history.locator('[data-r8-detail="contact-history"]');
@@ -282,11 +278,11 @@ test('1149 all open contacts stay visible and settled history stays closed, incl
     exact: true,
   });
   await privacy.press('Enter');
-  await expect(netTable.locator('tfoot td')).toHaveText('••• €');
+  await expect(netTable.locator('tfoot td.n').first()).toHaveText('••• €');
   await expect(page.locator('.r4-contact-report')).not.toContainText('10,01');
   await expect(page.locator('.r4-contact-report')).not.toContainText('50,00');
   await page.reload();
-  await expect(history).not.toHaveAttribute('open');
+  await expect(list.getByRole('link', { name: new RegExp(balanced.name) })).toBeVisible();
 });
 
 test('850 contacts: 5000-cent debt forgiveness, exact shortfall, cash unchanged, stale denial and Undo', async ({
@@ -302,9 +298,9 @@ test('850 contacts: 5000-cent debt forgiveness, exact shortfall, cash unchanged,
   await page.goto(`/reports/kontakte?kontakt=${owed.id}&verlauf=1#details`);
   if (!(await redesignReportsOn(page))) {
     await expect(page.getByRole('region', { name: 'Kontaktkontoauszug' })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Schulden erlassen', exact: true })).toHaveCount(
-      0,
-    );
+    await expect(
+      page.getByRole('button', { name: 'Kontakt ausgleichen', exact: true }),
+    ).toHaveCount(0);
     return;
   }
   await expect.poll(() => new URL(page.url()).pathname).toBe('/reports/kontakte');
@@ -312,14 +308,11 @@ test('850 contacts: 5000-cent debt forgiveness, exact shortfall, cash unchanged,
   expect(new URL(page.url()).hash).toBe('#details');
   const body = page.locator('.r4-contact-report');
   const sheet = page.getByRole('region', { name: 'Kontaktkontoauszug' });
-  const settledHistory = page.locator('.r4-contact-settled');
-  await expect(settledHistory).not.toHaveAttribute('open');
-  await settledHistory.locator(':scope > summary').click();
   await expect(body.getByRole('link', { name: new RegExp(balanced.name) })).toBeVisible();
   await expect(page.getByTestId('report-frame-result')).toContainText('30,00 €');
   await body.getByRole('link', { name: new RegExp(credit.name) }).click();
   await expect(page.getByRole('heading', { name: `Kontoblatt ${credit.name}` })).toBeFocused();
-  await expect(sheet.getByRole('button', { name: 'Schulden erlassen', exact: true })).toHaveCount(
+  await expect(sheet.getByRole('button', { name: 'Kontakt ausgleichen', exact: true })).toHaveCount(
     0,
   );
   await expect(
@@ -327,7 +320,7 @@ test('850 contacts: 5000-cent debt forgiveness, exact shortfall, cash unchanged,
   ).toHaveCount(0);
   await body.getByRole('link', { name: new RegExp(balanced.name) }).click();
   await expect(body).toContainText('Noch keine Kontaktbuchungen. Der Saldo ist ausgeglichen.');
-  await expect(sheet.getByRole('button', { name: 'Schulden erlassen', exact: true })).toHaveCount(
+  await expect(sheet.getByRole('button', { name: 'Kontakt ausgleichen', exact: true })).toHaveCount(
     0,
   );
   const showAll = page.getByRole('checkbox', { name: 'Auch ausgeglichene Kontakte' });
@@ -368,9 +361,9 @@ test('850 contacts: 5000-cent debt forgiveness, exact shortfall, cash unchanged,
   await expect(source).toBeFocused();
   await history.locator(':scope > summary').click();
 
-  await sheet.getByRole('button', { name: 'Schulden erlassen', exact: true }).click();
-  const dialog = page.getByRole('dialog', { name: 'Schulden erlassen', exact: true });
-  const submit = dialog.getByRole('button', { name: 'Schulden erlassen', exact: true });
+  await sheet.getByRole('button', { name: 'Kontakt ausgleichen', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Kontakt ausgleichen', exact: true });
+  const submit = dialog.getByRole('button', { name: 'Ausgleichen', exact: true });
   await expect(submit).toBeDisabled();
   await dialog.getByLabel('Kategorie', { exact: true }).selectOption(gifts.id);
   await expect(dialog).toContainText('verfügbar 20,00 € → −30,00 €. Fehlbetrag danach: 30,00 €');
@@ -437,7 +430,7 @@ test('850 contacts: 5000-cent debt forgiveness, exact shortfall, cash unchanged,
     ),
   ).toMatchObject({ activityCents: 0, availableCents: 2000 });
   // A real concurrent repayment lowers the maximum while this browser retains its draft.
-  await sheet.getByRole('button', { name: 'Schulden erlassen', exact: true }).click();
+  await sheet.getByRole('button', { name: 'Kontakt ausgleichen', exact: true }).click();
   await dialog.getByLabel('Kategorie', { exact: true }).selectOption(gifts.id);
   await expect(submit).toBeEnabled();
   const payment = await post(`/contacts/${owed.id}/settlements`, {
@@ -531,9 +524,9 @@ test('1149 contacts: open register and forgiveness remain readable and accessibl
       fullPage: true,
     });
   }
-  await sheet.getByRole('button', { name: 'Schulden erlassen', exact: true }).click();
-  const dialog = page.getByRole('dialog', { name: 'Schulden erlassen', exact: true });
-  const submit = dialog.getByRole('button', { name: 'Schulden erlassen', exact: true });
+  await sheet.getByRole('button', { name: 'Kontakt ausgleichen', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Kontakt ausgleichen', exact: true });
+  const submit = dialog.getByRole('button', { name: 'Ausgleichen', exact: true });
   await expect(submit).toBeDisabled();
   await dialog.getByLabel('Kategorie', { exact: true }).selectOption(gifts.id);
   await expect(dialog).toContainText('verfügbar 20,00 € → −30,00 €. Fehlbetrag danach: 30,00 €');

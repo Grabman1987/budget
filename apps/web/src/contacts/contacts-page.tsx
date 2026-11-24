@@ -770,7 +770,7 @@ export function ContactWriteOffDialog({
     <FormDialog
       open
       onClose={onClose}
-      title={forgivenessOnly ? 'Schulden erlassen' : 'Kontakt ausgleichen'}
+      title="Kontakt ausgleichen"
       beforeClose={() =>
         !busy &&
         (!forgivenessOnly || !dirty || window.confirm('Ungespeicherten Schuldenerlass verwerfen?'))
@@ -791,7 +791,7 @@ export function ContactWriteOffDialog({
                 memo,
                 ...(credit ? { incomeTypeId: chosenType } : { categoryId }),
               }),
-            forgivenessOnly ? 'Schulden erlassen.' : 'Kontakt ausgeglichen.',
+            'Kontakt ausgeglichen.',
           ).then((ok) => {
             setBusy(false);
             if (ok) onClose();
@@ -801,9 +801,7 @@ export function ContactWriteOffDialog({
       >
         {forgivenessOnly && <ContactForgivenessGuard dirty={dirty} busy={busy} />}
         <div className="bk-head">
-          <h2 className="bk-kind bk-kind-fixed">
-            {forgivenessOnly ? 'Schulden erlassen' : 'Kontakt ausgleichen'}
-          </h2>
+          <h2 className="bk-kind bk-kind-fixed">Kontakt ausgleichen</h2>
           <Button variant="ghost" onClick={close} disabled={busy} aria-label="Schließen">
             ×
           </Button>
@@ -977,7 +975,7 @@ export function ContactWriteOffDialog({
             Abbrechen
           </Button>
           <Button type="submit" disabled={busy || !valid}>
-            {forgivenessOnly ? 'Schulden erlassen' : 'Ausgleich speichern'}
+            {forgivenessOnly ? 'Ausgleichen' : 'Ausgleich speichern'}
           </Button>
         </div>
       </form>

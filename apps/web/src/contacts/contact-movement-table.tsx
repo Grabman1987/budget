@@ -10,7 +10,7 @@ import { LEDGER_KEY } from '../ledger/queries';
 import { ErrorNote, LoadingNote } from '../ledger/states';
 import type { ListedBooking } from '../ledger/types';
 import { AppLink } from '../shell/app-link';
-import { contactBalanceLine, contactBalanceWords, receivableDelta } from './contact-balance';
+import { contactBalanceLine, contactBalanceWords } from './contact-balance';
 import { giftInfo, groupByMonth, runningBalances } from './contact-statement-rows';
 import type { Statement } from './contacts-page';
 
@@ -112,7 +112,7 @@ export function ContactMovementTable({
           return [
             longDay(movement.date),
             recipient(movement, name),
-            eur(receivableDelta(movement.amountCents), { sign: true }),
+            eur(movement.amountCents, { sign: true }),
             ...(rest !== undefined ? [`Rest ${eur(rest)}`] : []),
             ...(giftedCents > 0 ? ['Geschenk'] : []),
           ].join(' · ');
@@ -164,7 +164,7 @@ export function ContactMovementTable({
             type="button"
             className="contact-source"
             data-contact-source={movement.splitId}
-            aria-label={`Ursprungsbuchung öffnen · ${sourceLabel} · Kontaktanteil ${eur(receivableDelta(movement.amountCents), { sign: true })}`}
+            aria-label={`Ursprungsbuchung öffnen · ${sourceLabel} · Kontaktanteil ${eur(movement.amountCents, { sign: true })}`}
             onClick={() => onOpen(movement)}
           >
             {recipient(movement, name)}
@@ -199,7 +199,7 @@ export function ContactMovementTable({
           )}
         </td>
         <td className="n contact-amount">
-          {eur(receivableDelta(movement.amountCents), { sign: true })}
+          {eur(movement.amountCents, { sign: true })}
           {rest !== undefined && <small className="contact-rest">Rest {eur(rest)}</small>}
         </td>
         <td className="contact-settle">

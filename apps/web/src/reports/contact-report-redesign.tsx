@@ -50,7 +50,7 @@ export function ContactForgivenessAction({
   if (balance === undefined || balance <= 0) return null;
   return (
     <Button data-r4-forgive disabled={!contactDebtAction(balance, ready)} onClick={onOpen}>
-      Schulden erlassen
+      Kontakt ausgleichen
     </Button>
   );
 }
@@ -88,7 +88,6 @@ export function ContactReportRedesign({
   const [forgiving, setForgiving] = useState<{ id: string; name: string; balanceCents: number }>();
   const opener = useRef<HTMLButtonElement>(null);
   const root = useRef<HTMLDivElement>(null);
-  const [settledOpen, setSettledOpen] = useState(false);
   // A failed refresh keeps the last confirmed sheets (and an open source dialog) on screen, marked
   // as not confirmed; the overview figures stay hidden.
   const [previousView, setPreviousView] = useState<ContactOverview>();
@@ -107,14 +106,8 @@ export function ContactReportRedesign({
     contact.balanceCents !== 0 || contact.creditCents > 0;
   const openContacts = baseView?.contacts.filter(hasOpenAmount) ?? [];
   const settledContacts = baseView?.contacts.filter((contact) => !hasOpenAmount(contact)) ?? [];
-  const settledShown =
-    history && (settledOpen || settledContacts.some((contact) => contact.id === selected));
   const sheetIds = [
-    ...new Set([
-      ...(selected ? [selected] : []),
-      ...openContacts.map((contact) => contact.id),
-      ...(settledShown ? settledContacts.map((contact) => contact.id) : []),
-    ]),
+    ...new Set([...(selected ? [selected] : []), ...openContacts.map((contact) => contact.id)]),
   ];
   const asOf = baseView?.asOf ?? '';
   const results = useQueries({
@@ -143,6 +136,7 @@ export function ContactReportRedesign({
   const blockedError = unsupported ? detailError : nextBlocked[blockedIds[0]!];
   const current = view?.contacts.find((contact) => contact.id === forgiving?.id);
   const visible = view?.contacts.filter(hasOpenAmount) ?? [];
+  const settledMenu = history ? (view?.contacts.filter((c) => !hasOpenAmount(c)) ?? []) : [];
   const sheet = (id: string) => (
     <ContactSheetCard
       key={id}
@@ -230,7 +224,7 @@ export function ContactReportRedesign({
             {!ready && sheetView && (
               <p role="status">
                 Letzter verfügbarer Stand {longDay(sheetView.asOf)} · Salden werden geprüft.
-                Schulden können erst nach einer aktuellen Prüfung erlassen werden.
+                Schulden können erst nach einer aktuellen Prüfung ausgeglichen werden.
               </p>
             )}
             <div className="r4-contact-columns">
@@ -273,6 +267,30 @@ export function ContactReportRedesign({
                       </li>
                     ))}
                   </ul>
+                  {settledMenu.length > 0 && (
+                    <>
+                      <h3 className="r4-contact-subhead">Ausgeglichen</h3>
+                      <ul>
+                        {settledMenu.map((contact) => (
+                          <li key={contact.id}>
+                            <AppLink
+                              to="/reports/kontakte"
+                              search={{
+                                kontakt: contact.id,
+                                kontakteansicht: search.kontakteansicht,
+                                verlauf: 1,
+                              }}
+                              aria-current={selected === contact.id ? 'true' : undefined}
+                            >
+                              <span>
+                                <strong>{contact.name}</strong>
+                              </span>
+                            </AppLink>
+                          </li>
+                        ))}
+                      </ul>
+                    </>
+                  )}
                   {!visible.length && (
                     <EmptyNote>
                       Keine offenen Kontaktbeträge. Ausgeglichene Kontakte bleiben im Verlauf
@@ -306,33 +324,9 @@ export function ContactReportRedesign({
                   ? sheet(selected)
                   : null}
                 {(sheetView ? openContacts : []).map((contact) => sheet(contact.id))}
-                {sheetView && history && settledContacts.length > 0 && (
-                  <details
-                    className="r4-contact-settled"
-                    open={settledContacts.some((contact) => contact.id === selected) || undefined}
-                    onToggle={(event) => setSettledOpen(event.currentTarget.open)}
-                  >
-                    <summary>Ausgeglichene Kontakte ({settledContacts.length})</summary>
-                    <ul className="r4-contact-sheet">
-                      {settledContacts.map((contact) => (
-                        <li key={contact.id}>
-                          <AppLink
-                            to="/reports/kontakte"
-                            search={{
-                              kontakt: contact.id,
-                              kontakteansicht: search.kontakteansicht,
-                              verlauf: 1,
-                            }}
-                            aria-current={selected === contact.id ? 'true' : undefined}
-                          >
-                            {contact.name}
-                          </AppLink>
-                        </li>
-                      ))}
-                    </ul>
-                    {settledShown && settledContacts.map((contact) => sheet(contact.id))}
-                  </details>
-                )}
+                {sheetView &&
+                  settledContacts.some((contact) => contact.id === selected) &&
+                  sheet(selected!)}
               </div>
             </div>
             {view && (
@@ -424,10 +418,9 @@ function ContactSheetCard({
             </strong>
           </div>
           <p className="r4-contact-summary">
-            Offene Forderung: {eur(person.outlays.reduce((sum, o) => sum + o.remainingCents, 0))}
-            {' · '}Guthaben des Kontakts: {eur(person.creditCents)}
+            Offen {eur(person.outlays.reduce((sum, o) => sum + o.remainingCents, 0))} · Guthaben{' '}
+            {eur(person.creditCents)}
           </p>
-          {person.contact.note && <p>{person.contact.note}</p>}
           <p className="r4-source">
             {person.movements.length} Bewegungen ·{' '}
             {relation(person.balanceCents, person.creditCents)} · Stand {longDay(person.asOf)}

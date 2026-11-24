@@ -176,8 +176,8 @@ function mount() {
 const EXPECTED_COPY = [
   'Contact Alpha',
   'Zahlungen im Oktober 2026',
-  '01.10.2026 · Synthetische Auslage · +40,00 € · Rest 25,00 €',
-  '02.10.2026 · Contact Alpha · −15,00 €',
+  '01.10.2026 · Synthetische Auslage · −40,00 € · Rest 25,00 €',
+  '02.10.2026 · Contact Alpha · +15,00 €',
   'Gesamtsaldo bis 20.10.2026: Schuldet dir 45,00 €',
 ].join('\n');
 
@@ -191,7 +191,7 @@ it('keeps every movement in its exact section and copies only the named month wi
   expect(within(currentTable).getAllByRole('row')).toHaveLength(3);
   expect(
     Array.from(currentTable.querySelectorAll('tbody .contact-amount'), (node) => node.textContent),
-  ).toEqual(['+40,00 €Rest 25,00 €', '−15,00 €']);
+  ).toEqual(['−40,00 €Rest 25,00 €', '+15,00 €']);
   expect(within(currentTable).getByRole('columnheader', { name: 'Verrechnen' })).toBeTruthy();
   expect(
     within(currentTable).getByRole('button', {
