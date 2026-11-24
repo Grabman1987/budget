@@ -2,6 +2,7 @@ import Database from 'better-sqlite3';
 import { sql } from 'drizzle-orm';
 import { drizzle, type BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import { migrate } from 'drizzle-orm/better-sqlite3/migrator';
+import { ensureLedgerVersionTriggers } from './repos/ledger-version';
 import { moduleRelativePath } from './paths';
 import * as schema from './schema';
 
@@ -56,6 +57,8 @@ export function migrateDatabase(db: Db, migrationsFolder = defaultMigrationsFold
   db.run(sql`PRAGMA foreign_keys = OFF`);
   try {
     migrate(db, { migrationsFolder });
+    // Covers tables a later migration added or rebuilt (a rebuild drops the table's triggers).
+    ensureLedgerVersionTriggers(sqliteOf(db));
     const problems = db.all(sql`PRAGMA foreign_key_check`);
     if (problems.length > 0) {
       throw new Error(

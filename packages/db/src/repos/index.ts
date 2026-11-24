@@ -23,6 +23,7 @@ export * from './queries';
 export * from './portfolio';
 export * from './valuation-notes';
 export { databaseStamp, runInReadSnapshot } from './request-memo';
+export { ensureLedgerVersionTriggers, ledgerVersion } from './ledger-version';
 export * from './allocation';
 export * from './ledger-queries';
 export * from './payees';
