@@ -244,7 +244,11 @@ test('65 compact bank rows, prepared bulk confirmation, one undo, date controls 
   const redesign = await redesignLoaded(page);
   if (redesign) {
     // Visible candidates prepare without hover; offscreen rows remain lazy.
-    await page.locator('.bank-editable-row').first().scrollIntoViewIfNeeded();
+    // Booking rows load rule/merge lazily from their menu; candidate rows prepare on sight.
+    await page
+      .locator('.bank-editable-row:not(.bank-booking-row)')
+      .first()
+      .scrollIntoViewIfNeeded();
     await expect
       .poll(() => apiCalls.filter((url) => url.includes('/matches')).length)
       .toBeGreaterThan(0);

@@ -172,7 +172,7 @@ export function BankBookingRow({
   return (
     <tr
       ref={row}
-      className="rev-row bank-inbox-row bank-v1-row bank-editable-row"
+      className="rev-row bank-inbox-row bank-v1-row bank-editable-row bank-booking-row"
       data-testid="inbox-row"
       onKeyDownCapture={keys}
     >
