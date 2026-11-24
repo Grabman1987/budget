@@ -1,5 +1,6 @@
 import { cents, lastDayOfMonth } from '@budget/domain';
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
+import type { CategoryClass } from './api';
 import {
   BudgetStateMark,
   maskMoneyText,
@@ -100,13 +101,23 @@ function PlanClassLead({ data }: { data: BudgetMonthView }) {
   const amounts = { need: 0, want: 0, future: 0 };
   for (const row of rows) if (row.cls) amounts[row.cls] += Math.max(0, row.assignedCents);
   const total = amounts.need + amounts.want + amounts.future;
+  const [open, setOpen] = useState<CategoryClass | null>(null);
+  const openClass = classes.find(([key]) => key === open);
   return (
     <div className="plan-class-lead" role="group" aria-label="Zuweisungen nach Klasse">
       {classes.map(([key, label]) => (
-        <div key={key}>
+        <button
+          key={key}
+          type="button"
+          className="plan-class-cell"
+          aria-expanded={open === key}
+          aria-controls="plan-class-detail"
+          title={`${label}: Kategorien anzeigen`}
+          onClick={() => setOpen(open === key ? null : key)}
+        >
           <span>{label}</span>
           <strong>{eur(amounts[key])}</strong>
-        </div>
+        </button>
       ))}
       <div className="plan-class-strip" aria-hidden="true">
         {classes.map(([key]) => (
@@ -126,7 +137,71 @@ function PlanClassLead({ data }: { data: BudgetMonthView }) {
               : 'Noch nichts zugewiesen'}
         </small>
       ))}
+      {openClass && (
+        <PlanClassDetail
+          label={openClass[1]}
+          target={openClass[2]}
+          incomeCents={data.summary.incomeCents}
+          rows={rows.filter((r) => r.cls === openClass[0])}
+        />
+      )}
     </div>
+  );
+}
+
+/** Which categories make up one class share: assignment, spending and the gap to the income target. */
+export function PlanClassDetail({
+  label,
+  target,
+  incomeCents,
+  rows,
+}: {
+  label: string;
+  target: number;
+  incomeCents: number;
+  rows: ReadonlyArray<{ id: string; name: string; assignedCents: number; activityCents: number }>;
+}) {
+  const shown = rows
+    .filter((r) => r.assignedCents !== 0 || r.activityCents !== 0)
+    .sort((a, b) => b.assignedCents - a.assignedCents || a.activityCents - b.activityCents);
+  const assigned = rows.reduce((sum, r) => sum + Math.max(0, r.assignedCents), 0);
+  const goal = incomeCents > 0 ? Math.round((incomeCents * target) / 100) : null;
+  const pct = (c: number) =>
+    incomeCents > 0 ? maskMoneyText(Math.round((c / incomeCents) * 100) + ' %') : '–';
+  return (
+    <section id="plan-class-detail" className="plan-class-detail" aria-label={`${label} im Detail`}>
+      <p>
+        {goal === null
+          ? `${label}: ${eur(assigned)} zugewiesen, ohne Einnahmen kein Zielwert.`
+          : assigned > goal
+            ? `${label}: ${eur(assigned - goal)} über dem Ziel von ${eur(goal)} (${target} % der Einnahmen).`
+            : `${label}: noch ${eur(goal - assigned)} bis zum Ziel von ${eur(goal)} (${target} % der Einnahmen).`}
+      </p>
+      {shown.length === 0 ? (
+        <p>Keine Kategorie in dieser Klasse hat diesen Monat Geld.</p>
+      ) : (
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">Kategorie</th>
+              <th scope="col">Zugewiesen</th>
+              <th scope="col">Anteil</th>
+              <th scope="col">Aktivität</th>
+            </tr>
+          </thead>
+          <tbody>
+            {shown.map((r) => (
+              <tr key={r.id}>
+                <th scope="row">{r.name}</th>
+                <td>{eur(r.assignedCents)}</td>
+                <td>{pct(Math.max(0, r.assignedCents))}</td>
+                <td>{eur(r.activityCents)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </section>
   );
 }
 
