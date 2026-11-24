@@ -669,8 +669,7 @@ export function ContactBody({
 
 function ContactForgivenessGuard({ dirty, busy }: { dirty: boolean; busy: boolean }) {
   useBlocker({
-    shouldBlockFn: () =>
-      busy || (dirty && !window.confirm('Ungespeicherten Schuldenerlass verwerfen?')),
+    shouldBlockFn: () => busy || (dirty && !window.confirm('Ungespeicherten Ausgleich verwerfen?')),
     enableBeforeUnload: dirty || busy,
   });
   return null;
@@ -753,7 +752,7 @@ export function ContactWriteOffDialog({
   const close = () => {
     if (
       busy ||
-      (forgivenessOnly && dirty && !window.confirm('Ungespeicherten Schuldenerlass verwerfen?'))
+      (forgivenessOnly && dirty && !window.confirm('Ungespeicherten Ausgleich verwerfen?'))
     )
       return;
     onClose();
@@ -773,7 +772,7 @@ export function ContactWriteOffDialog({
       title="Kontakt ausgleichen"
       beforeClose={() =>
         !busy &&
-        (!forgivenessOnly || !dirty || window.confirm('Ungespeicherten Schuldenerlass verwerfen?'))
+        (!forgivenessOnly || !dirty || window.confirm('Ungespeicherten Ausgleich verwerfen?'))
       }
     >
       <form
@@ -815,7 +814,7 @@ export function ContactWriteOffDialog({
           </p>
           {forgivenessOnly && contact.balanceCents <= 0 && (
             <p role="status">
-              Aktuell besteht keine offene Forderung. Ein Schuldenerlass ist nicht möglich.
+              Aktuell besteht keine offene Forderung. Ein Ausgleich ist nicht möglich.
             </p>
           )}
           {forgivenessOnly && !ready && onRecheck && (
@@ -923,7 +922,7 @@ export function ContactWriteOffDialog({
             afterAvailable !== undefined && (
               <div aria-live="polite" className="contact-forgiveness-preview">
                 <p>
-                  Schuldenerlass für {contact.name}: {eur(amountCents)} · höchstens{' '}
+                  Ausgleich für {contact.name}: {eur(amountCents)} · höchstens{' '}
                   {eur(Math.max(0, contact.balanceCents))}.
                 </p>
                 <p>
