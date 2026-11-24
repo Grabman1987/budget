@@ -254,7 +254,7 @@ test('1149 all open contacts stay visible and settled history stays closed, incl
       }),
     ).toBe(true);
   }
-  const historyBounds = await history.locator('section.r4-contact-sheet').boundingBox();
+  const historyBounds = await history.boundingBox();
   expect(historyBounds!.x + historyBounds!.width).toBeLessThanOrEqual(page.viewportSize()!.width);
   for (const theme of ['light', 'dark']) {
     await page.evaluate((value) => (document.documentElement.dataset['theme'] = value), theme);
@@ -264,7 +264,7 @@ test('1149 all open contacts stay visible and settled history stays closed, incl
       fullPage: true,
     });
   }
-  const historyAfterCapture = await history.locator('section.r4-contact-sheet').boundingBox();
+  const historyAfterCapture = await history.boundingBox();
   expect(historyAfterCapture!.x + historyAfterCapture!.width).toBeLessThanOrEqual(
     page.viewportSize()!.width,
   );
