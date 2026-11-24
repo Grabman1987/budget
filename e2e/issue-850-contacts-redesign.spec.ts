@@ -216,7 +216,8 @@ test('1149 all open contacts stay visible and settled history stays closed, incl
     has: page.getByRole('heading', { name: `Kontoblatt ${balanced.name}` }),
   });
   const netTable = page.getByRole('table', { name: `Offene Forderungen von ${netZero.name}` });
-  await expect(netTable.locator('tbody tr:has([data-contact-source])')).toHaveCount(1);
+  // The open outlay and the repayment that left the credit are both part of the open stretch.
+  await expect(netTable.locator('tbody tr:has([data-contact-source])')).toHaveCount(2);
   await expect(netTable.locator('tfoot td.n').first()).toHaveText('10,01 €');
   await expect(page.getByRole('link', { name: 'Guthaben ändern', exact: true })).toHaveCount(2);
   for (const theme of ['light', 'dark']) {
