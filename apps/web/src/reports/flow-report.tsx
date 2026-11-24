@@ -15,6 +15,7 @@ import type { PageMeta } from '../nav/pages';
 import type { ReportEntry } from '../nav/reports-catalog';
 import { flowReportQuery, type FlowReportData, type FlowSpan } from './month-api';
 import { MonthReportFrame, monthTitle, shortMonth, useReportMonth } from './month-frame';
+import { ScrollHint } from './scroll-hint';
 
 const SPANS = [
   { value: 'month', label: 'Monat' },
@@ -256,7 +257,7 @@ function FlowBody({
               // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- Keyboard users must be able to scroll the table.
               tabIndex={0}
             >
-              <p className="table-scroll-hint">Seitlich wischen für weitere Spalten</p>
+              <ScrollHint />
               <table className="mr-table" data-testid="flow-list">
                 <thead>
                   <tr>

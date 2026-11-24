@@ -22,6 +22,7 @@ import { ErrorNote, LoadingNote } from '../ledger/states';
 import type { SeriesPoint } from '../ledger/types';
 import { monthLabel } from '../nav/month';
 import { ScrollRegion } from '../reports/spending-shared';
+import { ScrollHint } from '../reports/scroll-hint';
 import { DebtPlanChart } from './debt-plan-chart';
 import type { DebtAccount } from './debts-api';
 import { MoneyInput } from './loan-planning';
@@ -531,7 +532,7 @@ function PlanResult({
               label="Zins und Tilgung je Jahr, bei Bedarf horizontal verschiebbar"
               className="debt-live-scroll"
             >
-              <p className="table-scroll-hint">Seitlich wischen für weitere Spalten</p>
+              <ScrollHint />
               <table className="vtable">
                 <caption>
                   {comparison ? 'Live-Szenario' : 'Basis'}: schuldenfrei{' '}

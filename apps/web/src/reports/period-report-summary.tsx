@@ -1,6 +1,5 @@
 import {
   useAmountPrivacy,
-  maskMoneyText,
   ChartSvg,
   Graticule,
   Line,
@@ -17,6 +16,7 @@ import { monthLabel } from '../nav/month';
 import type { OnePagerData } from './month-api';
 import type { YearReportRead } from './overview-api';
 import { bpText, monthShort } from './overview-format';
+import { CategoryDrilldownRow } from './category-drilldown';
 import { PeriodPresentation } from './period-presentation';
 import { ReportTable } from './report-table';
 import { YearWealthChangeValue } from './year-wealth-change';
@@ -328,12 +328,14 @@ export function MonthSummary({ data }: { data: OnePagerData }) {
             </thead>
             <tbody>
               {data.top.slice(0, 4).map((row) => (
-                <tr key={row.id}>
-                  <th scope="row">{maskMoneyText(row.name)}</th>
-                  <td>{eur(row.cents)}</td>
-                  <td>{eur(row.previousCents)}</td>
-                  <td>{eur(row.deltaCents)}</td>
-                </tr>
+                <CategoryDrilldownRow
+                  key={row.id}
+                  id={row.id}
+                  name={row.name}
+                  month={data.month}
+                  columns={4}
+                  cells={[eur(row.cents), eur(row.previousCents), eur(row.deltaCents)]}
+                />
               ))}
             </tbody>
           </ReportTable>
