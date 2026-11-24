@@ -208,8 +208,8 @@ it('detail history is in the receivable view: Auslage plus, Rückzahlung minus',
     { timeout: 10000 },
   );
   const rows = table.querySelectorAll('tbody tr');
-  expect(rows[0]?.querySelector('.num')?.textContent).toBe('+30,00 €');
-  expect(rows[1]?.querySelector('.num')?.textContent).toBe('−10,00 €');
+  expect(rows[0]?.querySelector('.contact-amount')?.textContent).toBe('+30,00 €Rest 20,00 €');
+  expect(rows[1]?.querySelector('.contact-amount')?.textContent).toBe('−10,00 €');
 });
 
 it('marks a contact whose settlement needs review with a link to its detail (#1174)', async () => {

@@ -196,7 +196,7 @@ for (const profile of ['desktop', 'phone'] as const)
           [
             'Contact Alpha',
             'Zahlungen im Oktober 2026',
-            '01.10.2026 · Synthetischer Geschenkanteil · Auslage · +40,00 € · offen 40,00 €',
+            '01.10.2026 · Synthetischer Geschenkanteil · +40,00 €',
             'Gesamtsaldo bis 20.10.2026: Schuldet dir 60,00 €',
           ].join('\n'),
         );

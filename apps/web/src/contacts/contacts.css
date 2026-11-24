@@ -225,10 +225,7 @@
   line-height: var(--lh-meta);
 }
 .contact-source {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 4px 12px;
+  display: block;
   width: 100%;
   min-height: 34px;
   padding-block: 4px;
@@ -236,49 +233,89 @@
   color: var(--ink);
   font-size: var(--fs-table);
   line-height: var(--lh-table);
-}
-.contact-source > span:first-child {
   overflow-wrap: anywhere;
   text-decoration: underline;
   text-decoration-color: var(--rule-strong);
   text-underline-offset: 3px;
 }
-.contact-source:hover > span:first-child {
+.contact-source:hover {
   text-decoration-color: currentColor;
 }
-.contact-source .contact-movement-note {
-  display: block;
-  width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.contact-source:is(:hover, :focus) .contact-movement-note {
-  white-space: normal;
-  overflow-wrap: anywhere;
-}
-.contact-movement-context {
-  display: block;
-  width: 100%;
-  overflow-wrap: anywhere;
-  color: var(--ink-2);
-  font-size: var(--fs-meta);
-}
-.contact-movements td:first-child {
+.contact-movements td:nth-child(2) {
   width: 100%;
   max-width: 0;
 }
-.contact-movement-meta {
+.contacts-table .n {
+  text-align: right;
   white-space: nowrap;
 }
-.contact-movements th:not(:first-child) {
-  text-align: right;
-}
-.contact-movements .num,
-.contact-movements .contact-open-amount {
-  width: 1%;
+.contact-date {
+  white-space: nowrap;
   vertical-align: top;
-  padding-top: 16px;
+  padding-top: 10px;
+  color: var(--ink-2);
+  font-variant-numeric: tabular-nums;
+}
+.contact-amount {
+  white-space: nowrap;
+  vertical-align: top;
+  padding-top: 10px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.contact-rest {
+  display: block;
+  color: var(--ink-2);
+  font-size: var(--fs-meta);
+}
+.contact-settle-head {
+  width: 1%;
+  text-align: center;
+  font-size: var(--fs-meta);
+  font-weight: 400;
+  color: var(--ink-2);
+}
+.contact-settle {
+  text-align: center;
+  vertical-align: top;
+}
+.contact-settle-box {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  min-height: 32px;
+}
+@media (pointer: coarse) {
+  .contact-settle-box {
+    min-width: var(--touch);
+    min-height: var(--touch);
+  }
+}
+.contact-gift-tag {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 0 6px;
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius-md);
+  color: var(--ink-2);
+  font-size: var(--fs-meta);
+}
+.contact-row-waived :is(.contact-date, .contact-amount, .contact-source) {
+  color: var(--ink-2);
+}
+.contact-month-head td {
+  padding-top: 14px;
+  text-align: left;
+  font-size: var(--fs-meta);
+  font-weight: 600;
+  color: var(--ink-2);
+}
+.contact-month-summary td {
+  color: var(--ink-2);
+  font-size: var(--fs-meta);
+  font-style: italic;
+  text-align: right;
 }
 .contact-allocation-details summary {
   display: list-item;
@@ -313,14 +350,7 @@
 }
 @media (max-width: 767px) {
   .contact-source {
-    display: block;
     min-height: var(--touch);
-  }
-  .contact-source > span {
-    display: block;
-  }
-  .contact-movement-meta {
-    white-space: normal;
   }
   .contact-allocation-details summary {
     min-height: var(--touch);

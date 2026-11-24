@@ -515,9 +515,9 @@ test('1149 contacts: open register and forgiveness remain readable and accessibl
     'Datum',
     'Empfänger',
     'Betrag',
-    'Offen',
+    'Verrechnen',
   ]);
-  const openHeader = openTable.getByRole('columnheader', { name: 'Offen', exact: true });
+  const openHeader = openTable.getByRole('columnheader', { name: 'Betrag', exact: true });
   await expect(openHeader).toHaveCSS('position', 'sticky');
   await openHeader.scrollIntoViewIfNeeded();
   await expect(openHeader).toBeVisible();

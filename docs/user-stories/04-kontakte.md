@@ -26,7 +26,7 @@ Bereich: „Konten › Kontakte“ (`/konten/kontakte`, Kontoblatt je Person unt
 - **Ausgangslage:** Jemand fragt, was er mir noch schuldet, oder ich will Auslagen einfordern.
 - **Ablauf:**
   1. Ich öffne „Konten › Kontakte“ und wähle den Kontakt.
-  2. Das „Kontaktkontoauszug“ zeigt je Zeile „Datum / Buchung“, „Betrag“, „Zuordnung“ und den laufenden „Offen“-Saldo.
+  2. Der „Kontaktkontoauszug“ ist eine Tabelle mit „Datum“, „Empfänger“, „Betrag“ (mit Vorzeichen: Auslage plus, Rückzahlung minus) und „Verrechnen“ (Häkchen). Bei teilweise gedeckten Auslagen steht unter dem Betrag „Rest …“. Im Bericht „Kontakte“ sind die Zeilen nach Monaten gruppiert; nach jedem Monat steht „Stand Ende <Monat>: <Kontakt> schuldet dir …“ / „Guthaben …“ / „ausgeglichen“. Sichtbar ist alles seit dem letzten Stand 0; Älteres liegt unter „Vergangene Buchungen“. Die Fußzeile zeigt „Offen:“ und ggf. „Guthaben:“ mit „Guthaben ändern“.
   3. Ich blättere zu älteren oder späteren Bewegungen.
   4. Ich tippe „Text zum Kopieren“ und füge den Abschnitt in eine Nachricht ein; die App meldet „Abschnitt kopiert.“
 - **Ergebnis:** Nur Anzeige und Zwischenablage; nichts wird gebucht oder versendet.
@@ -35,7 +35,9 @@ Bereich: „Konten › Kontakte“ (`/konten/kontakte`, Kontoblatt je Person unt
   2. Der letzte Saldo stimmt mit der Kontaktübersicht überein.
   3. Ist Kopieren nicht möglich, steht „Kopieren nicht möglich. Text bitte manuell kopieren.“
   4. Ältere, nicht protokollierte Zuordnungen sind mit „Zuordnung nicht protokolliert“ gekennzeichnet.
-- **Status:** live — **Verweis:** Y15
+  5. Die Spalte „Empfänger“ zeigt nur den Empfänger (kein „Auslage“, keine Notiz, kein zweites Datum); ein Klick öffnet die Ursprungsbuchung.
+  6. Abwählen des Häkchens bei einer offenen Auslage öffnet „Auslage als Geschenk übernehmen“ (Abbrechen lässt das Häkchen gesetzt). Eine als Geschenk übernommene Auslage zeigt kein Häkchen, ist gedämpft und trägt die Marke „Geschenk“. Zahlt der Kontakt mehr oder weniger als offen, bleibt die Zuordnung (älteste zuerst) wie bisher; „Rest“ und der Monatsstand machen die Differenz sichtbar.
+- **Status:** live (Tabelle mit Verrechnen-Häkchen und Monatsstand: Entwurf, private Abnahme offen) — **Verweis:** Y15
 
 ### C-03a – Rückzahlung gezielt einer Auslage zuordnen
 - **Story:** Als Nutzer möchte ich beim Buchen einer Rückzahlung und später wählen, welche Auslagen sie begleicht, damit eine spätere Auslage (z. B. Miete) beglichen wird und nicht automatisch die älteste.

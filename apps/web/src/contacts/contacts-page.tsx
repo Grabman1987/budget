@@ -1008,7 +1008,7 @@ function ContactUnlockConfirmation({
   );
 }
 
-function ContactGiftDialog({
+export function ContactGiftDialog({
   statement,
   outlay,
   ready,

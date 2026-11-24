@@ -216,7 +216,6 @@ it.each(['2026-10-01', '2026-09-01'])(
       `Ursprungsbuchung öffnen · Vorauszahlung ${date === '2026-10-01' ? '01.10.2026' : '01.09.2026'} · Rückzahlung Beispielempfänger ${note} Kategorie: Beispielauslagen · Kontaktanteil −50,00 €`,
     );
     expect(row.getAttribute('aria-label')).toContain(row.textContent?.replace(/\s+/g, ' ').trim());
-    expect(within(row).getByTitle(note).textContent?.trim()).toBe(note);
     row.focus();
     expect(document.activeElement).toBe(row);
   },
@@ -269,7 +268,16 @@ it('puts only outstanding shares above the chart and keeps completed rows in clo
     balanceCents: 3001,
   };
   const settled = { ...movement, splitId: 'settled', amountCents: -7000, memo: 'Beglichen' };
-  const past = Array.from({ length: 22 }, (_, index) => ({ ...movement, splitId: `old-${index}` }));
+  // Settled history: the 7000 outlay is repaid, then ten paired entries; the balance is 0 again.
+  const settledRepayment = { ...movement, splitId: 'old-0', amountCents: 7000 };
+  const past = [
+    settledRepayment,
+    ...Array.from({ length: 20 }, (_, index) => ({
+      ...movement,
+      splitId: `old-${index + 1}`,
+      amountCents: index % 2 === 0 ? -100 : 100,
+    })),
+  ];
   const { container } = show(
     { ...overview, contacts: [{ ...contacts[1]!, balanceCents: 3001, receivableCents: 3001 }] },
     {
@@ -302,24 +310,25 @@ it('puts only outstanding shares above the chart and keeps completed rows in clo
     within(table)
       .getAllByRole('columnheader')
       .map((cell) => cell.textContent),
-  ).toEqual(['Datum', 'Empfänger', 'Betrag', 'Offen']);
+  ).toEqual(['Datum', 'Empfänger', 'Betrag', 'Verrechnen']);
   expect(table.textContent).toContain('100,01 €');
   expect(table.textContent).toContain('30,01 €');
-  expect(table.textContent).not.toContain('+');
+  expect(table.textContent).toContain('+100,01 €');
+  expect(table.textContent).toContain('Offen: ');
   expect(table.textContent).not.toContain('Beglichen');
   const history = container.querySelector<HTMLDetailsElement>(
     '[data-r8-detail="contact-history"]',
   )!;
   expect(history.open).toBe(false);
-  expect(history.querySelector('summary')!.textContent).toContain('23 Buchungen');
+  expect(history.querySelector('summary')!.textContent).toContain('22 Buchungen');
   expect(history.querySelector('summary')!.textContent).toContain('70,00 €');
   expect(screen.queryByText('Guthaben verwenden')).toBeNull();
   expect(screen.queryByRole('link', { name: 'Guthaben ändern' })).toBeNull();
   history.open = true;
   const pastTable = within(history).getByRole('table');
-  expect(pastTable.querySelectorAll('tbody tr')).toHaveLength(20);
+  expect(pastTable.querySelectorAll('[data-contact-source]')).toHaveLength(20);
   fireEvent.click(within(history).getByRole('button', { name: 'Weiter' }));
-  expect(pastTable.querySelectorAll('tbody tr')).toHaveLength(3);
+  expect(pastTable.querySelectorAll('[data-contact-source]')).toHaveLength(2);
   expect(within(history).getByText('Seite 2 von 2')).toBeTruthy();
   act(() => setAmountsHidden(true));
   expect(container.innerHTML).not.toMatch(/100,01|30,01|70,00/);
