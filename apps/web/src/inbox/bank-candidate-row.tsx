@@ -591,6 +591,13 @@ export const BankCandidateRow = memo(function BankCandidateRow({
                 <button
                   type="button"
                   className="bank-suggestion-pill is-missing"
+                  // The list's own label ("Mit Buchung … zusammenführen") must not look like the
+                  // dialog's action of the same name.
+                  aria-label={
+                    !pickCategory && missing.cell === 'suggestion' && listLabelText
+                      ? `Vorschlag prüfen: ${listLabelText}`
+                      : undefined
+                  }
                   title={missing.reason}
                   disabled={locked || missing.cell === 'source'}
                   onClick={() =>

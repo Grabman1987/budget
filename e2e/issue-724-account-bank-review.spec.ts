@@ -275,7 +275,7 @@ test('bank candidates precede reminders and remain isolated review work in the a
         response.request().method() === 'POST' &&
         new URL(response.url()).pathname === `/api/bank-sync/candidates/${candidateA}/merge`,
     );
-    await queue.getByRole('button', { name: /Mit Buchung .* zusammenführen/ }).click();
+    await queue.getByRole('button', { name: /^Mit Buchung .* zusammenführen/ }).click();
     const confirmation = await confirmed;
     expect(confirmation.status()).toBe(200);
     const saved = (await confirmation.json()) as { groupId: string };
