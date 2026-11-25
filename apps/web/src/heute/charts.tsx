@@ -22,6 +22,7 @@ import { scaleLinear } from 'd3-scale';
 import { useElementWidth } from '../charts/use-element-width';
 import { eur, eurParts, longDay, shortDay } from '../ledger/format';
 import type { Heute } from './api';
+import { leadView } from './lead-boundary';
 import { addDays, daysBetween } from '@budget/domain';
 
 const number = new Intl.NumberFormat('de-AT', { maximumFractionDigits: 0 });
@@ -135,13 +136,14 @@ export function DailyBudgetLine({
   data,
   style,
 }: {
-  data: Pick<Heute, 'dailyBudget' | 'stand'>;
+  data: Pick<Heute, 'dailyBudget' | 'stand' | 'leadBoundary'>;
   style?: CSSProperties;
 }) {
   useAmountPrivacy();
   const [explained, setExplained] = useState(false);
   const id = useId();
   const { remainingDays, perDayCents } = data.dailyBudget;
+  const lead = leadView(data);
   return (
     <div
       className={`heute-daily-budget${perDayCents === null ? ' is-alarm' : ''}`}
@@ -150,8 +152,8 @@ export function DailyBudgetLine({
     >
       <span>
         {perDayCents === null
-          ? `Kein Spielraum bis zum Gehalt am ${shortDay(data.stand.payday.day)}`
-          : `≈ ${eur(perDayCents, { cents: false })} pro Tag · noch ${remainingDays} ${remainingDays === 1 ? 'Tag' : 'Tage'} bis zum Gehalt`}
+          ? `Kein Spielraum bis zum ${lead.kind === 'monthEnd' ? `Monatsende am ${shortDay(lead.day)}` : `Gehalt am ${shortDay(lead.day)}`}`
+          : `≈ ${eur(perDayCents, { cents: false })} pro Tag · noch ${remainingDays} ${remainingDays === 1 ? 'Tag' : 'Tage'} ${lead.untilThe}`}
       </span>
       <span onMouseEnter={() => setExplained(true)} onMouseLeave={() => setExplained(false)}>
         <button
@@ -169,8 +171,9 @@ export function DailyBudgetLine({
         </button>
         {explained && (
           <span id={id} role="tooltip" className="heute-daily-help">
-            Frei verfügbar bis Gehalt geteilt durch die verbleibenden Tage einschließlich heute bis
-            zum nächsten Gehalt (am Gehaltstag: ein Tag), auf ganze Euro gerundet.
+            {lead.kind === 'monthEnd'
+              ? 'Frei verfügbar bis Monatsende geteilt durch die verbleibenden Tage einschließlich heute und dem letzten Tag des Monats, auf ganze Euro gerundet.'
+              : 'Frei verfügbar bis Gehalt geteilt durch die verbleibenden Tage einschließlich heute bis zum nächsten Gehalt (am Gehaltstag: ein Tag), auf ganze Euro gerundet.'}
           </span>
         )}
       </span>
@@ -278,8 +281,7 @@ function BalanceDrawing({
       ? `Prognose bis ${forecast.at(-1)?.day} ${eur(forecast.at(-1)?.balanceCents ?? 0)}.`
       : 'keine Prognose für diesen Zeitraum.');
 
-  const payday =
-    data.stand.period === 'payday' ? addDays(data.stand.to, -2) : data.stand.payday.day;
+  const payday = data.stand.period === 'payday' ? addDays(data.stand.to, -2) : leadView(data).day;
   const paydayInRange = dayValue(payday) >= start && dayValue(payday) <= end;
   const bracketDay = paydayInRange ? payday : days.at(-1)!.day;
   const bracketDays = daysBetween(data.stand.today, bracketDay);
@@ -295,7 +297,7 @@ function BalanceDrawing({
           type="button"
           className={`heute-lead-figure${data.lead.freeCents < 0 ? ' is-negative' : ''}`}
           data-testid="heute-lead-value"
-          aria-label={`Frei verfügbar bis Gehalt: ${eur(data.lead.freeCents)}. Herleitung ${chainOpen ? 'ausblenden' : 'zeigen'}`}
+          aria-label={`Frei verfügbar ${leadView(data).until}: ${eur(data.lead.freeCents)}. Herleitung ${chainOpen ? 'ausblenden' : 'zeigen'}`}
           aria-expanded={chainOpen}
           aria-controls="heute-lead-chain"
           onClick={onToggleChain}
@@ -423,7 +425,9 @@ function BalanceDrawing({
               className="svg-label-line"
             >
               {bracketDays} {bracketDays === 1 ? 'Tag' : 'Tage'} bis{' '}
-              {paydayInRange ? `Gehalt ${shortDay(payday)}` : shortDay(bracketDay)}
+              {paydayInRange
+                ? `${leadView(data).kind === 'monthEnd' ? 'Monatsende' : 'Gehalt'} ${shortDay(payday)}`
+                : shortDay(bracketDay)}
             </text>
           </g>
         )}

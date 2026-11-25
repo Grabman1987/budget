@@ -54,20 +54,37 @@ it.each(baseline.responses)(
     let body = Buffer.from(await response.arrayBuffer());
     if (path.startsWith('/heute?')) {
       const payload = JSON.parse(body.toString('utf8'));
-      // Synthetic cash 4,707,357 minus 241,621 open cents, including 70,000 Zukunft cents.
-      expect(payload.lead).toMatchObject({
-        balanceCents: 4_707_357,
-        openCents: 241_621,
-        freeCents: 4_465_736,
-        lastResortCents: 600_000,
-      });
+      const isPayday = path.includes('period=payday');
+      // Synthetic cash 4,707,357 minus open cents (241,621 until payday incl. 70,000 Zukunft
+      // cents; 15,489 until the month end, owner decision 2026-11-25: period=month leads with
+      // "Frei bis Monatsende").
+      expect(payload.lead).toMatchObject(
+        isPayday
+          ? {
+              balanceCents: 4_707_357,
+              openCents: 241_621,
+              freeCents: 4_465_736,
+              lastResortCents: 600_000,
+            }
+          : {
+              balanceCents: 4_707_357,
+              openCents: 15_489,
+              freeCents: 4_691_868,
+              lastResortCents: 600_000,
+            },
+      );
       expect(payload.lead).not.toHaveProperty('inflowCents');
       expect(payload.lead).not.toHaveProperty('overdraftCents');
-      expect(payload.dailyBudget.perDayCents).toBe(159_491);
+      expect(payload.dailyBudget.perDayCents).toBe(isPayday ? 159_491 : 335_133);
       // Additions-only proof: remove precisely the new top-level field. Every
       // pre-existing field, value and ordering must match the unchanged main digest.
       expect(payload).toHaveProperty('accountLiquidity');
       delete payload.accountLiquidity;
+      // Same for the lead boundary descriptor; period=payday stays byte-identical to main.
+      expect(payload.leadBoundary.kind).toBe(
+        path.includes('period=payday') ? 'payday' : 'monthEnd',
+      );
+      delete payload.leadBoundary;
       body = Buffer.from(JSON.stringify(payload));
     } else if (
       path === '/portfolio?period=1J' ||

@@ -143,8 +143,7 @@ const probes = {
     const redesigned = (await p.locator('.app').getAttribute('data-budget-redesign')) === '1';
     await expect(
       p.getByRole('region', {
-        name: redesigned ? 'Frei bis Gehalt' : 'Spielraum bis Gehalt',
-        exact: true,
+        name: redesigned ? /^Frei bis (Gehalt|Monatsende)$/ : /^Spielraum bis (Gehalt|Monatsende)$/,
       }),
     ).toBeVisible();
   },

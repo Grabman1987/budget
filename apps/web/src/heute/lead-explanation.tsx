@@ -11,28 +11,33 @@ import { EmptyNote, ErrorNote, LoadingNote } from '../ledger/states';
 import { monthLabel } from '../nav/month';
 import type { Heute, HeutePeriod } from './api';
 import { DailyBudgetLine } from './charts';
+import { leadView } from './lead-boundary';
 
 export function LeadExplanation({ data }: { data: Heute }) {
   useAmountPrivacy();
   const source = useLocation({ select: (location) => location.href });
   const search = { monat: data.stand.today.slice(0, 7), period: data.stand.period, von: source };
+  const lead = leadView(data);
   const earliestOpen = data.lead.items.open.map((item) => item.day).sort()[0] ?? data.stand.today;
   const payments = useQuery({
-    ...occurrencesQuery(earliestOpen, data.stand.payday.day),
+    ...occurrencesQuery(earliestOpen, lead.day),
     enabled: data.lead.items.open.some((item) => !item.id.endsWith(`|${item.day}`)),
   });
   const labels = {
     balance: 'Kontostand',
-    open: 'Offen bis Gehalt',
+    open: `Offen ${lead.until}`,
   };
   return (
     <div className="heute-lead-explanation">
       <p>
-        Frei bis Gehalt <strong>{eur(data.lead.freeCents)}</strong>
+        {lead.title} <strong>{eur(data.lead.freeCents)}</strong>
       </p>
       <p>
-        EUR · Kontostand der Budget-Konten, abzüglich offener Rechnungen bis zum regelbasierten
-        Gehalt am {longDay(data.stand.payday.day)}. Stand heute · {longDay(data.stand.today)}.
+        EUR · Kontostand der Budget-Konten, abzüglich offener Rechnungen{' '}
+        {lead.kind === 'monthEnd'
+          ? `bis zum Monatsende am ${longDay(lead.day)}`
+          : `bis zum regelbasierten Gehalt am ${longDay(lead.day)}`}
+        . Stand heute · {longDay(data.stand.today)}.
       </p>
       <p>
         Weder Dispo noch erwartete Eingänge zählen mit; erwartete Eingänge stehen nur in der
@@ -42,20 +47,20 @@ export function LeadExplanation({ data }: { data: Heute }) {
           : 'Kein Dispo aktiviert. '}
         Die Kontoprognose verwendet einen festen Zeitraum von 35 Tagen und keine Stellschrauben.
       </p>
-      <section id="tagesbudget" aria-label="Tagesbudget bis Gehalt">
-        <h3>Tagesbudget bis Gehalt</h3>
+      <section id="tagesbudget" aria-label={`Tagesbudget ${lead.until}`}>
+        <h3>Tagesbudget {lead.until}</h3>
         <DailyBudgetLine data={data} />
         <p>
           {data.dailyBudget.perDayCents === null
             ? 'Ohne positiven Spielraum gibt es kein Tagesbudget.'
-            : `${eur(data.lead.freeCents)} frei bis Gehalt, geteilt durch ${data.dailyBudget.remainingDays} verbleibende Tage einschließlich heute. Die Tagesanzeige ist auf ganze Euro gerundet.`}
+            : `${eur(data.lead.freeCents)} frei ${lead.until}, geteilt durch ${data.dailyBudget.remainingDays} verbleibende Tage einschließlich heute. Die Tagesanzeige ist auf ganze Euro gerundet.`}
         </p>
       </section>
       <div id="rechenweg">
         <DimensionChain
           terms={data.lead.chain.map((term) => ({ ...term, value: cents(term.value) }))}
           precision="cent"
-          label="Kontostand minus offene Rechnungen bis Gehalt"
+          label={`Kontostand minus offene Rechnungen ${lead.until}`}
         />
       </div>
       {(['balance', 'open'] as const).map((kind) => (
@@ -105,7 +110,10 @@ export function LeadExplanation({ data }: { data: Heute }) {
                 ))}
               </ul>
             ) : (
-              <EmptyNote>Keine offenen Rechnungen vor dem Gehalt.</EmptyNote>
+              <EmptyNote>
+                Keine offenen Rechnungen{' '}
+                {lead.kind === 'monthEnd' ? 'bis zum Monatsende' : 'vor dem Gehalt'}.
+              </EmptyNote>
             )
           ) : data.lead.items.accounts.length ? (
             <ul>

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Button, maskMoneyText, useAmountPrivacy } from '@budget/ui';
 import type { Heute } from '../heute/api';
+import { leadView } from '../heute/lead-boundary';
 import type { AccountList, BookingPage, ListedBooking } from '../ledger/types';
 import type { BudgetMonthView } from '../budget/budget-api';
 import { eur, longDay, nativeCurrency } from '../ledger/format';
@@ -170,7 +171,7 @@ export function OfflineState({ onCapture }: { onCapture: () => void }) {
               </p>
               <dl>
                 <div>
-                  <dt>Frei bis Gehalt</dt>
+                  <dt>{leadView(heute).title}</dt>
                   <dd>{eur(heute.lead.freeCents)}</dd>
                 </div>
                 <div>
@@ -404,7 +405,7 @@ export function OfflineState({ onCapture }: { onCapture: () => void }) {
                   </li>
                 ))}
               </ul>
-              <h3>Offen bis Gehalt</h3>
+              <h3>Offen {leadView(heute).until}</h3>
               <ul>
                 {(heute.lead.items.open ?? []).map((row) => (
                   <li key={row.id}>

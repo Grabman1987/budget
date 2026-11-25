@@ -1,9 +1,9 @@
 {
-  "note": "Literal response digests (bytes:sha256) on the heute-956 synthetic fixture. Non-Heute routes retain stock main 61b0c87 digests. The three Heute routes follow SPEC Financial terms (cockpit F2): cash minus all open outflows, separate unused overdraft, cent-exact chain. Their preceding #1084 digests were reproduced from main 0ec9d227; payload differences are confined to lead and dailyBudget.",
+  "note": "Literal response digests (bytes:sha256) on the heute-956 synthetic fixture. Non-Heute routes retain stock main 61b0c87 digests. The three Heute routes follow SPEC Financial terms (cockpit F2): cash minus all open outflows, separate unused overdraft, cent-exact chain. Their preceding #1084 digests were reproduced from main 0ec9d227; payload differences are confined to lead and dailyBudget. 2026-11-25: the two period=month digests changed intentionally (lead is Frei bis Monatsende: chain label, open cents, daysToBoundary-based dailyBudget); period=payday is byte-identical to before once the added leadBoundary field is removed.",
   "responses": [
     {
       "path": "/heute?period=month",
-      "digest": "52346:78ff3a77c60b4bc0a3d88d154229947d39fb640016102c5c3ed33470e617f9de"
+      "digest": "51276:98f0dc6c8ee264e8b17471699d9856d6d85f8d4f6580d2dbcacc77f5368939a2"
     },
     {
       "path": "/heute?period=payday",
@@ -11,7 +11,7 @@
     },
     {
       "path": "/heute?period=month&month=2026-08",
-      "digest": "49760:7b02ae872b025278fdddf82124890c22a09c1f755cf141433cdea8571ed22757"
+      "digest": "48690:f5cef75ead60211ce17ee55fa6e64f54589576887808a3a248185628b5715b73"
     },
     {
       "path": "/portfolio/positions",

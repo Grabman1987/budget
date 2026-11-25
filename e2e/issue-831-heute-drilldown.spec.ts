@@ -41,7 +41,7 @@ test('lead → exact terms → category/payment → return retains viewed month 
       url.searchParams.get('period') === 'month',
   );
   await expect(
-    page.getByRole('heading', { name: 'Frei bis Gehalt · Herleitung', exact: true }),
+    page.getByRole('heading', { name: 'Frei bis Monatsende · Herleitung', exact: true }),
   ).toBeFocused();
   const detail = page.locator('.heute-dimension');
   for (const amount of [data.lead.balanceCents, data.lead.openCents, data.lead.freeCents]) {
@@ -53,7 +53,7 @@ test('lead → exact terms → category/payment → return retains viewed month 
   await expect(detail).toContainText('EUR');
   await expect(detail).toContainText('35 Tagen');
   const need = page
-    .getByRole('region', { name: 'Offen bis Gehalt', exact: true })
+    .getByRole('region', { name: 'Offen bis Monatsende', exact: true })
     .getByRole('link')
     .first();
   const target = new URL((await need.getAttribute('href'))!, page.url());
@@ -63,7 +63,7 @@ test('lead → exact terms → category/payment → return retains viewed month 
   await expect(page.getByRole('link', { name: 'Zurück zur Heute-Herleitung' })).toBeVisible();
   await page.goBack();
   await expect(
-    page.getByRole('heading', { name: 'Frei bis Gehalt · Herleitung', exact: true }),
+    page.getByRole('heading', { name: 'Frei bis Monatsende · Herleitung', exact: true }),
   ).toBeVisible();
   await page.goForward();
   await expect(page.getByRole('link', { name: 'Zurück zur Heute-Herleitung' })).toBeVisible();
@@ -73,7 +73,7 @@ test('lead → exact terms → category/payment → return retains viewed month 
     (url) => url.pathname === '/heute/details/free' && url.searchParams.get('monat') === '2026-08',
   );
   const payment = page
-    .getByRole('region', { name: 'Offen bis Gehalt', exact: true })
+    .getByRole('region', { name: 'Offen bis Monatsende', exact: true })
     .getByRole('link')
     .first();
   await expect(payment).toBeVisible();
@@ -87,7 +87,7 @@ test('lead → exact terms → category/payment → return retains viewed month 
   await page.getByRole('link', { name: 'Zurück zur Heute-Herleitung' }).click();
   await page.reload();
   await expect(
-    page.getByRole('heading', { name: 'Frei bis Gehalt · Herleitung', exact: true }),
+    page.getByRole('heading', { name: 'Frei bis Monatsende · Herleitung', exact: true }),
   ).toBeVisible();
   for (const colorScheme of ['light', 'dark'] as const) {
     await page.emulateMedia({ colorScheme, reducedMotion: 'reduce' });

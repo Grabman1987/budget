@@ -6,6 +6,7 @@ import {
   accountLiquidityForecast,
   addMonths,
   changeBp,
+  freeUntilBoundary,
   freeUntilPayday,
   emergencyCoverage,
   investableAmount,
@@ -30,6 +31,7 @@ import {
   summarizeMonth,
   type BudgetMonth,
   type FreeUntilPayday,
+  type LeadBoundary,
   type HeutePeriod,
   type LowPoint,
   type NetWorthParts,
@@ -190,6 +192,12 @@ export interface Heute {
     /** Sum of the budget accounts. */
     budgetBalanceCents: number;
   };
+  /**
+   * Lead variant and horizon. Period `payday`: "Frei bis Gehalt" until the payday. Period `month`:
+   * "Frei bis Monatsende" until the last day of the current month (Stand heute, whatever month
+   * the chart shows). `lead.daysToPayday` always stays the days to the payday.
+   */
+  leadBoundary: LeadBoundary & { daysToBoundary: number };
   lead: FreeUntilPayday;
   dailyBudget: ReturnType<typeof dailyBudget>;
   balance: {
@@ -678,13 +686,36 @@ export function heute(db: Executor, query: HeuteQuery): Heute {
   const payday = nextPayday(today);
   const window = heuteWindow(query.period ?? 'month', month, today, payday.day);
 
-  // ---- lead: free until payday ----
-  const lead = freeUntilPayday({
+  // ---- lead: free until payday (period payday) or until month end (period month) ----
+  const paydayLead = freeUntilPayday({
     accounts: inputs.cashAccounts,
     openOutflows: inputs.openOutflows,
     payday: payday.day,
     today,
   });
+  const monthEndLead =
+    window.period === 'month'
+      ? freeUntilBoundary({
+          accounts: inputs.cashAccounts,
+          openOutflows: inputs.openOutflows,
+          today,
+          boundary: { day: lastDayOfMonth(monthOf(today)), kind: 'monthEnd' },
+        })
+      : null;
+  const lead: FreeUntilPayday = monthEndLead
+    ? {
+        balanceCents: monthEndLead.balanceCents,
+        openCents: monthEndLead.openCents,
+        lastResortCents: monthEndLead.lastResortCents,
+        freeCents: monthEndLead.freeCents,
+        daysToPayday: paydayLead.daysToPayday,
+        chain: monthEndLead.chain,
+        items: monthEndLead.items,
+      }
+    : paydayLead;
+  const leadBoundary = monthEndLead
+    ? { ...monthEndLead.boundary, daysToBoundary: monthEndLead.daysToBoundary }
+    : { day: payday.day, kind: 'payday' as const, daysToBoundary: paydayLead.daysToPayday };
 
   // ---- balance: actual up to today, forecast after ----
   const actualDays: string[] = [];
@@ -861,8 +892,12 @@ export function heute(db: Executor, query: HeuteQuery): Heute {
       payday: { ...payday, daysToPayday: lead.daysToPayday },
       budgetBalanceCents: lead.balanceCents,
     },
+    leadBoundary,
     lead,
-    dailyBudget: dailyBudget(lead),
+    dailyBudget: dailyBudget({
+      freeCents: lead.freeCents,
+      daysToPayday: leadBoundary.daysToBoundary,
+    }),
     balance: { actual, forecast, salary: salaryJump, low },
     pace: { ...model, forecast: paceForecast, previousMonth: paceMonthBefore },
     pinned,

@@ -143,7 +143,7 @@ it('uses the Heute cash and forecast outflows, extends the window and excludes c
     rawCents: 95_622,
     investableCents: 95_622,
   });
-  const { lead, stand } = heute(db, { today });
+  const { lead, stand } = heute(db, { today, period: 'payday' });
   const inputs = forecastInputs(loadFacts(db, today), today, { byAccount: { giro: 100_000 } });
   expect(lead.balanceCents).toBe(100_000);
   expect(lead.balanceCents).toBe(stand.budgetBalanceCents);

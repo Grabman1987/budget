@@ -82,7 +82,7 @@ test('Heute explains sidebar, forecast and net-worth account scopes', async ({
   await expect(page.getByText(/Reservekonten ausgeschlossen/).first()).toBeVisible();
   await expect(page.getByTestId('heute-lead-value')).toHaveAttribute(
     'aria-label',
-    /^Frei verfügbar bis Gehalt:/,
+    /^Frei verfügbar bis (Gehalt|Monatsende):/,
   );
 
   if (info.project.name === 'desktop') {

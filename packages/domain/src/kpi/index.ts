@@ -58,11 +58,16 @@ export {
   type PaceSpending,
 } from './pace';
 export {
+  freeUntilBoundary,
   freeUntilPayday,
   overdraftLastResort,
   type FreeAccount,
+  type FreeUntilBoundary,
+  type FreeUntilBoundaryInput,
   type FreeUntilPayday,
   type FreeUntilPaydayInput,
+  type LeadBoundary,
+  type LeadBoundaryKind,
   type OpenOutflow,
 } from './free-until-payday';
 export {

@@ -21,15 +21,15 @@ Bereich: Startseite „Heute“ (Route `/`). Status und Verweise wie in `docs/US
 - **Status:** live — **Verweis:** Y13-C
 - Hinweis: Das nächste Sparziel ist Teil des bestehenden Blocks „Ziele finanzieren“; keine eigene Karte (Entscheidung 15.11.2026).
 
-### H-02 – Frei bis Gehalt verstehen
-- **Story:** Als Nutzer möchte ich „Frei bis Gehalt“ als Cashflow-Zahl sehen und in ihre Teile zerlegen können (Kontostand der Budget-Konten − offene Abflüsse bis zum Gehalt; weder Dispo noch erwartete Eingänge zählen mit, Entscheidung 17.11.2026), damit ich weiß, was ich bis zum Gehalt noch ausgeben kann, ohne ins Minus zu geraten.
+### H-02 – Frei bis Gehalt / Frei bis Monatsende verstehen
+- **Story:** Als Nutzer möchte ich „Frei bis Gehalt“ als Cashflow-Zahl sehen und in ihre Teile zerlegen können (Kontostand der Budget-Konten − offene Abflüsse bis zum Gehalt; weder Dispo noch erwartete Eingänge zählen mit, Entscheidung 17.11.2026), damit ich weiß, was ich bis zum Gehalt noch ausgeben kann, ohne ins Minus zu geraten. In der Ansicht „Monat“ zeigt die Karte stattdessen „Frei bis Monatsende“ (gleiche Definition, Grenze = letzter Tag des laufenden Monats).
 - **Ausgangslage:** Ich will wissen, ob ich mir etwas leisten kann, oder ich verstehe die Zahl nicht.
 - **Ablauf:**
   1. Ich öffne „Heute“ und lese „Frei bis Gehalt“ (rot mit Warnzeichen, wenn negativ).
   2. Ich tippe die Zahl an. Die App öffnet die Herleitung (`/heute/details/free`).
   3. Ich sehe die Kette „Kontostand“ − „Offen bis Gehalt“ = „frei verfügbar“, darunter getrennt die Zeile „Letzte Reserve (Dispo)“, und das Tagesbudget bis Gehalt.
   4. Ich öffne die Listen „Kontostand“ und „Offen bis Gehalt“ und sehe die einzelnen Konten und Zahlungen. Erwartete Eingänge stehen nur in der Prognose.
-  5. Ich schalte oben in „Zeitraum“ zwischen „Monat“ und „Bis Gehalt“ um. „Bis Gehalt“ gilt nur im laufenden Monat.
+  5. Ich schalte oben in „Zeitraum“ zwischen „Monat“ und „Bis Gehalt“ um. „Bis Gehalt“ gilt nur im laufenden Monat. In „Monat“ heißt die Karte „Frei bis Monatsende“ mit „bis 30.11. · N Tage“ (heute und der letzte Tag zählen mit); Kette, Tagesbudget, Herleitung und Offline-Ansicht folgen dem gewählten Zeitraum. In „Bis Gehalt“ bleibt alles wie bisher.
 - **Ergebnis:** Nichts wird geändert. Der gewählte Zeitraum bleibt auf dem Gerät gemerkt und gilt auch im Report R07.
 - **Abnahmekriterien:**
   1. Die Zahl entspricht Kontostand minus offen bis Gehalt auf den Cent.
@@ -37,6 +37,7 @@ Bereich: Startseite „Heute“ (Route `/`). Status und Verweise wie in `docs/US
   3. Ein negativer Wert wird rot mit Warnzeichen gezeigt; das Tagesbudget sagt „Ohne positiven Spielraum gibt es kein Tagesbudget.“
   4. In einem anderen Monat ist „Bis Gehalt“ nicht wählbar und nennt den Grund.
   5. Ein erwartetes Gehalt oder eine erwartete Erstattung ändert die Zahl nicht; erst die gebuchte Einnahme tut es (im Kontostand).
+  6. „Frei bis Monatsende“ zieht alle bis einschließlich zum letzten Tag des Monats offenen Abflüsse (auch überfällige, je einmal) vom Kontostand ab; Abflüsse ab dem 1. des Folgemonats zählen nicht. Auch in der Ansicht eines anderen Monats bleibt die Karte „Stand heute“ (Monatsende des laufenden Monats).
 - **Status:** live — **Verweis:** #1084, PR #1086, Y13
 
 ### H-03 – Pace unter der Kontoprognose

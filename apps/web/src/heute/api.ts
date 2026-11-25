@@ -84,6 +84,8 @@ export interface Heute extends WithValuationNotes {
   nearestGoal: { id: string; name: string; savedCents: number; remainingCents: number } | null;
   planningAccuracy?: { count: number; hits: number; meanAbsoluteBp: number | null };
   dailyBudget: { remainingDays: number; perDayCents: number | null };
+  /** Boundary of `lead`; absent in saved responses (then the lead is the payday lead). */
+  leadBoundary?: { day: string; kind: 'payday' | 'monthEnd'; daysToBoundary: number };
   stand: {
     today: string;
     month: string;

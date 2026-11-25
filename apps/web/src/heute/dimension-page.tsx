@@ -14,6 +14,7 @@ import { heuteQuery, type Heute } from './api';
 import { useBalancePeriod } from './use-balance-period';
 import { REDESIGN_ENABLED } from '../shell/redesign-flag';
 import { LeadExplanation, BudgetExplanation } from './lead-explanation';
+import { leadView } from './lead-boundary';
 import { heuteReturn } from './return-context';
 import { ValuationSourceHint } from '../ledger/valuation-hint';
 import { ClosedAccountDisclosure } from '../ledger/closed-account-disclosure';
@@ -49,7 +50,7 @@ export function DimensionPage() {
   const focusedBasis = useRef<string | undefined>(undefined);
   const names = {
     ...detailNames,
-    free: 'Frei bis Gehalt · Herleitung',
+    free: `${data ? leadView(data).title : 'Frei bis Gehalt'} · Herleitung`,
     budget: 'Verfügbar im Budget · Herleitung',
     liquid: 'Liquidität',
     invested: REDESIGN_ENABLED ? 'Anlagen' : 'Investiert',

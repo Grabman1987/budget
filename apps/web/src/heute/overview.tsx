@@ -25,6 +25,7 @@ import { heuteQuery, type Heute, type HeutePeriod } from './api';
 import { HeutePaceChart, HeuteWealthChart } from './charts';
 import { CompactForecastCard } from './compact-forecast-card';
 import { attentionModel } from './attention-model';
+import { leadView } from './lead-boundary';
 import './overview.css';
 import { AccountLiquidityAlerts } from '../reports/account-liquidity';
 
@@ -311,10 +312,10 @@ export function HeuteOverview({
           data-as-of={data?.stand.today}
         >
           <div className="hv-lead-label">
-            <h2 id="hv-lead-title">Frei bis Gehalt</h2>
+            <h2 id="hv-lead-title">{data ? leadView(data).title : 'Frei bis Gehalt'}</h2>
             <span>
               {data
-                ? `bis ${shortDay(data.stand.payday.day)} · ${data.lead.daysToPayday} Tage`
+                ? `bis ${shortDay(leadView(data).day)} · ${leadView(data).days} Tage`
                 : 'Stand wird geladen'}
             </span>
           </div>
@@ -324,7 +325,7 @@ export function HeuteOverview({
                 <DetailLink
                   kind="free"
                   className={`hv-lead-value${data.lead.freeCents < 0 ? ' is-negative' : ''}`}
-                  aria-label={`Frei verfügbar bis Gehalt: ${eur(data.lead.freeCents)}. Herleitung zeigen`}
+                  aria-label={`Frei verfügbar ${leadView(data).until}: ${eur(data.lead.freeCents)}. Herleitung zeigen`}
                 >
                   <span data-testid="heute-lead-value">
                     {data.lead.freeCents < 0 && (
@@ -371,7 +372,7 @@ export function HeuteOverview({
                   <strong>{eur(data.monthResult.savedCents, { cents: false, sign: true })}</strong>
                 </span>
                 <DetailLink kind="free" hash="tagesbudget" className="hv-daily">
-                  Tagesbudget bis Gehalt
+                  Tagesbudget {leadView(data).until}
                   <strong>
                     {data.dailyBudget.perDayCents === null
                       ? 'Kein Spielraum'
@@ -383,8 +384,8 @@ export function HeuteOverview({
                 <AccountLiquidityAlerts result={data.accountLiquidity} today={data.stand.today} />
                 <span>
                   {data.dailyBudget.perDayCents === null
-                    ? 'Kein Spielraum bis Gehalt'
-                    : `Tagesbudget bis Gehalt ≈ ${eur(data.dailyBudget.perDayCents, { cents: false })}/Tag`}
+                    ? `Kein Spielraum ${leadView(data).until}`
+                    : `Tagesbudget ${leadView(data).until} ≈ ${eur(data.dailyBudget.perDayCents, { cents: false })}/Tag`}
                 </span>
                 <span>{data.attention.pendingCount} Buchungen unbestätigt</span>
                 <span className="hv-mobile-stand">

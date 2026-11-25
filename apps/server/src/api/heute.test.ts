@@ -387,14 +387,29 @@ it('nearest goal uses Sparziele progress and ordering, skips reached goals and h
 });
 
 describe('GET /heute', () => {
-  it('derives daily cents from the existing lead and rule-based payday, independent of chart period', async () => {
+  it('lead and daily cents follow the period: payday until the rule-based payday, month until the month end', async () => {
     const month = (await call('GET', '/heute?period=month')).body;
     const payday = (await call('GET', '/heute?period=payday')).body;
-    expect(month.lead.freeCents).toBe(98_000);
     expect(month.stand.payday.day).toBe('2026-04-15');
-    expect(month.dailyBudget).toEqual({ remainingDays: 28, perDayCents: 3_500 });
-    expect(payday.dailyBudget).toEqual(month.dailyBudget);
-    expect(payday.lead.freeCents).toBe(month.lead.freeCents);
+    expect(month.stand.payday.daysToPayday).toBe(28);
+    // Payday: Miete (25th) is open before 15 April.
+    expect(payday.leadBoundary).toEqual({ day: '2026-04-15', kind: 'payday', daysToBoundary: 28 });
+    expect(payday.lead.freeCents).toBe(98_000);
+    expect(payday.dailyBudget).toEqual({ remainingDays: 28, perDayCents: 3_500 });
+    // Month: same definition, boundary 31 March (today counts: 18.-31. = 14 days).
+    expect(month.leadBoundary).toEqual({ day: '2026-03-31', kind: 'monthEnd', daysToBoundary: 14 });
+    expect(month.lead.freeCents).toBe(98_000);
+    expect(month.lead.daysToPayday).toBe(28);
+    expect(month.lead.chain.map((t: { label: string }) => t.label)).toEqual([
+      'Kontostand',
+      'offen bis Monatsende',
+      'frei verfügbar',
+    ]);
+    expect(month.dailyBudget).toEqual({ remainingDays: 14, perDayCents: 7_000 });
+    // Viewing another month never moves the Stand-heute lead.
+    const other = (await call('GET', '/heute?period=month&month=2026-02')).body;
+    expect(other.leadBoundary).toEqual(month.leadBoundary);
+    expect(other.lead).toEqual(month.lead);
   });
   it.each([98_000, 98_001])(
     'suppresses the daily figure when the lead is nonpositive (%i spent)',
@@ -409,7 +424,7 @@ describe('GET /heute', () => {
       });
       const result = await call('GET', '/heute');
       expect(result.body.lead.freeCents).toBe(98_000 - spentCents);
-      expect(result.body.dailyBudget).toEqual({ remainingDays: 28, perDayCents: null });
+      expect(result.body.dailyBudget).toEqual({ remainingDays: 14, perDayCents: null });
     },
   );
   it('an activated Dispo is the separate last resort, never free money (#1227)', async () => {
@@ -526,6 +541,7 @@ describe('GET /heute', () => {
         'investmentBasis',
         'lastBookings',
         'lead',
+        'leadBoundary',
         'monthResult',
         'nearestGoal',
         'netWorth',
