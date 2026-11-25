@@ -1254,6 +1254,14 @@ function updateBookingImpl(
         patch.accountId !== undefined)
     )
       learnInboxAssignment(tx, id, grouped);
+    else if (
+      ctx.actor === 'owner' &&
+      cur.source === 'bank' &&
+      cur.transferId &&
+      cur.status === 'pending' &&
+      patch.status === 'confirmed'
+    )
+      learnInboxAssignment(tx, id, grouped);
   });
 }
 
@@ -1435,6 +1443,9 @@ export function markBankBookingTransfer(
         { resolvedAt: new Date().toISOString(), resolution: 'Bestätigt: ' + otherId },
         grouped,
       );
+    // A confirmed bank line moved to an own account teaches the same rule as a categorised one.
+    if (grouped.actor === 'owner' && row.status === 'confirmed')
+      learnInboxAssignment(tx, id, grouped);
     return { bookingId: id, counterpartId: otherId, groupId: grouped.groupId };
   });
 }

@@ -1,5 +1,19 @@
 import { createHash, randomUUID } from 'node:crypto';
-import { and, asc, desc, eq, inArray, isNotNull, isNull, ne, lte } from 'drizzle-orm';
+import {
+  and,
+  asc,
+  desc,
+  eq,
+  gt,
+  gte,
+  inArray,
+  isNotNull,
+  isNull,
+  lt,
+  ne,
+  lte,
+  or,
+} from 'drizzle-orm';
 import {
   assignmentRuleSchema,
   assignmentMatchSchema,
@@ -7,11 +21,16 @@ import {
   assignmentSplits,
   learnAssignmentSplits,
   bankAliasKey,
+  addDays,
   bankAssignmentText,
   cleanBankPayee,
+  counterpartyKey,
+  looseKeyUsable,
   DEFAULT_PAYEE_CLEANUP,
   matchesAssignment,
   matchPayeeAlias,
+  ownAccountTransferTarget,
+  type OwnAccountRef,
   PAYEE_ALIAS_ALL_SOURCES,
   payeeCleanupSchema,
   type AssignmentRuleInput,
@@ -20,6 +39,7 @@ import {
 } from '@budget/domain';
 import {
   account,
+  appSetting,
   assignmentRule,
   bankPayeeAlias,
   bankPayeeCleanup,
@@ -294,10 +314,12 @@ export function suggestedBankPayee(
     )
     .all();
   // A learned alias of this very source wins; merged-payee aliases hold for every source.
+  const aliasKey = bankAliasKey(rawPayee || rawText);
+  const noiseKey = counterpartyKey(rawPayee || rawText);
   const alias =
-    aliases.find(
-      (a) => a.sourceId === sourceId && a.rawKey === bankAliasKey(rawPayee || rawText),
-    ) ??
+    aliases.find((a) => a.sourceId === sourceId && a.rawKey === aliasKey) ??
+    // Same merchant behind processor prefixes or changing reference digits.
+    aliases.find((a) => a.sourceId === sourceId && counterpartyKey(a.rawKey) === noiseKey) ??
     matchPayeeAlias(
       aliases.filter((a) => a.sourceId === PAYEE_ALIAS_ALL_SOURCES),
       [rawPayee || rawText, cleaned],
@@ -345,7 +367,11 @@ function prefixPayee<T extends { name: string }>(payees: T[], cleanedKey: string
 
 export function assignmentSuggestions(db: Executor, row: AssignmentRow) {
   return listAssignmentRules(db)
-    .filter((r) => r.enabled && matchesAssignment(r.match, row))
+    .filter(
+      (r) =>
+        r.enabled &&
+        matchesAssignment(r.match, row, !r.automatic && !r.id.startsWith('inbox-learn:')),
+    )
     .map((rule) => {
       let unavailable: string | null = null;
       try {
@@ -443,6 +469,67 @@ function recurringTransferTarget(
     : null;
 }
 
+/** Id prefix of the generated own-account transfer proposal (never a stored rule). */
+export const OWN_ACCOUNT_RULE_PREFIX = 'own-account:';
+
+const IBAN_SHAPE = /\b[A-Z]{2}\d{2}(?: ?[A-Z0-9]{4}){2,7}(?: ?[A-Z0-9]{1,4})?\b/gu;
+
+/** Own accounts with the IBAN evidence the app holds: IBANs in names, sync labels (full or last four). */
+function ownAccountRefs(db: Executor, currency: string): (OwnAccountRef & { name: string })[] {
+  const labels = db.select().from(bankSyncAccount).all();
+  return db
+    .select()
+    .from(account)
+    .where(and(isNull(account.deletedAt), isNull(account.closedAt), eq(account.currency, currency)))
+    .all()
+    .map((a) => {
+      const texts = [a.name, ...labels.filter((l) => l.accountId === a.id).map((l) => l.label)];
+      const ibans = texts.flatMap((t) => t.toUpperCase().match(IBAN_SHAPE) ?? []);
+      const tails = texts.flatMap((t) =>
+        [...t.matchAll(/(?:…|\.\.\.)\s?(\d{4})(?!\d)/gu)].flatMap((m) => (m[1] ? [m[1]] : [])),
+      );
+      return { id: a.id, name: a.name, ibans, ibanTails: tails };
+    });
+}
+
+/**
+ * A bank line whose text names another own account (its IBAN or its name) is proposed as a transfer
+ * to that account. Read-only, exactly one account or no proposal; never automatic.
+ */
+function ownAccountSuggestion(
+  db: Executor,
+  accountId: string,
+  currency: string,
+  rawPayee: string | null,
+  memo: string,
+): (AssignmentRule & { unavailable: string | null }) | null {
+  const refs = ownAccountRefs(db, currency);
+  const target = ownAccountTransferTarget(bankAssignmentText(rawPayee, memo), accountId, refs);
+  const found = refs.find((r) => r.id === target);
+  if (!found) return null;
+  return {
+    id: OWN_ACCOUNT_RULE_PREFIX + found.id,
+    name: `Eigenes Konto → Umbuchung auf ${found.name}`,
+    priority: -1,
+    revision: createHash('sha256')
+      .update(JSON.stringify([found.id, found.name]))
+      .digest('hex'),
+    enabled: true,
+    automatic: false,
+    match: { mode: 'all', conditions: [] },
+    actions: { transferAccountId: found.id },
+    unavailable: null,
+  };
+}
+
+const withOwnAccount = <T extends { actions: { transferAccountId?: string | undefined } }>(
+  own: T | null,
+  suggestions: T[],
+): T[] =>
+  own && !suggestions.some((s) => s.actions.transferAccountId === own.actions.transferAccountId)
+    ? [own, ...suggestions]
+    : suggestions;
+
 export function readAssignmentCandidate(db: Executor, id: string) {
   const candidate = db.select().from(bankSyncCandidate).where(eq(bankSyncCandidate.id, id)).get();
   const item = db.select().from(inboxItem).where(eq(inboxItem.id, id)).get();
@@ -475,13 +562,24 @@ export function readAssignmentCandidate(db: Executor, id: string) {
     ? { bookingId: counterparts[0].id, transferId: counterparts[0].transferId }
     : null;
   const recurringTransferAccountId = recurringTransferTarget(db, candidate, cleanup.cleaned);
-  const suggestions = assignmentSuggestions(db, {
-    ...candidate,
-    source: 'bank',
-    rawText: bankAssignmentText(candidate.rawPayee, candidate.memo),
-    payeeId: cleanup.payeeId,
-    counterparty: cleanup.cleaned,
-  });
+  const suggestions = withOwnAccount(
+    recurringTransferAccountId
+      ? null
+      : ownAccountSuggestion(
+          db,
+          candidate.accountId,
+          candidate.currency,
+          candidate.rawPayee,
+          candidate.memo,
+        ),
+    assignmentSuggestions(db, {
+      ...candidate,
+      source: 'bank',
+      rawText: bankAssignmentText(candidate.rawPayee, candidate.memo),
+      payeeId: cleanup.payeeId,
+      counterparty: cleanup.cleaned,
+    }),
+  );
   return {
     candidate,
     recurringTransferAccountId,
@@ -634,10 +732,21 @@ export function readBookingAssignments(db: Executor, id: string) {
   );
   const counterparty = bookingCounterparty(db, row);
   const card = cardSettlementSuggestion(db, row, counterparty, row.payeeId ?? cleanup.payeeId);
+  const own =
+    row.source === 'bank' && !card && !row.transferId
+      ? ownAccountSuggestion(
+          db,
+          row.accountId,
+          row.currency,
+          row.bankRawPayee,
+          row.bankRawText ?? row.memo ?? '',
+        )
+      : null;
   return {
     cleanup,
     suggestions: [
       ...(card ? [card] : []),
+      ...(own ? [own] : []),
       // A card bill is never categorised: stored and learned category rules stay out of sight.
       ...assignmentSuggestions(db, {
         ...row,
@@ -752,7 +861,7 @@ export function previewAssignmentRule(db: Executor, input: AssignmentRuleInput) 
       counterparty: cleanup.cleaned,
     });
   }
-  const matched = rows.filter((row) => matchesAssignment(input.match, row));
+  const matched = rows.filter((row) => matchesAssignment(input.match, row, !input.automatic));
   return {
     count: matched.length,
     examples: matched
@@ -779,6 +888,64 @@ export function learnInboxAssignment(db: Executor, id: string, ctx: AuditContext
     deferredLearning.push(() => learnInboxAssignment(db, id, ctx));
     return;
   }
+  learnInboxRule(db, id, ctx);
+  learnAutoRule(db, id, ctx);
+}
+
+// app_setting ids are at most 64 characters: a short digest of the rule id keeps the key bounded.
+const fingerprintKey = (ruleId: string) =>
+  'rf:' + createHash('sha256').update(ruleId).digest('hex').slice(0, 40);
+const ruleFingerprint = (v: {
+  name: string;
+  matchJson: string;
+  actionJson: string;
+  payeeId: string | null;
+  categoryId: string | null;
+  enabled: boolean;
+  automatic: boolean;
+  priority: number;
+}) =>
+  createHash('sha256')
+    .update(
+      JSON.stringify([
+        v.name,
+        v.matchJson,
+        v.actionJson,
+        v.payeeId,
+        v.categoryId,
+        v.enabled,
+        v.automatic,
+        v.priority,
+      ]),
+    )
+    .digest('hex');
+
+/** Remember what the app wrote, so a later owner edit of the rule is recognisable and kept. */
+function rememberRuleFingerprint(
+  db: Executor,
+  ruleId: string,
+  values: Parameters<typeof ruleFingerprint>[0],
+  ctx: AuditContext,
+) {
+  const key = fingerprintKey(ruleId);
+  const value = ruleFingerprint(values);
+  if (db.select().from(appSetting).where(eq(appSetting.id, key)).get())
+    updateTracked(db, appSetting, [key], { value }, ctx);
+  else insertTracked(db, appSetting, { id: key, value }, ctx);
+}
+
+/** A rule the owner deleted, disabled or changed since the app last wrote it is never touched. */
+function ownerOwnsRule(db: Executor, row: typeof assignmentRule.$inferSelect): boolean {
+  if (row.deletedAt || !row.enabled) return true;
+  const fingerprint = db
+    .select()
+    .from(appSetting)
+    .where(eq(appSetting.id, fingerprintKey(row.id)))
+    .get();
+  return !!fingerprint && fingerprint.value !== ruleFingerprint(row);
+}
+
+function learnInboxRule(db: Executor, id: string, ctx: AuditContext) {
   const row = getBooking(db, id);
   if (
     !row ||
@@ -824,10 +991,13 @@ export function learnInboxAssignment(db: Executor, id: string, ctx: AuditContext
     accountId: row.accountId,
   };
   const direction = row.amountCents < 0 ? 'outflow' : 'inflow';
+  // Exact alias key as before: inbox-learn rules never match loosely.
+  const alias = bankAliasKey(counterparty);
+  const looseKey = counterpartyKey(counterparty);
   const ruleId =
     'inbox-learn:' +
     createHash('sha256')
-      .update(JSON.stringify([bankAliasKey(counterparty), direction]))
+      .update(JSON.stringify([alias, direction]))
       .digest('hex');
   const input: AssignmentRuleInput = {
     name: counterparty.slice(0, 120),
@@ -836,16 +1006,39 @@ export function learnInboxAssignment(db: Executor, id: string, ctx: AuditContext
     match: {
       mode: 'all',
       conditions: [
-        { type: 'counterparty', text: bankAliasKey(counterparty) },
+        { type: 'counterparty', text: alias },
         { type: 'direction', direction },
       ],
     },
     actions,
   };
   const rules = listAssignmentRules(db);
-  const existing = db.select().from(assignmentRule).where(eq(assignmentRule.id, ruleId)).get();
+  const stored = (id: string) =>
+    db.select().from(assignmentRule).where(eq(assignmentRule.id, id)).get();
+  let existing = stored(ruleId);
+  if (!existing && looseKeyUsable(looseKey)) {
+    // The same merchant under changed reference digits ("shop 1234" / "shop 5678"): reuse that
+    // rule instead of adding a twin. Rules the owner made or the auto-learner wrote stay as they are.
+    const sameMerchant = rules.find((r) => {
+      const counter = r.match.conditions.find((c) => c.type === 'counterparty');
+      const dir = r.match.conditions.find((c) => c.type === 'direction');
+      const acc = r.match.conditions.find((c) => c.type === 'account');
+      return (
+        counter?.type === 'counterparty' &&
+        counterpartyKey(counter.text) === looseKey &&
+        dir?.type === 'direction' &&
+        dir.direction === direction &&
+        !acc
+      );
+    });
+    if (sameMerchant) {
+      if (!sameMerchant.id.startsWith('inbox-learn:')) return;
+      existing = stored(sameMerchant.id);
+    }
+  }
+  if (existing && ownerOwnsRule(db, existing)) return;
   // The existing rule limit bounds storage without preventing an owner from confirming a booking.
-  if ((!existing || existing.deletedAt) && rules.length >= 100) return;
+  if (!existing && rules.length >= 100) return;
   try {
     assertReferences(db, input);
   } catch (error) {
@@ -853,6 +1046,182 @@ export function learnInboxAssignment(db: Executor, id: string, ctx: AuditContext
     throw error;
   }
   const { payeeId, categoryId, ...other } = actions;
+  const values = {
+    name: existing?.name ?? input.name,
+    matchJson: existing?.matchJson ?? JSON.stringify(input.match),
+    actionJson: JSON.stringify({
+      ...other,
+      ...(categoryId === null ? { categoryId: null } : {}),
+      ...(payeeId === null ? { payeeId: null } : {}),
+    }),
+    payeeId: payeeId ?? null,
+    categoryId: categoryId ?? null,
+    enabled: true,
+    automatic: false,
+    deletedAt: null,
+  };
+  const priority = existing?.priority ?? Math.max(-1, ...rules.map((r) => r.priority)) + 1;
+  if (existing) updateTracked(db, assignmentRule, [existing.id], values, ctx);
+  else insertTracked(db, assignmentRule, { id: ruleId, ...values, priority }, ctx);
+  rememberRuleFingerprint(db, existing?.id ?? ruleId, { ...values, priority }, ctx);
+}
+
+type ClassifiedBooking = NonNullable<ReturnType<typeof getBooking>>;
+
+/**
+ * What the owner decided for a bank line, as rule actions: the own-account transfer target, or
+ * payee plus category / split template / income type. Null when nothing reusable was decided.
+ */
+function bookingClassification(
+  db: Executor,
+  row: ClassifiedBooking,
+): { sig: string; actions: AssignmentRuleInput['actions'] } | null {
+  if (!row.amountCents || row.splits.length > 20 || row.splits.some((s) => s.contactId))
+    return null;
+  if (row.transferId) {
+    const partner = db
+      .select({ accountId: booking.accountId })
+      .from(booking)
+      .where(
+        and(
+          eq(booking.transferId, row.transferId),
+          ne(booking.id, row.id),
+          isNull(booking.deletedAt),
+        ),
+      )
+      .get();
+    if (!partner) return null;
+    const categoryId = row.splits.find((s) => s.categoryId)?.categoryId ?? null;
+    return {
+      sig: JSON.stringify(['transfer', partner.accountId, categoryId]),
+      actions: { transferAccountId: partner.accountId, ...(categoryId ? { categoryId } : {}) },
+    };
+  }
+  if (
+    row.splits.some(
+      (s) =>
+        s.transferId || !s.amountCents || Math.sign(s.amountCents) !== Math.sign(row.amountCents),
+    ) ||
+    (!row.payeeId && row.splits.every((s) => !s.categoryId && !s.incomeTypeId)) ||
+    (row.splits.length > 1 && row.splits.some((s) => !s.categoryId || s.incomeTypeId))
+  )
+    return null;
+  let actions: AssignmentRuleInput['actions'];
+  if (row.splits.length === 1) {
+    const s = row.splits[0]!;
+    actions = {
+      categoryId: s.categoryId,
+      ...(s.incomeTypeId ? { incomeTypeId: s.incomeTypeId } : {}),
+    };
+  } else {
+    try {
+      actions = {
+        splits: learnAssignmentSplits(
+          row.splits.map((s) => ({ categoryId: s.categoryId!, amountCents: s.amountCents })),
+        ),
+      };
+    } catch {
+      return null;
+    }
+  }
+  actions = { ...actions, payeeId: row.payeeId };
+  return { sig: JSON.stringify(['classify', actions]), actions };
+}
+
+/** Earlier confirmed bank lines of the account that are compared when learning. */
+const AUTO_LEARN_HISTORY = 200;
+
+/**
+ * Automatic rule learning: when the owner confirms a bank line and at least one earlier confirmed
+ * line of the same account, direction and counterparty key was classified the same way (payee +
+ * category / split template / income type, or the same own-account transfer), a suggestion rule
+ * (never automatic) named after the counterparty is created. Any live rule for the key and
+ * direction, and a deleted rule of this very key, is left alone. Runs in the confirming write's
+ * audit group, so one Undo removes rule and fingerprint with the confirmation.
+ */
+export function learnAutoRule(db: Executor, id: string, ctx: AuditContext) {
+  const row = getBooking(db, id);
+  if (
+    !row ||
+    row.source !== 'bank' ||
+    !['confirmed', 'reconciled'].includes(row.status) ||
+    !row.amountCents ||
+    (!row.bankRawText && !row.bankRawPayee)
+  )
+    return;
+  const counterparty = bookingCounterparty(db, row);
+  const key = counterpartyKey(counterparty);
+  if (!looseKeyUsable(key)) return;
+  const mine = bookingClassification(db, row);
+  if (!mine) return;
+  const direction = row.amountCents < 0 ? 'outflow' : 'inflow';
+  const ruleId =
+    'auto-learn:' +
+    createHash('sha256')
+      .update(JSON.stringify([row.accountId, key, direction]))
+      .digest('hex');
+  if (db.select().from(assignmentRule).where(eq(assignmentRule.id, ruleId)).get()) return;
+  const rules = listAssignmentRules(db);
+  const covered = rules.some((r) => {
+    const counter = r.match.conditions.find((c) => c.type === 'counterparty');
+    const dir = r.match.conditions.find((c) => c.type === 'direction');
+    const acc = r.match.conditions.find((c) => c.type === 'account');
+    return (
+      counter?.type === 'counterparty' &&
+      counterpartyKey(counter.text) === key &&
+      dir?.type === 'direction' &&
+      dir.direction === direction &&
+      (!acc || (acc.type === 'account' && acc.accountId === row.accountId))
+    );
+  });
+  if (covered || rules.length >= 100) return;
+  // SQL prefilter: same account and direction, confirmed bank lines with raw text or payee, last
+  // 18 months, newest 200; only the key-matching ones are read in full.
+  const history = db
+    .select()
+    .from(booking)
+    .where(
+      and(
+        eq(booking.accountId, row.accountId),
+        eq(booking.source, 'bank'),
+        ne(booking.id, row.id),
+        inArray(booking.status, ['confirmed', 'reconciled']),
+        row.amountCents < 0 ? lt(booking.amountCents, 0) : gt(booking.amountCents, 0),
+        or(isNotNull(booking.bankRawText), isNotNull(booking.bankRawPayee)),
+        gte(booking.date, addDays(row.date, -548)),
+        isNull(booking.deletedAt),
+      ),
+    )
+    .orderBy(desc(booking.date), desc(booking.id))
+    .limit(AUTO_LEARN_HISTORY)
+    .all();
+  const proven = history.some((h) => {
+    if (counterpartyKey(bookingCounterparty(db, h)) !== key) return false;
+    const earlier = getBooking(db, h.id);
+    return !!earlier && bookingClassification(db, earlier)?.sig === mine.sig;
+  });
+  if (!proven) return;
+  const input: AssignmentRuleInput = {
+    name: counterparty.slice(0, 120),
+    enabled: true,
+    automatic: false,
+    match: {
+      mode: 'all',
+      conditions: [
+        { type: 'counterparty', text: key },
+        { type: 'direction', direction },
+        { type: 'account', accountId: row.accountId },
+      ],
+    },
+    actions: mine.actions,
+  };
+  try {
+    assertReferences(db, input);
+  } catch (error) {
+    if (error instanceof ConflictError) return;
+    throw error;
+  }
+  const { payeeId, categoryId, ...other } = mine.actions;
   const values = {
     name: input.name,
     matchJson: JSON.stringify(input.match),
@@ -865,16 +1234,10 @@ export function learnInboxAssignment(db: Executor, id: string, ctx: AuditContext
     categoryId: categoryId ?? null,
     enabled: true,
     automatic: false,
-    deletedAt: null,
   };
-  if (existing) updateTracked(db, assignmentRule, [ruleId], values, ctx);
-  else
-    insertTracked(
-      db,
-      assignmentRule,
-      { id: ruleId, ...values, priority: Math.max(-1, ...rules.map((r) => r.priority)) + 1 },
-      ctx,
-    );
+  const priority = Math.max(-1, ...rules.map((r) => r.priority)) + 1;
+  insertTracked(db, assignmentRule, { id: ruleId, ...values, priority }, ctx);
+  rememberRuleFingerprint(db, ruleId, { ...values, priority }, ctx);
 }
 
 export function assignmentFromBooking(db: Executor, id: string): AssignmentRuleInput {

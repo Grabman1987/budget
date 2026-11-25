@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { counterpartyKey, looseKeyUsable } from './recurring-detection';
 
 /** Derive a percent template from confirmed, same-direction category splits. */
 export function learnAssignmentSplits(
@@ -148,12 +149,25 @@ export interface AssignmentRow {
   source?: string;
 }
 
-export function matchesAssignment(match: AssignmentMatch, row: AssignmentRow): boolean {
+/**
+ * `looseCounterparty` lets a counterparty condition match through the digit-stripped
+ * `counterpartyKey`; only suggestion rules opt in, and never with a short or generic key.
+ * Everything else (automatic rules, inbox-learn rules, other callers) matches the exact alias key.
+ */
+export function matchesAssignment(
+  match: AssignmentMatch,
+  row: AssignmentRow,
+  looseCounterparty = false,
+): boolean {
   const test = (condition: AssignmentCondition): boolean => {
     switch (condition.type) {
       case 'counterparty':
+        if (!row.counterparty) return false;
+        if (bankAliasKey(row.counterparty) === bankAliasKey(condition.text)) return true;
         return (
-          !!row.counterparty && bankAliasKey(row.counterparty) === bankAliasKey(condition.text)
+          looseCounterparty &&
+          looseKeyUsable(counterpartyKey(condition.text)) &&
+          counterpartyKey(row.counterparty) === counterpartyKey(condition.text)
         );
       case 'payee':
         return row.payeeId === condition.payeeId;

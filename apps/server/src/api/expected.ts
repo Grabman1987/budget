@@ -1,4 +1,7 @@
 import {
+  acceptRecurringSuggestion,
+  dismissRecurringSuggestion,
+  recurringSuggestions,
   addExpectedVersion,
   acknowledgeIncomeReceipt,
   incomeReceiptCandidates,
@@ -106,6 +109,14 @@ export function expectedRoutes(db: Db, today: () => string): Hono {
     return c.json({ occurrences });
   });
   app.get('/year-preview', (c) => c.json(readPaymentsPreview(db, today())));
+  // Detected recurring bookings without an expected payment: read-only until accepted.
+  app.get('/suggestions', (c) => c.json({ suggestions: recurringSuggestions(db, today()) }));
+  app.post('/suggestions/:id/accept', (c) =>
+    c.json(acceptRecurringSuggestion(db, c.req.param('id'), audit(), today()), 201),
+  );
+  app.post('/suggestions/:id/dismiss', (c) =>
+    c.json(dismissRecurringSuggestion(db, c.req.param('id'), audit(), today())),
+  );
   app.get('/occurrences', (c) => {
     const { from, to, kind, includeSkipped } = readQuery(c, expectedOccurrencesQuery);
     if (to < from) throw new ApiError(400, 'invalid', '`to` must not be before `from`');
