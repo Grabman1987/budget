@@ -1,6 +1,7 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect } from '@playwright/test';
 import { test } from './isolated-ledger';
+import { fillBookingSearch } from './ledger-helpers';
 
 test('594 immediate URL filters, exact native sums, CSV and single-account Saldo', async ({
   page,
@@ -65,8 +66,7 @@ test('594 immediate URL filters, exact native sums, CSV and single-account Saldo
     status: 'pending',
   });
   await page.goto('/konten/buchungen');
-  const search = page.getByLabel('In Buchungen suchen');
-  await search.fill('Synthetic filter');
+  await fillBookingSearch(page, 'Synthetic filter');
   await expect(page.locator('.ksum')).toContainText('4 Buchungen');
   await expect(page.locator('.ksum')).toContainText('−15,57 €');
   await expect(page.locator('.ksum')).toContainText('USD');

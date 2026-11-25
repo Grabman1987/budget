@@ -1,4 +1,4 @@
-import { captureSaveControl, redesignLoaded } from './ledger-helpers';
+import { captureSaveControl, fillBookingSearch, redesignLoaded } from './ledger-helpers';
 import {
   openAccountCapture,
   historyChart,
@@ -209,10 +209,10 @@ isolatedTest(
     await applyLedgerFilters(page);
 
     // Search narrows the list and lands in the URL.
-    await page.getByLabel('In Buchungen suchen').fill('Bio-Laden');
+    await fillBookingSearch(page, 'Bio-Laden');
     await expect(page).toHaveURL(/q=Bio-Laden/);
     await expect(page.getByText('1 Buchung ·')).toBeVisible();
-    await page.getByLabel('In Buchungen suchen').fill('');
+    await fillBookingSearch(page, '');
     await expect(page.getByText('3 Buchungen ·')).toBeVisible();
 
     // Select all, set a category for all, undo it.

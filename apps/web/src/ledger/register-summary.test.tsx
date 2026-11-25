@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act, render, screen } from '@testing-library/react';
+import { act, cleanup, render, screen } from '@testing-library/react';
 import { setAmountsHidden } from '@budget/ui';
 import type { RegisterMonth } from '@budget/domain';
 import { afterEach, beforeAll, expect, it } from 'vitest';
@@ -90,4 +90,23 @@ it('planned sum keeps schedule signs: outflows negative, inflows positive', () =
     >[0][number];
   expect(plannedCents([entry(-1000), entry(400), entry(-1)])).toBe(-601);
   expect(plannedCents([{ schedule: { amountCents: -5, currency: 'USD' } } as never])).toBeNull();
+});
+
+it('on the phone the evaluation is not part of the list; it only opens as a sheet', () => {
+  cleanup();
+  const original = window.matchMedia;
+  window.matchMedia = ((query: string) => ({
+    matches: true,
+    media: query,
+    addEventListener: () => {},
+    removeEventListener: () => {},
+  })) as unknown as typeof window.matchMedia;
+  try {
+    const view = render(
+      <RegisterSummary months={months} kind="balance" today="2026-10-15" pending={false} />,
+    );
+    expect(view.container.textContent).toBe('');
+  } finally {
+    window.matchMedia = original;
+  }
 });

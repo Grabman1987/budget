@@ -23,9 +23,23 @@ export async function openAccountCapture(page: Page) {
 
 /** Phone filters live in a sheet; desktop keeps the inline controls. */
 export async function openLedgerFilters(page: Page) {
-  await page.getByLabel('In Buchungen suchen').waitFor({ state: 'visible' });
   const trigger = page.getByRole('button', { name: /^Filter \(/ });
+  await trigger.or(page.getByLabel('In Buchungen suchen')).first().waitFor({ state: 'visible' });
   if (await trigger.isVisible()) await trigger.click();
+}
+
+/** The text search: inline on desktop, first field of the filter sheet on the phone. */
+export async function bookingSearch(page: Page): Promise<Locator> {
+  const input = page.getByLabel('In Buchungen suchen');
+  if (!(await input.isVisible())) await openLedgerFilters(page);
+  await input.waitFor({ state: 'visible' });
+  return input;
+}
+
+/** Types a search and, on the phone, closes the sheet again. */
+export async function fillBookingSearch(page: Page, text: string) {
+  await (await bookingSearch(page)).fill(text);
+  await applyLedgerFilters(page);
 }
 
 export async function applyLedgerFilters(page: Page) {

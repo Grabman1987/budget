@@ -969,6 +969,22 @@
 .kfilter-sheet .kf-closed {
   min-height: 44px;
 }
+/* "Geschlossene Konten zeigen" is its own full-width row in the sheet; never the desktop
+   absolute hang-below, which collided with the next field. */
+.kfilter-sheet .kfilter > .kf.kf-closed-row {
+  flex: 1 1 100%;
+}
+.kfilter-sheet .kfilter > .kf > .kf-closed {
+  position: static;
+  margin-top: 0;
+}
+.kfilter-sheet .kfilter:has(.kf-closed) {
+  padding-bottom: 14px;
+}
+.kfilter-sheet > .kf-search {
+  max-width: none;
+  margin-bottom: 12px;
+}
 .kfilter-actions {
   display: flex;
   justify-content: space-between;
