@@ -66,6 +66,9 @@ export function QueueProvider({ children }: { children: ReactNode }) {
         () => held.current,
         manual === true,
       )
+        .then((settled) => {
+          if (settled) void qc.invalidateQueries();
+        })
         .catch((e: unknown) => setError(queueReason(e)))
         .finally(() => {
           sendingRef.current = false;

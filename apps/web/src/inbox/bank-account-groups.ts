@@ -28,17 +28,17 @@ export function bankAccountGroups(entries: InboxEntry[], accounts: BankSyncRecap
     const bank = isBankInboxRow(entry);
     const row =
       entry.type === 'booking' ? entry : entry.type === 'stored' ? entry.bankCandidate : undefined;
-    const id =
-      bank && row?.accountId
-        ? row.accountId
-        : bank
-          ? `legacy:${row?.accountName ?? entry.id}`
-          : 'other';
+    // Open items of accounts without bank sync (e.g. a cash wallet) get their own account group.
+    const id = row?.accountId
+      ? row.accountId
+      : bank
+        ? `legacy:${row?.accountName ?? entry.id}`
+        : 'other';
     let group = groups.get(id);
     if (!group) {
       group = {
         id,
-        name: bank ? (row?.accountName ?? 'Bankumsätze') : 'Weitere Umsätze',
+        name: row ? row.accountName || 'Bankumsätze' : 'Weitere Umsätze',
         entries: [],
       };
       groups.set(id, group);

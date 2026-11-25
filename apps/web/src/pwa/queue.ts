@@ -56,6 +56,14 @@ export function queueReason(error: unknown): string {
   return error instanceof Error ? error.message : 'Die Warteschlange ist nicht verfügbar.';
 }
 
+/** The queued change only confirms a booking that is no longer pending: nothing is left to do. */
+const isAlreadySettled = (item: QueuedBooking, error: unknown) =>
+  error instanceof ApiError &&
+  error.code === 'booking_not_pending' &&
+  item.change?.patch.status === 'confirmed';
+
+const SETTLED = 'settled' as const;
+
 async function deliver(item: QueuedBooking) {
   setQueuedSending(item.id, true);
   let uncertain = item.uncertain;
@@ -95,6 +103,10 @@ async function deliver(item: QueuedBooking) {
     });
     return result;
   } catch (error) {
+    if (!checking && isAlreadySettled(item, error)) {
+      await completeQueued({ id: item.id, bookingIds: [], savedAt: new Date().toISOString() });
+      return SETTLED;
+    }
     uncertain =
       uncertain &&
       (!(error instanceof ApiError) ||
@@ -161,7 +173,8 @@ export async function submitCapture(
     // Older captures retain priority, including a conflict awaiting an owner decision.
     if ((await listQueue()).find((row) => !row.rejected)?.id !== item.id) return null;
     try {
-      return await deliver(item);
+      const sent = await deliver(item);
+      return sent === SETTLED ? null : sent;
     } catch (error) {
       // Keep definite edit refusals actionable in the form. Unclear receipt stays queued and
       // closes capture through booking_queued, so a later acknowledgement cannot duplicate repeat.
@@ -193,18 +206,22 @@ export const sendQueue = (
   retryRejected = false,
 ) =>
   withQueueLock(async () => {
-    if (!navigator.onLine) return;
+    let settled = 0;
+    if (!navigator.onLine) return settled;
     for (const item of await listQueue()) {
       if (heldItem() === item.id) break;
       if (item.rejected && !retryRejected) continue;
       try {
         const sent = await deliver(item);
-        if (sent) onSent(sent);
+        if (sent === SETTLED) settled += 1;
+        else if (sent) onSent(sent);
       } catch (error) {
         if (isRejection(error)) continue;
         break;
       }
     }
+    /** Entries dropped because the booking was already settled: the caller refreshes its data. */
+    return settled;
   });
 
 /** Background Sync is only a wake-up hint for open pages, never a required delivery path. */
