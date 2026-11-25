@@ -420,12 +420,16 @@ it.each(['month', 'payday'] as const)(
     mount(`/?monat=2026-09&period=${period}`);
     await screen.findByTestId('heute-wealth-history');
     await ready();
-    const primary = screen.getByRole('region', { name: /^Frei bis Gehalt$/ });
+    // Period month leads with Frei bis Monatsende, period payday with Frei bis Gehalt (2026-11-25).
+    const leadName = period === 'month' ? 'Frei bis Monatsende' : 'Frei bis Gehalt';
+    const primary = screen.getByRole('region', { name: leadName });
     // Cash-flow figure: the seeded cash 1234.56, no inflows, no open bills, no Dispo.
     expect(within(primary).getByTestId('heute-lead-value').textContent).toBe('1.234,56 €');
     expect(
       within(primary)
-        .getByRole('link', { name: /Frei verfügbar bis Gehalt/ })
+        .getByRole('link', {
+          name: period === 'month' ? /Frei verfügbar bis Monatsende/ : /Frei verfügbar bis Gehalt/,
+        })
         .getAttribute('href'),
     ).toContain('/heute/details/free');
     expect(primary.getAttribute('data-as-of')).toBe('2026-09-17');

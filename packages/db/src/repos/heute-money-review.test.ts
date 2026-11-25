@@ -73,7 +73,8 @@ it.each([
     .where(eq(expectedOccurrence.expectedPaymentId, 'linked'))
     .get()!;
   linkOccurrence(db, occurrence.id, b, testCtx);
-  const h = heute(db, { today });
+  // Payday boundary: period month leads with Frei bis Monatsende (2026-11-25).
+  const h = heute(db, { today, period: 'payday' });
   expect(h.lead.freeCents).toBe(expected);
   expect(h.lead.balanceCents).toBe(100_000);
   const f = forecastInputs(loadFacts(db, today), today, { byAccount: { giro: 100_000 } });
@@ -224,7 +225,7 @@ it.each([
     .where(eq(expectedOccurrence.expectedPaymentId, 'linked-future'))
     .get()!;
   linkOccurrence(db, occurrence.id, id, testCtx);
-  expect(heute(db, { today }).lead.freeCents).toBe(expected);
+  expect(heute(db, { today, period: 'payday' }).lead.freeCents).toBe(expected);
   const f = forecastInputs(loadFacts(db, today), today, { byAccount: { giro: 100_000 } });
   expect(
     liquidityForecast({ ...f, days: 4, variablePerDay: () => 0 }).days.at(-1)?.balanceCents,

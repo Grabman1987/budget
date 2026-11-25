@@ -138,8 +138,10 @@ owner live acceptance is pending.
   - Ein kombinierter Zettel (laufendes Gehalt plus Sonderzahlung) wird nie geteilt: Sonderzahlungen gehören in den Monat der Auszahlung und zählen voll in dessen Brutto, Netto und Summe (Entscheidung 17.11.2026, #1207). Es gibt weder „Aufteilung unklar“ noch eine Prüfen-Aufgabe zum Teilen.
   - Der Verlauf „Brutto und Netto je Monat“ enthält Sonderzahlungen und zählt Telearbeit und Fahrgeld als Gehalt; Jahressummen und Vorjahresvergleich enthalten Sonderzahlungen (Hinweis in der Oberfläche).
   - Telearbeit und Fahrgeld zählen als Gehalt; nur Reisespesen bleiben ausgenommen („ohne Reisespesen“). Die Regel steht an einer Stelle (`wage-label-rules.ts`); gespeicherte Zettel, Jahressummen und Sparquote bleiben unverändert.
+  - Ein kombinierter Monat wird als solcher gekennzeichnet („inkl. Sonderzahlung (brutto 6.985,00 €)“), sobald Lohnzeilen der Sonderzahlung zugeordnet sind; Netto und Steuer bleiben ungeteilt (#1321). Ohne Zuordnung wird nichts geraten; liegt das Brutto eines laufenden Zettels über dem bisherigen laufenden Brutto desselben Arbeitgebers, erscheint der Monat unter „Unbekannte Lohnarten zuordnen“.
+  - „Ø laufendes Netto“ rechnet Monate mit Sonderzahlung nicht mit und nennt die Anzahl der ausgenommenen Monate.
   - Beträge folgen dem Datenschutzschalter; kein „+“ vor Beträgen.
-- **Status:** in Prüfung · **Verweis:** #1207
+- **Status:** in Prüfung · **Verweis:** #1207, #1321
 
 ### RP-04 – Monat mit Sonderzahlung korrekt darstellen (geplant)
 - **Story:** Als Nutzer möchte ich einen Monat mit Sonderzahlung ohne erfundene Netto- oder Steueraufteilung sehen, damit der Report die Auszahlung korrekt abbildet und keine falsche Warnung zu einem fehlenden Sondergehalt erscheint.

@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { liquidityForecast } from '../forecast/liquidity';
 import { addDays } from '../date';
-import { freeUntilPayday, overdraftLastResort, type FreeAccount } from './free-until-payday';
+import {
+  freeUntilBoundary,
+  freeUntilPayday,
+  overdraftLastResort,
+  type FreeAccount,
+} from './free-until-payday';
 
 const acc = (
   id: string,
@@ -141,4 +146,76 @@ it('keeps the default lead chain at cent precision', () => {
     openOutflows: [{ id: 'x', label: 'x', day: base.today, cents: 103 }],
   });
   expect(r.chain.map((t) => t.value)).toEqual([1001, 103, 898]);
+});
+
+describe('freeUntilBoundary monthEnd ("Frei bis Monatsende")', () => {
+  const monthEnd = { day: '2026-11-30', kind: 'monthEnd' as const };
+  const input = { today: '2026-11-25', boundary: monthEnd };
+
+  it('counts outflows through the last day, excludes the following month; no inflows', () => {
+    const r = freeUntilBoundary({
+      ...input,
+      accounts: [acc('giro', 200_000, null)],
+      openOutflows: [
+        { id: 'a', label: 'Strom', day: '2026-11-26', cents: 10_000 },
+        { id: 'b', label: 'Letzter', day: '2026-11-30', cents: 5_000 },
+        { id: 'c', label: 'Miete', day: '2026-12-01', cents: 80_000 },
+        { id: 'd', label: 'Gehaltstag', day: '2026-12-15', cents: 1_000 },
+      ],
+    });
+    expect(r.openCents).toBe(15_000);
+    expect(r.freeCents).toBe(185_000);
+    expect(r.items.open.map((o) => o.id)).toEqual(['a', 'b']);
+    expect(r.boundary).toEqual(monthEnd);
+    // Today and the last day both count: 25.-30. = 6 days.
+    expect(r.daysToBoundary).toBe(6);
+    expect(r.chain.map((t) => t.label)).toEqual([
+      'Kontostand',
+      'offen bis Monatsende',
+      'frei verfügbar',
+    ]);
+  });
+
+  it('counts an overdue outflow exactly once and keeps the Dispo out of free money', () => {
+    const r = freeUntilBoundary({
+      ...input,
+      accounts: [acc('giro', 50_000, 100_000)],
+      openOutflows: [{ id: 'late', label: 'Überfällig', day: '2026-11-10', cents: 20_000 }],
+    });
+    expect(r.openCents).toBe(20_000);
+    expect(r.freeCents).toBe(30_000);
+    expect(r.lastResortCents).toBe(100_000);
+  });
+
+  it('is one day on the last day of the month, and payday kind equals freeUntilPayday', () => {
+    expect(
+      freeUntilBoundary({
+        today: '2026-11-30',
+        boundary: monthEnd,
+        accounts: [],
+        openOutflows: [],
+      }).daysToBoundary,
+    ).toBe(1);
+    const args = {
+      accounts: [acc('giro', 200_000, null)],
+      openOutflows: [{ id: 'o', label: 'x', day: '2026-12-02', cents: 1_000 }],
+      today: '2026-11-25',
+    };
+    const viaPayday = freeUntilPayday({ ...args, payday: '2026-12-15' });
+    const viaBoundary = freeUntilBoundary({
+      ...args,
+      boundary: { day: '2026-12-15', kind: 'payday' },
+    });
+    expect(viaBoundary.freeCents).toBe(viaPayday.freeCents);
+    expect(viaBoundary.daysToBoundary).toBe(viaPayday.daysToPayday);
+    expect(Object.keys(viaPayday)).toEqual([
+      'balanceCents',
+      'openCents',
+      'lastResortCents',
+      'freeCents',
+      'daysToPayday',
+      'chain',
+      'items',
+    ]);
+  });
 });

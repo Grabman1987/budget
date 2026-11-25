@@ -30,6 +30,8 @@ import {
   payee,
   category,
   incomeType,
+  statementSettlement,
+  statementSettlementConfig,
 } from '../schema';
 import { insertTracked, updateTracked, withGroup, type AuditContext } from './audit';
 import { ConflictError, EntityNotFoundError } from './errors';
@@ -40,6 +42,7 @@ import {
   type BookingPatch,
   type SplitInput,
 } from './bookings';
+import { SETTLEMENT_DEBIT_WINDOW_DAYS } from './statement-settlement';
 import { runInTransaction, type Executor } from './types';
 
 export type AssignmentRule = AssignmentRuleInput & {
@@ -515,6 +518,112 @@ function uncheckedInboxBooking(db: Executor, id: string) {
     throw new ConflictError('Nur offene, ungeprüfte Buchungen können einen Vorschlag übernehmen.');
   return row;
 }
+/** Id prefix of the generated card-settlement proposal (never a stored rule). */
+export const CARD_SETTLEMENT_RULE_PREFIX = 'card-settlement:';
+
+/**
+ * #1319: a bank debit on the funding account of an enabled settlement configuration whose
+ * counterparty paid an earlier settlement of that card (same payee or the same cleaned bank text)
+ * is the card bill: it is proposed as a transfer to the card, never as a category. Without a
+ * statement the existing statement automation does nothing, so the debit would stay uncategorised
+ * while the card debt stays unchanged. Read-only; exactly one matching card or no proposal.
+ */
+function cardSettlementSuggestion(
+  db: Executor,
+  row: NonNullable<ReturnType<typeof getBooking>>,
+  counterparty: string,
+  payeeId: string | null,
+): (AssignmentRule & { unavailable: string | null }) | null {
+  if (row.source !== 'bank' || row.amountCents >= 0 || row.transferId) return null;
+  const key = bankAliasKey(counterparty);
+  const matches: { card: typeof account.$inferSelect; revision: string }[] = [];
+  const configs = db
+    .select()
+    .from(statementSettlementConfig)
+    .where(
+      and(
+        eq(statementSettlementConfig.fundingAccountId, row.accountId),
+        eq(statementSettlementConfig.enabled, true),
+        isNull(statementSettlementConfig.deletedAt),
+      ),
+    )
+    .all();
+  for (const config of configs) {
+    const card = db.select().from(account).where(eq(account.id, config.cardAccountId)).get();
+    if (
+      !card ||
+      card.deletedAt ||
+      card.closedAt ||
+      card.type !== 'credit_card' ||
+      card.currency !== row.currency
+    )
+      continue;
+    // The statement already accounts for this payment (or is waiting for it): proposing another
+    // transfer would pay the bill twice. Open settlements block any amount; a represented one
+    // blocks the same amount. The window covers a bank debit a few days off the printed date.
+    const day = (iso: string) => Date.parse(`${iso}T00:00:00Z`);
+    const covered = db
+      .select()
+      .from(statementSettlement)
+      .where(
+        and(
+          eq(statementSettlement.cardAccountId, card.id),
+          eq(statementSettlement.fundingAccountId, row.accountId),
+          isNull(statementSettlement.deletedAt),
+          inArray(statementSettlement.state, ['open', 'represented']),
+        ),
+      )
+      .all()
+      .some(
+        (r) =>
+          Math.abs(day(r.debitDate) - day(row.date)) <= SETTLEMENT_DEBIT_WINDOW_DAYS * 86_400_000 &&
+          (r.state === 'open' || r.payableCents === -row.amountCents),
+      );
+    if (covered) continue;
+    const earlier = db
+      .select({ booking })
+      .from(statementSettlement)
+      .innerJoin(booking, eq(booking.id, statementSettlement.fromBookingId))
+      .where(
+        and(
+          eq(statementSettlement.cardAccountId, card.id),
+          eq(statementSettlement.state, 'represented'),
+          isNull(statementSettlement.deletedAt),
+          isNull(booking.deletedAt),
+        ),
+      )
+      .all()
+      .map((r) => r.booking);
+    const known = earlier.some(
+      (b) =>
+        (payeeId !== null && b.payeeId === payeeId) ||
+        (key !== '' && bankAliasKey(bookingCounterparty(db, b)) === key),
+    );
+    if (known)
+      matches.push({
+        card,
+        revision: createHash('sha256')
+          .update(
+            JSON.stringify([card.id, config.fundingAccountId, config.updatedAt, earlier.length]),
+          )
+          .digest('hex'),
+      });
+  }
+  if (matches.length !== 1) return null;
+  const { card, revision } = matches[0]!;
+  return {
+    id: CARD_SETTLEMENT_RULE_PREFIX + card.id,
+    name: `Kartenabrechnung → Umbuchung auf ${card.name}`,
+    priority: -1,
+    revision,
+    enabled: true,
+    automatic: false,
+    match: { mode: 'all', conditions: [] },
+    actions: { transferAccountId: card.id },
+    unavailable: null,
+  };
+}
+
 export function readBookingAssignments(db: Executor, id: string) {
   const row = uncheckedInboxBooking(db, id);
   const cleanup = suggestedBankPayee(
@@ -523,14 +632,24 @@ export function readBookingAssignments(db: Executor, id: string) {
     row.bankRawPayee,
     row.bankRawText ?? row.memo ?? '',
   );
+  const counterparty = bookingCounterparty(db, row);
+  const card = cardSettlementSuggestion(db, row, counterparty, row.payeeId ?? cleanup.payeeId);
   return {
     cleanup,
-    suggestions: assignmentSuggestions(db, {
-      ...row,
-      payeeId: row.payeeId ?? cleanup.payeeId,
-      rawText: bankAssignmentText(row.bankRawPayee, row.bankRawText ?? row.memo ?? ''),
-      counterparty: bookingCounterparty(db, row),
-    }).filter((rule) => row.source === 'bank' || rule.id.startsWith('inbox-learn:')),
+    suggestions: [
+      ...(card ? [card] : []),
+      // A card bill is never categorised: stored and learned category rules stay out of sight.
+      ...assignmentSuggestions(db, {
+        ...row,
+        payeeId: row.payeeId ?? cleanup.payeeId,
+        rawText: bankAssignmentText(row.bankRawPayee, row.bankRawText ?? row.memo ?? ''),
+        counterparty,
+      }).filter(
+        (rule) =>
+          (row.source === 'bank' || rule.id.startsWith('inbox-learn:')) &&
+          !(card && !rule.actions.transferAccountId),
+      ),
+    ],
   };
 }
 

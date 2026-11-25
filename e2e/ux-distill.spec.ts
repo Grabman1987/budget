@@ -36,7 +36,7 @@ test('Heute keeps its device fold choice and the primary order, net worth matche
 }, info) => {
   test.setTimeout(60_000);
   await openHeuteReview(page, '/?monat=2026-09');
-  await expect(page.getByRole('heading', { name: 'Frei bis Gehalt', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /^Frei bis (Gehalt|Monatsende)$/ })).toBeVisible();
   const fold = page.getByRole('button', { name: 'Mehr zum Monat' });
   const initiallyOpen = info.project.name === 'desktop';
   await expect(fold).toHaveAttribute('aria-expanded', String(initiallyOpen));

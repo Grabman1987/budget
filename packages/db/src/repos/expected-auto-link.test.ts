@@ -70,7 +70,7 @@ const proposals = () =>
     .from(inboxItem)
     .all()
     .filter((i) => i.refType === LINK_PROPOSAL_REF);
-const openOutflowCents = () => heute(db, { today: TODAY }).lead.openCents;
+const openOutflowCents = () => heute(db, { today: TODAY, period: 'payday' }).lead.openCents;
 const forecastDays = (label: string) =>
   forecastInputs(loadFacts(db, TODAY), TODAY, { byAccount: { giro: 100_000 } })
     .items.filter((i) => i.label === label)

@@ -25,6 +25,9 @@ it('labels whole regular or combined documents without claiming a comparable run
           specialCents: 0,
           totalCents: 340000,
           specialSlipIds: [],
+          containsSpecial: false,
+          specialGrossCents: null,
+          openMappingSlipIds: [],
         },
       ]}
     />,
@@ -35,6 +38,39 @@ it('labels whole regular or combined documents without claiming a comparable run
     'kein vergleichbares laufendes Monatsnetto',
   );
   expect(screen.getByTestId('payroll-net-table').textContent).toContain('3.400,00 €');
+});
+it('marks a combined month with its special gross, excludes it from the running average and lists open mappings', () => {
+  const row = (month: string, runningCents: number, over = {}) => ({
+    month,
+    recorded: true,
+    runningCents,
+    specialCents: 0,
+    totalCents: runningCents,
+    specialSlipIds: [],
+    containsSpecial: false,
+    specialGrossCents: null,
+    openMappingSlipIds: [],
+    ...over,
+  });
+  render(
+    <PayrollNetComposition
+      rows={[
+        row('2026-04', 400000),
+        row('2026-05', 400000),
+        row('2026-06', 800000, { containsSpecial: true, specialGrossCents: 698500 }),
+        row('2026-07', 800000, { openMappingSlipIds: ['x'] }),
+      ]}
+    />,
+  );
+  expect(screen.getByTestId('payroll-contains-special').textContent).toContain(
+    'inkl. Sonderzahlung (brutto 6.985,00 €)',
+  );
+  expect(screen.getByTestId('payroll-running-average').textContent).toBe(
+    'Ø laufendes Netto: 4.000,00 € (2 Monate, 1 Monat inkl. Sonderzahlung nicht berücksichtigt, 1 Monat nicht zuordenbar).',
+  );
+  expect(screen.getByTestId('payroll-open-mapping').textContent).toContain(
+    'Unbekannte Lohnarten zuordnen',
+  );
 });
 it('ON calculation keeps earnings, signed corrections, deductions and reimbursements in recorded cents', () => {
   const totals = payrollTotals([

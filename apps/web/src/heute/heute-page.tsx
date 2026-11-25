@@ -39,6 +39,7 @@ import { sourceMoney } from '../wealth/trade-api';
 import { Kennzahlen } from './kennzahlen';
 import { budgetQuery } from '../budget/budget-api';
 import { DailyBudgetLine } from './charts';
+import { leadView } from './lead-boundary';
 import { VerdictLine } from '../reports/verdict-line';
 import { heuteVerdictFacts } from '../reports/verdict-facts';
 import { Upcoming } from './upcoming-payments';
@@ -205,7 +206,7 @@ function HeuteBody({
     <>
       {data ? (
         <>
-          <section className="heute-lead" aria-label="Spielraum bis Gehalt">
+          <section className="heute-lead" aria-label={`Spielraum ${leadView(data).until}`}>
             {REDESIGN_ENABLED && (
               <PrimaryLead
                 data={data}
@@ -230,16 +231,17 @@ function HeuteBody({
             </div>
             {away && (
               <span className="heute-anchor" data-testid="heute-anchor">
-                Frei bis Gehalt: Stand heute · {longDay(data.stand.today)}. Ansicht:{' '}
+                {leadView(data).title}: Stand heute · {longDay(data.stand.today)}. Ansicht:{' '}
                 {monthName(data.stand.month)}.
               </span>
             )}
             {chainOpen && (
               <div id="heute-lead-chain" className="heute-chain-area">
-                <h2 id="heute-lead-title">Spielraum bis Gehalt</h2>
+                <h2 id="heute-lead-title">Spielraum {leadView(data).until}</h2>
                 <p>
-                  Kontostand der Budget-Konten, abzüglich der Rechnungen, die vor dem Gehalt noch
-                  fällig sind. Weder Dispo noch erwartete Eingänge zählen mit.
+                  Kontostand der Budget-Konten, abzüglich der Rechnungen, die{' '}
+                  {leadView(data).kind === 'monthEnd' ? 'bis zum Monatsende' : 'vor dem Gehalt'}{' '}
+                  noch fällig sind. Weder Dispo noch erwartete Eingänge zählen mit.
                 </p>
                 {data.lead.lastResortCents > 0 && (
                   <p data-testid="heute-last-resort">
@@ -249,7 +251,7 @@ function HeuteBody({
                 )}
                 <DimensionChain
                   terms={leadTerms}
-                  label="Maßkette: Kontostand minus offene Rechnungen bis Gehalt"
+                  label={`Maßkette: Kontostand minus offene Rechnungen ${leadView(data).until}`}
                   precision="cent"
                 />
                 {REDESIGN_ENABLED && (
@@ -274,7 +276,8 @@ function HeuteBody({
                 )}
                 {leadDetail && <LeadDetail data={data} kind={leadDetail} />}
                 <p className="heute-note">
-                  Wähle Kontostand oder offen bis Gehalt für die zugehörigen Konten und Zahlungen.
+                  Wähle Kontostand oder offen {leadView(data).until} für die zugehörigen Konten und
+                  Zahlungen.
                 </p>
               </div>
             )}
@@ -893,7 +896,7 @@ function PrimaryLead({
   useAmountPrivacy();
   return (
     <div className="heute-primary">
-      <h2>Frei bis Gehalt</h2>
+      <h2>{data ? leadView(data).title : 'Frei bis Gehalt'}</h2>
       <div className="heute-primary-answer">
         {data ? (
           <button
@@ -903,7 +906,7 @@ function PrimaryLead({
             aria-expanded={open}
             aria-controls="heute-lead-chain"
             aria-describedby={open ? 'heute-lead-chain' : undefined}
-            aria-label={`Frei verfügbar bis Gehalt: ${eur(data.lead.freeCents)}. Herleitung ${open ? 'ausblenden' : 'zeigen'}`}
+            aria-label={`Frei verfügbar ${leadView(data).until}: ${eur(data.lead.freeCents)}. Herleitung ${open ? 'ausblenden' : 'zeigen'}`}
             onClick={onToggle}
           >
             {eur(data.lead.freeCents)}
@@ -925,7 +928,8 @@ function PrimaryLead({
         </Button>
       </div>
       <p className="heute-note heute-primary-definition">
-        Kontostand minus offene Rechnungen bis Gehalt; ohne Dispo und ohne erwartete Eingänge.
+        Kontostand minus offene Rechnungen {data ? leadView(data).until : 'bis Gehalt'}; ohne Dispo
+        und ohne erwartete Eingänge.
         {data && data.lead.lastResortCents > 0
           ? ` Letzte Reserve (Dispo): ${eur(data.lead.lastResortCents)}.`
           : ''}
@@ -933,8 +937,8 @@ function PrimaryLead({
       <p className="heute-note heute-primary-source">
         {data ? (
           <>
-            Stand heute · {longDay(data.stand.today)} · bis {longDay(data.stand.payday.day)} · noch{' '}
-            {data.stand.payday.daysToPayday} Tage
+            Stand heute · {longDay(data.stand.today)} · bis {longDay(leadView(data).day)} · noch{' '}
+            {leadView(data).days} Tage
           </>
         ) : pending ? (
           'Stand wird noch geladen.'
@@ -1145,7 +1149,7 @@ function LeadDetail({ data, kind }: { data: Heute; kind: 'balance' | 'open' }) {
   if (kind === 'open')
     return (
       <div className="heute-breakdown" aria-live="polite">
-        <h3>Offen bis Gehalt</h3>
+        <h3>Offen {leadView(data).until}</h3>
         {data.lead.items.open.length ? (
           <ul>
             {data.lead.items.open.map((item) => (
@@ -1158,7 +1162,10 @@ function LeadDetail({ data, kind }: { data: Heute; kind: 'balance' | 'open' }) {
             ))}
           </ul>
         ) : (
-          <p>Keine offenen Rechnungen vor dem Gehalt.</p>
+          <p>
+            Keine offenen Rechnungen{' '}
+            {leadView(data).kind === 'monthEnd' ? 'bis zum Monatsende' : 'vor dem Gehalt'}.
+          </p>
         )}
       </div>
     );

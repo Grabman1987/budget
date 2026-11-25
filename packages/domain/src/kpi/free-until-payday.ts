@@ -1,5 +1,5 @@
 import { balanceChain, type ChainTerm } from '../chain';
-import { daysBetween } from '../date';
+import { addDays, daysBetween } from '../date';
 import { cents } from '../money/cents';
 
 /**
@@ -79,19 +79,51 @@ export function overdraftLastResort(
   );
 }
 
-export function freeUntilPayday(input: FreeUntilPaydayInput): FreeUntilPayday {
+export type LeadBoundaryKind = 'payday' | 'monthEnd';
+
+export interface LeadBoundary {
+  /** Shown day `YYYY-MM-DD`: the payday, or the last day of the month. */
+  day: string;
+  kind: LeadBoundaryKind;
+}
+
+export interface FreeUntilBoundaryInput extends Omit<FreeUntilPaydayInput, 'payday'> {
+  boundary: LeadBoundary;
+}
+
+export interface FreeUntilBoundary extends Omit<FreeUntilPayday, 'daysToPayday'> {
+  boundary: LeadBoundary;
+  /**
+   * Whole days from today to the boundary. Payday: days until payday (payday itself starts the
+   * new window). Month end: today counts, the last day counts (days until the next month starts).
+   */
+  daysToBoundary: number;
+}
+
+/**
+ * "Frei bis Gehalt" / "Frei bis Monatsende": one definition, two boundaries. Outflows due before
+ * the boundary count; for `monthEnd` the last day of the month is still part of the window. No
+ * overdraft and no expected inflows in either variant.
+ */
+export function freeUntilBoundary(input: FreeUntilBoundaryInput): FreeUntilBoundary {
   input.accounts.forEach((a) => {
     cents(a.balanceCents);
     cents(a.overdraftLimitCents ?? 0);
   });
   input.openOutflows.forEach((o) => cents(o.cents));
-  const open = input.openOutflows.filter((o) => o.day < input.payday);
+  const { boundary } = input;
+  const cutoff = boundary.kind === 'monthEnd' ? addDays(boundary.day, 1) : boundary.day;
+  const open = input.openOutflows.filter((o) => o.day < cutoff);
   const balanceCents = sum(input.accounts.map((a) => a.balanceCents));
   const openCents = sum(open.map((o) => o.cents));
   const freeCents = balanceCents - openCents;
   const terms: ChainTerm[] = [
     { label: 'Kontostand', value: cents(balanceCents) },
-    { label: 'offen bis Gehalt', value: cents(openCents), op: '-' },
+    {
+      label: boundary.kind === 'monthEnd' ? 'offen bis Monatsende' : 'offen bis Gehalt',
+      value: cents(openCents),
+      op: '-',
+    },
   ];
   terms.push({ label: 'frei verfügbar', value: cents(freeCents), op: '=', result: true });
   return {
@@ -99,8 +131,28 @@ export function freeUntilPayday(input: FreeUntilPaydayInput): FreeUntilPayday {
     openCents,
     lastResortCents: overdraftLastResort(input.accounts),
     freeCents,
-    daysToPayday: daysBetween(input.today, input.payday),
+    boundary,
+    daysToBoundary: daysBetween(input.today, cutoff),
     chain: balanceChain(terms, 'cent'),
     items: { accounts: [...input.accounts], open },
+  };
+}
+
+export function freeUntilPayday(input: FreeUntilPaydayInput): FreeUntilPayday {
+  const r = freeUntilBoundary({
+    accounts: input.accounts,
+    openOutflows: input.openOutflows,
+    today: input.today,
+    boundary: { day: input.payday, kind: 'payday' },
+  });
+  // Key order is part of the API bytes.
+  return {
+    balanceCents: r.balanceCents,
+    openCents: r.openCents,
+    lastResortCents: r.lastResortCents,
+    freeCents: r.freeCents,
+    daysToPayday: r.daysToBoundary,
+    chain: r.chain,
+    items: r.items,
   };
 }

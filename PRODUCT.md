@@ -318,6 +318,7 @@ Verbindliche Definitionen mit der jeweils einen Funktion: SPEC „Financial term
 - **Zu verteilen:** Geld auf den Budget-Konten, das noch keinem Umschlag gehört.
 - **Gebundene Rücklagen:** Rücklage-Konten decken zuerst das Notgroschen-Ziel (Zielmonate × durchschnittlicher Bedarf). Hinzu kommen fehlendes Zielgeld und verfügbare Zukunfts-Umschläge. Nur der Überschuss auf Budget-Rücklage-Konten oberhalb des Ziels wird mit den Umschlägen verrechnet, damit kein Geld doppelt zählt. Rücklagen außerhalb des Budgets werden nicht mit Umschlägen verrechnet.
 - **Frei bis Gehalt:** Kontostand der Budget-Konten minus offene Zahlungen bis zum nächsten Gehalt. Weder Dispo noch erwartete Eingänge zählen mit.
+- **Frei bis Monatsende:** dieselbe Zahl mit der Grenze „letzter Tag des laufenden Monats“; Leitzahl von Heute in der Ansicht „Monat“ (in „Bis Gehalt“ gilt Frei bis Gehalt).
 - **Letzte Reserve (Dispo):** der noch nicht genutzte Dispo-Rahmen; Bankkredit, nie freies Geld, eigene Zeile.
 - **Verbindlichkeiten (brutto):** alles, was du schuldest: jeder negative Kontowert (Kredit, Karte, genutzter Dispo).
 - **Nettovermögen:** Summe aller Kontowerte; auf jeder Seite gleich.

@@ -1,5 +1,5 @@
 import { ChartSvg, useAmountPrivacy } from '@budget/ui';
-import type { payrollNetComposition } from '@budget/domain';
+import { runningNetAverage, type payrollNetComposition } from '@budget/domain';
 import { chartPoints } from '../charts/tooltip-data';
 import { useElementWidth } from '../charts/use-element-width';
 import { eur } from '../ledger/format';
@@ -22,6 +22,8 @@ export function PayrollNetComposition({ rows, height = 220 }: { rows: Row[]; hei
   const slot = (width - left - 12) / Math.max(1, rows.length);
   const x = (i: number) => left + (i + 0.5) * slot;
   const bar = Math.max(3, slot * 0.6);
+  const average = runningNetAverage(rows);
+  const openTasks = rows.filter((r) => r.openMappingSlipIds.length > 0);
   return (
     <div ref={ref} className="pp-net-composition" data-testid="payroll-net-composition">
       <ChartSvg
@@ -95,6 +97,26 @@ export function PayrollNetComposition({ rows, height = 220 }: { rows: Row[]; hei
         Kombinierte Zettel bleiben ungeteilt; ihr Netto ist kein vergleichbares laufendes
         Monatsnetto. Telearbeit und Fahrgeld zählen als Gehalt, Reisespesen sind ausgenommen.
       </p>
+      <p className="r9-meta" data-testid="payroll-running-average">
+        {average.averageCents === null
+          ? 'Ø laufendes Netto: keine auswertbaren Monate ohne Sonderzahlung.'
+          : `Ø laufendes Netto: ${eur(average.averageCents)} (${average.months} ${average.months === 1 ? 'Monat' : 'Monate'}${
+              average.excludedMonths
+                ? `, ${average.excludedMonths} ${average.excludedMonths === 1 ? 'Monat' : 'Monate'} inkl. Sonderzahlung nicht berücksichtigt`
+                : ''
+            }${
+              average.openMappingMonths
+                ? `, ${average.openMappingMonths} ${average.openMappingMonths === 1 ? 'Monat' : 'Monate'} nicht zuordenbar`
+                : ''
+            }).`}
+      </p>
+      {openTasks.length > 0 && (
+        <p className="r9-meta" role="note" data-testid="payroll-open-mapping">
+          Unbekannte Lohnarten zuordnen: {openTasks.map((r) => shortMonth(r.month)).join(', ')} –
+          die Bezüge liegen über dem bisherigen laufenden Brutto; eine Sonderzahlung wird erst nach
+          der Zuordnung gekennzeichnet.
+        </p>
+      )}
       <div
         className="rscroll pp-scroll"
         role="region"
@@ -121,7 +143,18 @@ export function PayrollNetComposition({ rows, height = 220 }: { rows: Row[]; hei
               .map((r) => (
                 <tr key={r.month}>
                   <th scope="row">{shortMonth(r.month)}</th>
-                  <td className="n">{r.runningCents !== null ? eur(r.runningCents) : '—'}</td>
+                  <td className="n">
+                    {r.runningCents !== null ? eur(r.runningCents) : '—'}
+                    {r.containsSpecial && (
+                      <small data-testid="payroll-contains-special">
+                        {' '}
+                        inkl. Sonderzahlung
+                        {r.specialGrossCents !== null
+                          ? ` (brutto ${eur(r.specialGrossCents)})`
+                          : ''}
+                      </small>
+                    )}
+                  </td>
                   <td className="n">{r.specialCents ? eur(r.specialCents) : '—'}</td>
                   <td className="n">{eur(r.totalCents ?? 0)}</td>
                 </tr>

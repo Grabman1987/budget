@@ -33,12 +33,14 @@ function heute(...args: Parameters<typeof readHeute>) {
 let month: ReturnType<typeof heute>;
 let payday: ReturnType<typeof heute>;
 let unrefreshed: ReturnType<typeof heute>;
+let unrefreshedPayday: ReturnType<typeof heute>;
 beforeAll(() => {
   db = createTestDatabase().db;
   seedDatabase(db);
   ensureDefaultRules(db);
   // Without materialised occurrences the model reads the schedule.
   unrefreshed = heute(db, { today: TODAY, period: 'month' });
+  unrefreshedPayday = heute(db, { today: TODAY, period: 'payday' });
   refreshOccurrences(db, TODAY);
   matchOccurrences(db, TODAY);
   month = heute(db, { today: TODAY, period: 'month' });
@@ -89,7 +91,7 @@ describe('prototype figures reproduced', () => {
   });
 
   it('deducts the literal scheduled bills before 15 October, excluding bills due on payday', () => {
-    expect(month.lead.items.open.map((o) => [o.day, o.label, o.cents])).toEqual([
+    expect(payday.lead.items.open.map((o) => [o.day, o.label, o.cents])).toEqual([
       ['2026-09-16', 'Notgroschen', 30_000],
       ['2026-09-20', 'Streaming', 1799],
       ['2026-09-22', 'Mobilfunk', 2500],
@@ -109,7 +111,28 @@ describe('prototype figures reproduced', () => {
       ['2026-10-12', 'Geschenke (Oktober)', 10_000],
       ['2026-10-14', 'KI-Bildtool', 848],
     ]);
-    expect(month.lead.openCents).toBe(271_621);
+    expect(payday.lead.openCents).toBe(271_621);
+  });
+
+  it('period month leads with Frei bis Monatsende: bills through 30 September only', () => {
+    expect(month.leadBoundary).toEqual({ day: '2026-09-30', kind: 'monthEnd', daysToBoundary: 14 });
+    expect(month.lead.items.open.map((o) => o.day)).toEqual([
+      '2026-09-16',
+      '2026-09-20',
+      '2026-09-22',
+      '2026-09-25',
+      '2026-09-30',
+    ]);
+    // Notgroschen 30,000 + 1,799 + 2,500 + 10,500 + 690.
+    expect(month.lead.openCents).toBe(45_489);
+    expect(month.lead.freeCents).toBe(116_700 - 45_489);
+    expect(month.lead.chain.map((t) => t.label)).toEqual([
+      'Kontostand',
+      'offen bis Monatsende',
+      'frei verfügbar',
+    ]);
+    expect(month.lead.daysToPayday).toBe(28);
+    expect(payday.leadBoundary).toEqual({ day: '2026-10-15', kind: 'payday', daysToBoundary: 28 });
   });
 
   it('five envelopes are pinned in the prototype order', () => {
@@ -152,7 +175,7 @@ describe('figures that differ from the prototype, by design of the ledger', () =
   // The prototype's envelopes are hand-set (Frei verfuegbar 1.084,60, Pace -178, Tiefpunkt 612).
   // The ledger derives them from 36 months of bookings, so these are the real figures.
   it('free until payday is the cash-flow figure, the chain adds up', () => {
-    const lead = month.lead;
+    const lead = payday.lead;
     // Fixture bank cash 116,700 minus bills 171,621 minus Zukunft payments
     // (overdue emergency 30,000 + extra repayment 30,000 + ETF 40,000) = -154,921 cents.
     expect(lead.freeCents).toBe(-154_921);
@@ -211,7 +234,9 @@ describe('windows', () => {
     expect(payday.stand).toMatchObject({ period: 'payday', from: '2026-09-03', to: '2026-10-17' });
     expect(payday.balance.actual).toHaveLength(15);
     expect(payday.balance.forecast).toHaveLength(31);
-    expect(payday.lead).toEqual(month.lead);
+    // Same cash balance and accounts; the open bills differ with the boundary.
+    expect(payday.lead.balanceCents).toBe(month.lead.balanceCents);
+    expect(payday.lead.items.accounts).toEqual(month.lead.items.accounts);
     expect(payday.pace.figures).toEqual(month.pace.figures);
   });
 
@@ -233,9 +258,9 @@ describe('without materialised occurrences', () => {
   it('reads payday, open bills and the forecast from the schedule', () => {
     expect(unrefreshed.stand.payday).toEqual(month.stand.payday);
     const noIds = (h: Heute) => h.lead.items.open.map((o) => [o.day, o.label, o.cents]);
-    expect(noIds(unrefreshed)).toEqual(noIds(month).filter(([day]) => String(day) >= TODAY));
+    expect(noIds(unrefreshedPayday)).toEqual(noIds(payday).filter(([day]) => String(day) >= TODAY));
     // The schedule alone does not invent an overdue open occurrence.
-    expect(unrefreshed.lead).toMatchObject({
+    expect(unrefreshedPayday.lead).toMatchObject({
       balanceCents: 116_700,
       openCents: 241_621,
       freeCents: -124_921,

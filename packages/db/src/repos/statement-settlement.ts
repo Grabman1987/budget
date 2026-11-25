@@ -10,6 +10,7 @@ import {
   type StatementBonusEvidence,
 } from '@budget/domain';
 import {
+  booking,
   bookingSplit,
   expectedOccurrence,
   INCOME_TYPES,
@@ -25,7 +26,7 @@ import {
   type AuditContext,
   type GroupedContext,
 } from './audit';
-import { createBooking, createTransfer } from './bookings';
+import { createBooking, createTransfer, getBooking } from './bookings';
 import { assertStatementCas, mutateStatementIntake } from './statement-intake';
 import {
   assertBonusOriginals,
@@ -422,6 +423,82 @@ function reassessRepresentedBonus(
     bookingId: r.bookingId,
   };
 }
+/**
+ * #1319: an exact payment of this bill already exists as an independent transfer (for example the
+ * bank debit that was accepted as a card-bill transfer in Prüfen before the statement arrived):
+ * same accounts, amount and debit date, two live legs, not yet consumed by another settlement.
+ * Creating the settlement's own transfer would pay the bill twice, so it is linked instead. More
+ * than one candidate is ambiguous and refused. A different amount never matches and is never
+ * corrected.
+ */
+/** Days a bank debit may lie off the printed debit date (shared with the Prüfen proposal). */
+export const SETTLEMENT_DEBIT_WINDOW_DAYS = 7;
+function existingExactPair(db: Executor, r: Settlement) {
+  const legs = db
+    .select()
+    .from(booking)
+    .where(and(eq(booking.currency, r.currency), isNull(booking.deletedAt)))
+    .all()
+    .filter(
+      (b) =>
+        b.transferId !== null &&
+        Math.abs(Date.parse(`${b.date}T00:00:00Z`) - Date.parse(`${r.debitDate}T00:00:00Z`)) <=
+          SETTLEMENT_DEBIT_WINDOW_DAYS * 86_400_000,
+    );
+  const consumed = new Set(
+    db
+      .select()
+      .from(statementSettlement)
+      .all()
+      .filter((s) => statementActive(s.state, s.deletedAt) && s.transferId)
+      .map((s) => s.transferId),
+  );
+  const found: { transferId: string; fromBookingId: string; toBookingId: string; date: string }[] =
+    [];
+  for (const from of legs.filter(
+    (b) => b.accountId === r.fundingAccountId && b.amountCents === -r.payableCents,
+  )) {
+    if (consumed.has(from.transferId)) continue;
+    const siblings = db
+      .select()
+      .from(booking)
+      .where(and(eq(booking.transferId, from.transferId!), isNull(booking.deletedAt)))
+      .all();
+    const to = siblings.filter(
+      (b) => b.accountId === r.cardAccountId && b.amountCents === r.payableCents,
+    );
+    const partial = db
+      .select()
+      .from(bookingSplit)
+      .where(eq(bookingSplit.transferId, from.transferId!))
+      .all().length;
+    if (siblings.length === 2 && to.length === 1 && !partial)
+      found.push({
+        transferId: from.transferId!,
+        fromBookingId: from.id,
+        toBookingId: to[0]!.id,
+        date: from.date,
+      });
+  }
+  // The accepted settlement invariants need both legs on the debit date. A payment of the same
+  // amount a few days off is neither linked nor ignored: paying twice is refused explicitly.
+  const exact = found.filter((f) => f.date === r.debitDate);
+  if (!exact.length && found.length)
+    throw new ConflictError(
+      'Eine Umbuchung in gleicher Höhe besteht bereits, aber mit anderem Datum. Bitte das Datum angleichen oder die Abrechnung ausdrücklich verknüpfen.',
+    );
+  if (exact.length > 1)
+    throw new ConflictError(
+      'Mehrere passende Umbuchungen gefunden. Bitte die Abrechnung ausdrücklich verknüpfen.',
+    );
+  return exact[0]
+    ? {
+        transferId: exact[0].transferId,
+        fromBookingId: exact[0].fromBookingId,
+        toBookingId: exact[0].toBookingId,
+      }
+    : undefined;
+}
 function execute(
   db: Executor,
   input: StatementSettlementAction,
@@ -505,7 +582,17 @@ function execute(
     const cfg = config(db, r.cardAccountId, input.configRevision);
     if (cfg.fundingAccountId !== r.fundingAccountId) throw conflict();
     let representation: { transferId: string; fromBookingId: string; toBookingId: string };
-    if (input.operation === 'create_transfer')
+    const existing = input.operation === 'create_transfer' ? existingExactPair(db, r) : undefined;
+    if (existing) {
+      if (input.operation === 'create_transfer')
+        for (const leg of [existing.fromBookingId, existing.toBookingId])
+          if (getBooking(db, leg)?.status !== input.status)
+            throw new ConflictError(
+              'Die bestehende Umbuchung hat einen anderen Status als angefordert. Bitte ausdrücklich verknüpfen.',
+            );
+      noLegacyConsumption(db, [existing.fromBookingId, existing.toBookingId], r);
+      representation = existing;
+    } else if (input.operation === 'create_transfer')
       representation = createTransfer(
         db,
         {
@@ -534,7 +621,8 @@ function execute(
       {
         ...representation,
         state: 'represented',
-        representationKind: input.operation === 'create_transfer' ? 'created' : 'linked',
+        representationKind:
+          input.operation === 'create_transfer' && !existing ? 'created' : 'linked',
         actionGroupId: group.groupId,
       },
       group,
@@ -542,6 +630,7 @@ function execute(
     return {
       ...settlementReceipt(db, r, input.operation, group.groupId),
       transferId: representation.transferId,
+      ...(existing ? { linkedExisting: true } : {}),
     };
   }
   const r = bonusCas(db, input.bonusId, input.expectedRevision);
