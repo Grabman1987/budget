@@ -14,7 +14,10 @@ export const queryClient = new QueryClient({
     queries: {
       retry: shouldRetry,
       staleTime: DEFAULT_STALE_MS,
-      // Coming back to the window reads again only what is stale (default behaviour).
+      // Coming back to the window still reads again (the pages show a loading state then); the
+      // stale time only spares remounts and route changes. The heavy read models opt out with their
+      // own HEAVY_READ_STALE_MS (refetchOnWindowFocus: true = only when stale).
+      refetchOnWindowFocus: 'always',
     },
   },
 });

@@ -2,6 +2,7 @@ import type { Page } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 import { join } from 'node:path';
 import { sampleTest as test, expect } from './sample';
+import { bookingSearch } from './ledger-helpers';
 
 test.describe.configure({ timeout: 120_000 });
 
@@ -44,7 +45,7 @@ test('global search: keyboard, account navigation, and unchanged booking-list se
   await expect(page).toHaveURL(/\/konten\/acc-giro$/);
   await expect(page.getByRole('heading', { name: 'Girokonto', exact: true }).first()).toBeVisible();
   await page.goto('/konten/buchungen');
-  const listSearch = page.getByRole('searchbox');
+  const listSearch = await bookingSearch(page);
   await listSearch.fill('Supermarkt');
   await expect(page).toHaveURL(/q=Supermarkt/);
   await expect(page.locator('.ktable')).toBeVisible();
@@ -136,9 +137,13 @@ test('overlay preserves the source URL, history, scroll, focus and month on Esca
   await expect(trigger).toBeFocused();
 });
 
-test('keyboard search returns focus to the field that opened it', async ({ page }) => {
+test('keyboard search returns focus to the field that opened it', async ({ page }, info) => {
+  test.skip(
+    info.project.name !== 'desktop',
+    'The phone has no inline list search: it sits in the filter sheet (#1328).',
+  );
   await page.goto('/konten/buchungen');
-  const sourceField = page.getByRole('searchbox');
+  const sourceField = await bookingSearch(page);
   await sourceField.fill('Supermarkt');
   await expect(page).toHaveURL(/\/konten\/buchungen\?q=Supermarkt$/);
   const sourceUrl = page.url();

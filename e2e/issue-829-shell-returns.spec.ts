@@ -1,5 +1,5 @@
 import { expect, sampleTest as test } from './sample';
-import { bookingSearch } from './ledger-helpers';
+import { applyLedgerFilters, bookingSearch } from './ledger-helpers';
 
 test('S3 ordinary filtering replaces history and an entity push restores filter, period and scroll on Back', async ({
   page,
@@ -9,6 +9,7 @@ test('S3 ordinary filtering replaces history and an entity push restores filter,
   const input = await bookingSearch(page);
   const historyLength = await page.evaluate(() => history.length);
   await input.fill('Hausverwaltung');
+  await applyLedgerFilters(page);
   await expect(page).toHaveURL((url) => url.searchParams.get('q') === 'Hausverwaltung');
   expect(await page.evaluate(() => history.length)).toBe(historyLength);
   await expect(page.locator('tr[data-booking]').first()).toContainText('Hausverwaltung');
@@ -47,7 +48,8 @@ test('S3 ordinary filtering replaces history and an entity push restores filter,
   await page.goBack();
   await expect(page).toHaveURL(source);
   await observe('returned');
-  await expect(input).toHaveValue('Hausverwaltung');
+  // On the phone the search lives in the closed filter sheet; the URL and rows prove it there.
+  if (await input.isVisible()) await expect(input).toHaveValue('Hausverwaltung');
   await expect(page.locator('tr[data-booking]').first()).toContainText('Hausverwaltung');
   // The existing OFF router deliberately excludes the journal from restoration. S3 enables it ON;
   // both policies are independently asserted against the actual constructed router in the unit contract.
@@ -59,7 +61,8 @@ test('S3 ordinary filtering replaces history and an entity push restores filter,
   }
   await page.reload();
   await expect(page).toHaveURL(source);
-  await expect(input).toHaveValue('Hausverwaltung');
+  await expect(await bookingSearch(page)).toHaveValue('Hausverwaltung');
+  await applyLedgerFilters(page);
   expect(new URL(page.url()).searchParams.get('monat')).toBe('2026-09');
   expect(new URL(page.url()).searchParams.get('kategorie')).toBe('cat-miete');
   await expect(page.locator('tr[data-booking]').first()).toContainText('Hausverwaltung');

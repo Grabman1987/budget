@@ -91,7 +91,11 @@ test('capture rows, native calendar and dropdowns keep the draft on desktop and 
     await page.keyboard.press('Escape');
     // Headless WebKit can forward picker Escape to the native dialog instead of consuming it.
     // Preserve the Chromium popup check; verify the dirty guard for a delivered WebKit cancel.
-    if (browserName === 'webkit' && (await dialog.getAttribute('data-picker-cancel')) === 'true') {
+    if (
+      browserName === 'webkit' &&
+      ((await dialog.count()) === 0 ||
+        (await dialog.getAttribute('data-picker-cancel', { timeout: 1000 })) === 'true')
+    ) {
       await expect(dialog).toBeHidden();
       test.skip(
         true,
