@@ -9,6 +9,7 @@ Bereich: Startseite „Heute“ (Route `/`). Status und Verweise wie in `docs/US
   1. Ich öffne „Heute“. Die App lädt den Heute-Abruf und zeigt oben „Stand heute · <Datum>“.
   2. Ich lese die große Zahl der Karte „Frei bis Gehalt“ (mit „bis <Datum> · N Tage“).
   3. Ich lese die Karte „Nettovermögen“ mit Gesamtbetrag und „… in 12 Monaten“. Antippen öffnet die Aufschlüsselung nach Vermögensart. Die Karte beginnt oben bündig mit „Frei bis …“.
+     Die Seite „Nettovermögen · Herleitung“ (`/heute/details/wealth`) steht in vier weißen Karten untereinander: Übersicht (Gesamtbetrag mit Herleitung), Vermögensaufteilung nach Maß, Verlauf über 12 Monate und „Ziele finanzieren“. „Zurück“ steht links oben; die Links in „Ziele finanzieren“ (Plan, Budgettreue) öffnen ihre Zielansicht (e2e `issue-1348-networth-detail`, Review 25.11.2026, #1348).
   4. Ich lese die Karte „Monat im Blick“ (Ausgegeben, Prognose Monatsende, Deckel).
   5. Ich lese „Letzte Buchungen“ als kompakte Tabelle mit den Spalten Datum · Buchung · Wert; Umbuchungen heißen „Umbuchung auf <Konto>“ (ausgehend) bzw. „Umbuchung von <Konto>“ (eingehend).
   6. Ich scrolle zu „Ziele finanzieren“. Dort steht „N Sparziele noch nicht finanziert“ mit Link nach Plan › Sparziele. Das nächste Sparziel (nach Datum) steht in diesem Block; eine eigene Karte oben gibt es nicht (Entscheidung 15.11.2026).

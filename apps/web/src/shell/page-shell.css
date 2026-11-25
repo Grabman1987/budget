@@ -48,3 +48,9 @@
   padding: var(--space-lg);
   min-width: 0;
 }
+/* Several cards of one detail page, one below the other. */
+.page-stack {
+  display: grid;
+  gap: var(--space-md);
+  min-width: 0;
+}

@@ -116,14 +116,18 @@ export function DimensionPage() {
             <h2 ref={heading} tabIndex={-1} className="heute-detail-title">
               {title}
             </h2>
-            <PageCard>
-              <HeuteDetailBody
-                data={data}
-                read={query}
-                period={period}
-                kind={kind as HeuteDetail}
-              />
-            </PageCard>
+            {kind === 'wealth' ? (
+              <HeuteDetailBody data={data} read={query} period={period} kind="wealth" />
+            ) : (
+              <PageCard>
+                <HeuteDetailBody
+                  data={data}
+                  read={query}
+                  period={period}
+                  kind={kind as HeuteDetail}
+                />
+              </PageCard>
+            )}
           </>
         )}
         {query.isPending && (!HEUTE_DETAILS.includes(kind as HeuteDetail) || kind === 'pinned') && (

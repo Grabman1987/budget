@@ -41,6 +41,7 @@ import { TasksDetail } from './tasks-detail';
 import { savingsProposalsQuery } from '../wealth/savings-api';
 import { sourceMoney } from '../wealth/trade-api';
 import { Kennzahlen } from './kennzahlen';
+import { PageCard } from '../shell/status-footer';
 import { budgetQuery } from '../budget/budget-api';
 import { DailyBudgetLine } from './charts';
 import { leadView } from './lead-boundary';
@@ -648,139 +649,145 @@ function HeuteBody({
       )}
     </>
   );
-  const moreMonth = (
+  const wealthBreakdown = (
     <>
-      <MoreMonth key={phone ? 'phone' : 'desktop'} phone={phone}>
-        {data ? (
-          <>
-            <div className="heute-detail-grid">
-              <section className="heute-section heute-net-worth" aria-labelledby="heute-net-title">
-                <SectionHead
-                  id="heute-net-title"
-                  title="Vermögensaufteilung"
-                  aside={
-                    <AppLink to="/vermoegen/nettovermoegen">
-                      Details <ChevronRight size={16} strokeWidth={1.75} aria-hidden="true" />
-                    </AppLink>
-                  }
-                />
-                {away && <p className="heute-note">Stand heute · {longDay(data.stand.today)}</p>}
-                {net ? (
-                  <>
-                    {net.deltaCents === null ? (
-                      <p className="heute-note">Vormonatsvergleich nicht verfügbar.</p>
-                    ) : (
-                      <div
-                        className={`heute-delta ${net.deltaCents < 0 ? 'text-bad' : 'text-good'}`}
-                      >
-                        {net.deltaCents < 0 ? (
-                          <ArrowDown size={16} strokeWidth={1.75} aria-hidden="true" />
-                        ) : (
-                          <ArrowUp size={16} strokeWidth={1.75} aria-hidden="true" />
-                        )}
-                        {eur(net.deltaCents, { cents: false, sign: true })} · {deltaText}
-                      </div>
-                    )}
-                    <div
-                      data-testid="heute-networth-chart"
-                      className={`heute-net-composition${net.totalCents <= 0 ? ' is-nonpositive' : ''}`}
-                    >
-                      <DimensionChainDrawing
-                        label="Maßkette Nettovermögen"
-                        parts={[
-                          {
-                            key: 'liquid',
-                            label: 'Liquidität',
-                            cents: cents(net.liquidCents),
-                            fill: 'plain',
-                          },
-                          {
-                            key: 'invested',
-                            label: REDESIGN_ENABLED ? 'Anlagen' : 'Investiert',
-                            cents: cents(net.investedCents),
-                            fill: 'need',
-                          },
-                          ...(net.debtCents > 0
-                            ? [
-                                {
-                                  key: 'debt',
-                                  label: REDESIGN_ENABLED
-                                    ? 'Schuldkonten (netto)'
-                                    : 'Guthaben auf Schuldkonten',
-                                  cents: cents(net.debtCents),
-                                  fill: 'plain' as const,
-                                },
-                              ]
-                            : []),
-                          ...(net.receivableCents > 0
-                            ? [
-                                {
-                                  key: 'receivable',
-                                  label: 'Forderungen',
-                                  cents: cents(net.receivableCents),
-                                  fill: 'plain' as const,
-                                },
-                              ]
-                            : []),
-                        ]}
-                        {...(net.debtCents < 0
-                          ? {
-                              minus: {
-                                key: 'debt',
-                                label: 'Schulden netto',
-                                cents: cents(-net.debtCents),
-                                kind: 'debt' as const,
-                              },
-                            }
-                          : {})}
-                        result={{ label: 'Nettovermögen', cents: cents(net.totalCents) }}
-                        onSelect={(key) => openNetDetail(key as DimensionKind)}
-                      />
-                      <ValuationSourceHint sources={data.valuationSources} label="Nettovermögen" />
+      {data ? (
+        <>
+          <div className="heute-detail-grid">
+            <section className="heute-section heute-net-worth" aria-labelledby="heute-net-title">
+              <SectionHead
+                id="heute-net-title"
+                title="Vermögensaufteilung"
+                aside={
+                  <AppLink to="/vermoegen/nettovermoegen">
+                    Details <ChevronRight size={16} strokeWidth={1.75} aria-hidden="true" />
+                  </AppLink>
+                }
+              />
+              {away && <p className="heute-note">Stand heute · {longDay(data.stand.today)}</p>}
+              {net ? (
+                <>
+                  {net.deltaCents === null ? (
+                    <p className="heute-note">Vormonatsvergleich nicht verfügbar.</p>
+                  ) : (
+                    <div className={`heute-delta ${net.deltaCents < 0 ? 'text-bad' : 'text-good'}`}>
+                      {net.deltaCents < 0 ? (
+                        <ArrowDown size={16} strokeWidth={1.75} aria-hidden="true" />
+                      ) : (
+                        <ArrowUp size={16} strokeWidth={1.75} aria-hidden="true" />
+                      )}
+                      {eur(net.deltaCents, { cents: false, sign: true })} · {deltaText}
                     </div>
+                  )}
+                  <div
+                    data-testid="heute-networth-chart"
+                    className={`heute-net-composition${net.totalCents <= 0 ? ' is-nonpositive' : ''}`}
+                  >
+                    <DimensionChainDrawing
+                      label="Maßkette Nettovermögen"
+                      parts={[
+                        {
+                          key: 'liquid',
+                          label: 'Liquidität',
+                          cents: cents(net.liquidCents),
+                          fill: 'plain',
+                        },
+                        {
+                          key: 'invested',
+                          label: REDESIGN_ENABLED ? 'Anlagen' : 'Investiert',
+                          cents: cents(net.investedCents),
+                          fill: 'need',
+                        },
+                        ...(net.debtCents > 0
+                          ? [
+                              {
+                                key: 'debt',
+                                label: REDESIGN_ENABLED
+                                  ? 'Schuldkonten (netto)'
+                                  : 'Guthaben auf Schuldkonten',
+                                cents: cents(net.debtCents),
+                                fill: 'plain' as const,
+                              },
+                            ]
+                          : []),
+                        ...(net.receivableCents > 0
+                          ? [
+                              {
+                                key: 'receivable',
+                                label: 'Forderungen',
+                                cents: cents(net.receivableCents),
+                                fill: 'plain' as const,
+                              },
+                            ]
+                          : []),
+                      ]}
+                      {...(net.debtCents < 0
+                        ? {
+                            minus: {
+                              key: 'debt',
+                              label: 'Schulden netto',
+                              cents: cents(-net.debtCents),
+                              kind: 'debt' as const,
+                            },
+                          }
+                        : {})}
+                      result={{ label: 'Nettovermögen', cents: cents(net.totalCents) }}
+                      onSelect={(key) => openNetDetail(key as DimensionKind)}
+                    />
+                    <ValuationSourceHint sources={data.valuationSources} label="Nettovermögen" />
+                  </div>
+                  {/* The detail page is the derivation itself: no usage hints, no debt-role footnote. */}
+                  {(!detail || net.debtCents < 0) && (
                     <p className="heute-note">
-                      Wähle ein Maß für die Konten.
+                      {!detail && 'Wähle ein Maß für die Konten.'}
                       {net.debtCents < 0
                         ? REDESIGN_ENABLED
                           ? ' Gestrichelt: Schulden netto, werden abgezogen.'
                           : ' Gestrichelt: Schulden, werden abgezogen.'
                         : ''}
                     </p>
-                    {REDESIGN_ENABLED && (
-                      <p className="heute-note">
-                        Die Netto-Schuldenkomponente enthält auch positive Guthaben auf Konten mit
-                        Schuldenrolle. Brutto-Verbindlichkeiten und die Summe der Kredite haben
-                        einen anderen Umfang.
-                      </p>
-                    )}
+                  )}
+                  {REDESIGN_ENABLED && !detail && (
                     <p className="heute-note">
-                      Stichtag {longDay(net.asOf)} · Vormonatsende{' '}
-                      {net.previousMonthEndCents === null
-                        ? 'Bewertung nicht verfügbar'
-                        : eur(net.previousMonthEndCents)}
+                      Die Netto-Schuldenkomponente enthält auch positive Guthaben auf Konten mit
+                      Schuldenrolle. Brutto-Verbindlichkeiten und die Summe der Kredite haben einen
+                      anderen Umfang.
                     </p>
+                  )}
+                  <p className="heute-note">
+                    Stichtag {longDay(net.asOf)} · Vormonatsende{' '}
+                    {net.previousMonthEndCents === null
+                      ? 'Bewertung nicht verfügbar'
+                      : eur(net.previousMonthEndCents)}
+                  </p>
+                </>
+              ) : (
+                'unavailable' in data.netWorth && (
+                  <>
+                    <ValuationNote message={data.netWorth.unavailable.message} />
+                    <ValuationSourceHint sources={data.valuationSources} label="Nettovermögen" />
                   </>
-                ) : (
-                  'unavailable' in data.netWorth && (
-                    <>
-                      <ValuationNote message={data.netWorth.unavailable.message} />
-                      <ValuationSourceHint sources={data.valuationSources} label="Nettovermögen" />
-                    </>
-                  )
-                )}
-              </section>
-            </div>
-          </>
-        ) : (
-          <section
-            className="heute-section"
-            aria-label="Vermögensaufteilung"
-            aria-busy={pending || undefined}
-          >
-            <h2>Vermögensaufteilung</h2>
-            <SectionReadNote name="Vermögensaufteilung" pending={pending} />
-          </section>
-        )}
+                )
+              )}
+            </section>
+          </div>
+        </>
+      ) : (
+        <section
+          className="heute-section"
+          aria-label="Vermögensaufteilung"
+          aria-busy={pending || undefined}
+        >
+          <h2>Vermögensaufteilung</h2>
+          <SectionReadNote name="Vermögensaufteilung" pending={pending} />
+        </section>
+      )}
+    </>
+  );
+  const moreMonth = (
+    <>
+      <MoreMonth key={phone ? 'phone' : 'desktop'} phone={phone}>
+        {wealthBreakdown}
         <FundingNotes data={data} requestMonth={read.data?.stand.today.slice(0, 7)} />
       </MoreMonth>
     </>
@@ -828,11 +835,16 @@ function HeuteBody({
         return bookings;
       case 'wealth':
         return (
-          <>
-            {kennzahlen}
-            {wealth}
-            {moreMonth}
-          </>
+          <div className="page-stack" data-testid="wealth-detail-cards">
+            <PageCard label="Übersicht">{kennzahlen}</PageCard>
+            <PageCard label="Aufteilung">{wealthBreakdown}</PageCard>
+            <PageCard label="Verlauf">{wealth}</PageCard>
+            <FundingNotes
+              card
+              data={data}
+              requestMonth={read.data?.stand.today.slice(0, 7) ?? data?.stand.today.slice(0, 7)}
+            />
+          </div>
         );
       case 'metrics':
         return kennzahlen;
