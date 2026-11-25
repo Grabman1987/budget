@@ -107,7 +107,7 @@ Geteilt: V-06 und V-09 sind aufgeteilt (V-06a/V-06b, V-09a/V-09b). V-17 und V-18
   - Randfall: Ohne Kurs zeigt die Zeile „Kurs fehlt“ und der Wert fällt auf Ausführungskurs zurück, markiert „Geschätzt“.
   - Randfall: Ein abgelaufener Kurs trägt die Markierung „Kurs veraltet“.
   - Eine Warnung aus einem fehlgeschlagenen Abruf schließt der nächste erfolgreiche Abruf desselben Instruments (bei Wechselkursen derselben Währung), im Änderungsprotokoll erfasst; Warnungen anderer Instrumente und Warnungen zu echten Abweichungen bleiben offen.
-- **Status:** teilweise · **Verweis:** I10, I12, #1101
+- **Status:** live (Stand 26.11.2026: alle verknüpften Issues erledigt; Nutzerabnahme offen) — **Verweis:** I10, I12, #1101
   Fehlt noch: ausdrücklicher Erstabruf-Zeitstempel, abgenommener Live-Quellen-Status, Kurskennungen und Konventionen mit der Quelle abgeglichen.
 
 ### V-06b – Kurse manuell überschreiben
@@ -145,7 +145,7 @@ Geteilt: V-06 und V-09 sind aufgeteilt (V-06a/V-06b, V-09a/V-09b). V-17 und V-18
   - „Monatlich gesamt“ ist die Summe der laufenden Raten.
   - Eine Ratenänderung gilt ab Datum; frühere Monate behalten die alte Rate (Verlauf).
   - Randfall: Das Ende darf nicht vor dem Beginn der Version liegen; ein Plan ohne laufende Raten zeigt „Keine laufenden oder vorgemerkten Sparpläne.“
-- **Status:** teilweise · **Verweis:** I17, #1099
+- **Status:** live (Stand 26.11.2026: alle verknüpften Issues erledigt; Nutzerabnahme offen) — **Verweis:** I17, #1099
   Fehlt noch: Vorschläge zur Änderung der Rate, privater Abgleich mit den Brokerausführungen.
 
 ### V-08 – Kennzahlen und Rendite vergleichen
@@ -216,7 +216,7 @@ Geteilt: V-06 und V-09 sind aufgeteilt (V-06a/V-06b, V-09a/V-09b). V-17 und V-18
   - Eine tägliche Signaländerung ändert die verbindliche Allokation erst zum Monatswechsel.
   - Randfall: Fehlen Indexdaten, entsteht kein neues Signal, es bleibt das letzte bekannte mit Hinweis.
   - Ein gehaltenes, nicht mehr bespartes Wertpapier zählt zu Depotwert und Istgewicht.
-- **Status:** teilweise · **Verweis:** #762
+- **Status:** zurückgestellt (Issue nicht geplant geschlossen; Stand 26.11.2026) — **Verweis:** #762
   Umgesetzt (nur Lesen): Abschnitt „Trendsignal · Grundlage“ unter Vermögen › Portfolio › Sparpläne › Trendstrategie zeigt für die tägliche Vorschau, das Monatssignal des laufenden Monats und die gespeicherte verbindliche Entscheidung jeweils Ergebnis, Schlusstag, Schlusskurs, 200-Tage-Durchschnitt und den Durchschnitt 20 US-Handelstage zuvor (Anzeige auf zwei Stellen gerundet, verglichen wird exakt), Quelle, Index, US-Kalender und Erfassungszeit. Fehlt die Reihe, ist sie lückenhaft oder veraltet, steht „Nicht ermittelbar“ mit Grund und fehlenden Tagen, nie eine Schätzung.
   Fehlt noch: Abnahme am echten Abruf (erster Kurslauf nach Einschalten), Prüfung der Kaufaufteilung und des Rebalancings am Live-Depot, Geräteabnahme.
 
@@ -295,7 +295,7 @@ Geteilt: V-06 und V-09 sind aufgeteilt (V-06a/V-06b, V-09a/V-09b). V-17 und V-18
   - Die Bestandsrechnung (Bewegungen) stimmt mit dem Bestand im Instrument überein.
   - Randfall: Viele Krypto-Bewegungen bleiben gruppiert prüfbar; am Handy ist die Ursachenansicht lesbar.
   - Nur Warnungen mit einer Abruf-Fehlerklasse schließen sich nach erfolgreichem Abruf selbst, mit Begründung im Eintrag (#1101, I-01b). Warnungen zu Bestand, fehlenden Bewegungen oder abweichenden Schlusskursen bleiben offen, bis ihre Ursache behoben ist.
-- **Status:** teilweise · **Verweis:** #1081
+- **Status:** live (Stand 26.11.2026: alle verknüpften Issues erledigt; Nutzerabnahme offen) — **Verweis:** #1081
   Umgesetzt: Ursachenansicht und schreibfreie Quellvorschau für Kurswarnungen, serverseitige Sperre des pauschalen Abschlusses; zweiter Schritt ergänzt sichere Währungsbelege je Vorschauquelle. Fehlt noch: gespeicherte Fehlerbelege je Quelle einschließlich tatsächlich gelieferter Währung, Editor für Quellkorrekturen, Krypto-Bestandsrechnung mit Zuordnungs-/Bewegungsdiagnose und deren geprüfter Abschluss sowie private Abnahme.
 
 ### V-15 – Wertpapierabrechnungen als PDF einlesen
@@ -329,7 +329,7 @@ Geteilt: V-06 und V-09 sind aufgeteilt (V-06a/V-06b, V-09a/V-09b). V-17 und V-18
   - Randfall: Unbekannte oder doppelt angelegte ISIN lässt „Instrument“ leer und nennt die ISIN; passt die Währung der Abrechnung zu keinem offenen Anlagekonto, bleiben die Beträge leer.
   - Randfall: Ein abweichendes Layout wird nicht als Wertpapierabrechnung erkannt und lässt sich nur als Beleg ablegen.
   - Dividenden, Zinsen und Steuerberichte sind ausdrücklich nicht Teil dieser Story.
-- **Status:** teilweise · **Verweis:** #1057, #1099
+- **Status:** live (Stand 26.11.2026: alle verknüpften Issues erledigt; Nutzerabnahme offen) — **Verweis:** #1057, #1099
   Fehlt noch: Vorschlag als Eintrag unter Konten › Prüfen (heute direkt aus dem Upload), Ablage der PDF als Beleg am Handel, automatischer Abgleich mit einer bereits gebuchten Zahlung auf dem Verrechnungskonto, Prüfung von Kauf/Verkauf-Orders an echten Mustern (Wortlaut bisher angenommen), Mehrfach-Upload.
 
 ### V-16 – Pensions- und Rentenlücke prüfen (zurückgestellt)
@@ -341,12 +341,12 @@ Geteilt: V-06 und V-09 sind aufgeteilt (V-06a/V-06b, V-09a/V-09b). V-17 und V-18
   - Es gibt keine Rentenzahl und keine Rentenschätzung in der App.
   - Die Freiheitszahl (V-13) funktioniert unverändert ohne Rentenmodell.
   - Randfall: Die Story wird erst nach ausdrücklicher Wiederaufnahme geplant.
-- **Status:** geplant · **Verweis:** #815
+- **Status:** zurückgestellt (Issue nicht geplant geschlossen; Stand 26.11.2026) — **Verweis:** #815
   Fehlt noch: alles; Anforderungen und Beispiele fehlen.
 
 ### V-17 – Wertpapierüberträge mit belegter Kostenbasis (neu, geplant)
 Siehe K-13 (Wertpapierüberträge mit Kostenbasis, #520). Gleiche Funktion, dort beschrieben. Wird noch nicht gebaut (Entscheidung 15.11.2026).
-- **Status:** geplant — **Verweis:** #520
+- **Status:** zurückgestellt (Issue nicht geplant geschlossen; Stand 26.11.2026) — **Verweis:** #520
 
 ### V-18 – Record a currency exchange in EUR
 

@@ -40,7 +40,7 @@ Grundlage: `docs/pwa.md`. Die App ist eine PWA: Hülle und Programmdateien liege
   5. Am Handy sind „Jetzt senden“ und „Buchung erfassen“ mit dem Finger treffbar.
   6. Von drei wartenden Buchungen werden die erste und dritte gespeichert, wenn die mittlere abgelehnt wird. Die mittlere steht als „Buchung abgelehnt“ mit Grund und Fehler-ID („Details kopieren“) in der Warteschlange und bleibt korrigierbar; nach Korrektur wird sie mit demselben Idempotenz-Schlüssel genau einmal gespeichert.
   7. Netzwerkfehler, Sitzungsablauf und HTTP 502–504 bleiben wiederholbar (die Reihenfolge wartet); fachliche Ablehnungen (4xx) und HTTP 500 mit `server_error` werden nicht endlos wiederholt und blockieren nichts.
-- **Status:** teilweise — **Verweis:** Y26, #1144
+- **Status:** live (Stand 26.11.2026: alle verknüpften Issues erledigt; Nutzerabnahme offen) — **Verweis:** Y26, #1144
   Serverdiagnose als erster Teil von #1144: Unerwartete Ledger-API-Fehler liefern eine kurze Fehler-ID. Das Serverprotokoll verknüpft sie mit Methode, Routenmuster und bereinigten Stackpositionen. Nur bekannte, datenfreie Fehlermeldungen werden protokolliert; unbekannte Meldungen bleiben redigiert.
   Kontakt-Replay-Fix in #1154: Rückdatierte Auslagen lassen gespeicherte automatische und ausdrückliche Verrechnungen unverändert. Neue Auslagen nutzen nur tatsächlich freies Kontaktguthaben; widersprüchliche Kontaktverrechnungen liefern eine deutsche 422-Antwort. Bereits gebundene Auslagen bleiben gegen wirtschaftliche Änderungen und Löschen geschützt. Der Fix ist durch DB- und API-Regressionstests geprüft; die Veröffentlichung ist damit noch nicht bestätigt.
 
@@ -84,7 +84,7 @@ for inconsistent stored contact data. Physical-device acceptance remains open.
   3. Bei unklarem Empfang prüft die App erst den Serverstand, bevor sie erneut sendet.
   4. Der Status einer gespeicherten Änderung ist ohne Neuladen sichtbar.
   5. Wiederholtes Klicken auf Speichern erzeugt keine Dublette.
-- **Status:** offen — **Verweis:** #559, #1075
+- **Status:** live (Stand 26.11.2026: alle verknüpften Issues erledigt; Nutzerabnahme offen) — **Verweis:** #559, #1075
   Fehlt noch: Idempotenz-Schlüssel für alle schreibenden Änderungen und Belege sowie der stabile Status je Änderung (#1075); für Buchungen aus der Warteschlange gibt es den Schlüssel schon.
 
 ### A-03 – Belege offline erfassen, Upload getrennt wiederholen
@@ -102,7 +102,7 @@ for inconsistent stored contact data. Physical-device acceptance remains open.
   2. Der Upload ist einzeln wiederholbar; ein verlorenes Antwort-Senden erzeugt genau einen Beleg.
   3. Ist der Speicher voll, sagt die App, dass die Datei nicht gespeichert wurde, und behält sie im Arbeitsspeicher.
   4. Beim Abmelden warnt die App vor dem Löschen wartender Dateien.
-- **Status:** offen — **Verweis:** #699, #700
+- **Status:** zurückgestellt (Issue nicht geplant geschlossen; Stand 26.11.2026) — **Verweis:** #699, #700
   Fehlt noch: Speicherung der Belegdateien auf dem Gerät, Wiederholungsablauf und Oberfläche; die Buchungs-Warteschlange ist unabhängig davon vorhanden.
 
 ### A-04 – Mit Strg+K / ⌘K suchen

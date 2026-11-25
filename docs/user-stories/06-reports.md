@@ -21,7 +21,7 @@ Historical references follow `docs/FEATURES.md` (positions 1.1–5.6). The hub r
 - **Story:** As a user, I want to switch reports through one shared menu and find the figure controls immediately below it.
 - **Flow:** Open a report and choose “Bericht wechseln”. Under “Monatsbericht”, choose the indented “Finanz-Check-Verlauf” or monthly A4 sheet; under “Jahresbericht”, choose the annual A4 sheet; under “Einnahmen und Cashflow” the indented “Projekte und Nebeneinkünfte”; under “Ausgaben” the indented “Empfänger”. Month and period intent remain in the URL, and Back restores the previous presentation.
 - **Acceptance:** Back link, visible title and menu share one compact row, including at 390 px. Controls and the quiet data basis sit together below it. No “Report N” line or visible report arrows. Monthly/annual paper presentations and finance-check history have no second presentation select. Menu labels, focus, deep links and RP-00's period preference remain usable.
-- **Status:** first slice for review (#1150); shared heading and monthly submenu checked with synthetic data on desktop/390 px and WebKit in light/dark. All views of Einnahmen und Cashflow (Einnahmen, Cashflow, Projekte), Ausgaben (Kategorien und Verlauf, Empfänger), Vermögensreport (Vermögensverlauf, Gesamtübersicht), Kosten und Steuern (Kosten gesamt, Bank- und Zinskosten, Erträge, Kosten im Verlauf) and Portfolio-Auswertung (Einzahlungen und Wert, Rendite und Risiko, Kennzahlen, Anlageklassen im Verlauf) are indented menu entries; their in-report view selects are gone (the legacy report keeps its own switches). Explorer templates stay a template choice inside the Explorer. CI and live acceptance remain open.
+- **Status:** live (Stand 26.11.2026: alle verknüpften Issues erledigt; Nutzerabnahme offen) — **Verweis:** #1150
 
 ### RP-00 – Zeitraum zwischen Reports behalten
 - **Story:** Als Nutzer möchte ich meinen Zeitraum beim Reportwechsel behalten, damit ich mehrere Berichte ohne erneute Auswahl lesen kann.
@@ -37,7 +37,7 @@ Historical references follow `docs/FEATURES.md` (positions 1.1–5.6). The hub r
   - Monats-, Jahres- und feste Berichte einschließlich Kontakte, Portfolio-Verteilung, Freiheit und Explorer-Jahresansicht behalten ihre bisherigen Zeitgrenzen. Gespeicherte Explorer-Ansichten behalten ihre eigene Definition.
   - Ein Reset benötigt einen Klick, erhält andere Ansichtsfilter und setzt keine Buchungen oder gespeicherten Auswertungen zurück.
   - Die Vorbelegung bleibt lokal im Browser; gesperrter Browserspeicher verhindert keine Reportanzeige. Finanzberechnungen, Audit und Rückgängig bleiben unverändert.
-- **Status:** implementiert für Review (#1100); CI und Live-Abnahme offen.
+- **Status:** live (Stand 26.11.2026: alle verknüpften Issues erledigt; Nutzerabnahme offen) — **Verweis:** #1100
 
 ### RP-00a – Read the report verdict before its details
 
@@ -77,7 +77,7 @@ Historical references follow `docs/FEATURES.md` (positions 1.1–5.6). The hub r
   - Der Druck ergibt eine saubere A4-Seite ohne App-Menü.
   - Randfall: Ohne Einnahmen im Monat steht „Ohne Einnahmen im Monat lässt sich keine Verteilung berechnen.“; ohne Ausgaben „In diesem Monat gibt es keine Ausgaben in Bedarf und Wunsch.“
   - Randfall: Kapitalerträge erscheinen nur als Hinweis, nicht in Einnahmen oder Sparquote; für einen laufenden Monat gibt es keine Quote.
-- **Status:** report live; shared header and paper-menu entry for review (#1150), live acceptance pending · **Verweis:** 1.1
+- **Status:** live (Stand 26.11.2026: alle verknüpften Issues erledigt; Nutzerabnahme offen) — **Verweis:** 1.1
 
 ### RP-02 – Gehaltsreport mit Brutto/Netto und Jahresvergleich
 - **Story:** Als Nutzer möchte ich Brutto, Abzüge und Netto je Monat und im Jahresvergleich sehen, damit ich weiß, was vom Brutto bleibt, ob jede Zahlung zur Bank passt und ob das Gehalt gestiegen ist.
@@ -124,7 +124,7 @@ owner live acceptance is pending.
   - Der Inflationsvergleich nutzt VPI und den vorhandenen Warenkorb (Persönliche Inflation).
   - Randfall: Eine Lohnart ohne Zuordnung blockiert nur ihren Monat und wird genannt.
   - Der nominale Datenpfad verwendet gespeicherte Lohnzeilen und Komponenten-Zuordnungen sowie die gemeinsame Rechenlogik. Spätere und gelöschte Gehaltszettel sind ausgeschlossen; Lesen verändert weder Daten noch Buchungen.
-- **Status:** Nominale und reale Entwicklung zur Durchsicht implementiert · **Verweis:** #1066
+- **Status:** live (Stand 26.11.2026: alle verknüpften Issues erledigt; Nutzerabnahme offen) — **Verweis:** #1066
   Offen: Zuordnungsoberfläche und Designabnahme, Vorschau/Bestätigung des expliziten PDF-Neulesens, Ereignismarker und gedruckte Arbeitgeberbeiträge.
 
 ### RP-02a – Netto der letzten 24 Monate mit Sonderzahlungen
@@ -141,7 +141,7 @@ owner live acceptance is pending.
   - Ein kombinierter Monat wird als solcher gekennzeichnet („inkl. Sonderzahlung (brutto 6.985,00 €)“), sobald Lohnzeilen der Sonderzahlung zugeordnet sind; Netto und Steuer bleiben ungeteilt (#1321). Ohne Zuordnung wird nichts geraten; liegt das Brutto eines laufenden Zettels über dem bisherigen laufenden Brutto desselben Arbeitgebers, erscheint der Monat unter „Unbekannte Lohnarten zuordnen“.
   - „Ø laufendes Netto“ rechnet Monate mit Sonderzahlung nicht mit und nennt die Anzahl der ausgenommenen Monate.
   - Beträge folgen dem Datenschutzschalter; kein „+“ vor Beträgen.
-- **Status:** in Prüfung · **Verweis:** #1207, #1321
+- **Status:** live (Stand 26.11.2026: alle verknüpften Issues erledigt; Nutzerabnahme offen) — **Verweis:** #1207, #1321
 
 ### RP-04 – Monat mit Sonderzahlung korrekt darstellen (geplant)
 - **Story:** Als Nutzer möchte ich einen Monat mit Sonderzahlung ohne erfundene Netto- oder Steueraufteilung sehen, damit der Report die Auszahlung korrekt abbildet und keine falsche Warnung zu einem fehlenden Sondergehalt erscheint.
@@ -157,7 +157,7 @@ owner live acceptance is pending.
   - Warnungen nennen die genaue nicht zugeordnete Originalposition.
   - Die Summe der Teile entspricht der Bankbuchung auf den Cent.
   - Randfall: Steuerfreie Posten werden nicht als Differenz der Gehaltsanteile gezeigt.
-- **Status:** offen · **Verweis:** #1078
+- **Status:** live (Stand 26.11.2026: alle verknüpften Issues erledigt; Nutzerabnahme offen) — **Verweis:** #1078
   Fehlt noch: Modell der getrennten Bestandteile, Zustand „nicht bestimmbar“, Einkommensart je Teil.
 
 ### RP-05a – Einnahmen
@@ -244,7 +244,7 @@ owner live acceptance is pending.
   - Plan entspricht dem zugewiesenen Betrag.
   - Randfall: Ohne ausgewählte Kategorie steht „Wähle mindestens eine Kategorie für den Verlauf.“; Zukunft-Kategorien sind gekennzeichnet.
 - **Continuation (#1158, first slice):** The redesign exposes the existing monthly category reader at `/reports/ausgaben?darstellung=kategorien`. Largest absolute changes come first, with category ID as the stable tie-breaker; unavailable comparisons follow available ones. The period and category selection remain in the URL across view changes and reload. The default period matches the spending report (1J); explicit and remembered periods still take precedence. Monthly scope, Zukunft separation and amount privacy remain visible.
-- **Status:** existing reader live; consolidated category view implemented for review (#1158), CI and owner acceptance pending. **Verweis:** 1.6
+- **Status:** live (Stand 26.11.2026: alle verknüpften Issues erledigt; Nutzerabnahme offen) — **Verweis:** 1.6
 - **Owner decision (2026-11-23, #1158):** In ON, the plain legacy category address opens Kategorien und Verlauf. Links that explicitly target a saved Explorer view, an exact window or the category template still open in Explorer.
 
 ### RP-08 – Sparquote und Geldalter
@@ -267,7 +267,7 @@ owner live acceptance is pending.
 - **Flow:** Open Reports > Auswertung, select “Gesamttabelle”, choose detail depth, inspect the horizontally scrollable table and export CSV. The retained “Alle Monate: Nettovermögen und CSV” disclosure provides the existing full table.
 - **Acceptance:** No standalone report entry or alias link appears in the hub. `/reports/gesamttabelle` still opens the total Explorer template, preserving explicit period, month, filters and hash. CSV contains exactly its displayed rows and columns; monthly net worth still uses the existing valuation. The running month remains identifiable, mobile tables remain scrollable and privacy masks amounts.
 - **Reader lifetime (#1156):** The full-history disclosure starts closed, reads valuation facts only when opened, and closes again after a template switch, source refresh or reload. Stale/error facts never leave an export button or old valuation visible. Privacy masks the table; the deliberate CSV download retains the exact unmasked export, including UTF-8 BOM, CRLF, cent precision and the running-month marker.
-- **Status:** implemented for review (#1156); CI and owner acceptance pending. **Verweis:** 1.8
+- **Status:** live (Stand 26.11.2026: alle verknüpften Issues erledigt; Nutzerabnahme offen) — **Verweis:** 1.8
 
 ### RP-10 – Projekte und Nebeneinkünfte
 - **Story:** Als Nutzer möchte ich Gewinn und Verlust je Nebenprojekt sehen, damit ich entscheide, ob sich ein Projekt lohnt.
@@ -321,7 +321,7 @@ owner live acceptance is pending.
   - Erstattungen sind gegen ihre Kategorie gerechnet; Zukunft steht getrennt und ist kein Konsum.
   - Randfall: Für „Alles“ gibt es keinen gleich langen Vorzeitraum („Kein gleich langer Vorzeitraum verfügbar.“); ohne Monatsdaten „Noch keine Monatsdaten“.
 - **Continuation criteria (#1158):** In ON, `vergleich=vorjahr` compares with an equally long window starting in the same month one year earlier and survives reload and period changes; the default is the equally long previous period. In ON, `darstellung=kategorien` reopens the category reader after reload; selected categories and period survive switching among all three views. Existing group/payee figures and the OFF view set remain unchanged.
-- **Status:** existing body live; first consolidation slice implemented for review (#1158). Comparison mode Vorperiode/Vorjahr is delivered (address `vergleich=vorjahr`, same figures, only the comparison window differs; Empfänger is a view of the same report). The comparison section also shows the chain “Vorzeitraum + Mehr − Weniger = Jetzt” (per-category changes of the existing figures; hidden unless it adds up to the cent). **Verweis:** 2.1
+- **Status:** live (Stand 26.11.2026: alle verknüpften Issues erledigt; Nutzerabnahme offen) — **Verweis:** 2.1
 - **Owner decision (2026-11-23, #1158):** Old Kategorieübersicht and Zeitraumvergleich report addresses open Ausgaben in ON, preserving explicit periods, filters and anchors and using the remembered period before the legacy default. Zeitraumvergleich defaults to Vorjahr. A retired custom comparison bookmark opens with Vorperiode. The report shows missing comparison history explicitly.
 
 ### RP-12b – Empfänger-Analyse
@@ -351,7 +351,7 @@ owner live acceptance is pending.
   - Die Monatsbindung entspricht der Summe der Beträge in Plan › Zahlungen (geteilt durch Intervall).
   - Preise stammen aus verknüpften Buchungen und sind als abgeleitet markiert.
   - Randfall: Ohne Verträge „Noch keine Verträge“; Zahlungen mit Enddatum zählen nicht zur Bindung; Kündigungsfristen gibt es nicht (nicht im Datenmodell).
-- **Status:** implementation in review (#1160 navigation slice); owner acceptance pending · **Verweis:** 2.3
+- **Status:** live (Stand 26.11.2026: alle verknüpften Issues erledigt; Nutzerabnahme offen) — **Verweis:** 2.3
 
 - **Navigation acceptance (#1160):** No bank-cost selector remains in contracts. The former `/reports/abos?darstellung=bankkosten` bookmark redirects to `/reports/psteuern?darstellung=bankkosten`, preserving query context and hash.
 
@@ -387,7 +387,7 @@ owner live acceptance is pending.
   - Positive amounts and changes have no plus prefix; negative values retain their minus. Historical costs and changes use neutral ink; higher expenses are never coloured green.
   - “Beträge verbergen” still masks all money, including native currency; source links and legacy report addresses remain available.
   - Randfall: Ohne gebuchte Zinsen dienen gespeicherte Kreditkonditionen als markierte Schätzung; Spreads und TER ohne Daten sind nicht enthalten.
-- **Status:** implementation in review (#1160 navigation slice); owner acceptance pending · **Verweis:** 2.6
+- **Status:** live (Stand 26.11.2026: alle verknüpften Issues erledigt; Nutzerabnahme offen) — **Verweis:** 2.6
 
 - **Navigation acceptance (#1160):** Bank costs share the Portfolio report and selector. `/reports/kosten` and former contract bank-cost bookmarks retain the bank reader; source amounts, estimates, privacy, reload and Back remain intact.
 - **Total view (#1160):** `darstellung=gesamt` ("Kosten gesamt") shows one annual figure in three blocks: household bank and interest costs (own sum, no portfolio ratio), portfolio costs (trade fees and fees of depot-like accounts, counted once from the bank reader, plus TER share) and taxes withheld by the broker (labelled "einbehalten/erstattet", sign kept, a refund is negative), with a grand total. The cost ratio relates only the portfolio costs (no taxes, no household costs) to the portfolio value; gaps of the bank report (interest periods without EUR rate, trades without exchange rate) are shown as "unvollständig: …". The portfolio reader's own trading fees are not added (they are the bank reader's "Depot- / Transaktionsgebühren"). The selected calendar-year window applies to both readers and the closing portfolio value. All years show their grand total and portfolio-cost ratio, newest first, with partial or incomplete data marked. TER and modelled interest remain labelled as estimates. The hub name is “Verträge und Abos”.
@@ -407,7 +407,7 @@ owner live acceptance is pending.
   - Ein Ereignis (hinzufügen, abschalten, entfernen) ändert die Linie sofort und ist rückgängig machbar.
   - Der 10-%-Puffer ist als Band sichtbar.
   - Randfall: Ohne größere Buchungen „Im Prognosezeitraum stehen keine größeren Buchungen an.“
-- **Status:** existing Plan flow retained; catalog cleanup implemented for review (#1156), CI and owner acceptance pending · **Verweis:** 3.1
+- **Status:** live (Stand 26.11.2026: alle verknüpften Issues erledigt; Nutzerabnahme offen) — **Verweis:** 3.1
 
 ### RP-15b – Cashflow-Verlauf (legacy presentation)
 - **Redesign:** The old addresses open the Cashflow section in RP-05b. The legacy reader remains available with the redesign flag off.
@@ -438,7 +438,7 @@ owner live acceptance is pending.
   - Die Summe der Monate entspricht den erwarteten Abgängen in Plan › Zahlungen plus Sparplanausführungen.
   - Eine Zahlung wird nicht doppelt gezählt, wenn Umbuchung und Zeitplan dasselbe Ereignis sind.
   - Randfall: Nicht verknüpfte erwartete Zahlungen bleiben getrennt und werden nicht geraten; ein „Abrechnungsausgleich“ zeigt Einzugstermin und Betrag.
-- **Status:** existing Plan flow retained; catalog cleanup implemented for review (#1156), CI and owner acceptance pending · **Verweis:** 3.4
+- **Status:** live (Stand 26.11.2026: alle verknüpften Issues erledigt; Nutzerabnahme offen) — **Verweis:** 3.4
 
 ### RP-16a – Vermögensverläufe
 - **Story:** Als Nutzer möchte ich sehen, woraus das Vermögen über die Zeit besteht, damit ich erkenne, wie sich die Mischung aus Konten, Anlagen und Schulden verschiebt.
@@ -467,7 +467,7 @@ owner live acceptance is pending.
   - Der Zielstand entspricht Plan › Ziele für denselben Monat.
   - Die Reserve in Monaten entspricht geschlossenem Bedarf laut Finanz-Check.
   - Randfall: Fremdwährungsreserven sind ausdrücklich unvollständig markiert; Konten ohne Zielzuordnung zählen nicht zu einem Ziel.
-- **Status:** existing Plan flow retained; catalog cleanup implemented for review (#1156), CI and owner acceptance pending · **Verweis:** 3.5
+- **Status:** live (Stand 26.11.2026: alle verknüpften Issues erledigt; Nutzerabnahme offen) — **Verweis:** 3.5
   Fehlt noch: Zuordnung geteilter Konten und Kategorien zu Zielen (keine Quelle).
 
 ### RP-16c – Vermögen und Schulden
@@ -484,7 +484,7 @@ owner live acceptance is pending.
   - Ein Konto zählt als Vermögen, solange es positiv ist, und als Schuld, solange es negativ ist.
   - Randfall: Monate mit geschätzten Kursen tragen „≈“; die Monatstabelle ist die lesbare Alternative am Handy.
 - **Acceptance addition (#1157):** In redesign ON, old `darstellung=schulden` and `darstellung=freiheit` report bookmarks redirect to `/vermoegen/schulden` and `/vermoegen/freiheit`, preserving period, month and fragment through reload. Existing figures, goal edits, privacy and Undo remain unchanged.
-- **Status:** existing report live; duplicate-view removal implemented for review, CI and owner acceptance pending (#1157). Wealth-view consolidation and portfolio menu/value-development work remain open. · **Verweis:** 3.6
+- **Status:** live (Stand 26.11.2026: alle verknüpften Issues erledigt; Nutzerabnahme offen) — **Verweis:** 3.6
 
 ### RP-17a – Depots im Vergleich
 - **Story:** Als Nutzer möchte ich meine Depots nebeneinander vergleichen, damit ich erkenne, welcher Broker oder welches Konto am besten läuft.
@@ -559,7 +559,7 @@ owner live acceptance is pending.
   - Ertrag minus Steuer minus Gebühren ergibt Netto; die Summe der Produkte stimmt.
   - Steuern erscheinen wie gebucht; es gibt keine zweite Berechnung (illustrative latente KESt ist als Beispiel gekennzeichnet).
   - Randfall: Nicht erfasste Spreads fehlen und sind benannt.
-- **Status:** implementation in review (#1160 navigation slice); owner acceptance pending · **Verweis:** 4.5
+- **Status:** live (Stand 26.11.2026: alle verknüpften Issues erledigt; Nutzerabnahme offen) — **Verweis:** 4.5
 
 - **Navigation acceptance (#1160):** Bank costs share the Portfolio report and selector. `/reports/kosten` and former contract bank-cost bookmarks retain the bank reader; source amounts, estimates, privacy, reload and Back remain intact.
 - **Total view (#1160):** `darstellung=gesamt` ("Kosten gesamt") shows one annual figure in three blocks: household bank and interest costs (own sum, no portfolio ratio), portfolio costs (trade fees and fees of depot-like accounts, counted once from the bank reader, plus TER share) and taxes withheld by the broker (labelled "einbehalten/erstattet", sign kept, a refund is negative), with a grand total. The cost ratio relates only the portfolio costs (no taxes, no household costs) to the portfolio value; gaps of the bank report (interest periods without EUR rate, trades without exchange rate) are shown as "unvollständig: …". The portfolio reader's own trading fees are not added (they are the bank reader's "Depot- / Transaktionsgebühren"). The selected calendar-year window applies to both readers and the closing portfolio value. All years show their grand total and portfolio-cost ratio, newest first, with partial or incomplete data marked. TER and modelled interest remain labelled as estimates. The hub name is “Verträge und Abos”.
@@ -582,7 +582,7 @@ owner live acceptance is pending.
   - Wealth change is end minus start from the same net worth series, with exact cents and the shared ratio calculation. With starting net worth ≤ 0, the euro change remains available and the percentage says “nicht ermittelbar” with its reason. Missing valuations retain their specific reason without substituting zero.
   - Amount privacy also hides the wealth-change percentage. Full and partial years still print on two A4 pages.
   - Randfall: Nur volle Monate zählen; ein laufendes Jahr ist als Teiljahr erkennbar; Gehaltserhöhungen und Preisänderungen gibt es noch nicht als Befunde.
-- **Status:** existing report live; wealth-change extension (#1118), shared header and paper-menu entry (#1150) implemented, review/live acceptance pending. Investments/trading, with/without market, split savings rate, complete prior-year comparisons and context from #1118 remain open. · **Verweis:** 5.1
+- **Status:** live (Stand 26.11.2026: alle verknüpften Issues erledigt; Nutzerabnahme offen) — **Verweis:** 5.1
 
 ### RP-20a – Jahreskennzahlen und Vermögenszuwachs (#1118, first slice)
 - **Story:** Als Nutzer möchte ich Vermögenszuwachs und die Veränderung meiner bisherigen Jahreskennzahlen sehen, damit ich das Jahr beurteilen kann.
@@ -597,7 +597,7 @@ owner live acceptance is pending.
   - Anfangsvermögen null: Euroänderung bleibt sichtbar, Prozentänderung ist „nicht ermittelbar“ mit Grund. Fehlende oder geschätzte Bewertungen ergeben keine geschätzte neue Änderungskennzahl.
   - Vorjahreswerte nutzen die gemeinsamen Monatsfiguren und die gemeinsame Sparquote. Fehlende Vorjahresmonate werden nicht auf ein Jahr hochgerechnet; der Vergleich ist dann „nicht ermittelbar“ mit Grund. Ein Vorjahreswert null verhindert nur dessen Prozentänderung.
   - Die Summe der Geldwerte bleibt centgenau; keine Buchung und keine zentrale Finanzkennzahl wird geändert.
-- **Status:** implemented locally; PR review and live acceptance pending · **Verweis:** 5.1, #1118
+- **Status:** live (Stand 26.11.2026: alle verknüpften Issues erledigt; Nutzerabnahme offen) — **Verweis:** 5.1, #1118
 - **Remaining scope:** (investments, trading, wealth with/without market and split savings rate: see RP-20b) household income/consumption with/without market; prior-year comparisons for the new investment/trading figures (including relative savings-rate change). Slice 2 context (inflation, benchmark, debt, income sources, spending changes, reserves, goals) remains open. RP-20's existing live status does not imply these additions are live.
 
 ### RP-20b – Investments, Trading und geteilte Sparquote (#1118, slice 1b)
@@ -612,7 +612,7 @@ owner live acceptance is pending.
   - Wert, Einzahlungen, Marktergebnis, TTWROR und annualisierte XIRR sind centgenau/identisch mit dem Portfolio-Report für denselben Zeitraum (Test); Erträge, Gebühren und Steuern nutzen die Vermögen-Helfer auf den Trades der enthaltenen Monate; realisierter Gewinn ist die Differenz zweier Stände derselben Funktion wie im Portfolio.
   - Investiert + Bargeld ergeben exakt die Sparquote (Cent und Basispunkte, Test); Bargeld ist der Rest.
   - Ohne Kurse oder Depotdaten steht „nicht ermittelbar“ mit Grund; nichts wird geschätzt. Fehlende Einstandsdaten oder keine geschlossene Position werden an der Trefferquote erklärt.
-- **Status:** implemented locally; PR review and live acceptance pending · **Verweis:** 5.1, #1118
+- **Status:** live (Stand 26.11.2026: alle verknüpften Issues erledigt; Nutzerabnahme offen) — **Verweis:** 5.1, #1118
 - **Slice 2 im Block:** Vergleich mit dem konfigurierten Vergleichswert, Restschuld Anfang/Ende, Einkommen nach Quelle (bestehende Leser). Netto-Einzahlungen sind das Geld, das netto ins Depot floss, keine echte Zerlegung der Sparquote; der Zeitraum „bis letzter voller Monat“ steht im Block. Der Block ist ein Bildschirmabschnitt und wird nicht gedruckt (Blatt 2 hat keinen Platz; ein drittes A4-Blatt wäre Owner-Entscheid).
 - **Remaining scope:** Vorjahresvergleich der weiteren Investment-/Trading-Zahlen; Realwerte (Inflation), Zinszahlungen, Sparziele, Rücklage (noch keine gemeinsame Berechnung).
 
@@ -632,7 +632,7 @@ owner live acceptance is pending.
   - The shared report menu replaces the second presentation select; Back and reopening preserve the selected month context.
   - Das Öffnen des Berichts berechnet die gespeicherten Ergebnisse idempotent neu.
   - Randfall: Ein Tag ohne Daten bleibt „nicht bewertbar“; nur die letzten zwölf Monatsenden sind gespeichert.
-- **Status:** report live; compact shared header and menu path for review (#1150), live acceptance pending · **Verweis:** 5.2
+- **Status:** live (Stand 26.11.2026: alle verknüpften Issues erledigt; Nutzerabnahme offen) — **Verweis:** 5.2
 
 ### RP-21b – Kontakte-Abrechnung
 - **Story:** Als Nutzer möchte ich sehen, wer wem wie viel schuldet, damit ich Auslagen zurückfordere und den Überblick über offene Salden habe.
@@ -651,7 +651,7 @@ owner live acceptance is pending.
   - Keine Pluspräfixe in den Zeilen. Forderungen und Guthaben haben ausgeschriebene Richtungen; der Nettosaldo stammt unverändert aus derselben Kontaktabrechnung wie Konten › Kontakte. Die Tabellensumme ist die Bruttoforderung; vorhandenes Guthaben bleibt separat sichtbar.
   - Datenschutz blendet Beträge auch in Summen, Kopiertext und zugänglichen Beschriftungen aus; Desktop 1440 und Telefon 390 in Hell/Dunkel bleiben bedienbar.
   - Plan-Prüfung (#1149, ohne Verhaltensänderung): Neue Kategorie-Einkäufe mit Kontaktanteilen belasten die ursprüngliche Einkaufskategorie brutto bis zur Rückzahlung. Zugeordnete Rückzahlungen fließen in diese Kategorie zurück. Der Anteil wird nicht zusätzlich als eigene Auslagen-Kategorie belastet und nicht zusätzlich im Nettovermögen gezählt. Historische/alleinstehende Auslagen ohne belegte Ursprungskategorie behalten ihre gespeicherte Kategorie. Grundlage: `docs/shared-expenses.md`, `SPEC.md` (#963/#978); keine Neuberechnung oder Datenänderung in diesem Teil.
-- **Status:** teilweise · **Verweis:** 5.4, #1149. Erster Teil: offene Tabelle, gesamter Saldoverlauf und geschlossene, paginierte Vergangenheit für den gewählten Kontakt. Zweiter Teil (Redesign): alle Kontakte mit offenem Betrag stehen untereinander mit je einem Kontoblatt (jede Liste lädt ihr eigenes Blatt; ein Link der linken Liste markiert und fokussiert das gewählte Blatt); ausgeglichene Kontakte erscheinen nur nach „Auch ausgeglichene Kontakte“ und eingeklappt unter „Ausgeglichene Kontakte (n)“, ein gewählter ausgeglichener Kontakt klappt sie auf. Offen: vollständige Wiederverwendung des Buchungsregister-Bauteils. Private Abnahme ausständig.
+- **Status:** live (Stand 26.11.2026: alle verknüpften Issues erledigt; Nutzerabnahme offen) — **Verweis:** 5.4, #1149. Erster Teil: offene Tabelle, gesamter Saldoverlauf und geschlossene, paginierte Vergangenheit für den gewählten Kontakt. Zweiter Teil (Redesign): alle Kontakte mit offenem Betrag stehen untereinander mit je einem Kontoblatt (jede Liste lädt ihr eigenes Blatt; ein Link der linken Liste markiert und fokussiert das gewählte Blatt); ausgeglichene Kontakte erscheinen nur nach „Auch ausgeglichene Kontakte“ und eingeklappt unter „Ausgeglichene Kontakte (n)“, ein gewählter ausgeglichener Kontakt klappt sie auf. Offen: vollständige Wiederverwendung des Buchungsregister-Bauteils. Private Abnahme ausständig.
 
 RP-21b continuation (#1149, contacts slice of #1161), superseding the open shared-table
 item in the previous status: both open and historical booking
