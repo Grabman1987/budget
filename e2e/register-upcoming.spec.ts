@@ -1,5 +1,4 @@
 import { captureSaveControl } from './ledger-helpers';
-import { minimumControlHeight } from './control-geometry';
 import { redesignLoaded, registerContext, pickCategory } from './ledger-helpers';
 
 import AxeBuilder from '@axe-core/playwright';
@@ -110,8 +109,9 @@ test('separates future captures and next weekly occurrence, projects cents and u
       expect(date!.y >= payee!.y + payee!.height || date!.x + date!.width <= payee!.x).toBe(true);
     }
     await expect(booked.getByRole('img', { name: 'Kommende Buchung' })).toBeVisible();
-    if (!phone)
-      await expect(scheduled.getByRole('img', { name: 'Nächste Wiederholung' })).toBeVisible();
+    await expect(scheduled.getByRole('img', { name: 'Nächste Wiederholung' })).toBeVisible();
+    // Kommend is a read-only preview: no book/skip actions in planned rows.
+    await expect(scheduled.getByRole('button')).toHaveCount(0);
     await registerContext(page);
     await expect(page.getByTestId('register-today')).toContainText('Heute · Saldo 997,97');
     await registerContext(page, false);
@@ -148,31 +148,9 @@ test('separates future captures and next weekly occurrence, projects cents and u
       }
       const rowHeight = (await booked.boundingBox())!.height;
       expect((await scheduled.boundingBox())!.height).toBeLessThan(rowHeight * 1.4);
-      await scheduled.hover();
-      const actions = await scheduled.getByRole('button', { name: 'Jetzt buchen' }).boundingBox();
-      const skip = await scheduled.getByRole('button', { name: 'Überspringen' }).boundingBox();
-      const redesign = (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
-      if (redesign)
-        expect(actions!.height).toBeGreaterThanOrEqual(
-          await minimumControlHeight(scheduled.getByRole('button', { name: 'Jetzt buchen' })),
-        );
-      expect(actions!.height).toBeLessThanOrEqual(
-        redesign
-          ? Math.ceil(
-              await minimumControlHeight(scheduled.getByRole('button', { name: 'Jetzt buchen' })),
-            ) + 0.1
-          : 34,
-      );
-      expect(Math.abs(actions!.y - skip!.y)).toBeLessThan(2);
     }
     if (info.project.name === 'mobile') {
       expect((await booked.locator('.kschedule-m-main').boundingBox())!.width).toBeGreaterThan(100);
-      await scheduled.getByRole('button', { name: /^Aktionen:/ }).click();
-      for (const name of ['Jetzt buchen', 'Überspringen']) {
-        const box = await scheduled.getByRole('button', { name }).boundingBox();
-        expect(box!.height).toBeGreaterThanOrEqual(44);
-        expect(box!.width).toBeGreaterThanOrEqual(44);
-      }
     }
     await section.scrollIntoViewIfNeeded();
     for (const theme of ['light', 'dark']) {
@@ -218,36 +196,7 @@ test('separates future captures and next weekly occurrence, projects cents and u
   await expect(page.getByTestId('register-today')).toContainText('997,97');
   await registerContext(page, false);
   const scheduled = page.locator('.kupcoming [data-occurrence]');
-  // Hover-only (desktop) or behind ⋯ (touch): reveal the actions the way a user does, then press.
-  const press = async (name: string) => {
-    const more = scheduled.getByRole('button', { name: /^Aktionen:/ });
-    if (!(await more.isVisible())) await scheduled.hover();
-    else if ((await more.getAttribute('aria-expanded')) === 'false') await more.click();
-    await scheduled.getByRole('button', { name }).click();
-  };
-  const originalId = await scheduled.getAttribute('data-occurrence');
-  await press('Überspringen');
-  await expect(scheduled).not.toHaveAttribute('data-occurrence', originalId!);
-  await page.getByRole('button', { name: 'Rückgängig', exact: true }).click();
-  await expect(scheduled).toHaveAttribute('data-occurrence', originalId!);
-  const saved = page.waitForResponse(
-    (r) => r.url().endsWith(`/occurrences/${originalId}/book`) && r.request().method() === 'POST',
-  );
-  await press('Jetzt buchen');
-  const savedResponse = await saved;
-  expect(savedResponse.status()).toBe(201);
-  const result = await savedResponse.json();
-  await expect(page.locator(`[data-booking="${result.bookingId}"]`)).toBeVisible();
-  await expect(scheduled).not.toHaveAttribute('data-occurrence', originalId!);
-  await registerContext(page);
-  await expect(page.getByTestId('register-today')).toContainText('995,94');
-  await page.getByRole('button', { name: 'Rückgängig', exact: true }).click();
-  await expect(page.locator(`[data-booking="${result.bookingId}"]`)).toHaveCount(0);
-  await expect(scheduled).toHaveAttribute('data-occurrence', originalId!);
-  await registerContext(page);
-  await expect(page.getByTestId('register-today')).toContainText('997,97');
-  await registerContext(page, false);
-  await scheduled.getByRole('link', { name: 'Wöchentlich Muster' }).click();
+  await scheduled.getByRole('link', { name: /Wöchentlich Muster/ }).click();
   await expect(page).toHaveURL(/\/plan\/erwartet\/[^?]+/);
   await expect(
     page.getByRole('heading', { name: 'Wöchentlich Muster', exact: true }).last(),

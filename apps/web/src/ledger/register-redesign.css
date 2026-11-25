@@ -416,20 +416,6 @@
   }
 }
 
-@media (hover: hover) and (min-width: 768px) {
-  .ktx.ktx-redesign .kschedule-line {
-    position: relative;
-    min-height: 44px;
-  }
-  .ktx.ktx-redesign .kschedule-actions {
-    position: absolute;
-    inset-inline-start: calc(100% + 4px);
-    inset-block-start: 0;
-    z-index: 5;
-    width: max-content;
-    background: var(--surface);
-  }
-}
 @media (max-width: 767px) {
   .ktx.ktx-redesign tr.is-upcoming {
     grid-template-columns: minmax(0, 1fr) minmax(44px, 30%) 44px;
@@ -601,9 +587,5 @@
   }
   .kschedule-m-status {
     justify-self: center;
-  }
-  .kschedule-m .kschedule-actions {
-    grid-column: 1 / -1;
-    padding: 0 12px 8px 0;
   }
 }

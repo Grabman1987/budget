@@ -364,7 +364,7 @@ Bereich: Konten (`/konten`, `/konten/$id`), Alle Buchungen (`/konten/buchungen`)
   1. Geplante wiederkehrende Zahlungen erscheinen nur, wenn sie in den nächsten 31 Tagen fällig sind; eine jährliche Sonderzahlung im Juni erscheint im November also noch nicht. Mit einem „Bis“-Filter sehe ich auch spätere Termine.
   2. Bereits erfasste zukünftige Buchungen erscheinen immer.
   3. Auf dem Telefon steht das Datum einmal als Tagesüberschrift (z. B. „Mo 01.12.“) vor den Zeilen dieses Tages. Jede Zeile zeigt oben Empfänger und Betrag, darunter die Kategorie und rechts den voraussichtlichen Kontostand danach. Den Kontonamen zeigt nur „Alle Buchungen“.
-  4. Eine erfasste zukünftige Buchung sieht auf dem Telefon genauso aus wie eine geplante; ein Tipp öffnet die Buchung.
+  4. „Kommend“ ist eine reine Vorschau ohne „Jetzt buchen“ und „Überspringen“: ein Tipp auf eine erfasste zukünftige Buchung öffnet die Buchung (dort lässt sich z. B. das Datum ändern), ein Tipp auf eine geplante Zahlung öffnet sie unter Plan › Erwartet (dort Termin streichen, verknüpfen oder als ausgefallen markieren). Ein kleines Symbol unterscheidet geplant (Wiederholung) und erfasst (Kalender).
 - **Ergebnis:** Kompakte, gleich aufgebaute Zeilen mit laufendem Kontostand.
 - **Abnahmekriterien:**
   1. Kein Termin mehr als 31 Tage nach heute ohne passenden „Bis“-Filter.

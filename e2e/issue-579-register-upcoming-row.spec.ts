@@ -97,45 +97,11 @@ test('collapses "Kommend" to one row with hover-only actions and a full, keyboar
   await expect(page.locator('.kupcoming [data-booking]')).toHaveCount(18);
   await expect(scheduled).toHaveCount(1);
 
-  const book = scheduled.getByRole('button', { name: 'Jetzt buchen' });
-  const skip = scheduled.getByRole('button', { name: 'Überspringen' });
-  const actions = scheduled.locator('.kschedule-actions');
-  if (!touch) {
-    // The earlier toggle click can leave the pointer over the shorter (38px) rows.
-    await page.mouse.move(0, 0);
-    // Neither visible nor clickable until the row is hovered or holds focus.
-    await expect(actions).toHaveCSS('opacity', '0');
-    await expect(actions).toHaveCSS('pointer-events', 'none');
-    await scheduled.hover();
-    await expect(actions).toHaveCSS('opacity', '1');
-    await expect(actions).toHaveCSS('pointer-events', 'auto');
-    await page.mouse.move(0, 0);
-    await expect(actions).toHaveCSS('opacity', '0');
-    // Keyboard: Tab from the name reaches both actions, which then show.
-    await scheduled.getByRole('link', { name: 'Wöchentlich Muster' }).focus();
-    await page.keyboard.press('Tab');
-    await expect(book).toBeFocused();
-    await expect(actions).toHaveCSS('opacity', '1');
-    await page.keyboard.press('Tab');
-    await expect(skip).toBeFocused();
-    await expect(actions).toHaveCSS('opacity', '1');
-  } else {
-    // Touch: the actions live behind ⋯.
-    await expect(book).toBeHidden();
-    await expect(skip).toBeHidden();
-    const more = scheduled.getByRole('button', { name: 'Aktionen: Wöchentlich Muster' });
-    await expect(more).toHaveAttribute('aria-expanded', 'false');
-    expect((await more.boundingBox())!.height).toBeGreaterThanOrEqual(44);
-    expect((await more.boundingBox())!.width).toBeGreaterThanOrEqual(44);
-    await more.click();
-    await expect(more).toHaveAttribute('aria-expanded', 'true');
-    for (const button of [book, skip]) {
-      await expect(button).toBeVisible();
-      const target = (await button.boundingBox())!;
-      expect(target.height).toBeGreaterThanOrEqual(44);
-      expect(target.width).toBeGreaterThanOrEqual(44);
-    }
-  }
+  // Kommend is a read-only preview: no book/skip actions in the row; the name opens the payment.
+  await expect(scheduled.getByRole('button')).toHaveCount(0);
+  const link = scheduled.getByRole('link', { name: /Wöchentlich Muster/ });
+  await expect(link).toBeVisible();
+  if (touch) expect((await link.boundingBox())!.height).toBeGreaterThanOrEqual(44);
 
   await scheduled.scrollIntoViewIfNeeded();
   for (const theme of ['light', 'dark']) {

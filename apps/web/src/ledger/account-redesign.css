@@ -89,11 +89,6 @@
   margin-block: 0;
 }
 
-.account-detail-redesign .ktx-account .kschedule-actions .btn {
-  min-height: 44px;
-  min-width: 44px;
-}
-
 .account-detail-redesign.kacct {
   position: relative;
 }

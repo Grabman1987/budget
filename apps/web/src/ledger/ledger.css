@@ -615,67 +615,11 @@
 .ktx .is-upcoming .kupcoming-negative {
   color: color-mix(in srgb, var(--minus-ink) 70%, var(--ink-3));
 }
-/* Next occurrence: the name on the left, the two actions as small ghost buttons on its right. */
-.kschedule-line {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  min-width: 0;
-}
 .kschedule-name {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-.kschedule-actions {
-  display: flex;
-  flex: none;
-  gap: 4px;
-}
-.kschedule-actions .btn {
-  white-space: nowrap;
-  font-weight: 400;
-}
-/* The actions stay out of sight and out of reach until the row is hovered or holds focus, so
-   "Überspringen" cannot be hit by accident. Touch gets a ⋯ button instead. */
-.kschedule-more {
-  display: none;
-}
-@media (hover: hover) and (min-width: 768px) {
-  .kschedule-actions {
-    opacity: 0;
-    pointer-events: none;
-  }
-  .ktx tr.is-upcoming:hover .kschedule-actions,
-  .ktx tr.is-upcoming:focus-within .kschedule-actions {
-    opacity: 1;
-    pointer-events: auto;
-  }
-}
-@media (hover: none), (max-width: 767px) {
-  .kschedule-more {
-    display: inline-flex;
-    flex: none;
-    align-items: center;
-    justify-content: center;
-    min-width: var(--touch);
-    min-height: var(--touch);
-    color: var(--ink-3);
-    cursor: pointer;
-  }
-  .kschedule-more:focus-visible {
-    outline: 2px solid var(--line);
-    outline-offset: -2px;
-  }
-  .kschedule-actions {
-    display: none;
-  }
-  .kschedule-line.is-open .kschedule-actions,
-  .kschedule-m.is-open .kschedule-actions {
-    display: flex;
-  }
 }
 .ktx .is-upcoming .kx-check:empty {
   padding: 0;
@@ -709,17 +653,9 @@
   .ktx-all .kx-run:empty {
     display: none;
   }
-  .kschedule-line {
-    flex-wrap: wrap;
-    justify-content: flex-start;
-  }
   .kschedule-name {
-    flex: 1 1 0;
     white-space: normal;
     overflow-wrap: anywhere;
-  }
-  .kschedule-line.is-open .kschedule-actions {
-    flex: 1 1 100%;
   }
 }
 
