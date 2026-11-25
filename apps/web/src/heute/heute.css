@@ -1575,3 +1575,31 @@
     min-width: 0;
   }
 }
+
+/* Whole row opens its booking or payment; inner links stay above the stretched button. */
+.heute-booking,
+.heute-upcoming {
+  position: relative;
+}
+.heute-row-open {
+  display: block;
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.heute-row-open::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+}
+.heute-booking a,
+.heute-upcoming a,
+.heute-upcoming .btn {
+  position: relative;
+  z-index: 1;
+}

@@ -384,3 +384,7 @@ Bewegungen, die nur diese Wallet betreffen, als informativ geschlossen; Legs auf
 zugeordneten Wallets derselben Bewegung werden weiter geprüft. Mit **Wieder
 abbilden** nehme ich die Wahl zurück. Buchungen, Trades, Bestände und Salden
 bleiben unverändert, und Rückgängig stellt die Prüfliste wieder her.
+
+## Heute: Fälliges und letzte Buchungen antippen (#1323)
+
+Auf Heute öffnet ein Tipp auf eine Zeile in „Letzte Buchungen“ genau diese Buchung im Bearbeiten-Dialog. Nach Speichern oder Schließen bleibe ich auf Heute und die Karte aktualisiert sich. Ein Tipp auf eine Zeile in „Fällig 14 Tage“ öffnet die wiederkehrende Zahlung mit Buchen, Verknüpfen und Überspringen; ist die Fälligkeit schon zugeordnet, öffnet sie die verknüpfte Buchung zum Bearbeiten. „Alle →“ führt wie bisher in die Listen.

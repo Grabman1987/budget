@@ -13,7 +13,7 @@ import {
   type RevisionRow,
 } from '@budget/ui';
 import { addDays, cents } from '@budget/domain';
-import { useQuery, type UseQueryResult } from '@tanstack/react-query';
+import { useQuery, useQueryClient, type UseQueryResult } from '@tanstack/react-query';
 import { useNavigate, useLocation } from '@tanstack/react-router';
 import { useMemo, useState, type ReactNode } from 'react';
 import { TriangleAlert, ArrowDown, ArrowUp, ChevronRight } from 'lucide-react';
@@ -27,7 +27,7 @@ import { monthLabel as monthName } from '../nav/month';
 import { currentMonth, useMonth } from '../shell/use-month';
 import { AppLink } from '../shell/app-link';
 import { HeutePaceChart, HeuteWealthChart } from './charts';
-import { heuteQuery, type Heute } from './api';
+import { heuteQuery, type Heute, type HeuteOccurrence } from './api';
 import { CompactForecastCard } from './compact-forecast-card';
 import { useBalancePeriod } from './use-balance-period';
 import './heute.css';
@@ -42,6 +42,8 @@ import { DailyBudgetLine } from './charts';
 import { VerdictLine } from '../reports/verdict-line';
 import { heuteVerdictFacts } from '../reports/verdict-facts';
 import { Upcoming } from './upcoming-payments';
+import { useBookingEditor } from './booking-editor';
+import { occurrencesQuery } from '../expected/api';
 import type { DimensionKind } from './dimension-page';
 import { REDESIGN_ENABLED } from '../shell/redesign-flag';
 import { InvestmentBasisSummary } from './investment-basis';
@@ -113,6 +115,24 @@ function HeuteBody({
   const [leadDetail, setLeadDetail] = useState<'balance' | 'open' | null>(null);
   const [paceDetail, setPaceDetail] = useState<'spent' | 'plan' | 'forecast' | null>(null);
   const navigate = useNavigate();
+  const qc = useQueryClient();
+  const bookingEditor = useBookingEditor();
+  // A matched occurrence opens its booking; otherwise the payment page carries book/link/skip.
+  const openOccurrence = (item: HeuteOccurrence) => {
+    const openPayment = () =>
+      void navigate({ to: '/plan/erwartet/$id', params: { id: item.paymentId }, search: {} });
+    if (item.status !== 'received' && item.status !== 'deviating') return openPayment();
+    void qc
+      .fetchQuery(occurrencesQuery(item.dueDate, item.dueDate))
+      .then((rows) => {
+        const bookingId = rows.find(
+          (row) => row.paymentId === item.paymentId && row.dueDate === item.dueDate,
+        )?.bookingId;
+        if (bookingId) bookingEditor.open(bookingId);
+        else openPayment();
+      })
+      .catch(openPayment);
+  };
   const source = useLocation({ select: (location) => location.href });
   const openNetDetail = (kind: DimensionKind) =>
     void navigate({
@@ -444,6 +464,7 @@ function HeuteBody({
           )}
           title="Fällig 14 Tage"
           compact={REDESIGN_ENABLED}
+          onOpenOccurrence={openOccurrence}
           standToday={away ? longDay(data.stand.today) : undefined}
         />
       ) : (
@@ -488,7 +509,14 @@ function HeuteBody({
                   aria-hidden="true"
                 />
                 <div>
-                  <strong>{privateAmount(bookingCounterparty(item))}</strong>
+                  <button
+                    type="button"
+                    className="heute-row-open"
+                    aria-label={`Buchung bearbeiten: ${bookingCounterparty(item)} · ${longDay(item.date)}`}
+                    onClick={() => bookingEditor.open(item.id)}
+                  >
+                    <strong>{privateAmount(bookingCounterparty(item))}</strong>
+                  </button>
                   <span>
                     {longDay(item.date)} ·{' '}
                     {[item.categoryName, item.memo ? privateAmount(item.memo) : null]
@@ -497,9 +525,7 @@ function HeuteBody({
                   </span>
                 </div>
                 <div>
-                  <AppLink to="/konten/buchungen" search={{ von: item.date, bis: item.date }}>
-                    {eur(item.amountCents, { sign: true })}
-                  </AppLink>
+                  <strong>{eur(item.amountCents, { sign: true })}</strong>
                   <span>
                     {STATUS[item.status] ?? item.status} · {item.accountName}
                   </span>
@@ -844,6 +870,7 @@ function HeuteBody({
           {moreMonth}
         </>
       )}
+      {bookingEditor.panel}
     </>
   );
 }

@@ -107,3 +107,11 @@ Bereich: Startseite „Heute“ (Route `/`). Status und Verweise wie in `docs/US
 - **Status:** open — partial read optimization; the cold 500 ms target remains unaccepted. **References:** #1073, #956
 - Read flow: after a cache miss, account-review chronology reads the same audit predicates directly from SQLite before the unchanged replay; loading/error UI and all financial figures remain unchanged.
 - Remaining: incremental account-review replay, month-end valuation batching, the current-month whole-picture projection and finance-check fact reuse. Goal audit parsing is already cached by #1129.
+
+### H-xx – Fälliges und letzte Buchungen antippen (#1323)
+- **Story:** Als Nutzer möchte ich in „Letzte Buchungen“ und „Fällig 14 Tage“ eine Zeile antippen und direkt bearbeiten bzw. handeln, damit ich nicht erst über mehrere Seiten gehen muss.
+- **Ablauf:**
+  1. Ich tippe eine Zeile in „Letzte Buchungen“. Der Bearbeiten-Dialog öffnet genau diese Buchung; nach Speichern oder Schließen bin ich wieder auf Heute und die Zeile ist aktualisiert.
+  2. Ich tippe eine offene Zeile in „Fällig 14 Tage“. Die wiederkehrende Zahlung öffnet sich mit Buchen, Verknüpfen und Überspringen; bei einer bereits zugeordneten Fälligkeit öffnet sich die verknüpfte Buchung im Bearbeiten-Dialog.
+- **Abnahmekriterien:** Zeilen sind Schaltflächen mit Namen, 44 px hoch, per Tastatur bedienbar; „Alle →“ führt unverändert in die Listen.
+- **Status:** in Arbeit — **Verweis:** #1323
