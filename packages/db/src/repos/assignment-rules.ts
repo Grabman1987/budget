@@ -42,6 +42,7 @@ import {
   type BookingPatch,
   type SplitInput,
 } from './bookings';
+import { SETTLEMENT_DEBIT_WINDOW_DAYS } from './statement-settlement';
 import { runInTransaction, type Executor } from './types';
 
 export type AssignmentRule = AssignmentRuleInput & {
@@ -557,6 +558,28 @@ function cardSettlementSuggestion(
       card.currency !== row.currency
     )
       continue;
+    // The statement already accounts for this payment (or is waiting for it): proposing another
+    // transfer would pay the bill twice. Open settlements block any amount; a represented one
+    // blocks the same amount. The window covers a bank debit a few days off the printed date.
+    const day = (iso: string) => Date.parse(`${iso}T00:00:00Z`);
+    const covered = db
+      .select()
+      .from(statementSettlement)
+      .where(
+        and(
+          eq(statementSettlement.cardAccountId, card.id),
+          eq(statementSettlement.fundingAccountId, row.accountId),
+          isNull(statementSettlement.deletedAt),
+          inArray(statementSettlement.state, ['open', 'represented']),
+        ),
+      )
+      .all()
+      .some(
+        (r) =>
+          Math.abs(day(r.debitDate) - day(row.date)) <= SETTLEMENT_DEBIT_WINDOW_DAYS * 86_400_000 &&
+          (r.state === 'open' || r.payableCents === -row.amountCents),
+      );
+    if (covered) continue;
     const earlier = db
       .select({ booking })
       .from(statementSettlement)

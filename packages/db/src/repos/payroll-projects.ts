@@ -243,13 +243,8 @@ export function readPayroll(db: Executor, month: string, today: string) {
     .all()
     .filter((b) => salaryAmounts.has(b.id) && b.amountCents > 0)
     .map((b) => ({ ...b, amountCents: salaryAmounts.get(b.id)! }));
-  const sourceSpecialGross = new Map(
-    sources
-      .filter((s) => s.originalLines.length > 0)
-      .map((s) => [s.id, s.issues.length > 0 ? null : s.paid.special] as const),
-  );
   return {
-    ...payrollReport(slips, month, sourceSpecialGross, payrollCompositionFacts(salarySlips, rules)),
+    ...payrollReport(slips, month, new Map(), payrollCompositionFacts(salarySlips, rules)),
     sources,
     captured: slips,
     links,

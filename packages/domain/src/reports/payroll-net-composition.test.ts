@@ -185,6 +185,7 @@ describe('combined slip marked as containing a special payment (#1321)', () => {
     // Without an earlier slip there is no baseline: nothing is flagged.
     expect(payrollCompositionFacts([combinedSlip], mapped.slice(0, 1)).get('c')).toEqual({
       specialGrossCents: 0,
+      complete: false,
       openMappingTask: false,
     });
   });
@@ -207,7 +208,48 @@ describe('combined slip marked as containing a special payment (#1321)', () => {
     const rows = ['2026-03', '2026-04', '2026-05', '2026-06'].map((m) =>
       payrollNetComposition(slips, m, facts),
     );
-    expect(runningNetAverage(rows)).toEqual({ averageCents: 400000, months: 3, excludedMonths: 1 });
-    expect(runningNetAverage([])).toEqual({ averageCents: null, months: 0, excludedMonths: 0 });
+    expect(runningNetAverage(rows)).toEqual({
+      averageCents: 400000,
+      months: 3,
+      excludedMonths: 1,
+      openMappingMonths: 0,
+    });
+    expect(runningNetAverage([])).toEqual({
+      averageCents: null,
+      months: 0,
+      excludedMonths: 0,
+      openMappingMonths: 0,
+    });
+  });
+
+  it('running-pay average also leaves out months with an open mapping task and reports them', () => {
+    const slips = [...earlier, combinedSlip];
+    const facts = payrollCompositionFacts(slips, mapped.slice(0, 1));
+    const rows = ['2026-03', '2026-04', '2026-05', '2026-06'].map((m) =>
+      payrollNetComposition(slips, m, facts),
+    );
+    expect(runningNetAverage(rows)).toEqual({
+      averageCents: 400000,
+      months: 3,
+      excludedMonths: 0,
+      openMappingMonths: 1,
+    });
+  });
+
+  it('year and month special gross come from the same derivation', () => {
+    const slips = [...earlier, combinedSlip];
+    const facts = payrollCompositionFacts(slips, mapped);
+    const report = payrollReport(slips, '2026-06', new Map(), facts);
+    expect(report.years[0]!.specialGrossCents).toBe(698500);
+    expect(report.timeline.at(-1)!.composition.specialGrossCents).toBe(698500);
+    // Unmapped line: month unknown (null), year unknown (null), never a guessed amount.
+    const open = payrollReport(
+      slips,
+      '2026-06',
+      new Map(),
+      payrollCompositionFacts(slips, mapped.slice(0, 1)),
+    );
+    expect(open.years[0]!.specialGrossCents).toBeNull();
+    expect(open.timeline.at(-1)!.composition.specialGrossCents).toBeNull();
   });
 });

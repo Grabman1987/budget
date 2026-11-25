@@ -88,6 +88,7 @@ export function payrollCompositionFacts(
       .map((p) => payrollTotals([p]).grossCents);
     facts.set(slip.id, {
       specialGrossCents: parts.paid.special,
+      complete: parts.issues.length === 0,
       openMappingTask:
         slip.kind === 'regular' &&
         hasUnmappedEarning &&

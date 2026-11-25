@@ -340,3 +340,97 @@ it('creates its own transfer when no matching payment exists (unchanged behaviou
   expect(row.representationKind).toBe('created');
   expect(balance(FUND, '2026-11-25')).toBe(5_000_000 - 100_000 - 250_000);
 });
+
+function confirmStatement(amount: number, sha: string, reference: string) {
+  const configRevision =
+    (opened.sqlite
+      .prepare('SELECT updated_at FROM statement_settlement_config')
+      .get() as unknown) &&
+    act({
+      operation: 'configure',
+      key: 'synthetic-1319-reconfigure-' + reference,
+      cardAccountId: CARD,
+      fundingAccountId: FUND,
+      expectedRevision: history(opened.db, 'statement_settlement_config', CARD).at(-1)?.id ?? null,
+      enabled: true,
+    }).configRevision!;
+  const source = statementSource(amount, sha, reference);
+  const confirmed = act({
+    operation: 'confirm',
+    key: 'synthetic-1319-confirm-' + reference,
+    source,
+    configRevision,
+  });
+  return { source, configRevision, confirmed };
+}
+const payInput = (c: ReturnType<typeof confirmStatement>, status: 'pending' | 'confirmed') => ({
+  operation: 'create_transfer',
+  key: 'synthetic-1319-pay-' + c.source.sha256.slice(0, 4) + status,
+  source: c.source,
+  configRevision: c.configRevision,
+  settlementId: c.confirmed.settlementId,
+  expectedRevision: c.confirmed.settlementRevision,
+  status,
+});
+
+it('proposes nothing when a statement already pays the same bill (statement first, no double pay)', () => {
+  priorSettlement();
+  const c = confirmStatement(50_000, 'e'.repeat(64), 'SYNTHETIC-1319-E');
+  // Open settlement of 500,00 (no transfer yet): the bank debit of any amount is not proposed.
+  const openDebit = bankDebit('2026-10-12', -50_000);
+  expect(readBookingAssignments(opened.db, openDebit).suggestions).toEqual([]);
+  const otherAmount = bankDebit('2026-10-11', -40_000);
+  expect(readBookingAssignments(opened.db, otherAmount).suggestions).toEqual([]);
+  // The statement created its own payment: card +500,00 once, and the debit is not proposed.
+  act(payInput(c, 'pending'));
+  expect(balance(CARD, '2026-11-25')).toBe(150_000);
+  expect(readBookingAssignments(opened.db, openDebit).suggestions).toEqual([]);
+  expect(balance(CARD, '2026-11-25')).toBe(150_000);
+  // Outside the window the debit is a different bill again.
+  const later = bankDebit('2026-11-23', -50_000);
+  expect(readBookingAssignments(opened.db, later).suggestions[0]!.id).toBe(
+    'card-settlement:' + CARD,
+  );
+});
+
+it('refuses to pay twice next to a shifted-date payment', () => {
+  priorSettlement();
+  const debit = bankDebit('2026-10-12', -250_000);
+  const rule = readBookingAssignments(opened.db, debit).suggestions[0]!;
+  applyBookingAssignment(opened.db, debit, rule.id, ctx, rule.revision);
+  const c = confirmStatement(250_000, '1'.repeat(64), 'SYNTHETIC-1319-S');
+  const legs = opened.db.select().from(booking).all().length;
+  expect(() => act(payInput(c, 'pending'))).toThrow();
+  expect(opened.db.select().from(booking).all()).toHaveLength(legs);
+});
+
+it('links an exact pair, reports linkedExisting, and survives undo and redo', () => {
+  priorSettlement();
+  const debit = bankDebit('2026-10-10', -250_000);
+  const rule = readBookingAssignments(opened.db, debit).suggestions[0]!;
+  applyBookingAssignment(opened.db, debit, rule.id, ctx, rule.revision);
+  const transferId = getBooking(opened.db, debit)!.transferId!;
+  const c = confirmStatement(250_000, 'f'.repeat(64), 'SYNTHETIC-1319-F');
+  // The pair is pending: a different requested status is refused explicitly, nothing changes.
+  expect(() => act(payInput(c, 'confirmed'))).toThrow();
+  const legs = opened.db.select().from(booking).all().length;
+  const linked = act(payInput(c, 'pending'));
+  expect(linked.linkedExisting).toBe(true);
+  expect(linked.transferId).toBe(transferId);
+  expect(opened.db.select().from(booking).all()).toHaveLength(legs);
+  const state = () =>
+    opened.db
+      .select()
+      .from(statementSettlement)
+      .where(eq(statementSettlement.reference, 'SYNTHETIC-1319-F'))
+      .get()!;
+  expect(state()).toMatchObject({ state: 'represented', representationKind: 'linked' });
+  const undone = undo(opened.db, { groupId: linked.groupId! }, ctx);
+  expect(state()).toMatchObject({ state: 'open', transferId: null });
+  expect(getBooking(opened.db, debit)!.transferId).toBe(transferId);
+  expect(opened.db.select().from(booking).all()).toHaveLength(legs);
+  undo(opened.db, { groupId: undone.groupId }, ctx);
+  expect(state()).toMatchObject({ state: 'represented', representationKind: 'linked' });
+  expect(opened.db.select().from(booking).all()).toHaveLength(legs);
+  expect(balance(CARD, '2026-11-25')).toBe(350_000);
+});

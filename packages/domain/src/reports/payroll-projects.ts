@@ -147,8 +147,26 @@ export function payslipPayNetCents(slip: PayslipInput) {
 export interface PayslipCompositionFact {
   /** Gross of the earning lines mapped to the special component. */
   specialGrossCents: number;
+  /** False while the reading has issues (unmapped lines, failed line check): the figure is partial. */
+  complete: boolean;
   /** A regular slip with unmapped earning lines whose gross is above the trailing running gross. */
   openMappingTask: boolean;
+}
+
+/**
+ * The ONE derivation of a slip's special gross (composition and year rows): mapped special lines
+ * when the slip has a wage reading, else the whole gross of a separate special slip, else 0.
+ * `null`: unknown (reading with issues) for the year totals; `cents` keeps the mapped part.
+ */
+function slipSpecialGross(
+  p: CapturedPayslip,
+  fact: PayslipCompositionFact | undefined,
+  legacy: ReadonlyMap<string, number | null>,
+): { cents: number; complete: boolean } {
+  if (fact) return { cents: fact.specialGrossCents, complete: fact.complete };
+  if (legacy.has(p.id))
+    return { cents: legacy.get(p.id) ?? 0, complete: legacy.get(p.id) !== null };
+  return { cents: p.kind === 'special' ? payrollTotals([p]).grossCents : 0, complete: true };
 }
 
 /**
@@ -169,14 +187,7 @@ export function payrollNetComposition(
   const special = inMonth.filter((p) => p.kind === 'special');
   const sum = (list: CapturedPayslip[]) => list.reduce((n, p) => n + payslipPayNetCents(p), 0);
   const specialGross = inMonth
-    .map((p) => {
-      const fact = facts.get(p.id);
-      return fact
-        ? fact.specialGrossCents
-        : p.kind === 'special'
-          ? payrollTotals([p]).grossCents
-          : 0;
-    })
+    .map((p) => slipSpecialGross(p, facts.get(p.id), new Map()).cents)
     .filter((value) => value > 0);
   return {
     month,
@@ -198,10 +209,13 @@ export function payrollNetComposition(
 export function runningNetAverage(
   rows: readonly Pick<
     ReturnType<typeof payrollNetComposition>,
-    'recorded' | 'runningCents' | 'containsSpecial'
+    'recorded' | 'runningCents' | 'containsSpecial' | 'openMappingSlipIds'
   >[],
 ) {
-  const used = rows.filter((r) => r.recorded && r.runningCents !== null && !r.containsSpecial);
+  const unclear = (r: (typeof rows)[number]) => r.openMappingSlipIds.length > 0;
+  const used = rows.filter(
+    (r) => r.recorded && r.runningCents !== null && !r.containsSpecial && !unclear(r),
+  );
   return {
     averageCents: used.length
       ? roundDivCents(
@@ -211,6 +225,8 @@ export function runningNetAverage(
       : null,
     months: used.length,
     excludedMonths: rows.filter((r) => r.recorded && r.containsSpecial).length,
+    /** Months whose unmapped earning lines may hide a special payment (not counted either). */
+    openMappingMonths: rows.filter((r) => r.recorded && !r.containsSpecial && unclear(r)).length,
   };
 }
 
@@ -239,13 +255,10 @@ export function payrollReport(
       );
     const totals = payrollTotals(current),
       baseline = covered ? payrollTotals(prior).grossCents : null;
-    const specialAmounts = current.map((p) =>
-      sourceSpecialGross.has(p.id)
-        ? sourceSpecialGross.get(p.id)!
-        : p.kind === 'special'
-          ? payrollTotals([p]).grossCents
-          : 0,
-    );
+    const specialAmounts = current.map((p) => {
+      const found = slipSpecialGross(p, compositionFacts.get(p.id), sourceSpecialGross);
+      return found.complete ? found.cents : null;
+    });
     return {
       year: y,
       months: new Set(current.map((p) => p.month)).size,

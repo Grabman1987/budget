@@ -66,7 +66,7 @@ it('marks a combined month with its special gross, excludes it from the running 
     'inkl. Sonderzahlung (brutto 6.985,00 €)',
   );
   expect(screen.getByTestId('payroll-running-average').textContent).toBe(
-    'Ø laufendes Netto: 5.333,33 € (3 Monate, 1 Monat inkl. Sonderzahlung nicht berücksichtigt).',
+    'Ø laufendes Netto: 4.000,00 € (2 Monate, 1 Monat inkl. Sonderzahlung nicht berücksichtigt, 1 Monat nicht zuordenbar).',
   );
   expect(screen.getByTestId('payroll-open-mapping').textContent).toContain(
     'Unbekannte Lohnarten zuordnen',

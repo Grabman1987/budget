@@ -99,10 +99,14 @@ export function PayrollNetComposition({ rows, height = 220 }: { rows: Row[]; hei
       </p>
       <p className="r9-meta" data-testid="payroll-running-average">
         {average.averageCents === null
-          ? 'Ø laufendes Netto: keine Monate ohne Sonderzahlung.'
+          ? 'Ø laufendes Netto: keine auswertbaren Monate ohne Sonderzahlung.'
           : `Ø laufendes Netto: ${eur(average.averageCents)} (${average.months} ${average.months === 1 ? 'Monat' : 'Monate'}${
               average.excludedMonths
                 ? `, ${average.excludedMonths} ${average.excludedMonths === 1 ? 'Monat' : 'Monate'} inkl. Sonderzahlung nicht berücksichtigt`
+                : ''
+            }${
+              average.openMappingMonths
+                ? `, ${average.openMappingMonths} ${average.openMappingMonths === 1 ? 'Monat' : 'Monate'} nicht zuordenbar`
                 : ''
             }).`}
       </p>
