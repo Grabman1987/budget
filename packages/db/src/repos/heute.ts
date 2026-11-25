@@ -39,13 +39,14 @@ import {
   type PaceSpending,
   type Payday,
 } from '@budget/domain';
-import { and, eq, gte, isNull, lte } from 'drizzle-orm';
+import { and, eq, gte, inArray, isNull, lte } from 'drizzle-orm';
 import {
   booking,
   bookingSplit,
   contact,
   expectedOccurrence,
   INCOME_TYPES,
+  payee,
   rule,
   SYSTEM_PAYEE_IDS,
 } from '../schema';
@@ -214,7 +215,13 @@ export interface Heute {
     salary: { day: string; cents: number } | null;
     low: LowPoint | null;
   };
-  pace: PaceModel & { forecast: number[]; previousMonth: string; income: number[] };
+  pace: PaceModel & {
+    forecast: number[];
+    previousMonth: string;
+    income: number[];
+    /** The bookings behind the Pace line; absent in responses saved before this field. */
+    bookings?: PaceBooking[];
+  };
   pinned: HeutePinned[];
   upcoming14: HeuteOccurrence[];
   upcomingEvents: PlannedEventOccurrence[];
@@ -399,6 +406,70 @@ export function nextSteps(
   return { items, count: items.reduce((a, i) => a + i.count, 0) };
 }
 
+/** The ledger splits that make up the Pace line: Bedarf and Wunsch outflows of budget accounts. */
+function paceSpendingSplits(facts: RuleFacts) {
+  const categories = new Map(facts.categories.map((c) => [c.id, c]));
+  const budgetSet = new Set(
+    facts.accounts.filter((a) => a.onBudget && a.role === 'budget').map((a) => a.id),
+  );
+  return facts.ledgerSplits.filter((s) => {
+    const c = s.categoryId ? categories.get(s.categoryId) : undefined;
+    return (
+      !Object.values(SYSTEM_PAYEE_IDS).some((p) => p.id === s.payeeId) &&
+      (c?.class === 'need' || c?.class === 'want') &&
+      budgetSet.has(s.accountId) &&
+      !(
+        s.transferAccountId != null &&
+        facts.accounts.some((a) => a.id === s.transferAccountId && a.onBudget)
+      ) &&
+      s.date >= (facts.accounts.find((a) => a.id === s.accountId)?.openingDate ?? '')
+    );
+  });
+}
+
+/** One row of the Pace booking list; the amounts add up to `figures.spentCents`. */
+export interface PaceBooking {
+  bookingId: string | null;
+  day: string;
+  name: string;
+  categoryName: string | null;
+  /** Positive = spending, negative = refund. */
+  cents: number;
+}
+
+/** Bookings behind the Pace line of `month` up to `today`, newest first. */
+export function paceBookings(
+  db: Executor,
+  facts: RuleFacts,
+  month: string,
+  today: string,
+): PaceBooking[] {
+  const splits = paceSpendingSplits(facts).filter(
+    (s) => monthOf(s.date) === month && s.date <= today,
+  );
+  const ids = [...new Set(splits.flatMap((s) => (s.bookingId ? [s.bookingId] : [])))];
+  const names = new Map<string, string>();
+  for (let i = 0; i < ids.length; i += 500) {
+    for (const row of db
+      .select({ id: booking.id, memo: booking.memo, payee: payee.name })
+      .from(booking)
+      .leftJoin(payee, eq(payee.id, booking.payeeId))
+      .where(inArray(booking.id, ids.slice(i, i + 500)))
+      .all())
+      names.set(row.id, row.payee ?? row.memo ?? '');
+  }
+  const categories = new Map(facts.categories.map((c) => [c.id, c.name]));
+  return splits
+    .map((s) => ({
+      bookingId: s.bookingId ?? null,
+      day: s.date,
+      name: (s.bookingId ? names.get(s.bookingId) : undefined) || 'Buchung',
+      categoryName: (s.categoryId && categories.get(s.categoryId)) || null,
+      cents: -s.amountCents,
+    }))
+    .sort((a, b) => b.day.localeCompare(a.day) || b.cents - a.cents);
+}
+
 /**
  * Pace of Bedarf and Wunsch for one month (Heute and the Monats-One-Pager): the plan is what was
  * assigned to those categories, fixed costs fall on their due day, spending comes from the
@@ -412,24 +483,11 @@ export function paceOfMonth(
 ): Heute['pace'] {
   const categories = new Map(facts.categories.map((c) => [c.id, c]));
   const monthBudget = facts.budgetByMonth.get(month);
-  const budgetSet = new Set(
-    facts.accounts.filter((a) => a.onBudget && a.role === 'budget').map((a) => a.id),
-  );
   const paceCategory = (id: string | null) => {
     const c = id ? categories.get(id) : undefined;
     return c?.class === 'need' || c?.class === 'want';
   };
-  const spendingSplits = facts.ledgerSplits.filter(
-    (s) =>
-      !Object.values(SYSTEM_PAYEE_IDS).some((p) => p.id === s.payeeId) &&
-      paceCategory(s.categoryId) &&
-      budgetSet.has(s.accountId) &&
-      !(
-        s.transferAccountId != null &&
-        facts.accounts.some((a) => a.id === s.transferAccountId && a.onBudget)
-      ) &&
-      s.date >= (facts.accounts.find((a) => a.id === s.accountId)?.openingDate ?? ''),
-  );
+  const spendingSplits = paceSpendingSplits(facts);
   const spending: PaceSpending[] = spendingSplits.map((s) => ({
     day: s.date,
     cents: -s.amountCents,
@@ -503,6 +561,7 @@ export function paceOfMonth(
     ),
     forecast: paceForecastCurve(model, fixed),
     previousMonth: addMonths(month, -1),
+    bookings: paceBookings(facts.db, facts, month, today),
   };
 }
 

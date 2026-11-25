@@ -131,7 +131,7 @@ export function CategoryCell({
     return (
       <span className="kcat">
         <ArrowLeftRight className="icon" size={16} strokeWidth={1.75} aria-hidden="true" />
-        Umbuchung {booking.amountCents < 0 ? 'nach' : 'von'} {other}
+        Umbuchung {booking.amountCents < 0 ? 'auf' : 'von'} {other}
       </span>
     );
   }

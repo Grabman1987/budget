@@ -295,7 +295,22 @@ for (const [profile, desired, viewport] of [
           exact: true,
         }),
       );
-      const reminder = page.getByRole('link', { name: 'Kontostand prüfen', exact: true });
+      const redesign = await redesignLoaded(page);
+      const reminder = page.getByRole('link', {
+        name: redesign ? 'Konto öffnen' : 'Kontostand prüfen',
+        exact: true,
+      });
+      if (redesign) {
+        // #1345: the opened row unfolds directly under its own source row and shows the balance.
+        const own = sources.getByRole('row').filter({ hasText: 'Konten prüfen' }).first();
+        await expect(own.locator('xpath=following-sibling::tr[1]')).toContainText(
+          'Muster Prüfkonto',
+        );
+        await expect(page.getByTestId('account-review-balance')).toContainText('987,99');
+        await expect(
+          page.getByRole('button', { name: 'Kontostand passt: Muster Prüfkonto' }),
+        ).toBeVisible();
+      }
       await hit(reminder);
       await reminder.click();
       const check = page.getByRole('dialog', {

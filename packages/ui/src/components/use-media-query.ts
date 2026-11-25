@@ -1,14 +1,19 @@
 import { useSyncExternalStore } from 'react';
 
+/** matchMedia is missing in some environments (jsdom): treat those as "no match". */
+const listFor = (query: string) =>
+  typeof window.matchMedia === 'function' ? window.matchMedia(query) : null;
+
 /** Subscribe to a CSS media query. Server/first render assumes `false`. */
 export function useMediaQuery(query: string): boolean {
   return useSyncExternalStore(
     (notify) => {
-      const list = window.matchMedia(query);
+      const list = listFor(query);
+      if (!list) return () => {};
       list.addEventListener('change', notify);
       return () => list.removeEventListener('change', notify);
     },
-    () => window.matchMedia(query).matches,
+    () => listFor(query)?.matches ?? false,
     () => false,
   );
 }

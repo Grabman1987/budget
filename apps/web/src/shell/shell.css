@@ -688,3 +688,27 @@ a.btn {
     padding-inline: 16px;
   }
 }
+
+/* #1348: thin loading bar while a route change is pending; appears only after a short delay. */
+.route-progress {
+  position: fixed;
+  inset: 0 0 auto;
+  height: 2px;
+  background: var(--primary);
+  z-index: 1000;
+  opacity: 0;
+  animation: route-progress-in 0.2s ease-out 0.3s forwards;
+  pointer-events: none;
+}
+
+@keyframes route-progress-in {
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .route-progress {
+    animation-duration: 0s;
+  }
+}

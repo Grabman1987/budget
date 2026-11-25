@@ -340,3 +340,19 @@ Bereich: Konten (`/konten`, `/konten/$id`), Alle Buchungen (`/konten/buchungen`)
   4. Requests without `bankLegs` preserve their canonical idempotency representation and the separate cash/bank status policy. Equal-date transfers move both legs together on date edits. For independently dated bank pairs only the edited leg moves; a debit after receipt or before either account opens is refused with a typed German error. The existing reconciled-pair lock and five-day window remain enforced. Other transfer kinds retain paired-date editing.
   5. All household net-worth totals (Heute, Vermögen and reports) and their daily histories use the shared `bankTransferTransitCents` domain function through the central portfolio valuation. They count each whole same-currency bank transfer exactly once across its two dates, including existing independently dated pairs. Account balances stay bank-true per leg date. Between debit and receipt, the amount sits in the recipient's pending-inclusive valuation, not its confirmed balance; no booking or balance correction is created. After the receipt date, the ordinary pending booking replaces that valuation correction. Account previews include the pending receipt once on its date; household forecasts retain its value once in the starting valuation.
 - **Status:** Partial, prepared for review; API creation, confirmation, guarded date edits and cross-view valuation/preview regression coverage. No migration or UI change. The account entry point, German “unterwegs” presentation, combined transfer/fees/purchase/quantity preview and preferred linking of existing bookings remain open. Unknown receipt dates remain follow-up work. No live acceptance claimed.
+
+### K-16 – Depotseite: Entwicklung, Registerkarten und Verrechnungskonto (#1346)
+- **Story:** Als Nutzer möchte ich auf der Seite eines Depots dessen Entwicklung als Grafik sehen und zwischen Bestände, Trades und Verrechnung wechseln, damit ich Wert und Rendite auf einen Blick erfasse und das Verrechnungskonto sofort neben dem Depotwert finde.
+- **Ausgangslage:** Ich öffne unter „Konten“ ein Depot (Typ Wertpapierdepot oder Krypto).
+- **Ablauf:**
+  1. Oben stehen der Depotwert und rechtsbündig daneben der Saldo des Verrechnungskontos; ein Tipp darauf öffnet das Verrechnungskonto. „Bargeld im Depotkonto“ erscheint nur, wenn das Depot eigenes Bargeld hat.
+  2. Die Grafik „Depotentwicklung“ zeigt standardmäßig 1 Jahr. Mit „Wert“ und „Rendite“ wechsle ich zwischen Tageswert in EUR und zeitgewichteter Rendite; mit 3 M, YTD, 1 J, 3 J, Alles ändere ich den Zeitraum.
+  3. Die Registerkarten Bestände, Trades und Verrechnung lassen sich per Tippen oder mit den Pfeiltasten (Links, Rechts, Pos1, Ende) wählen; die Auswahl steht in der Adresse (`?depot=…`) und bleibt nach dem Neuladen erhalten.
+  4. Der Zurück-Pfeil steht links neben dem Titel und überdeckt ihn nicht.
+- **Ergebnis:** Die Seite zeigt Wert, Verlauf und Rendite desselben Depots mit derselben Bewertung wie der Depotvergleich (Report 4.1).
+- **Abnahmekriterien:**
+  1. Die Grafik nutzt dieselbe Tagesbewertung und dieselbe zeitgewichtete Rendite wie der Depotvergleich; der letzte Wert entspricht dem Depotwert.
+  2. Unter den Registerkarten steht keine doppelte Überschrift mit demselben Namen.
+  3. Ohne Verrechnungskonto entfällt dessen Anzeige; ohne eigenes Bargeld entfällt die Zeile „Bargeld im Depotkonto“.
+  4. Auf dem Telefon bleiben alle Bedienelemente mindestens 44 px groß, es gibt kein seitliches Scrollen.
+- **Status:** umgesetzt (Branch `feat/review-depot-1346`), noch nicht abgenommen — **Verweis:** #1346

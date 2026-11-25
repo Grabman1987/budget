@@ -14,7 +14,11 @@ test('category detail preserves list context, supports direct links and returns 
   await expect(page).toHaveURL(/\/einstellungen\/kategorien\/[^?]+/);
   const url = page.url();
   await expect(page.getByRole('dialog')).toHaveCount(0);
-  await expect(page.getByRole('navigation', { name: 'Brotkrumen' })).toContainText('Kategorien');
+  await expect(
+    page
+      .getByRole('navigation', { name: 'Brotkrumen' })
+      .getByRole('link', { name: 'Zurück zu Kategorien' }),
+  ).toBeVisible();
   const edit = page.getByRole('button', { name: 'Kategorie bearbeiten', exact: true });
   await edit.click();
   await expect(page.getByRole('dialog')).toBeVisible();

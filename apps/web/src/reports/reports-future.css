@@ -688,6 +688,22 @@
   background: transparent;
   box-shadow: none;
 }
+.repay-grid {
+  display: grid;
+  gap: var(--space-md);
+}
+.repay-inputs {
+  display: grid;
+  gap: var(--space-sm);
+  align-content: start;
+}
+@media (min-width: 1024px) {
+  .repay-grid {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: var(--space-lg);
+    align-items: start;
+  }
+}
 .rf-backtest-content {
   padding: 0 var(--space-md) var(--space-md);
 }

@@ -46,7 +46,15 @@ test('Today dimension links retain month and period, account links, and full-wid
   const on = (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
   if (on && page.viewportSize()!.width >= 1180)
     expect(secondary && main && secondary.width < main.width).toBe(true);
-  else expect(secondary && main && Math.abs(secondary.width - main.width) < 2).toBe(true);
+  else if (on) {
+    // The detail body sits in one white page card: "full width" means the card's content box.
+    const card = await page.locator('.heute .page-card').first().boundingBox();
+    expect(secondary && card).toBeTruthy();
+    expect(
+      Math.abs(secondary!.x - card!.x - (card!.x + card!.width - secondary!.x - secondary!.width)),
+    ).toBeLessThan(2);
+    expect(secondary!.width).toBeGreaterThan(card!.width * 0.85);
+  } else expect(secondary && main && Math.abs(secondary.width - main.width) < 2).toBe(true);
   const trigger = page
     .getByRole('group', { name: 'Maßkette Nettovermögen' })
     .getByRole('button', { name: /^Liquidität/ });

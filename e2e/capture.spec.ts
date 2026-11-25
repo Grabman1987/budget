@@ -140,7 +140,7 @@ test('a transfer between accounts; to a tracking account it needs a category', a
   // Between budget accounts the transfer is neutral: no category is asked for.
   await expect(panel.getByLabel('Kategorie', { exact: true })).toHaveCount(0);
   await captureSaveControl(panel).click();
-  await expect(page.getByRole('row', { name: /Umbuchung nach/ })).toBeVisible();
+  await expect(page.getByRole('row', { name: /Umbuchung auf/ })).toBeVisible();
   await expect(balance(page)).toHaveText('800,00 €');
 
   panel = await openCapture(page, testInfo);

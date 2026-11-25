@@ -21,6 +21,8 @@ import { ClosedAccountDisclosure } from '../ledger/closed-account-disclosure';
 import { HEUTE_DETAILS, detailNames, HeuteHeader, type HeuteDetail } from './overview';
 import { HeuteDetailBody } from './heute-page';
 import { InvestmentBasisDetails } from './investment-basis';
+import { BackButton } from '../shell/back-button';
+import { PageCard } from '../shell/status-footer';
 import './heute.css';
 
 export type NetDimensionKind = 'liquid' | 'invested' | 'receivable' | 'debt';
@@ -99,15 +101,14 @@ export function DimensionPage() {
       paydayAvailable={paydayAvailable}
     >
       <div className={`heute${REDESIGN_ENABLED ? ' heute--redesign heute-explanation' : ''}`}>
-        <div className="heute-detail-nav">
+        <div className="heute-detail-nav page-back-row">
           <nav aria-label="Brotkrumen">
-            <AppLink
+            <BackButton
               to={backUrl.pathname}
               search={back ? Object.fromEntries(backUrl.searchParams) : search}
               hash={backUrl.hash.slice(1)}
-            >
-              Zurück zu Heute
-            </AppLink>
+              label="Zurück zu Heute"
+            />
           </nav>
         </div>
         {REDESIGN_ENABLED && HEUTE_DETAILS.includes(kind as HeuteDetail) && (
@@ -115,12 +116,18 @@ export function DimensionPage() {
             <h2 ref={heading} tabIndex={-1} className="heute-detail-title">
               {title}
             </h2>
-            {query.isFetching && data && kind !== 'month' && (
-              <p role="status">
-                Heute-Daten werden aktualisiert · Stand {longDay(data.stand.today)}
-              </p>
+            {kind === 'wealth' ? (
+              <HeuteDetailBody data={data} read={query} period={period} kind="wealth" />
+            ) : (
+              <PageCard>
+                <HeuteDetailBody
+                  data={data}
+                  read={query}
+                  period={period}
+                  kind={kind as HeuteDetail}
+                />
+              </PageCard>
             )}
-            <HeuteDetailBody data={data} read={query} period={period} kind={kind as HeuteDetail} />
           </>
         )}
         {query.isPending && (!HEUTE_DETAILS.includes(kind as HeuteDetail) || kind === 'pinned') && (
@@ -140,9 +147,6 @@ export function DimensionPage() {
             <h2 id="dimension-title" ref={heading} tabIndex={-1}>
               {title}
             </h2>
-            {query.isFetching && data && (
-              <p role="status">Stand wird aktualisiert · {longDay(data.stand.today)}</p>
-            )}
             {kind === 'free' && data ? (
               <LeadExplanation data={data} />
             ) : (

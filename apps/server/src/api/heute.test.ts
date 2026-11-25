@@ -583,6 +583,15 @@ describe('GET /heute', () => {
     });
     expect(res.body.balance.low.cents).toBeLessThan(188_000);
     expect(res.body.pace.figures).toMatchObject({ spentCents: 12_000, limitCents: 130_000 });
+    expect(res.body.pace.bookings).toEqual([
+      {
+        bookingId: expect.any(String),
+        day: '2026-03-05',
+        name: 'Vermieter',
+        categoryName: 'Essen',
+        cents: 12_000,
+      },
+    ]);
     expect(res.body.pinned).toEqual([
       expect.objectContaining({
         id: 'essen',

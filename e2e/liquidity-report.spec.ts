@@ -87,6 +87,12 @@ isolatedTest(
     const repay = page.getByRole('region', { name: 'Tilgen', exact: true });
     const invest = page.getByRole('region', { name: 'Investieren', exact: true });
     await expect(amount).toHaveValue('150,00');
+    // Wide windows put the inputs left and the result right; narrow ones stack them.
+    const inputsBox = await amount.boundingBox();
+    const resultBox = await repay.boundingBox();
+    if ((page.viewportSize()?.width ?? 0) >= 1024)
+      expect(resultBox!.x).toBeGreaterThan(inputsBox!.x);
+    else expect(resultBox!.y).toBeGreaterThan(inputsBox!.y);
     await expect(repay).toContainText('Tiefpunkt: 0,00 € am 04.10.2026');
     await expect(repay).toContainText('Synthetic payment account');
     await expect(repay).toContainText('Zinsersparnis: 4,12 €');

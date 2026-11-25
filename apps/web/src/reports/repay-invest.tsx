@@ -102,115 +102,114 @@ function ComparisonForm({
 
   return (
     <>
-      <p>
-        Kontoliquidität bis {longDay(funding.through)} wie oben: gleiche Zahlungen, ohne erwartete
-        Eingänge und ohne Stellschrauben. Beide Optionen belasten das gewählte Konto heute.
-        Bestehende Raten bleiben in der Vorschau. Es wird nichts gebucht.
-      </p>
       <p className="vnote">
-        Investierbarer Betrag laut Planungsbasis: {eur(funding.investableCents)}.
+        Bis {longDay(funding.through)}, ohne erwartete Eingänge. Es wird nichts gebucht.
+        Investierbar laut Planung: {eur(funding.investableCents)}.
       </p>
-      <Field label="Zahlungskonto">
-        {({ id }) => (
-          <Select
-            id={id}
-            value={source.accountId}
-            onChange={(event) => setSourceId(event.target.value)}
-          >
-            {sources.map((account) => (
-              <option key={account.accountId} value={account.accountId}>
-                {maskMoneyText(account.name)}
-              </option>
-            ))}
-          </Select>
-        )}
-      </Field>
-      <Field label="Kredit oder Dispo">
-        {({ id }) => (
-          <Select id={id} value={debt.id} onChange={(event) => setDebtId(event.target.value)}>
-            {targets.map((target) => (
-              <option key={target.id} value={target.id}>
-                {maskMoneyText(target.name)}
-              </option>
-            ))}
-          </Select>
-        )}
-      </Field>
-      <AmountInput
-        label="Vergleichsbetrag"
-        value={amount}
-        onChange={setAmountText}
-        showOperators={false}
-      />
-      <Field label="Rendite von (%)">
-        {({ id }) => (
-          <TextInput
-            id={id}
-            money
-            inputMode="decimal"
-            value={minText}
-            onChange={(event) => setMinText(event.target.value)}
+      <div className="repay-grid">
+        <div className="repay-inputs">
+          <Field label="Zahlungskonto">
+            {({ id }) => (
+              <Select
+                id={id}
+                value={source.accountId}
+                onChange={(event) => setSourceId(event.target.value)}
+              >
+                {sources.map((account) => (
+                  <option key={account.accountId} value={account.accountId}>
+                    {maskMoneyText(account.name)}
+                  </option>
+                ))}
+              </Select>
+            )}
+          </Field>
+          <Field label="Kredit oder Dispo">
+            {({ id }) => (
+              <Select id={id} value={debt.id} onChange={(event) => setDebtId(event.target.value)}>
+                {targets.map((target) => (
+                  <option key={target.id} value={target.id}>
+                    {maskMoneyText(target.name)}
+                  </option>
+                ))}
+              </Select>
+            )}
+          </Field>
+          <AmountInput
+            label="Vergleichsbetrag"
+            value={amount}
+            onChange={setAmountText}
+            showOperators={false}
           />
-        )}
-      </Field>
-      <Field label="Rendite bis (%)">
-        {({ id }) => (
-          <TextInput
-            id={id}
-            money
-            inputMode="decimal"
-            value={maxText}
-            onChange={(event) => setMaxText(event.target.value)}
-          />
-        )}
-      </Field>
-      <p className="vnote">
-        Ertrag im ersten Jahr vor Steuern und Kosten. Die Rendite ist eine Annahme. Verluste sind
-        möglich. Die Zinsersparnis basiert auf dem Kreditmodell bzw. bei Dispo auf einem Jahr mit
-        gleichbleibender Nutzung und Verzinsung. Allfällige Sondertilgungsgebühren fehlen.
-      </p>
-      <div aria-live="polite">
-        {!amountValid && <p>Gib einen Vergleichsbetrag über null ein.</p>}
-        {!rangeValid && (
-          <p>
-            Gib eine gültige Renditespanne ein. Die Untergrenze darf höchstens der Obergrenze
-            entsprechen.
-          </p>
-        )}
-        {amountValid && rangeValid && !result && (
-          <p>Die Eingaben liegen außerhalb des Rechenbereichs.</p>
-        )}
-        {result && (
-          <>
-            <section aria-label="Tilgen">
-              <h3>Tilgen</h3>
-              {result.repay ? (
-                <>
-                  <OptionLiquidity option={result.repay} />
+          <Field label="Rendite von (%)">
+            {({ id }) => (
+              <TextInput
+                id={id}
+                money
+                inputMode="decimal"
+                value={minText}
+                onChange={(event) => setMinText(event.target.value)}
+              />
+            )}
+          </Field>
+          <Field label="Rendite bis (%)">
+            {({ id }) => (
+              <TextInput
+                id={id}
+                money
+                inputMode="decimal"
+                value={maxText}
+                onChange={(event) => setMaxText(event.target.value)}
+              />
+            )}
+          </Field>
+        </div>
+        <div className="repay-result" aria-live="polite">
+          {!amountValid && <p>Gib einen Vergleichsbetrag über null ein.</p>}
+          {!rangeValid && (
+            <p>
+              Gib eine gültige Renditespanne ein. Die Untergrenze darf höchstens der Obergrenze
+              entsprechen.
+            </p>
+          )}
+          {amountValid && rangeValid && !result && (
+            <p>Die Eingaben liegen außerhalb des Rechenbereichs.</p>
+          )}
+          {result && (
+            <>
+              <section aria-label="Tilgen">
+                <h3>Tilgen</h3>
+                {result.repay ? (
+                  <>
+                    <OptionLiquidity option={result.repay} />
+                    <p>
+                      Zinsersparnis:{' '}
+                      {result.repay.interestSavedCents === null
+                        ? 'mit den vorhandenen Konditionen nicht berechenbar'
+                        : eur(result.repay.interestSavedCents)}
+                    </p>
+                  </>
+                ) : (
                   <p>
-                    Zinsersparnis:{' '}
-                    {result.repay.interestSavedCents === null
-                      ? 'mit den vorhandenen Konditionen nicht berechenbar'
-                      : eur(result.repay.interestSavedCents)}
+                    Nicht ratsam: Der Vergleichsbetrag übersteigt die Restschuld von{' '}
+                    {eur(debt.owedCents)}.
                   </p>
-                </>
-              ) : (
+                )}
+              </section>
+              <section aria-label="Investieren">
+                <h3>Investieren</h3>
+                <OptionLiquidity option={result.invest} />
                 <p>
-                  Nicht ratsam: Der Vergleichsbetrag übersteigt die Restschuld von{' '}
-                  {eur(debt.owedCents)}.
+                  Angenommener Ertrag:{' '}
+                  {result.invest.returnRangeCents.map((value) => eur(value)).join(' bis ')}
                 </p>
-              )}
-            </section>
-            <section aria-label="Investieren">
-              <h3>Investieren</h3>
-              <OptionLiquidity option={result.invest} />
-              <p>
-                Angenommener Ertrag:{' '}
-                {result.invest.returnRangeCents.map((value) => eur(value)).join(' bis ')}
-              </p>
-            </section>
-          </>
-        )}
+              </section>
+            </>
+          )}
+          <p className="vnote">
+            Ertrag im ersten Jahr vor Steuern und Kosten; die Rendite ist eine Annahme, Verluste
+            sind möglich. Ohne Sondertilgungsgebühren.
+          </p>
+        </div>
       </div>
     </>
   );

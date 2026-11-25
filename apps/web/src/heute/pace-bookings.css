@@ -1,0 +1,35 @@
+@layer pages {
+  /* Compact list of the bookings behind the Pace line. */
+  .pace-bookings {
+    margin-top: var(--space-md);
+    min-width: 0;
+  }
+  .pace-bookings-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: var(--fs-label);
+    font-variant-numeric: tabular-nums;
+  }
+  .pace-bookings-table th,
+  .pace-bookings-table td {
+    padding: var(--space-xs) var(--space-sm);
+    text-align: left;
+    border-bottom: 1px solid var(--rule);
+  }
+  .pace-bookings-table thead th {
+    color: var(--ink-2);
+    font-weight: 600;
+  }
+  .pace-bookings-table .n {
+    text-align: right;
+    white-space: nowrap;
+  }
+  .pace-bookings-table td:first-child {
+    white-space: nowrap;
+  }
+  .pace-bookings-table tfoot th,
+  .pace-bookings-table tfoot td {
+    font-weight: 640;
+    border-bottom: 0;
+  }
+}

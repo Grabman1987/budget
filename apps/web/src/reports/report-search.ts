@@ -37,7 +37,6 @@ export const validateReportSearch = (search: Record<string, unknown>) => ({
   ...(REDESIGN_ENABLED
     ? {
         jahr: /^\d{4}$/.test(String(search['jahr'] ?? '')) ? Number(search['jahr']) : undefined,
-        kontakteansicht: search['kontakteansicht'] === 'offen' ? 'offen' : undefined,
         vergleich:
           search['vergleich'] === 'vorperiode' || search['vergleich'] === 'vorjahr'
             ? search['vergleich']

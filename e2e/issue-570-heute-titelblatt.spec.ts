@@ -34,8 +34,10 @@ for (const colorScheme of ['light', 'dark'] as const) {
           ? head.locator('.month-name')
           : head.getByRole('heading', { name: 'September 2026', exact: true }),
       ).toBeVisible();
-      const monat = head.getByRole('button', { name: 'Monat', exact: true });
-      const payday = head.getByRole('button', { name: 'Bis Gehalt', exact: true });
+      // #1342: in the redesign the switch sits inside the "Frei bis …" tile.
+      const periods = redesign ? page.locator('.hv-lead') : head;
+      const monat = periods.getByRole('button', { name: 'Monat', exact: true });
+      const payday = periods.getByRole('button', { name: 'Bis Gehalt', exact: true });
       await expect(monat).toBeVisible();
       await expect(payday).toBeVisible();
       const stand = head.locator('.tb-field', { hasText: 'Stand' });
@@ -167,7 +169,7 @@ test('recent bookings show counterparties and mask them in privacy mode (#951)',
     await page.goto('/?monat=2026-09&period=payday');
     const labels = page.locator(redesign ? '.hv-booking-list strong' : '.heute-booking strong');
     await expect(labels).toHaveText([
-      'Umbuchung nach Mustersparkonto',
+      'Umbuchung auf Mustersparkonto',
       'Umbuchung von Mustergiro',
       'Musterzinsen',
       'Musterladen',
@@ -191,7 +193,7 @@ test('recent bookings show counterparties and mask them in privacy mode (#951)',
     await withShellControls(page, async ({ privacy }) => {
       await privacy.click();
     });
-    await expect(labels.first()).toHaveText('Umbuchung nach Mustersparkonto');
+    await expect(labels.first()).toHaveText('Umbuchung auf Mustersparkonto');
   } finally {
     await page.unrouteAll({ behavior: 'wait' });
   }

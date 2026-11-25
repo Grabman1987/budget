@@ -1457,6 +1457,13 @@
   min-block-size: 14lh;
   align-content: start;
 }
+@media (max-width: 767px) {
+  /* The page card narrows the text, so the settled card (note + chart + comparison) is taller than
+     14 lines on a phone: reserve above both states to keep the geometry equal. */
+  .heute--redesign .heute-wealth-line {
+    min-block-size: 18lh;
+  }
+}
 @media (min-width: 1180px) {
   .heute--redesign .heute-priorities {
     min-block-size: 17lh;
@@ -1523,7 +1530,8 @@
     grid-column: 1 / -1;
   }
 }
-@media (max-width: 360px) {
+/* The page card's padding narrows the text: the source line wraps below ~480px (was 360px). */
+@media (max-width: 480px) {
   .heute--redesign .heute-primary-source {
     min-block-size: 2lh;
   }

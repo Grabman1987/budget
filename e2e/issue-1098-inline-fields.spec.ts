@@ -170,7 +170,7 @@ test('split and transfer payees explain the dialog-only editing path', async ({
   const dialog = page.getByRole('dialog', { name: 'Buchung bearbeiten' });
   await expect(dialog).toBeVisible();
   await captureCloseControl(dialog).click();
-  const transfer = page.locator('tr[data-booking]').filter({ hasText: 'Umbuchung nach' });
+  const transfer = page.locator('tr[data-booking]').filter({ hasText: 'Umbuchung auf' });
   await expect(transfer.getByRole('button', { name: /^Empfänger ändern:/ })).toHaveAttribute(
     'title',
     /Umbuchung/,

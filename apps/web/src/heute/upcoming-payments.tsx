@@ -161,7 +161,7 @@ export function Upcoming({
 }
 
 /** Take this one income out of the plan; the rule stays, "Rückgängig" brings it back. */
-function StrikeButton({ item }: { item: HeuteOccurrence }) {
+export function StrikeButton({ item }: { item: HeuteOccurrence }) {
   const write = useBudgetWrite();
   return (
     <Button
@@ -180,7 +180,7 @@ function StrikeButton({ item }: { item: HeuteOccurrence }) {
   );
 }
 
-function statusText(status: Heute['upcoming14'][number]['status']) {
+export function statusText(status: Heute['upcoming14'][number]['status']) {
   return status === 'expected'
     ? 'erwartet'
     : status === 'received'

@@ -81,10 +81,13 @@ for (const theme of ['light', 'dark'] as const) {
     await expect(page.getByTestId('depot-settlement')).toContainText('118,45');
     // Own cash includes the EUR 24.68 buy, EUR 0.99 fee and EUR 1.23 ordinary booking.
     await expect(page.getByTestId('depot-cash')).toHaveText('Bargeld im Depotkonto: −26,90 €');
-    await expect(page.getByRole('link', { name: 'Bestände', exact: true })).toHaveAttribute(
-      'aria-current',
-      'page',
+    await expect(page.getByRole('tab', { name: 'Bestände', exact: true })).toHaveAttribute(
+      'aria-selected',
+      'true',
     );
+    await expect(page.getByTestId('depot-history-chart')).toBeVisible();
+    await page.getByRole('button', { name: 'Rendite', exact: true }).click();
+    await expect(page.getByTestId('depot-history-chart')).toHaveAttribute('data-mode', 'return');
     await expect(page.getByRole('link', { name: 'Rendite im Portfolio' })).toHaveAttribute(
       'href',
       '/vermoegen/portfolio',
@@ -104,16 +107,16 @@ for (const theme of ['light', 'dark'] as const) {
       ['Trades', 'trades'],
       ['Verrechnung', 'verrechnung'],
     ]) {
-      await page.getByRole('link', { name: tab, exact: true }).click();
+      await page.getByRole('tab', { name: tab, exact: true }).click();
       await expect(page).toHaveURL(new RegExp(`depot=${query}`));
       await page.reload();
       await page.evaluate(
         (theme) => document.documentElement.setAttribute('data-theme', theme),
         theme,
       );
-      await expect(page.getByRole('link', { name: tab, exact: true })).toHaveAttribute(
-        'aria-current',
-        'page',
+      await expect(page.getByRole('tab', { name: tab, exact: true })).toHaveAttribute(
+        'aria-selected',
+        'true',
       );
       if (tab === 'Trades') {
         await expect(page.locator('.depot-trades')).toContainText('24,68');
@@ -171,11 +174,11 @@ test('depot trade row reuses the editor, browser back and settlement navigation'
   await expect(page).toHaveURL(new RegExp(`/vermoegen/portfolio/instrument/${security.id}`));
   await expect(page.getByRole('dialog', { name: 'Handel bearbeiten' })).toBeVisible();
   await page.goBack();
-  await expect(page.getByRole('link', { name: 'Trades', exact: true })).toHaveAttribute(
-    'aria-current',
-    'page',
+  await expect(page.getByRole('tab', { name: 'Trades', exact: true })).toHaveAttribute(
+    'aria-selected',
+    'true',
   );
-  await page.getByTestId('depot-settlement').getByRole('link').click();
+  await page.getByTestId('depot-settlement').click();
   await expect(page).toHaveURL(new RegExp(`/konten/${cash.id}$`));
   await expect(page.getByTestId('account-balance')).toBeVisible();
   await page.goto('/konten/buchungen');
@@ -226,10 +229,8 @@ test('crypto without settlement marks missing quotes per row and incomplete depo
   await expect(page.locator('.depot-table tbody tr')).toContainText('Kurs fehlt');
   await expect(page.locator('.depot-table tbody tr')).not.toContainText('0,00');
   await expect(page.getByTestId('depot-settlement')).toHaveCount(0);
-  if ((await page.locator('.app').getAttribute('data-budget-redesign')) === '1')
-    await expect(page.getByTestId('depot-cash')).toHaveText('Bargeld im Depotkonto: 0,00 €');
-  else await expect(page.getByTestId('depot-cash')).toHaveCount(0);
-  await page.getByRole('link', { name: 'Verrechnung', exact: true }).click();
+  await expect(page.getByTestId('depot-cash')).toHaveCount(0);
+  await page.getByRole('tab', { name: 'Verrechnung', exact: true }).click();
   await expect(page.getByText('Kein separates Verrechnungskonto verknüpft.')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Buchungen', exact: true })).toBeVisible();
   await expect(page.getByText('Noch keine Buchungen auf diesem Konto.')).toBeVisible();

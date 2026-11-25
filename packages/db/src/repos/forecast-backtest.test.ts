@@ -325,3 +325,41 @@ it('bounds actuals to month-end and uses only historically knowable forecast inp
     close();
   }
 });
+
+it('scores months that ended before the data takeover instead of dropping every account', () => {
+  const { db, close } = createTestDatabase();
+  try {
+    const takeover = { createdAt: '2026-10-02T08:00:00Z', updatedAt: '2026-10-02T08:00:00Z' };
+    db.insert(account)
+      .values({
+        id: 'a',
+        name: 'Synthetic A',
+        type: 'checking',
+        onBudget: true,
+        role: 'budget',
+        openingDate: '2026-01-01',
+        openingBalanceCents: 10000,
+        ...takeover,
+      })
+      .run();
+    db.insert(booking)
+      .values({ id: 'b', accountId: 'a', date: '2026-02-10', amountCents: -500, ...takeover })
+      .run();
+    db.insert(auditLog)
+      .values({
+        id: 'created',
+        ts: takeover.createdAt,
+        action: 'create',
+        entityType: 'account',
+        entityId: 'a',
+        beforeJson: null,
+        afterJson: JSON.stringify({ id: 'a' }),
+      })
+      .run();
+    const report = forecastBacktest(db, '2026-04-10', 2);
+    expect(report.rows.map((row) => row.month)).toEqual(['2026-02', '2026-03']);
+    expect(report.meanEndErrorCents).not.toBeNull();
+  } finally {
+    close();
+  }
+});

@@ -55,9 +55,16 @@ for (const theme of ['light', 'dark'] as const)
     expect(
       Math.abs(backBox.y + backBox.height / 2 - titleBox.y - titleBox.height / 2),
     ).toBeLessThan(2);
-    expect(
-      Math.abs(menuBox.y + menuBox.height / 2 - titleBox.y - titleBox.height / 2),
-    ).toBeLessThan(2);
+    if (info.project.name === 'desktop') {
+      // Desktop: the report switcher sits in the page header (#1347), above the report frame.
+      await expect(
+        page.locator('.page-header').getByLabel('Bericht wechseln', { exact: true }),
+      ).toBeVisible();
+      expect(menuBox.y).toBeLessThan(titleBox.y);
+    } else
+      expect(
+        Math.abs(menuBox.y + menuBox.height / 2 - titleBox.y - titleBox.height / 2),
+      ).toBeLessThan(2);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
       true,
     );

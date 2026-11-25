@@ -18,6 +18,7 @@ export function PageHeader({
   showProfile = false,
   mobileHeading = false,
   controls,
+  controlsOverflow = false,
   collapsed,
   onToggle,
   onSearchChange,
@@ -28,6 +29,8 @@ export function PageHeader({
   showProfile?: boolean;
   mobileHeading?: boolean;
   controls?: ReactNode;
+  /** The controls open a menu below themselves; the slot must not clip it. */
+  controlsOverflow?: boolean;
   collapsed: boolean;
   onToggle: () => void;
   onSearchChange: (open: boolean) => void;
@@ -117,7 +120,7 @@ export function PageHeader({
           </button>
         )}
         <Title className={`page-header-title${detailTitle ? '' : ' m-title-text'}`}>{title}</Title>
-        <div className="page-header-controls" ref={slot}>
+        <div className={`page-header-controls${controlsOverflow ? ' has-menu' : ''}`} ref={slot}>
           {!phone && fits && controls}
         </div>
         <div className="page-header-search">

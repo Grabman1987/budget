@@ -8,9 +8,11 @@ Bereich: Startseite „Heute“ (Route `/`). Status und Verweise wie in `docs/US
 - **Ablauf:**
   1. Ich öffne „Heute“. Die App lädt den Heute-Abruf und zeigt oben „Stand heute · <Datum>“.
   2. Ich lese die große Zahl der Karte „Frei bis Gehalt“ (mit „bis <Datum> · N Tage“).
-  3. Ich lese die Karte „Nettovermögen“ mit Gesamtbetrag und „… in 12 Monaten“. Antippen öffnet die Aufschlüsselung nach Vermögensart.
+  3. Ich lese die Karte „Nettovermögen“ mit Gesamtbetrag und „… in 12 Monaten“. Antippen öffnet die Aufschlüsselung nach Vermögensart. Die Karte beginnt oben bündig mit „Frei bis …“.
+     Die Seite „Nettovermögen · Herleitung“ (`/heute/details/wealth`) steht in vier weißen Karten untereinander: Übersicht (Gesamtbetrag mit Herleitung), Vermögensaufteilung nach Maß, Verlauf über 12 Monate und „Ziele finanzieren“. „Zurück“ steht links oben; die Links in „Ziele finanzieren“ (Plan, Budgettreue) öffnen ihre Zielansicht (e2e `issue-1348-networth-detail`, Review 25.11.2026, #1348).
   4. Ich lese die Karte „Monat im Blick“ (Ausgegeben, Prognose Monatsende, Deckel).
-  5. Ich scrolle zu „Ziele finanzieren“. Dort steht „N Sparziele noch nicht finanziert“ mit Link nach Plan › Sparziele. Das nächste Sparziel (nach Datum) steht in diesem Block; eine eigene Karte oben gibt es nicht (Entscheidung 15.11.2026).
+  5. Ich lese „Letzte Buchungen“ als kompakte Tabelle mit den Spalten Datum · Buchung · Wert; Umbuchungen heißen „Umbuchung auf <Konto>“ (ausgehend) bzw. „Umbuchung von <Konto>“ (eingehend).
+  6. Ich scrolle zu „Ziele finanzieren“. Dort steht „N Sparziele noch nicht finanziert“ mit Link nach Plan › Sparziele. Das nächste Sparziel (nach Datum) steht in diesem Block; eine eigene Karte oben gibt es nicht (Entscheidung 15.11.2026).
 - **Ergebnis:** Nichts wird geändert. Jede Zahl führt per Antippen zur Herleitung bzw. zur Quellseite.
 - **Abnahmekriterien:**
   1. Die Karten stehen oben, auf dem Handy untereinander.
@@ -29,7 +31,7 @@ Bereich: Startseite „Heute“ (Route `/`). Status und Verweise wie in `docs/US
   2. Ich tippe die Zahl an. Die App öffnet die Herleitung (`/heute/details/free`).
   3. Ich sehe die Kette „Kontostand“ − „Offen bis Gehalt“ = „frei verfügbar“, darunter getrennt die Zeile „Letzte Reserve (Dispo)“, und das Tagesbudget bis Gehalt.
   4. Ich öffne die Listen „Kontostand“ und „Offen bis Gehalt“ und sehe die einzelnen Konten und Zahlungen. Erwartete Eingänge stehen nur in der Prognose.
-  5. Ich schalte oben in „Zeitraum“ zwischen „Monat“ und „Bis Gehalt“ um. „Bis Gehalt“ gilt nur im laufenden Monat. In „Monat“ heißt die Karte „Frei bis Monatsende“ mit „bis 30.11. · N Tage“ (heute und der letzte Tag zählen mit); Kette, Tagesbudget, Herleitung und Offline-Ansicht folgen dem gewählten Zeitraum. In „Bis Gehalt“ bleibt alles wie bisher.
+  5. Ich schalte in der Karte „Frei bis …“ selbst (Schalter „Zeitraum“ oben rechts in der Karte) zwischen „Monat“ und „Bis Gehalt“ um. „Bis Gehalt“ gilt nur im laufenden Monat. In „Monat“ heißt die Karte „Frei bis Monatsende“ mit „bis 30.11. · N Tage“ (heute und der letzte Tag zählen mit); Kette, Tagesbudget, Herleitung und Offline-Ansicht folgen dem gewählten Zeitraum. In „Bis Gehalt“ bleibt alles wie bisher.
 - **Ergebnis:** Nichts wird geändert. Der gewählte Zeitraum bleibt auf dem Gerät gemerkt und gilt auch im Report R07.
 - **Abnahmekriterien:**
   1. Die Zahl entspricht Kontostand minus offen bis Gehalt auf den Cent.
@@ -47,8 +49,9 @@ Bereich: Startseite „Heute“ (Route `/`). Status und Verweise wie in `docs/US
   1. Ich öffne „Heute“ und gehe zur Karte „Monat im Blick“.
   2. Ich lese die Zeile „Ausgegeben … · Prognose Monatsende … von … Deckel“.
   3. Ich betrachte das Diagramm: Ist durchgezogen, Hochrechnung gestrichelt, Plan bis heute als Punkt.
-  4. Ich fahre über die Kurve (Tooltip) und sehe Ist, Hochrechnung, Deckel und linear Erwartet.
-  5. Mit „Mehr zum Monat“ öffne ich die Einzelwerte.
+  4. Ich fahre über die Kurve (Tooltip) und sehe in der Karte auf Heute Ist, Plan bis heute und Vormonat; ohne Einnahmen, Differenz, Deckel und Hochrechnungs-Erklärung. Das Diagramm ist hoch genug zum Ablesen, die Deckel-Linie ist dicker gezeichnet.
+  5. Mit „Pace →“ öffne ich die Detailseite (weiße Karte): Zahlen, Diagramm mit Einnahmen und Vormonat immer sichtbar (ohne „Mehr anzeigen“, ohne „Zwischenstand bis …“-Zeile und ohne Erklärzeile) und darunter die Buchungen, aus denen die Ist-Linie besteht, als kompakte Tabelle (Datum · Buchung · Kategorie · Betrag, neueste zuerst, Summe = „Ausgegeben“).
+  6. Mit „Mehr zum Monat“ öffne ich die Einzelwerte.
 - **Ergebnis:** Nur Anzeige. Keine Daten ändern sich.
 - **Abnahmekriterien:**
   1. Ist ist durchgezogen, die Hochrechnung gestrichelt; liegt sie über dem Deckel, ist sie rot.
@@ -62,9 +65,9 @@ Bereich: Startseite „Heute“ (Route `/`). Status und Verweise wie in `docs/US
 - **Ausgangslage:** Ich fürchte, dass vor dem Gehalt das Konto knapp wird.
 - **Ablauf:**
   1. Ich öffne „Heute“ und gehe zur Karte „Kontoprognose“.
-  2. Ich wähle oben „Monat“ oder „Bis Gehalt“; die Kurve folgt dem Zeitraum.
-  3. Ich lese Tiefpunkt und Limit im Diagramm.
-  4. Ich tippe „Prognose →“ bzw. „Details“. Die App öffnet Plan › Prognose (`/plan/prognose`, 35 Tage).
+  2. Ich wähle in der Karte „Frei bis …“ „Monat“ oder „Bis Gehalt“; die Kurve folgt dem Zeitraum.
+  3. Ich lese Tiefpunkt und Limit im Diagramm; der Tiefpunkt steht nur dort, nicht noch einmal als Text. Karte und Detailseite sind weiße Karten ohne doppelte Titel und Untertitel.
+  4. Ich tippe „Details“. Die App öffnet direkt Plan › Prognose (`/plan/prognose`, 35 Tage); „Zurück“ (links, wie überall) führt zu Heute.
 - **Ergebnis:** Nur Anzeige. Heute und Report R07 zeigen denselben Zeitraum.
 - **Abnahmekriterien:**
   1. 14 Tage Rückblick sind sichtbar.
@@ -79,7 +82,7 @@ Bereich: Startseite „Heute“ (Route `/`). Status und Verweise wie in `docs/US
 - **Ablauf:**
   1. Ich öffne „Heute“ am Handy.
   2. Ich wechsle den Monat mit dem Monatswähler (Pfeile und Monatsname).
-  3. Ich schalte „Monat“ / „Bis Gehalt“ um.
+  3. Ich schalte in der Karte „Frei bis …“ „Monat“ / „Bis Gehalt“ um.
   4. Ich scrolle zu „Als Nächstes“ und tippe bei einer Aufgabe auf die Aktion (z. B. „Verteilen“).
   5. Die App öffnet die Zielseite, ohne dass der schwebende Plus-Knopf die Aktion verdeckt.
 - **Ergebnis:** Nur Navigation.
@@ -116,6 +119,15 @@ Bereich: Startseite „Heute“ (Route `/`). Status und Verweise wie in `docs/US
   2. Ich tippe eine offene Zeile in „Fällig 14 Tage“. Die wiederkehrende Zahlung öffnet sich mit Buchen, Verknüpfen und Überspringen; bei einer bereits zugeordneten Fälligkeit öffnet sich die verknüpfte Buchung im Bearbeiten-Dialog.
 - **Abnahmekriterien:** Zeilen sind Schaltflächen mit Namen, 44 px hoch, per Tastatur bedienbar; „Alle →“ führt unverändert in die Listen.
 - **Status:** in Arbeit — **Verweis:** #1323
+
+### H-xx – Detailseiten „Fällig“ und „Als Nächstes“ kompakt (#1344)
+- **Story:** Als Nutzer möchte ich unter „Fällig · alle Zahlungen“ eine Tabelle und unter „Als Nächstes · alle Aufgaben“ eine einzeilige Liste sehen, damit ich auf einen Blick erfasse, was wann ansteht, auch am Handy ohne seitliches Scrollen.
+- **Ablauf:**
+  1. Ich öffne auf Heute „Fällig“ › Details. Eine weiße Karte zeigt die Spalten Datum · Zahlung · Konto · Betrag · Deckung, ohne Erklärtexte; am Handy besteht jede Zeile aus zwei kompakten Zeilen.
+  2. Ich tippe den Zahlungsnamen (Buchen, Verknüpfen, Überspringen), das Konto (Kontovorschau) oder den Betrag (Erwartet).
+  3. Ich öffne „Als Nächstes“ › Details. Jede Aufgabe steht in einer Zeile: was, wann bzw. Betrag, Aktion; Dringendes steht oben und ist rot.
+- **Abnahmekriterien:** keine Beschriftung-Wert-Stapel je Eintrag; kein horizontaler Scroll bei 390 px; Aktionen 44 px hoch; Verhalten nur mit Redesign-Schalter.
+- **Status:** in Arbeit — **Verweis:** #1344
 
 ### H-xx – Prüfen-Warnung (#1320)
 - **Story:** Als Nutzer möchte ich auf Heute sehen, wenn offene Buchungen ohne Kategorie zu alt werden oder zu viele sind, samt Summe, damit „Zu verteilen“ und die Monatsauswertung nicht verzerrt bleiben.

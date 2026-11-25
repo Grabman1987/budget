@@ -49,16 +49,15 @@ async function settle(page: Page) {
 test.skip(!REDESIGN, 'segmented pill and title-row actions are redesign-only');
 
 test.describe('Heute Zeitraum toggle at 390', () => {
-  // On the phone the period control is a tab row (selected label plus underline), not a pill.
+  // #1342: the period control sits in the "Frei bis …" tile as a pill with a sliding thumb.
   for (const theme of ['light', 'dark'] as const) {
     test(`selected tab is marked and labels stay unclipped in ${theme}`, async ({ page }) => {
       await page.setViewportSize({ width: 390, height: 844 });
       await page.addInitScript((value) => localStorage.setItem('budget-theme', value), theme);
       await page.goto('/?monat=2026-09&period=month');
       await settle(page);
-      const group = page.getByRole('group', { name: 'Zeitraum' }).first();
+      const group = page.locator('.hv-lead').getByRole('group', { name: 'Zeitraum' });
       await expect(group).toBeVisible();
-      await expect(group.locator('.seg-thumb')).toBeHidden();
       await expectLabelsUnclipped(group);
       await group.getByRole('button', { name: 'Bis Gehalt', exact: true }).click();
       await expect(group.getByRole('button', { name: 'Bis Gehalt', exact: true })).toHaveAttribute(
@@ -120,15 +119,19 @@ test.describe('capture sheet header at 390', () => {
   });
 });
 
-test('Heute toggle stays compact in the 64px desktop header', async ({ page }, info) => {
+test('Heute toggle stays compact in the Frei-bis tile on desktop', async ({ page }, info) => {
   test.skip(info.project.name !== 'desktop', 'touch projects use the 44px control');
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto('/?monat=2026-09&period=month');
   await settle(page);
-  const group = page.locator('.page-header').getByRole('group', { name: 'Zeitraum' });
+  const group = page.locator('.hv-lead').getByRole('group', { name: 'Zeitraum' });
   await expect(group).toBeVisible();
+  await expect(page.locator('.page-header').getByRole('group', { name: 'Zeitraum' })).toHaveCount(
+    0,
+  );
   expect((await box(page.locator('.page-header'))).height).toBe(64);
-  expect((await box(group)).height).toBeLessThanOrEqual(40);
+  // Inside the tile the switch keeps the full 44px target (outer box incl. padding stays <= 56px).
+  expect((await box(group)).height).toBeLessThanOrEqual(56);
   await expectPillUnderSelected(group);
   await expectLabelsUnclipped(group);
 });

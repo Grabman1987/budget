@@ -1,5 +1,6 @@
 import { useLocation, useRouter } from '@tanstack/react-router';
 import { AppLink } from '../shell/app-link';
+import { BackButton } from '../shell/back-button';
 import './report-detail.css';
 
 declare module '@tanstack/history' {
@@ -34,7 +35,7 @@ export function ReportDetailNav({
         {' › '}
         <span aria-current="page">{title}</span>
       </nav>
-      <AppLink
+      <BackButton
         to={to}
         search={search}
         onClick={(event) => {
@@ -43,9 +44,8 @@ export function ReportDetailNav({
             router.history.back();
           }
         }}
-      >
-        {backLabel ?? `Zurück zum ${report}`}
-      </AppLink>
+        label={backLabel ?? `Zurück zum ${report}`}
+      />
     </div>
   );
 }

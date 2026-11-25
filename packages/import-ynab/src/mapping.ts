@@ -810,7 +810,7 @@ export function expectedFromScheduled(
       source: b.id,
       name:
         transfer !== null
-          ? `Umbuchung an ${options.accountName(transfer)}`
+          ? `Umbuchung auf ${options.accountName(transfer)}`
           : b.payee.trim() || 'Erwartete Zahlung',
       kind: b.amountCents < 0 ? 'outflow' : 'inflow',
       accountId: b.accountId,

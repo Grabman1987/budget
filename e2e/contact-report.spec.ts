@@ -206,8 +206,7 @@ test('balanced contacts stay hidden by default and retain deep-linked full histo
   const contact = list.getByRole('link').filter({ hasText: data.contact.name });
   await expect(contact).toHaveCount(0);
   if (on) {
-    await page.getByRole('checkbox', { name: 'Auch ausgeglichene Kontakte' }).check();
-    await expect(page.getByRole('heading', { name: 'Ausgeglichen' })).toBeVisible();
+    await page.getByText(/^Ausgeglichene Kontakte \(\d+\)$/).click();
     await contact.click();
   } else {
     await page.getByRole('button', { name: 'Alle', exact: true }).click();
@@ -241,10 +240,8 @@ test('balanced contacts stay hidden by default and retain deep-linked full histo
   ).toBeVisible();
   // Both readers preserve the retained-history filter after opening a balanced contact.
   if (on) {
-    const all = page.getByRole('checkbox', { name: 'Auch ausgeglichene Kontakte' });
-    await expect(all).toBeChecked();
-    await all.uncheck();
-    await expect(contact).toHaveCount(0);
+    // The disclosure stays open while a settled contact is selected.
+    await expect(page.locator('.r4-contact-settled-list')).toHaveAttribute('open', '');
   } else {
     await page.getByRole('link', { name: 'Zurück zu Kontakte', exact: true }).click();
     await expect(page.getByRole('button', { name: 'Alle', exact: true })).toHaveAttribute(

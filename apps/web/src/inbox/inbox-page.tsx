@@ -36,6 +36,7 @@ import { ReadSourceDetail, sourceWarningReason } from './read-source-detail';
 import { ReconciliationChanges } from './reconciliation-changes';
 import { QuoteCause, storedQuoteWarningText } from './quote-cause';
 import { ReadSourceSummaries } from './read-source-summaries';
+import { AccountReviewRows } from './account-review-rows';
 import { AutoResolvedHistory } from './auto-resolved-history';
 import { inboxCause, type InboxSegment } from '@budget/domain';
 import { useLocation, useNavigate, useParams, useSearch } from '@tanstack/react-router';
@@ -829,15 +830,30 @@ function PaginatedInboxBodyContent({
                 counts={firstPage.taskSources}
                 selected={taskSource}
                 onSelect={setTaskSource}
+                renderDetail={
+                  REDESIGN_ENABLED
+                    ? (source) =>
+                        source === 'accounts' ? (
+                          <section aria-labelledby="account-reminder-title">
+                            <h3 id="account-reminder-title" className="sr-only">
+                              Konten prüfen
+                            </h3>
+                            <AccountReviewRows items={firstPage.accountReminders ?? []} />
+                          </section>
+                        ) : source === 'receipts' ? (
+                          <ReceiptSection />
+                        ) : null
+                    : undefined
+                }
               />
-              {taskSource === 'accounts' && (
+              {!REDESIGN_ENABLED && taskSource === 'accounts' && (
                 <section aria-labelledby="account-reminder-title">
                   <h3 id="account-reminder-title">Konten prüfen</h3>
                   <AccountReminderRows items={firstPage.accountReminders ?? []} />
                 </section>
               )}
-              {taskSource === 'receipts' && <ReceiptSection />}
-              <AutoResolvedHistory items={firstPage.autoResolved ?? []} />
+              {!REDESIGN_ENABLED && taskSource === 'receipts' && <ReceiptSection />}
+              {!REDESIGN_ENABLED && <AutoResolvedHistory items={firstPage.autoResolved ?? []} />}
             </>
           )}
         </section>
@@ -1637,7 +1653,7 @@ function InboxRow({
                     Warnung erklären
                   </AppLink>
                 )}
-              <LinkProposalAction item={item} disabled={busy} />
+              <LinkProposalAction item={item} disabled={busy} onOpenBooking={onEdit} />
               <SourceLink item={item} />
               {item.refType !== 'account-reconciliation' &&
                 !(item.kind === 'stale_value' && item.refType === 'security') && (
@@ -1645,7 +1661,9 @@ function InboxRow({
                     {item.refType === 'bank-sync-candidate'
                       ? 'Nicht übernehmen'
                       : item.refType === 'expected_occurrence'
-                        ? 'Nicht zuordnen'
+                        ? REDESIGN_ENABLED && item.linkProposal
+                          ? 'Ablehnen'
+                          : 'Nicht zuordnen'
                         : 'Als erledigt markieren'}
                   </Button>
                 )}

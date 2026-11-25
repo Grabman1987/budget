@@ -1,9 +1,9 @@
 import { budgetQuery } from '../budget/budget-api';
+import { SettingsFormDialog } from '../pages/settings-form-dialog';
 import {
   useAmountPrivacy,
   AmountInput,
   Button,
-  FormDialog,
   Field,
   maskMoneyText,
   Segmented,
@@ -37,6 +37,7 @@ import { EmptyNote, ErrorNote, LoadingNote } from '../ledger/states';
 import { PAGES } from '../nav/pages';
 import { PageFrame } from '../pages/placeholder-page';
 import { AppLink } from '../shell/app-link';
+import { BackButton } from '../shell/back-button';
 import { contactBalanceLine, contactBalanceWords } from './contact-balance';
 import { ContactActionsMenu } from './contact-menu';
 import {
@@ -270,7 +271,11 @@ export function ContactsPage() {
               </tbody>
             </table>
           ))}
-        <FormDialog open={creating} onClose={() => setCreating(false)} title="Neuer Kontakt">
+        <SettingsFormDialog
+          open={creating}
+          onClose={() => setCreating(false)}
+          title="Neuer Kontakt"
+        >
           {creating && (
             <NewContact
               onClose={() => setCreating(false)}
@@ -280,7 +285,7 @@ export function ContactsPage() {
               }}
             />
           )}
-        </FormDialog>
+        </SettingsFormDialog>
         {writeOff && (
           <ContactWriteOffDialog
             contact={currentWriteOff ?? writeOff}
@@ -321,9 +326,9 @@ export function ContactRenameDialog({
   onClose: () => void;
 }) {
   return (
-    <FormDialog open={contact !== null} onClose={onClose} title="Kontakt umbenennen">
+    <SettingsFormDialog open={contact !== null} onClose={onClose} title="Kontakt umbenennen">
       {contact && <NewContact contact={contact} onClose={onClose} onDone={onClose} />}
-    </FormDialog>
+    </SettingsFormDialog>
   );
 }
 
@@ -418,9 +423,7 @@ export function ContactStatementPage() {
     <PageFrame meta={META}>
       <section className="contacts-page contacts-statement" aria-label="Kontaktkontoauszug">
         <nav aria-label="Brotkrumen">
-          <AppLink className="btn btn-ghost" to="/konten/kontakte" search={context}>
-            Zurück zu Kontakte
-          </AppLink>
+          <BackButton to="/konten/kontakte" search={context} label="Zurück zu Kontakte" />
         </nav>
         {(statement.isPending || statement.isFetching) && <LoadingNote what="Kontoblatt" />}
         {statement.isError && (
@@ -766,7 +769,7 @@ export function ContactWriteOffDialog({
     validDate &&
     (credit ? chosenType : categoryId);
   return (
-    <FormDialog
+    <SettingsFormDialog
       open
       onClose={onClose}
       title="Kontakt ausgleichen"
@@ -978,7 +981,7 @@ export function ContactWriteOffDialog({
           </Button>
         </div>
       </form>
-    </FormDialog>
+    </SettingsFormDialog>
   );
 }
 
@@ -1057,7 +1060,7 @@ export function ContactGiftDialog({
     amountCents <= outlay.remainingCents &&
     expenses.some((c) => c.id === categoryId);
   return (
-    <FormDialog
+    <SettingsFormDialog
       open
       title="Auslage als Geschenk übernehmen"
       onClose={onClose}
@@ -1083,7 +1086,6 @@ export function ContactGiftDialog({
           });
         }}
       >
-        <h2>Geschenk an Kontakt</h2>
         <p>
           {maskMoneyText(outlay.memo?.trim() || 'Auslage')} · {statement.contact.name}
         </p>
@@ -1142,7 +1144,7 @@ export function ContactGiftDialog({
           </Button>
         </div>
       </form>
-    </FormDialog>
+    </SettingsFormDialog>
   );
 }
 
@@ -1209,7 +1211,12 @@ function ContactAllocationDialog({
       'Die Anteile müssen zur Rückzahlung passen und dürfen die verfügbare Auslage nicht übersteigen.';
   }
   return (
-    <FormDialog open title="Rückzahlung neu zuordnen" onClose={onClose} beforeClose={() => !busy}>
+    <SettingsFormDialog
+      open
+      title="Rückzahlung neu zuordnen"
+      onClose={onClose}
+      beforeClose={() => !busy}
+    >
       <form
         className="contacts-form"
         onSubmit={(event) => {
@@ -1225,7 +1232,6 @@ function ContactAllocationDialog({
           });
         }}
       >
-        <h2>Rückzahlung neu zuordnen</h2>
         <p>
           Wähle, welche Auslagen diese Rückzahlung begleicht. Betrag, Buchungsdatum, Kontostand und
           Nettovermögen bleiben unverändert.
@@ -1327,7 +1333,7 @@ function ContactAllocationDialog({
           </Button>
         </div>
       </form>
-    </FormDialog>
+    </SettingsFormDialog>
   );
 }
 
@@ -1456,7 +1462,7 @@ function ContactCredits({ statement }: { statement: Statement }) {
         </section>
       )}
       {credit && (
-        <FormDialog
+        <SettingsFormDialog
           open
           onClose={() => {
             if (!busy) setSelected(null);
@@ -1526,7 +1532,7 @@ function ContactCredits({ statement }: { statement: Statement }) {
               Entscheidung speichern
             </Button>
           </form>
-        </FormDialog>
+        </SettingsFormDialog>
       )}
     </>
   );

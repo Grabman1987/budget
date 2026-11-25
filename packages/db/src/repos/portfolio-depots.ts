@@ -45,7 +45,17 @@ export interface DepotColumn {
   products: DepotProduct[];
 }
 
+/** One day of a single depot: EUR value and the chained time-weighted level (100 at the start). */
+export interface DepotHistoryPoint {
+  date: string;
+  valueCents: number;
+  /** Base 100; `null` where the depot has no positive capital to measure a return against. */
+  index: number | null;
+}
+
 export interface DepotComparison {
+  /** Daily value and return of the depot named in `options.historyFor`; omitted otherwise. */
+  history?: DepotHistoryPoint[];
   cashReconciliation?: ReturnType<typeof bankTransitReconciliation>;
   asOf: string;
   period: Period;
@@ -68,7 +78,7 @@ export interface DepotComparison {
  */
 export function depotComparison(
   db: Executor,
-  options: { today: string; period?: Period },
+  options: { today: string; period?: Period; historyFor?: string },
 ): DepotComparison {
   const today = periodWindow(options.period ?? '1J', options.today).to;
   const period = options.period ?? '1J';
@@ -329,7 +339,21 @@ export function depotComparison(
     index: totalLine,
     products: productsOf(null),
   };
+  const historyValues = options.historyFor ? values.get(options.historyFor) : undefined;
+  const history =
+    options.historyFor === undefined
+      ? undefined
+      : historyValues
+        ? historyOf(
+            series.days,
+            historyValues,
+            performanceReportSeries(inputOf(historyValues, [options.historyFor]), effective)
+              .dailyIndex,
+            effective,
+          )
+        : [];
   return {
+    ...(history ? { history } : {}),
     cashReconciliation: bankTransitReconciliation(
       db,
       today,
@@ -346,4 +370,18 @@ export function depotComparison(
     depots,
     total,
   };
+}
+
+function historyOf(
+  days: ReadonlyArray<string>,
+  values: ReadonlyArray<number>,
+  dailyIndex: ReadonlyArray<{ date: string; portfolio: number | null }>,
+  window: { from: string; to: string },
+): DepotHistoryPoint[] {
+  const level = new Map(dailyIndex.map((point) => [point.date, point.portfolio]));
+  return days.flatMap((date, i) =>
+    date >= window.from && date <= window.to
+      ? [{ date, valueCents: values[i] ?? 0, index: level.get(date) ?? null }]
+      : [],
+  );
 }

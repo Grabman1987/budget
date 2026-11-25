@@ -1,5 +1,5 @@
 import { MobileSheetContext, ToastProvider, cx, useIsPhone } from '@budget/ui';
-import { Outlet, useLocation } from '@tanstack/react-router';
+import { Outlet, useLocation, useRouterState } from '@tanstack/react-router';
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
 import { TITLE_ON_MOBILE_AREAS } from '../pages/area-head';
 import { MobileHeader, TabBar, phoneTitle } from './mobile-chrome';
@@ -18,7 +18,8 @@ import { useStorageProtection } from '../pwa/storage-protection';
 import { usePrivacyShortcut } from './privacy-button';
 import { MobileStatusLine, OfflineStatus } from './header-status';
 import { restoreControlsFocus } from './controls-focus';
-import { HeuteShellHead, HeuteStandLine } from '../heute/overview';
+import { HeuteShellHead, HeuteStatusFooter } from '../heute/overview';
+import { ReportNavigation } from '../reports/report-navigation';
 import { HeuteSourceReturn } from '../heute/return-context';
 import { REDESIGN_ENABLED } from './redesign-flag';
 import './mobile-sheets.css';
@@ -51,9 +52,18 @@ export function AppShell() {
   const kontenPageHeading = page?.area === 'konten' && !pathname.startsWith('/konten/kontakte');
   // Report frames carry their own visible heading on desktop and phone.
   const reportPageHeading = page?.area === 'reports' && !!findReport(pathname.split('/')[2] ?? '');
+  // Reports: the report switcher sits in the page header (desktop); the phone keeps it in the frame.
+  const reportHeaderId = reportPageHeading ? pathname.split('/')[2] : undefined;
   const [searchOpen, setSearchOpen] = useState(false);
   const [controlsInBody, setControlsInBody] = useState(false);
   const phone = useIsPhone();
+  // Slow route loads keep the old view; show a thin bar so a clicked link visibly reacts (#1348).
+  const routeLoading = useRouterState({ select: (state) => state.status === 'pending' });
+  const headerControls = heuteControls ? (
+    <HeuteShellHead showStand={false} showPeriod={pathname !== '/'} />
+  ) : REDESIGN_ENABLED && reportHeaderId ? (
+    <ReportNavigation id={reportHeaderId} />
+  ) : undefined;
   const searching = searchOpen || pathname === '/suche';
   const area = searching ? undefined : page?.area;
   const main = useRef<HTMLElement>(null);
@@ -107,7 +117,8 @@ export function AppShell() {
                   !kontenPageHeading &&
                   !reportPageHeading
                 }
-                controls={heuteControls ? <HeuteShellHead showStand={false} /> : undefined}
+                controls={headerControls}
+                controlsOverflow={!!reportHeaderId}
                 onControlsPlacement={(place) => setControlsInBody(place === 'body')}
                 collapsed={collapsed}
                 onToggle={() => setCollapsed(!collapsed)}
@@ -136,13 +147,19 @@ export function AppShell() {
             <main className="sheet" id="main" tabIndex={-1} ref={main}>
               {REDESIGN_ENABLED && heuteControls && controlsInBody && !phone && (
                 <div className="page-controls-row" ref={controlsRow}>
-                  <HeuteShellHead />
+                  <HeuteShellHead showPeriod={pathname !== '/'} />
                 </div>
               )}
-              {REDESIGN_ENABLED && heuteControls && !controlsInBody && !phone && <HeuteStandLine />}
+              {REDESIGN_ENABLED && reportHeaderId && controlsInBody && !phone && (
+                <div className="page-controls-row" ref={controlsRow}>
+                  {headerControls}
+                </div>
+              )}
               {(page?.area === 'heute' || page?.area === 'konten') && <QueueList />}
               {REDESIGN_ENABLED && <HeuteSourceReturn />}
+              {routeLoading && <div className="route-progress" aria-hidden="true" />}
               <Outlet />
+              {REDESIGN_ENABLED && heuteControls && <HeuteStatusFooter />}
             </main>
           </div>
         </div>

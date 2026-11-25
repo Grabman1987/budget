@@ -19,12 +19,12 @@ import { REPORTS, LIQUIDITY_FORECAST } from '../nav/reports-catalog';
 import { hubReport } from '../reports/report-hub-model';
 import { isTyping } from './capture-shortcut';
 import { KeyboardShortcuts } from './keyboard-shortcuts';
-import { AppLink } from './app-link';
 import { PrivacyButton } from './privacy-button';
 import { ThemeButton } from './theme-button';
 import { REDESIGN_ENABLED } from './redesign-flag';
 import { isMonth } from '../nav/month';
 import { isZeitraum } from '../wealth/zeitraum';
+import { BackButton } from './back-button';
 import './global-search.css';
 
 type PaletteItem = Omit<GlobalSearchResult, 'kind'> & {
@@ -268,13 +268,11 @@ export function SearchPage() {
 function SearchBack({ source }: { source?: string | undefined }) {
   const url = new URL(source ?? '/', 'https://budget.invalid');
   return (
-    <AppLink
-      className="btn btn-ghost"
+    <BackButton
       to={url.pathname}
       search={Object.fromEntries(url.searchParams)}
-    >
-      Zurück zur vorherigen Ansicht
-    </AppLink>
+      label="Zurück zur vorherigen Ansicht"
+    />
   );
 }
 

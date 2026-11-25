@@ -7,6 +7,7 @@ import { VERMOEGEN_PORTFOLIO_META } from '../nav/pages';
 import { WealthFrame } from './redesign-frame';
 import { REDESIGN_ENABLED } from '../shell/redesign-flag';
 import { AppLink } from '../shell/app-link';
+import { BackButton } from '../shell/back-button';
 import { accountsQuery } from '../ledger/queries';
 import { ErrorNote, LoadingNote } from '../ledger/states';
 import { longDay } from '../ledger/format';
@@ -48,19 +49,17 @@ function PortfolioDetailBack({ title, savings = false }: { title: string; saving
         {' › '}
         <span aria-current="page">{title}</span>
       </nav>
-      <AppLink
+      <BackButton
         to={fallback}
         search={context}
-        aria-label="Zurück zum Portfolio"
         onClick={(event) => {
           if (openedInApp && !event.ctrlKey && !event.metaKey && !event.shiftKey && !event.altKey) {
             event.preventDefault();
             router.history.back();
           }
         }}
-      >
-        {REDESIGN_ENABLED && !savings ? '‹ Portfolio' : 'Zurück zum Portfolio'}
-      </AppLink>
+        label="Zurück zum Portfolio"
+      />
     </div>
   );
 }

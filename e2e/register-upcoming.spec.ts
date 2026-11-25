@@ -86,7 +86,8 @@ test('separates future captures and next weekly occurrence, projects cents and u
       await expect(scheduled.locator('.kschedule-m-meta')).toContainText('19.10.');
     } else await expect(scheduled.locator('.kx-run')).toContainText('995,94');
     await expect(booked.locator('.kx-run')).toContainText('983,60');
-    await expect(booked.locator('.kx-date')).toContainText('27.10. · in 14 Tagen');
+    await expect(booked.locator('.kx-date')).toContainText('27.10.');
+    await expect(booked.locator('.kx-date')).not.toContainText('Tagen');
     for (const row of phone ? [booked] : [scheduled, booked]) {
       const date = await row.locator('.kx-date').boundingBox();
       const payee = await row.locator('.kx-payee').boundingBox();

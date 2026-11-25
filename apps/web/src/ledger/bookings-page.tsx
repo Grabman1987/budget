@@ -1,4 +1,4 @@
-import { AppLink } from '../shell/app-link';
+import { BackButton } from '../shell/back-button';
 import { canLinkTransfer } from '@budget/domain';
 import { request } from '../api/http';
 import { useBudgetWrite } from '../budget/use-category-writes';
@@ -337,9 +337,7 @@ export function BookingsPage() {
         data-redesign={REDESIGN_ENABLED ? 'bookings' : undefined}
       >
         {search.ruecksprung && (
-          <AppLink className="btn btn-ghost" to={search.ruecksprung}>
-            Zurück zur Report-Zelle
-          </AppLink>
+          <BackButton to={search.ruecksprung} label="Zurück zur Report-Zelle" />
         )}
         {!REDESIGN_ENABLED && headerTools}
         {!REDESIGN_ENABLED && filters}

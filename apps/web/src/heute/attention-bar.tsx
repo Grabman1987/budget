@@ -304,9 +304,12 @@ function AttentionRow({
 export function FundingNotes({
   data,
   requestMonth,
+  card = false,
 }: {
   data: Heute | undefined;
   requestMonth?: string | undefined;
+  /** Own white card (detail pages); renders nothing when there is nothing to fund. */
+  card?: boolean;
 }) {
   const month = data?.stand.today.slice(0, 7) ?? requestMonth;
   // The empty key is disabled: no server month is guessed before the first verified context.
@@ -337,7 +340,10 @@ export function FundingNotes({
     : [];
   if (complete && !goals.length && !unfunded.length) return null;
   return (
-    <section className="heute-section" aria-label="Ziele finanzieren">
+    <section
+      className={card ? 'card page-card heute-section' : 'heute-section'}
+      aria-label="Ziele finanzieren"
+    >
       <h2>Ziele finanzieren</h2>
       {!data && <p className="heute-note">Planmonat {monthLabel(month)}</p>}
       {data && data.stand.month !== month && (

@@ -17,6 +17,7 @@ import { useQuery, useQueryClient, type UseQueryResult } from '@tanstack/react-q
 import { useNavigate, useLocation } from '@tanstack/react-router';
 import { useMemo, useState, type ReactNode } from 'react';
 import { TriangleAlert, ArrowDown, ArrowUp, ChevronRight } from 'lucide-react';
+import { ReportTable } from '../reports/report-table';
 import { PaceAccuracyNote } from '../reports/planning-accuracy-report';
 import { eur, longDay, shortDay } from '../ledger/format';
 import { EmptyNote, ErrorNote, LoadingNote } from '../ledger/states';
@@ -31,12 +32,16 @@ import { heuteQuery, type Heute, type HeuteOccurrence } from './api';
 import { CompactForecastCard } from './compact-forecast-card';
 import { useBalancePeriod } from './use-balance-period';
 import './heute.css';
+import './pace-bookings.css';
 import { useIsPhone } from '../budget/month-span';
 import { useStoredFlag } from '../shell/use-stored-flag';
 import { AttentionBar, FundingNotes } from './attention-bar';
+import { DueDetail } from './due-detail';
+import { TasksDetail } from './tasks-detail';
 import { savingsProposalsQuery } from '../wealth/savings-api';
 import { sourceMoney } from '../wealth/trade-api';
 import { Kennzahlen } from './kennzahlen';
+import { PageCard } from '../shell/status-footer';
 import { budgetQuery } from '../budget/budget-api';
 import { DailyBudgetLine } from './charts';
 import { leadView } from './lead-boundary';
@@ -306,6 +311,8 @@ function HeuteBody({
       )}
     </>
   );
+  // The Pace detail page is the stripped-down home of the figures; "Mehr zum Monat" keeps all.
+  const paceDetailPage = REDESIGN_ENABLED && detail === 'pace';
   const pace = (
     <>
       {data ? (
@@ -328,7 +335,9 @@ function HeuteBody({
                 )
               }
             />
-            {REDESIGN_ENABLED && <div className="heute-verdict-slot">{verdict}</div>}
+            {REDESIGN_ENABLED && !paceDetailPage && (
+              <div className="heute-verdict-slot">{verdict}</div>
+            )}
             <div className="heute-figures">
               <PaceFigure
                 label="Ausgegeben"
@@ -357,8 +366,9 @@ function HeuteBody({
                 extra={`von ${eur(data.pace.figures.limitCents, { cents: false })} Limit`}
               />
             </div>
-            <HeutePaceChart data={data} />
+            <HeutePaceChart data={data} alwaysContext={paceDetailPage} />
             <PaceAccuracyNote summary={data.planningAccuracy} />
+            {paceDetailPage && <PaceBookings pace={data.pace} />}
             {paceDetail && (
               <div className="heute-figure-detail" role="status">
                 <strong>
@@ -382,19 +392,22 @@ function HeuteBody({
                 )}
               </div>
             )}
-            <p className="heute-note">
-              {data.pace.todayDay < 7
-                ? 'Vorläufig: ausgegeben plus offene fixe und wiederkehrende Zahlungen plus verbleibender variabler Plan. Ab dem 7. Tag werden variable Ausgaben hochgerechnet.'
-                : 'Fixe und wiederkehrende Zahlungen zählen einmal; nur variable Ausgaben werden hochgerechnet.'}
-              {!data.pace.figures.forecastAvailable &&
-                ' Für eine Prognose braucht es einen positiven Plan.'}
-            </p>
+            {!paceDetailPage && (
+              <p className="heute-note">
+                {data.pace.todayDay < 7
+                  ? 'Vorläufig: ausgegeben plus offene fixe und wiederkehrende Zahlungen plus verbleibender variabler Plan. Ab dem 7. Tag werden variable Ausgaben hochgerechnet.'
+                  : 'Fixe und wiederkehrende Zahlungen zählen einmal; nur variable Ausgaben werden hochgerechnet.'}
+                {!data.pace.figures.forecastAvailable &&
+                  ' Für eine Prognose braucht es einen positiven Plan.'}
+              </p>
+            )}
           </section>
         </>
       ) : (
         <PaceSectionState
           month={month}
-          verdict={REDESIGN_ENABLED ? verdict : undefined}
+          verdict={REDESIGN_ENABLED && !paceDetailPage ? verdict : undefined}
+          bare={paceDetailPage}
           pending={pending}
           failed={read.isError && !pending}
           error={read.error}
@@ -409,6 +422,7 @@ function HeuteBody({
         data={data}
         read={read}
         refreshing={refreshing}
+        bare={REDESIGN_ENABLED && detail === 'forecast'}
         returnTo={
           REDESIGN_ENABLED
             ? `/heute/details/${detail ?? 'month'}?monat=${month}&period=${period}`
@@ -635,139 +649,145 @@ function HeuteBody({
       )}
     </>
   );
-  const moreMonth = (
+  const wealthBreakdown = (
     <>
-      <MoreMonth key={phone ? 'phone' : 'desktop'} phone={phone}>
-        {data ? (
-          <>
-            <div className="heute-detail-grid">
-              <section className="heute-section heute-net-worth" aria-labelledby="heute-net-title">
-                <SectionHead
-                  id="heute-net-title"
-                  title="Vermögensaufteilung"
-                  aside={
-                    <AppLink to="/vermoegen/nettovermoegen">
-                      Details <ChevronRight size={16} strokeWidth={1.75} aria-hidden="true" />
-                    </AppLink>
-                  }
-                />
-                {away && <p className="heute-note">Stand heute · {longDay(data.stand.today)}</p>}
-                {net ? (
-                  <>
-                    {net.deltaCents === null ? (
-                      <p className="heute-note">Vormonatsvergleich nicht verfügbar.</p>
-                    ) : (
-                      <div
-                        className={`heute-delta ${net.deltaCents < 0 ? 'text-bad' : 'text-good'}`}
-                      >
-                        {net.deltaCents < 0 ? (
-                          <ArrowDown size={16} strokeWidth={1.75} aria-hidden="true" />
-                        ) : (
-                          <ArrowUp size={16} strokeWidth={1.75} aria-hidden="true" />
-                        )}
-                        {eur(net.deltaCents, { cents: false, sign: true })} · {deltaText}
-                      </div>
-                    )}
-                    <div
-                      data-testid="heute-networth-chart"
-                      className={`heute-net-composition${net.totalCents <= 0 ? ' is-nonpositive' : ''}`}
-                    >
-                      <DimensionChainDrawing
-                        label="Maßkette Nettovermögen"
-                        parts={[
-                          {
-                            key: 'liquid',
-                            label: 'Liquidität',
-                            cents: cents(net.liquidCents),
-                            fill: 'plain',
-                          },
-                          {
-                            key: 'invested',
-                            label: REDESIGN_ENABLED ? 'Anlagen' : 'Investiert',
-                            cents: cents(net.investedCents),
-                            fill: 'need',
-                          },
-                          ...(net.debtCents > 0
-                            ? [
-                                {
-                                  key: 'debt',
-                                  label: REDESIGN_ENABLED
-                                    ? 'Schuldkonten (netto)'
-                                    : 'Guthaben auf Schuldkonten',
-                                  cents: cents(net.debtCents),
-                                  fill: 'plain' as const,
-                                },
-                              ]
-                            : []),
-                          ...(net.receivableCents > 0
-                            ? [
-                                {
-                                  key: 'receivable',
-                                  label: 'Forderungen',
-                                  cents: cents(net.receivableCents),
-                                  fill: 'plain' as const,
-                                },
-                              ]
-                            : []),
-                        ]}
-                        {...(net.debtCents < 0
-                          ? {
-                              minus: {
-                                key: 'debt',
-                                label: 'Schulden netto',
-                                cents: cents(-net.debtCents),
-                                kind: 'debt' as const,
-                              },
-                            }
-                          : {})}
-                        result={{ label: 'Nettovermögen', cents: cents(net.totalCents) }}
-                        onSelect={(key) => openNetDetail(key as DimensionKind)}
-                      />
-                      <ValuationSourceHint sources={data.valuationSources} label="Nettovermögen" />
+      {data ? (
+        <>
+          <div className="heute-detail-grid">
+            <section className="heute-section heute-net-worth" aria-labelledby="heute-net-title">
+              <SectionHead
+                id="heute-net-title"
+                title="Vermögensaufteilung"
+                aside={
+                  <AppLink to="/vermoegen/nettovermoegen">
+                    Details <ChevronRight size={16} strokeWidth={1.75} aria-hidden="true" />
+                  </AppLink>
+                }
+              />
+              {away && <p className="heute-note">Stand heute · {longDay(data.stand.today)}</p>}
+              {net ? (
+                <>
+                  {net.deltaCents === null ? (
+                    <p className="heute-note">Vormonatsvergleich nicht verfügbar.</p>
+                  ) : (
+                    <div className={`heute-delta ${net.deltaCents < 0 ? 'text-bad' : 'text-good'}`}>
+                      {net.deltaCents < 0 ? (
+                        <ArrowDown size={16} strokeWidth={1.75} aria-hidden="true" />
+                      ) : (
+                        <ArrowUp size={16} strokeWidth={1.75} aria-hidden="true" />
+                      )}
+                      {eur(net.deltaCents, { cents: false, sign: true })} · {deltaText}
                     </div>
+                  )}
+                  <div
+                    data-testid="heute-networth-chart"
+                    className={`heute-net-composition${net.totalCents <= 0 ? ' is-nonpositive' : ''}`}
+                  >
+                    <DimensionChainDrawing
+                      label="Maßkette Nettovermögen"
+                      parts={[
+                        {
+                          key: 'liquid',
+                          label: 'Liquidität',
+                          cents: cents(net.liquidCents),
+                          fill: 'plain',
+                        },
+                        {
+                          key: 'invested',
+                          label: REDESIGN_ENABLED ? 'Anlagen' : 'Investiert',
+                          cents: cents(net.investedCents),
+                          fill: 'need',
+                        },
+                        ...(net.debtCents > 0
+                          ? [
+                              {
+                                key: 'debt',
+                                label: REDESIGN_ENABLED
+                                  ? 'Schuldkonten (netto)'
+                                  : 'Guthaben auf Schuldkonten',
+                                cents: cents(net.debtCents),
+                                fill: 'plain' as const,
+                              },
+                            ]
+                          : []),
+                        ...(net.receivableCents > 0
+                          ? [
+                              {
+                                key: 'receivable',
+                                label: 'Forderungen',
+                                cents: cents(net.receivableCents),
+                                fill: 'plain' as const,
+                              },
+                            ]
+                          : []),
+                      ]}
+                      {...(net.debtCents < 0
+                        ? {
+                            minus: {
+                              key: 'debt',
+                              label: 'Schulden netto',
+                              cents: cents(-net.debtCents),
+                              kind: 'debt' as const,
+                            },
+                          }
+                        : {})}
+                      result={{ label: 'Nettovermögen', cents: cents(net.totalCents) }}
+                      onSelect={(key) => openNetDetail(key as DimensionKind)}
+                    />
+                    <ValuationSourceHint sources={data.valuationSources} label="Nettovermögen" />
+                  </div>
+                  {/* The detail page is the derivation itself: no usage hints, no debt-role footnote. */}
+                  {(!detail || net.debtCents < 0) && (
                     <p className="heute-note">
-                      Wähle ein Maß für die Konten.
+                      {!detail && 'Wähle ein Maß für die Konten.'}
                       {net.debtCents < 0
                         ? REDESIGN_ENABLED
                           ? ' Gestrichelt: Schulden netto, werden abgezogen.'
                           : ' Gestrichelt: Schulden, werden abgezogen.'
                         : ''}
                     </p>
-                    {REDESIGN_ENABLED && (
-                      <p className="heute-note">
-                        Die Netto-Schuldenkomponente enthält auch positive Guthaben auf Konten mit
-                        Schuldenrolle. Brutto-Verbindlichkeiten und die Summe der Kredite haben
-                        einen anderen Umfang.
-                      </p>
-                    )}
+                  )}
+                  {REDESIGN_ENABLED && !detail && (
                     <p className="heute-note">
-                      Stichtag {longDay(net.asOf)} · Vormonatsende{' '}
-                      {net.previousMonthEndCents === null
-                        ? 'Bewertung nicht verfügbar'
-                        : eur(net.previousMonthEndCents)}
+                      Die Netto-Schuldenkomponente enthält auch positive Guthaben auf Konten mit
+                      Schuldenrolle. Brutto-Verbindlichkeiten und die Summe der Kredite haben einen
+                      anderen Umfang.
                     </p>
+                  )}
+                  <p className="heute-note">
+                    Stichtag {longDay(net.asOf)} · Vormonatsende{' '}
+                    {net.previousMonthEndCents === null
+                      ? 'Bewertung nicht verfügbar'
+                      : eur(net.previousMonthEndCents)}
+                  </p>
+                </>
+              ) : (
+                'unavailable' in data.netWorth && (
+                  <>
+                    <ValuationNote message={data.netWorth.unavailable.message} />
+                    <ValuationSourceHint sources={data.valuationSources} label="Nettovermögen" />
                   </>
-                ) : (
-                  'unavailable' in data.netWorth && (
-                    <>
-                      <ValuationNote message={data.netWorth.unavailable.message} />
-                      <ValuationSourceHint sources={data.valuationSources} label="Nettovermögen" />
-                    </>
-                  )
-                )}
-              </section>
-            </div>
-          </>
-        ) : (
-          <section
-            className="heute-section"
-            aria-label="Vermögensaufteilung"
-            aria-busy={pending || undefined}
-          >
-            <h2>Vermögensaufteilung</h2>
-            <SectionReadNote name="Vermögensaufteilung" pending={pending} />
-          </section>
-        )}
+                )
+              )}
+            </section>
+          </div>
+        </>
+      ) : (
+        <section
+          className="heute-section"
+          aria-label="Vermögensaufteilung"
+          aria-busy={pending || undefined}
+        >
+          <h2>Vermögensaufteilung</h2>
+          <SectionReadNote name="Vermögensaufteilung" pending={pending} />
+        </section>
+      )}
+    </>
+  );
+  const moreMonth = (
+    <>
+      <MoreMonth key={phone ? 'phone' : 'desktop'} phone={phone}>
+        {wealthBreakdown}
         <FundingNotes data={data} requestMonth={read.data?.stand.today.slice(0, 7)} />
       </MoreMonth>
     </>
@@ -781,28 +801,50 @@ function HeuteBody({
       case 'tasks':
         return (
           <>
-            {attention}
+            {data ? (
+              <TasksDetail data={data} savingsRows={savingsRows} inboxWarning={inboxWarning} />
+            ) : (
+              attention
+            )}
+            {savingsPending && <LoadingNote what="Sparplanvorschläge" />}
+            {savings.isError && !savingsPending && (
+              <ErrorNote
+                what="Sparplanvorschläge"
+                error={savings.error}
+                onRetry={() => void savings.refetch()}
+              />
+            )}
             <FinanceCheck data={data} pending={pending} context={{ month, period }} />
             <FundingNotes data={data} requestMonth={data?.stand.today.slice(0, 7)} />
           </>
         );
       case 'due':
-        return data &&
-          !data.upcoming14.length &&
+        return !data ? (
+          upcoming
+        ) : !data.upcoming14.length &&
           !data.upcomingEvents.some((event) => event.date <= addDays(data.stand.today, 14)) ? (
           <EmptyNote>Keine Zahlungen in den nächsten 14 Tagen.</EmptyNote>
         ) : (
-          upcoming
+          <DueDetail
+            data={data}
+            until={addDays(data.stand.today, 14)}
+            onOpenOccurrence={openOccurrence}
+          />
         );
       case 'bookings':
         return bookings;
       case 'wealth':
         return (
-          <>
-            {kennzahlen}
-            {wealth}
-            {moreMonth}
-          </>
+          <div className="page-stack" data-testid="wealth-detail-cards">
+            <PageCard label="Übersicht">{kennzahlen}</PageCard>
+            <PageCard label="Aufteilung">{wealthBreakdown}</PageCard>
+            <PageCard label="Verlauf">{wealth}</PageCard>
+            <FundingNotes
+              card
+              data={data}
+              requestMonth={read.data?.stand.today.slice(0, 7) ?? data?.stand.today.slice(0, 7)}
+            />
+          </div>
         );
       case 'metrics':
         return kennzahlen;
@@ -824,11 +866,6 @@ function HeuteBody({
   }
   return (
     <>
-      {refreshing && (
-        <p className="heute-note" role="status">
-          Heute-Daten werden aktualisiert · Stand heute {longDay(data!.stand.today)}
-        </p>
-      )}
       {away && (
         <p className="heute-month-note" role="note" data-testid="heute-month-note">
           <span>Ansicht: {monthName(month)} –</span>
@@ -1007,6 +1044,7 @@ function SectionReadNote({ name, pending }: { name: string; pending: boolean }) 
 function PaceSectionState({
   month,
   verdict,
+  bare,
   pending,
   failed,
   error,
@@ -1014,6 +1052,7 @@ function PaceSectionState({
 }: {
   month: string;
   verdict?: ReactNode;
+  bare: boolean;
   pending: boolean;
   failed: boolean;
   error: unknown;
@@ -1066,9 +1105,11 @@ function PaceSectionState({
             { kind: 'plan', label: 'Deckel' },
           ]}
         />
-        <Button variant="ghost" size="sm" className="pace-context-toggle" disabled>
-          Mehr anzeigen
-        </Button>
+        {!bare && (
+          <Button variant="ghost" size="sm" className="pace-context-toggle" disabled>
+            Mehr anzeigen
+          </Button>
+        )}
       </div>
       <p className="heute-note heute-pace-state-note">
         Monatsausgaben, Plan und Hochrechnung {pending ? 'werden geladen' : 'sind nicht verfügbar'}.
@@ -1187,6 +1228,56 @@ function LeadDetail({ data, kind }: { data: Heute; kind: 'balance' | 'open' }) {
         </ul>
       ) : (
         <p>Keine Budget-Konten.</p>
+      )}
+    </div>
+  );
+}
+
+/** The bookings that make up the Ist line, newest first; the amounts add up to "Ausgegeben". */
+export function PaceBookings({ pace }: { pace: Heute['pace'] }) {
+  useAmountPrivacy();
+  const rows = pace.bookings;
+  if (!rows) return null;
+  return (
+    <div className="pace-bookings">
+      {rows.length === 0 ? (
+        <EmptyNote>Bis heute keine Ausgaben in diesem Monat.</EmptyNote>
+      ) : (
+        <ReportTable
+          caption="Buchungen der Pace-Linie"
+          regionLabel="Buchungen der Pace-Linie"
+          className="pace-bookings-table"
+          data-testid="pace-bookings"
+        >
+          <thead>
+            <tr>
+              <th scope="col">Datum</th>
+              <th scope="col">Buchung</th>
+              <th scope="col">Kategorie</th>
+              <th scope="col" className="n">
+                Betrag
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row, index) => (
+              <tr key={`${row.bookingId ?? 'x'}-${index}`}>
+                <td>{shortDay(row.day)}</td>
+                <td>{row.name}</td>
+                <td>{row.categoryName ?? '–'}</td>
+                <td className="n">{eur(row.cents)}</td>
+              </tr>
+            ))}
+          </tbody>
+          <tfoot>
+            <tr>
+              <th scope="row" colSpan={3}>
+                Ausgegeben
+              </th>
+              <td className="n">{eur(pace.figures.spentCents)}</td>
+            </tr>
+          </tfoot>
+        </ReportTable>
       )}
     </div>
   );
