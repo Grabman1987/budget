@@ -1,4 +1,6 @@
 // @vitest-environment jsdom
+// Lazy chunk resolved from the module cache, so the dialog opens within the test's wait.
+import '../ledger/booking-panel';
 import { accountLiquidityForecast } from '@budget/domain';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
@@ -74,7 +76,7 @@ function fixture() {
   );
 }
 
-it('names the short account despite positive household cash and expected income, then prepares only a transfer draft', () => {
+it('names the short account despite positive household cash and expected income, then prepares only a transfer draft', async () => {
   // 10,000 - 15,001 = -5,001; household still has 42,998 without expected income.
   const result = fixture();
   expect(result.withoutExpectedInflows.household.low.cents).toBe(42_998);
@@ -83,7 +85,7 @@ it('names the short account despite positive household cash and expected income,
     'Konto Testkonto Rechnungen rutscht am 01.02. auf −50,01 €',
   );
   fireEvent.click(screen.getByRole('button', { name: 'Umbuchung vorbereiten' }));
-  expect(JSON.parse(screen.getByTestId('transfer-draft').textContent!)).toEqual({
+  expect(JSON.parse((await screen.findByTestId('transfer-draft')).textContent!)).toEqual({
     mode: 'create',
     prefill: {
       kind: 'transfer',
@@ -111,7 +113,7 @@ it('expands the cash causes and shows expected income separately and unassigned 
 
 it.each([false, true])(
   'caps the transfer at the source account safe cash (later inflow: %s)',
-  (laterInflow) => {
+  async (laterInflow) => {
     const result = accountLiquidityForecast(
       {
         startDay: '2026-01-30',
@@ -153,7 +155,9 @@ it.each([false, true])(
     fireEvent.click(screen.getByRole('button', { name: 'Umbuchung vorbereiten' }));
     // Bills: 100 - 600 = -500. Source: 400, or 400 + 100 - 300 = 200.
     // A transfer today must leave every source closing balance nonnegative.
-    expect(JSON.parse(screen.getByTestId('transfer-draft').textContent!).prefill).toMatchObject({
+    expect(
+      JSON.parse((await screen.findByTestId('transfer-draft')).textContent!).prefill,
+    ).toMatchObject({
       accountId: 'spare',
       amount: laterInflow ? '2,00' : '4,00',
     });

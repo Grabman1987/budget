@@ -1,13 +1,18 @@
 // @vitest-environment jsdom
+// Lazy chunk resolved from the module cache, so the dialog opens within the test's wait.
+import './document-upload-flow';
 import type { ReactNode } from 'react';
 import type * as Router from '@tanstack/react-router';
 import type { TradeConfirmationIntake } from '@budget/domain';
 import { ToastProvider } from '@budget/ui';
-import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
+import { cleanup, configure, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { DocumentUploadButton, type Classification } from './document-upload';
+
+// The upload flow is a lazy chunk: allow its first render more than the default second.
+configure({ asyncUtilTimeout: 5000 });
 
 // The trade form guards unsaved input through the router; no navigation happens in these tests.
 vi.mock('@tanstack/react-router', async (importOriginal) => ({
@@ -149,7 +154,7 @@ async function upload(trade: TradeConfirmationIntake) {
   const user = userEvent.setup();
   await user.click(screen.getByRole('button', { name: 'Dokument hochladen' }));
   await user.upload(
-    screen.getByLabelText('Dokument auswählen'),
+    await screen.findByLabelText('Dokument auswählen'),
     new File(['%PDF-1.7'], 'synthetic.pdf', { type: 'application/pdf' }),
   );
   await screen.findByText('Erkannt: Wertpapierabrechnung');
@@ -161,7 +166,7 @@ const value = (scope: HTMLElement, label: RegExp | string) =>
 
 it('shows the read values and opens a pre-filled trade the owner confirms', async () => {
   const user = await upload(intake());
-  const read = within(screen.getByRole('region', { name: 'Gelesene Angaben' }));
+  const read = within(await screen.findByRole('region', { name: 'Gelesene Angaben' }));
   expect(read.getByText(`Synthetic Index Fund (Acc) · ISIN ${ISIN}`)).toBeTruthy();
   expect(read.getByText('0,339443')).toBeTruthy();
   expect(read.getByText('100,00 €')).toBeTruthy();
@@ -209,7 +214,7 @@ it('leaves unread fields empty, names them and refuses to save a guess', async (
       { securityId: null },
     ),
   );
-  const read = within(screen.getByRole('region', { name: 'Gelesene Angaben' }));
+  const read = within(await screen.findByRole('region', { name: 'Gelesene Angaben' }));
   expect(read.getAllByText('nicht sicher gelesen')).toHaveLength(3);
   expect(read.getByText(/in der App nicht eindeutig angelegt/)).toBeTruthy();
 
@@ -402,7 +407,7 @@ it('warns about a probable duplicate and books only after an explicit confirmati
       },
     ),
   );
-  const read = within(screen.getByRole('region', { name: 'Gelesene Angaben' }));
+  const read = within(await screen.findByRole('region', { name: 'Gelesene Angaben' }));
   expect(read.getByRole('alert').textContent).toContain('Möglicherweise schon erfasst');
   // The upload still offers "Weiter": it is a warning, not a block.
   await user.click(screen.getByRole('button', { name: 'Weiter' }));
@@ -440,7 +445,7 @@ it('keeps a trade confirmation entry independent of the other files of a batch',
   );
   const user = userEvent.setup();
   await user.click(screen.getByRole('button', { name: 'Dokument hochladen' }));
-  await user.upload(screen.getByLabelText('Dokument auswählen'), [
+  await user.upload(await screen.findByLabelText('Dokument auswählen'), [
     new File(['%PDF-1.7'], 'abrechnung.pdf', { type: 'application/pdf' }),
     new File(['%PDF-1.7'], 'receipt.pdf', { type: 'application/pdf' }),
   ]);

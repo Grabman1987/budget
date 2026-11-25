@@ -1,13 +1,12 @@
 import { useLocation, useNavigate, useParams, useRouter, useSearch } from '@tanstack/react-router';
 import { lazy, Suspense, useState } from 'react';
+import { LazyBookingPanel, preloadBookingPanel } from '../ledger/booking-panel-lazy';
 import type { PanelSearch } from './panel-state';
 import { type PanelId } from './panels';
 
 // The capture form (the largest editor) and the settings panels load when a panel is first
 // opened; `preloadPanels` fetches them when the browser is idle so opening stays instant.
-const loadBookingPanel = () => import('../ledger/booking-panel');
 const loadAssetClassPanel = () => import('../pages/asset-classes-settings');
-const BookingPanel = lazy(() => loadBookingPanel().then((m) => ({ default: m.BookingPanel })));
 const AssetClassSettingsPanel = lazy(() =>
   loadAssetClassPanel().then((m) => ({ default: m.AssetClassSettingsPanel })),
 );
@@ -15,7 +14,7 @@ const AssetClassSettingsPanel = lazy(() =>
 /** Loads the panel chunks in the background (idle time), never on the start page's critical path. */
 export function preloadPanels(): () => void {
   const run = () => {
-    void loadBookingPanel().catch(() => undefined);
+    preloadBookingPanel();
     void loadAssetClassPanel().catch(() => undefined);
   };
   if (typeof requestIdleCallback === 'function') {
@@ -69,14 +68,12 @@ export function PanelHost() {
 
   // "+ Buchung": the capture panel (P2b), with its own URL (`?panel=buchung`).
   if (shown === 'buchung') {
-    return opened ? (
-      <Suspense fallback={null}>
-        <BookingPanel
-          state={panel === 'buchung' && closing !== panel ? { mode: 'create', accountId } : null}
-          onClose={close}
-        />
-      </Suspense>
-    ) : null;
+    return (
+      <LazyBookingPanel
+        state={panel === 'buchung' && closing !== panel ? { mode: 'create', accountId } : null}
+        onClose={close}
+      />
+    );
   }
 
   if (shown === 'posteingang') return null;

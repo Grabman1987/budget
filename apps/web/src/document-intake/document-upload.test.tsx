@@ -1,4 +1,6 @@
 // @vitest-environment jsdom
+// Lazy chunk resolved from the module cache, so the dialog opens within the test's wait.
+import './document-upload-flow';
 import type { ReactNode } from 'react';
 import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -130,7 +132,7 @@ function renderButton(accountId?: string) {
 const pick = async (file: File) => {
   const user = userEvent.setup();
   await user.click(screen.getByRole('button', { name: 'Dokument hochladen' }));
-  await user.upload(screen.getByLabelText('Dokument auswählen'), file);
+  await user.upload(await screen.findByLabelText('Dokument auswählen'), file);
   return user;
 };
 const pdf = () => new File(['%PDF-1.7'], 'synthetic.pdf', { type: 'application/pdf' });
@@ -272,7 +274,7 @@ it('previews each stored notice before sending one explicit batch decision', asy
   renderButton();
   const user = userEvent.setup();
   await user.click(screen.getByRole('button', { name: 'Dokument hochladen' }));
-  await user.click(screen.getByText('Mitteilungsarchiv und offene Importvorschl\u00e4ge'));
+  await user.click(await screen.findByText('Mitteilungsarchiv und offene Importvorschl\u00e4ge'));
   await user.click(await screen.findByRole('button', { name: 'Archivierung pr\u00fcfen (2)' }));
   expect(screen.getByRole('region', { name: 'Archivierungsvorschau' }).textContent).toContain(
     'synthetic-one.pdf',
@@ -322,7 +324,7 @@ it('keeps separate rows and retries only a failed file without writing any docum
   renderButton();
   const user = userEvent.setup();
   await user.click(screen.getByRole('button', { name: 'Dokument hochladen' }));
-  await user.upload(screen.getByLabelText('Dokument auswählen'), [
+  await user.upload(await screen.findByLabelText('Dokument auswählen'), [
     new File(['pdf'], 'good.pdf', { type: 'application/pdf' }),
     new File(['pdf'], 'failed.pdf', { type: 'application/pdf' }),
   ]);
@@ -351,7 +353,7 @@ it('keeps separate rows and retries only a failed file without writing any docum
   expect(good.getByText(/Einzelprüfung geschlossen/)).toBeTruthy();
   expect(failed.getByText('Erkannt: Kreditkartenabrechnung')).toBeTruthy();
   await user.upload(
-    screen.getByLabelText('Dokument auswählen'),
+    await screen.findByLabelText('Dokument auswählen'),
     new File(['pdf'], 'next.pdf', { type: 'application/pdf' }),
   );
   const next = within(screen.getByRole('region', { name: 'next.pdf' }));
