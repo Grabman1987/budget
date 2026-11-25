@@ -12,6 +12,12 @@ import {
   sql,
 } from 'drizzle-orm';
 import {
+  DEFAULT_INBOX_WARN_AGE_DAYS,
+  DEFAULT_INBOX_WARN_COUNT,
+  INBOX_WARN_AGE_SETTING,
+  INBOX_WARN_COUNT_SETTING,
+  validInboxWarnAgeDays,
+  validInboxWarnCount,
   addDays,
   cents,
   formatEuro,
@@ -26,6 +32,7 @@ import { getBooking } from './bookings';
 import {
   account,
   accountReconciliation,
+  appSetting,
   auditLog,
   booking,
   bookingSplit,
@@ -39,6 +46,7 @@ import {
 } from '../schema';
 import { nowIso, updateTracked, withGroup, type AuditContext } from './audit';
 import { ConflictError, EntityNotFoundError } from './errors';
+import { getEntity } from './entities';
 import { runInTransaction, type Executor } from './types';
 import { readSourceDisplayDetail, readSourceMappings } from './read-source';
 import { listReceipts } from './receipts';
@@ -132,6 +140,16 @@ export interface InboxEnvelope {
 export type InboxEntry = InboxBooking | InboxStored | InboxEnvelope | SavingsExecutionProposal;
 export interface InboxOptions {
   excludeOverspent?: boolean;
+}
+
+/** Warning thresholds of the Prüfen counter; invalid stored values fall back to the defaults. */
+export function inboxWarnThresholds(db: Executor) {
+  const age = Number(getEntity(db, appSetting, INBOX_WARN_AGE_SETTING)?.value);
+  const limit = Number(getEntity(db, appSetting, INBOX_WARN_COUNT_SETTING)?.value);
+  return {
+    ageDays: validInboxWarnAgeDays(age) ? age : DEFAULT_INBOX_WARN_AGE_DAYS,
+    count: validInboxWarnCount(limit) ? limit : DEFAULT_INBOX_WARN_COUNT,
+  };
 }
 
 /** Latest accepted statement per account; older checks are superseded, never rewritten. */
@@ -704,6 +722,35 @@ export function readInboxCount(db: Executor, today: string, options: InboxOption
         savingsExecutionProposals(tx, today).length +
         reconciliationTasks(tx, today).length +
         accountReminders(tx, today).length,
+    };
+  });
+}
+
+/**
+ * Age and money of the open uncategorised bookings (one entry per booking, its open splits summed)
+ * for the Prüfen warning. Read-only; the count semantics of `readInboxCount` stay unchanged.
+ */
+export function readInboxWarnFacts(db: Executor, today: string) {
+  return runInTransaction(db, (tx) => {
+    const thresholds = inboxWarnThresholds(tx);
+    const open = tx
+      .select({ date: booking.date, cents: sql<number>`sum(${bookingSplit.amountCents})` })
+      .from(booking)
+      .innerJoin(account, eq(account.id, booking.accountId))
+      .innerJoin(bookingSplit, eq(bookingSplit.bookingId, booking.id))
+      .where(unclassifiedWhere(today))
+      .groupBy(booking.id)
+      .all();
+    // Older than the threshold means at least threshold + 1 days.
+    const cutoff = addDays(today, -thresholds.ageDays);
+    return {
+      oldestOpenDate: open.reduce<string | null>(
+        (oldest, row) => (oldest === null || row.date < oldest ? row.date : oldest),
+        null,
+      ),
+      overAgeCount: open.filter((row) => row.date < cutoff).length,
+      openUncategorizedCents: open.reduce((sum, row) => sum + Number(row.cents), 0),
+      thresholds,
     };
   });
 }

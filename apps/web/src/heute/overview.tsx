@@ -16,6 +16,7 @@ import { eur, longDay, shortDay } from '../ledger/format';
 import { EmptyNote, ErrorNote, LoadingNote } from '../ledger/states';
 import { ValuationSourceHint } from '../ledger/valuation-hint';
 import { AppLink } from '../shell/app-link';
+import { useInboxCount } from '../shell/inbox';
 import { REDESIGN_ENABLED } from '../shell/redesign-flag';
 import { MonthSwitch } from '../shell/month-switch';
 import { useMonth } from '../shell/use-month';
@@ -245,6 +246,7 @@ export function HeuteOverview({
 }) {
   useAmountPrivacy();
   const [month] = useMonth();
+  const inboxWarning = useInboxCount().warning;
   const budget = useQuery(budgetQuery(month));
   const plan =
     !budget.isError &&
@@ -466,7 +468,11 @@ export function HeuteOverview({
         </div>
         <div className="hv-aside">
           <Card number={3} title="Als Nächstes" kind="tasks">
-            <NextWork data={data} assignment={plan?.summary.toBeAssignedCents} />
+            <NextWork
+              data={data}
+              assignment={plan?.summary.toBeAssignedCents}
+              inboxWarning={inboxWarning}
+            />
             {!data && <ReadState read={read} name="Weitere Aufgaben" />}
             {plan && budget.isFetching && (
               <p role="status" className="hv-source-note">
@@ -576,9 +582,11 @@ export function HeuteOverview({
 function NextWork({
   data,
   assignment,
+  inboxWarning,
 }: {
   data: Heute | undefined;
   assignment: number | undefined;
+  inboxWarning: string | null;
 }) {
   const [month] = useMonth();
   const now = data?.stand.today.slice(0, 7) ?? month;
@@ -644,7 +652,13 @@ function NextWork({
   if (tasks.length < 4 && data?.attention.inboxCount)
     tasks.push({
       id: 'inbox',
-      title: `${data.attention.inboxCount} unter Prüfen`,
+      title: inboxWarning ? (
+        <span className="hv-inbox-warning">
+          {data.attention.inboxCount} unter Prüfen · {inboxWarning}
+        </span>
+      ) : (
+        `${data.attention.inboxCount} unter Prüfen`
+      ),
       label: 'Zuordnen',
       to: '/konten/pruefen',
       // The guided pass takes the open bookings one at a time (#1054).

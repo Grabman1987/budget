@@ -16,6 +16,7 @@ export function Upcoming({
   title,
   standToday,
   compact = false,
+  onOpenOccurrence,
 }: {
   items: HeuteOccurrence[];
   events?: PlannedEventOccurrence[];
@@ -23,6 +24,8 @@ export function Upcoming({
   title: string;
   standToday?: string | undefined;
   compact?: boolean;
+  /** Row tap: opens the occurrence actions or its matched booking (decided by the caller). */
+  onOpenOccurrence?: (item: HeuteOccurrence) => void;
 }) {
   useAmountPrivacy();
   const selection = readLiquiditySelection();
@@ -82,7 +85,18 @@ export function Upcoming({
               <li className="heute-upcoming" key={`${item.paymentId}-${item.dueDate}`}>
                 <time dateTime={item.dueDate}>{shortDay(item.dueDate)}</time>
                 <div>
-                  <strong>{item.name}</strong>
+                  {onOpenOccurrence ? (
+                    <button
+                      type="button"
+                      className="heute-row-open"
+                      aria-label={`${item.name} · fällig ${shortDay(item.dueDate)} · öffnen`}
+                      onClick={() => onOpenOccurrence(item)}
+                    >
+                      <strong>{item.name}</strong>
+                    </button>
+                  ) : (
+                    <strong>{item.name}</strong>
+                  )}
                   <span>
                     {item.accountId && item.accountName && (
                       <AppLink

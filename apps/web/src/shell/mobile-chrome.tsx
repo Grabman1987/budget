@@ -67,7 +67,12 @@ export function MobileHeader({
         </div>
         <GlobalSearch mobile onOpenChange={onSearchChange} />
         {compactHeute && (
-          <InboxHeaderLink className="m-review" aria-label={inbox.label}>
+          <InboxHeaderLink
+            className={`m-review${inbox.warning ? ' is-warning' : ''}`}
+            aria-label={inbox.label}
+            title={inbox.warning ?? undefined}
+            aria-description={inbox.warning ?? undefined}
+          >
             <span aria-hidden="true">{inbox.count ?? '…'}</span>
           </InboxHeaderLink>
         )}

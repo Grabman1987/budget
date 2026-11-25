@@ -49,7 +49,12 @@ export function Topbar({
           {REDESIGN_ENABLED && !phone && (
             <DocumentUploadButton compact label="Neues Dokument hochladen" />
           )}
-          <InboxHeaderLink className="review-pill" aria-label={inbox.label}>
+          <InboxHeaderLink
+            className={`review-pill${inbox.warning ? ' is-warning' : ''}`}
+            aria-label={inbox.label}
+            title={inbox.warning ?? undefined}
+            aria-description={inbox.warning ?? undefined}
+          >
             Prüfen{inbox.count !== undefined && inbox.count > 0 ? ` · ${inbox.count}` : ''}
           </InboxHeaderLink>
           <PanelLink

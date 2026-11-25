@@ -642,6 +642,16 @@ a.btn {
 .review-pill:hover {
   background: var(--tint);
 }
+/* Prüfen is past its age or count threshold: calm warning colours from the existing tokens. */
+.review-pill.is-warning {
+  border-color: var(--warning);
+  background: var(--warning-soft);
+  color: var(--warning);
+}
+.m-review.is-warning,
+.m-status .is-warning {
+  color: var(--warning);
+}
 .shell-status {
   min-width: 0;
   padding: 8px 40px 0;

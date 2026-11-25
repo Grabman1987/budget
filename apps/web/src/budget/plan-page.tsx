@@ -47,7 +47,8 @@ import { eur } from '../ledger/format';
 import { accountsQuery } from '../ledger/queries';
 import { ErrorNote, LoadingNote } from '../ledger/states';
 import { monthLabel, shiftMonth } from '../nav/month';
-import { useMonth } from '../shell/use-month';
+import { currentMonth, useMonth } from '../shell/use-month';
+import { useInboxCount } from '../shell/inbox';
 import { REDESIGN_ENABLED } from '../shell/redesign-flag';
 import { AppLink } from '../shell/app-link';
 import { setMonthSpan, useIsPhone, useMonthSpan } from './month-span';
@@ -2034,6 +2035,7 @@ function PlanTopBar({
                 <>
                   {tbaControl}
                   {hint}
+                  <UncategorizedHint month={month} />
                 </>
               }
             />
@@ -2068,6 +2070,7 @@ function PlanTopBar({
           {pendingControl}
           {distributeControl}
           {hint}
+          <UncategorizedHint month={month} />
         </div>
       )}
       <div
@@ -2093,6 +2096,19 @@ function PlanTopBar({
 }
 
 /** Inspector: the 50/30/20 band of what was assigned, against the month's income. */
+/** Quiet line under "Zu verteilen": open uncategorised bookings distort it until they are processed. */
+function UncategorizedHint({ month }: { month: string }) {
+  useAmountPrivacy();
+  const { openUncategorizedCents } = useInboxCount();
+  if (month !== currentMonth() || openUncategorizedCents === 0) return null;
+  return (
+    <p className="plan-uncategorized-hint" data-testid="plan-uncategorized-hint">
+      Enthält {eur(openUncategorizedCents, { sign: true })} ohne Kategorie ·{' '}
+      <AppLink to="/konten/pruefen">Prüfen</AppLink>
+    </p>
+  );
+}
+
 export function SplitBand({ data, rows }: { data: BudgetMonthView; rows: PlanRow[] }) {
   useAmountPrivacy();
   const state = splitState(data.summary, rows);

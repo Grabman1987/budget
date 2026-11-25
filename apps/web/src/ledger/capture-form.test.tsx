@@ -924,7 +924,7 @@ it.each(['confirmed', 'reconciled'] as const)(
   },
 );
 
-it('treats contact-sharing input as dirty before the gross amount is entered', async () => {
+it('does not block closing for contact-sharing input before the gross amount is entered', async () => {
   const dirty = { current: false };
   render(
     <QueryClientProvider
@@ -943,7 +943,9 @@ it('treats contact-sharing input as dirty before the gross amount is entered', a
   );
   expect(dirty.current).toBe(false);
   fireEvent.click(screen.getByRole('button', { name: 'Teilen' }));
-  await waitFor(() => expect(dirty.current).toBe(true));
+  // Closing discards at once (#1324); only a refused queued edit keeps the flag set.
+  await screen.findByRole('button', { name: 'Verwerfen' });
+  expect(dirty.current).toBe(false);
 });
 
 function renderPayeeSuggestions(
@@ -1730,5 +1732,46 @@ it.each(['expense', 'income', 'transfer', 'split'] as const)(
         ? { type: 'transfer', amountCents: 203 }
         : { type: 'booking', amountCents: mode === 'income' ? 203 : -203, payeeId: null },
     );
+  },
+);
+
+it.each([
+  { redesign: false, phone: false },
+  { redesign: true, phone: false },
+  { redesign: true, phone: true },
+])(
+  'puts Verwerfen left and Speichern rightmost, and never marks typed input as blocking (%o)',
+  async ({ redesign, phone }) => {
+    flags.REDESIGN_ENABLED = redesign;
+    flags.phone = phone;
+    const dirtyRef = { current: false };
+    const requestClose = vi.fn();
+    render(
+      <QueryClientProvider
+        client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
+      >
+        <ToastProvider>
+          <CaptureForm
+            state={{ mode: 'create', accountId: 'giro' }}
+            onDone={vi.fn()}
+            dirtyRef={dirtyRef}
+            discard={{ asking: false, keep: vi.fn(), discard: vi.fn() }}
+            requestClose={requestClose}
+          />
+        </ToastProvider>
+      </QueryClientProvider>,
+    );
+    await screen.findByRole('option', { name: 'Giro Muster' });
+    const user = userEvent.setup();
+    await user.type(screen.getByLabelText('Betrag', { exact: true }), '12,34');
+    // Typed input no longer asks on close: only a refused queued edit keeps the dirty flag.
+    expect(dirtyRef.current).toBe(false);
+    const actions = document.querySelector<HTMLElement>('.bk-foot, .bk-form-actions')!;
+    expect(
+      [...actions.querySelectorAll('button')].map((button) => button.textContent?.trim()),
+    ).toEqual(['Verwerfen', 'Speichern und neu', 'Speichern']);
+    expect(screen.queryByRole('button', { name: 'Abbrechen' })).toBeNull();
+    await user.click(screen.getByRole('button', { name: 'Verwerfen' }));
+    expect(requestClose).toHaveBeenCalledOnce();
   },
 );

@@ -573,4 +573,45 @@ describe('inbox API', () => {
     expect(badge.body.count).toBe(302);
     expect((await call('GET', '/inbox?limit=0')).status).toBe(400);
   });
+  it('reports the oldest open date, the over-threshold count and the open sum in cents (#1320)', async () => {
+    for (const [date, amountCents] of [
+      ['2026-09-10', -501],
+      ['2026-09-09', -1000],
+      ['2026-09-16', 250],
+    ] as const)
+      createBooking(
+        opened.db,
+        { accountId: 'giro', date, amountCents, splits: [{ amountCents }] },
+        { actor: 'tester' },
+      );
+    createBooking(
+      opened.db,
+      {
+        accountId: 'giro',
+        date: '2026-08-01',
+        amountCents: -700,
+        splits: [{ categoryId: 'miete', amountCents: -700 }],
+      },
+      { actor: 'tester' },
+    );
+    // Default threshold 7 days: only 09-09 is older (8 days); 09-10 is exactly 7 days old.
+    expect((await call('GET', '/inbox/count')).body).toMatchObject({
+      count: 3,
+      oldestOpenDate: '2026-09-09',
+      overAgeCount: 1,
+      openUncategorizedCents: -1251,
+      thresholds: { ageDays: 7, count: 10 },
+    });
+    expect(
+      (await call('PATCH', '/display-settings', { inboxWarnAgeDays: 6, inboxWarnCount: 2 })).status,
+    ).toBe(200);
+    expect((await call('GET', '/display-settings')).body).toMatchObject({
+      inboxWarnAgeDays: 6,
+      inboxWarnCount: 2,
+    });
+    expect((await call('GET', '/inbox/count')).body).toMatchObject({
+      overAgeCount: 2,
+      thresholds: { ageDays: 6, count: 2 },
+    });
+  });
 });

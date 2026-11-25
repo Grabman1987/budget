@@ -17,12 +17,15 @@ export function AttentionBar({
   savingsError,
   pending = false,
   savingsPending = false,
+  inboxWarning = null,
 }: {
   data: AttentionData | undefined;
   savingsRows?: RevisionRow[];
   savingsError?: ReactNode;
   pending?: boolean;
   savingsPending?: boolean;
+  /** Calm Prüfen warning text (age or count threshold passed), null when neutral. */
+  inboxWarning?: string | null;
 }) {
   useAmountPrivacy();
   // Keep native disclosure ownership through an unrelated aggregate outage, never its values.
@@ -73,6 +76,7 @@ export function AttentionBar({
       savingsRows={savingsRows}
       savingsError={savingsError}
       savingsPending={savingsPending}
+      inboxWarning={inboxWarning}
     />
   );
   return (
@@ -131,12 +135,14 @@ function AttentionRow({
   savingsRows,
   savingsError,
   savingsPending,
+  inboxWarning,
 }: {
   task: AttentionTask;
   data: AttentionData | undefined;
   savingsRows: RevisionRow[];
   savingsError?: ReactNode;
   savingsPending: boolean;
+  inboxWarning: string | null;
 }) {
   if (task.kind === 'review') {
     const uncategorized = data?.nextSteps.items.find((item) => item.kind === 'uncategorized');
@@ -148,6 +154,12 @@ function AttentionRow({
               {data.attention.inboxCount} unter Prüfen
               {uncategorized ? ` · ohne Kategorie: ${eur(uncategorized.cents)}` : ''}
             </>
+          )}
+          {inboxWarning && (
+            <span className="heute-inbox-warning" role="status">
+              {' · '}
+              {inboxWarning}
+            </span>
           )}
           {data && data.attention.pendingCount > 0 && (
             <>

@@ -16,13 +16,13 @@ async function choose(line: Locator, label: string, search: string, option: RegE
   await line.getByRole('listbox').getByRole('option', { name: option, exact: true }).click();
 }
 
-test('only Escape, close and a genuine outside click ask to discard a dirty booking', async ({
+test('Escape, close and a genuine outside click discard a dirty booking at once (#1324)', async ({
   page,
 }) => {
-  await page.goto('/?panel=buchung');
   const dialog = page.getByRole('dialog', { name: 'Buchung erfassen' });
-  await dialog.getByLabel('Betrag', { exact: true }).fill('12,34');
   for (const close of ['escape', 'button', 'outside']) {
+    await page.goto('/?panel=buchung');
+    await dialog.getByLabel('Betrag', { exact: true }).fill('12,34');
     if (close === 'escape') await dialog.getByLabel('Notiz').press('Escape');
     else if (close === 'button') await captureCloseControl(dialog).click();
     else if (page.viewportSize()!.width < 768) {
@@ -35,14 +35,9 @@ test('only Escape, close and a genuine outside click ask to discard a dirty book
       if (redesign) await page.mouse.click(page.viewportSize()!.width / 2, 12);
       else await captureCloseControl(dialog).click();
     } else await page.mouse.click(2, 2);
-    await expect(dialog.getByRole('alertdialog')).toBeVisible();
-    await dialog.getByRole('button', { name: 'Weiter bearbeiten' }).click();
-    await expect(dialog.getByRole('alertdialog')).toHaveCount(0);
-    await expect(dialog.getByLabel('Betrag', { exact: true })).toHaveValue('12,34');
+    await expect(dialog).toBeHidden();
+    await expect(page.getByRole('alertdialog')).toHaveCount(0);
   }
-  await captureCloseControl(dialog).click();
-  await dialog.getByRole('button', { name: 'Verwerfen', exact: true }).click();
-  await expect(dialog).toBeHidden();
 });
 
 test('capture rows, native calendar and dropdowns keep the draft on desktop and 390px', async ({
@@ -97,8 +92,11 @@ test('capture rows, native calendar and dropdowns keep the draft on desktop and 
     // Headless WebKit can forward picker Escape to the native dialog instead of consuming it.
     // Preserve the Chromium popup check; verify the dirty guard for a delivered WebKit cancel.
     if (browserName === 'webkit' && (await dialog.getAttribute('data-picker-cancel')) === 'true') {
-      await expect(discard).toBeVisible();
-      await dialog.getByRole('button', { name: 'Weiter bearbeiten' }).click();
+      await expect(dialog).toBeHidden();
+      test.skip(
+        true,
+        'WebKit forwarded the picker Escape to the dialog, which now discards (#1324).',
+      );
     }
     await expect(discard).toHaveCount(0);
     await expect(amount).toHaveValue('19,99');
@@ -529,14 +527,15 @@ test('cash capture confirms immediately while bank capture stays pending', async
   });
 });
 
-test('sharing before entering an amount keeps the discard guard', async ({ page }) => {
+test('sharing before entering an amount still closes with Escape without a question (#1324)', async ({
+  page,
+}) => {
   await page.goto('/?panel=buchung');
   const dialog = page.getByRole('dialog', { name: 'Buchung erfassen' });
   await (await contactShareControl(dialog)).click();
   await dialog.getByLabel('Notiz').press('Escape');
-  await expect(dialog.getByRole('alertdialog')).toBeVisible();
-  await dialog.getByRole('button', { name: 'Verwerfen', exact: true }).click();
   await expect(dialog).toBeHidden();
+  await expect(page.getByRole('alertdialog')).toHaveCount(0);
 });
 
 test('phone capture keeps all fields before actions with a reduced visual viewport and fits Undo', async ({

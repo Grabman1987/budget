@@ -1,4 +1,5 @@
 import { FuturePreviewSetting } from './future-preview-setting';
+import { InboxWarningSetting } from './inbox-warning-setting';
 import {
   Button,
   Field,
@@ -95,6 +96,7 @@ export function ProfileSettingsPage() {
           </section>
           <FuturePreviewSetting />
           <FuturePreviewSetting reminder />
+          <InboxWarningSetting />
         </details>
       </PageFrame>
     );
@@ -111,6 +113,7 @@ export function ProfileSettingsPage() {
       </section>
       <FuturePreviewSetting />
       <FuturePreviewSetting reminder />
+      <InboxWarningSetting />
       {!REDESIGN_ENABLED && <ProfilePanel />}
     </PageFrame>
   );
