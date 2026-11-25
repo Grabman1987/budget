@@ -117,6 +117,15 @@ Bereich: Startseite „Heute“ (Route `/`). Status und Verweise wie in `docs/US
 - **Abnahmekriterien:** Zeilen sind Schaltflächen mit Namen, 44 px hoch, per Tastatur bedienbar; „Alle →“ führt unverändert in die Listen.
 - **Status:** in Arbeit — **Verweis:** #1323
 
+### H-xx – Detailseiten „Fällig“ und „Als Nächstes“ kompakt (#1344)
+- **Story:** Als Nutzer möchte ich unter „Fällig · alle Zahlungen“ eine Tabelle und unter „Als Nächstes · alle Aufgaben“ eine einzeilige Liste sehen, damit ich auf einen Blick erfasse, was wann ansteht, auch am Handy ohne seitliches Scrollen.
+- **Ablauf:**
+  1. Ich öffne auf Heute „Fällig“ › Details. Eine weiße Karte zeigt die Spalten Datum · Zahlung · Konto · Betrag · Deckung, ohne Erklärtexte; am Handy besteht jede Zeile aus zwei kompakten Zeilen.
+  2. Ich tippe den Zahlungsnamen (Buchen, Verknüpfen, Überspringen), das Konto (Kontovorschau) oder den Betrag (Erwartet).
+  3. Ich öffne „Als Nächstes“ › Details. Jede Aufgabe steht in einer Zeile: was, wann bzw. Betrag, Aktion; Dringendes steht oben und ist rot.
+- **Abnahmekriterien:** keine Beschriftung-Wert-Stapel je Eintrag; kein horizontaler Scroll bei 390 px; Aktionen 44 px hoch; Verhalten nur mit Redesign-Schalter.
+- **Status:** in Arbeit — **Verweis:** #1344
+
 ### H-xx – Prüfen-Warnung (#1320)
 - **Story:** Als Nutzer möchte ich auf Heute sehen, wenn offene Buchungen ohne Kategorie zu alt werden oder zu viele sind, samt Summe, damit „Zu verteilen“ und die Monatsauswertung nicht verzerrt bleiben.
 - **Abnahmekriterien:** Warnung genau ab Schwelle + 1 Tag bzw. + 1 Eintrag; Schwellen in Einstellungen änderbar und gespeichert; im Plan erscheint „Enthält … ohne Kategorie“ nur bei Summe ≠ 0.
