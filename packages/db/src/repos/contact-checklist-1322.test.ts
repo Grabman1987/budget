@@ -1,10 +1,24 @@
 import { afterEach, beforeEach, expect, it } from 'vitest';
 import { and, eq, isNull } from 'drizzle-orm';
 import { createTestDatabase, type OpenedDatabase } from '../client';
-import { booking, bookingSplit, expectedOccurrence, INCOME_TYPES } from '../schema';
+import {
+  booking,
+  bookingSplit,
+  expectedOccurrence,
+  expectedPayment,
+  INCOME_TYPES,
+  payee,
+} from '../schema';
 import { seedBasics, testCtx } from './test-helpers';
 import { createBooking, deleteBooking, getBooking } from './bookings';
-import { createExpectedPayment, linkOccurrence, monthIncome, upcoming } from './expected';
+import {
+  createExpectedPayment,
+  linkOccurrence,
+  monthIncome,
+  unlinkOccurrence,
+  upcoming,
+} from './expected';
+import { linkedOccurrenceShares } from './expected-links';
 import { loadFacts } from './rule-inputs';
 import { readPaymentDetail } from './expected-detail';
 import { matchedCharges } from './contract-history';
@@ -462,21 +476,27 @@ it('an earmarked credit lot is not usable for an existing outlay and is refused'
   expect(getContactStatement(db(), 'k1', today).creditCents).toBe(100);
 });
 
+/** An inflow whose payee stands for contact k1: the only kind of booking a re-split accepts. */
+function plainInflow(amountCents: number) {
+  db().update(payee).set({ contactId: 'k1' }).where(eq(payee.id, 'p1')).run();
+  return createBooking(
+    db(),
+    {
+      accountId: 'giro',
+      date,
+      amountCents,
+      payeeId: 'p1',
+      splits: [{ categoryId: 'essen', amountCents }],
+    },
+    testCtx,
+  );
+}
 const resplit = (bookingId: string, occurrenceIds: string[]) =>
   resplitContactChecklist(db(), bookingId, 'k1', { occurrenceIds }, { actor: 'test' }, today);
 
 it('re-split: a plain inflow gets one split and one link per ticked contribution, one Undo restores', () => {
   const { open } = scenario();
-  const id = createBooking(
-    db(),
-    {
-      accountId: 'giro',
-      date,
-      amountCents: 81999,
-      splits: [{ categoryId: 'essen', amountCents: 81999 }],
-    },
-    testCtx,
-  );
+  const id = plainInflow(81999);
   const before = {
     splits: splitsOf(id),
     occurrences: occurrences(),
@@ -495,16 +515,7 @@ it('re-split: a plain inflow gets one split and one link per ticked contribution
 
 it('re-split refuses a rest and a selection that does not cover the amount, writes nothing', () => {
   const { open } = scenario();
-  const id = createBooking(
-    db(),
-    {
-      accountId: 'giro',
-      date,
-      amountCents: 83000,
-      splits: [{ categoryId: 'essen', amountCents: 83000 }],
-    },
-    testCtx,
-  );
+  const id = plainInflow(83000);
   const before = { splits: splitsOf(id), occurrences: occurrences() };
   expect(() => resplit(id, both(open))).toThrow(/ganzen Betrag/);
   expect(() => resplit(id, [])).toThrow(/ganzen Betrag/);
@@ -516,14 +527,27 @@ it('re-split of a settled booking (outlays repaid) is refused and nothing change
   const { open } = scenario();
   const result = run(82501, open);
   const before = { occurrences: occurrences(), splits: splitsOf(result.bookingId) };
-  expect(() => resplit(result.bookingId, [])).toThrow(/ganzen Betrag/);
+  expect(() => resplit(result.bookingId, [])).toThrow(/Rückzahlung von Auslagen/);
   expect(occurrences()).toEqual(before.occurrences);
   expect(splitsOf(result.bookingId)).toEqual(before.splits);
 });
 
 it('re-split replaces the links: own contributions are offered again', () => {
   const { open } = scenario();
-  const id = createBooking(
+  const id = plainInflow(80000);
+  const rent = open.contributions[0]!.occurrenceId;
+  resplit(id, [rent]);
+  expect(linkedTo(id)).toHaveLength(1);
+  expect(listContactChecklist(db(), 'k1', date, id).contributions).toHaveLength(2);
+  expect(listContactChecklist(db(), 'k1', date).contributions).toHaveLength(1);
+  const again = resplit(id, [rent]);
+  expect(again.restCents).toBe(0);
+  expect(linkedTo(id).map((o) => o.status)).toEqual(['received']);
+});
+
+it('re-split refuses a booking that is not a payment of this contact and one linked elsewhere', () => {
+  const { open } = scenario();
+  const foreign = createBooking(
     db(),
     {
       accountId: 'giro',
@@ -533,12 +557,152 @@ it('re-split replaces the links: own contributions are offered again', () => {
     },
     testCtx,
   );
-  const rent = open.contributions[0]!.occurrenceId;
-  resplit(id, [rent]);
-  expect(linkedTo(id)).toHaveLength(1);
-  expect(listContactChecklist(db(), 'k1', date, id).contributions).toHaveLength(2);
-  expect(listContactChecklist(db(), 'k1', date).contributions).toHaveLength(1);
-  const again = resplit(id, [rent]);
-  expect(again.restCents).toBe(0);
-  expect(linkedTo(id).map((o) => o.status)).toEqual(['received']);
+  expect(() => resplit(foreign, [open.contributions[0]!.occurrenceId])).toThrow(
+    /nicht zu diesem Kontakt/,
+  );
+  const id = plainInflow(500);
+  const other = createExpectedPayment(
+    db(),
+    {
+      name: 'Gehalt Muster',
+      kind: 'inflow',
+      accountId: 'giro',
+      incomeTypeId: INCOME_TYPES.salary.id,
+      dueDay: 5,
+      startDate: '2026-09-01',
+      endDate: '2026-09-30',
+    },
+    { validFrom: '2026-09-01', amountCents: 500 },
+    testCtx,
+    today,
+  ).payment;
+  const occ = occurrences().find((o) => o.expectedPaymentId === other.id)!;
+  linkOccurrence(db(), occ.id, id, testCtx);
+  const before = occurrences();
+  expect(() => resplit(id, [open.contributions[0]!.occurrenceId])).toThrow(
+    /anderen erwarteten Zahlung/,
+  );
+  expect(occurrences()).toEqual(before);
+});
+
+it('re-split of a settled booking leaves the contact statement identical, also after Undo', () => {
+  outlay('essen', 2501, '2026-09-01');
+  contribution('Mietanteil', 'miete', 80000, 3);
+  const open = listContactChecklist(db(), 'k1', date);
+  const result = run(82501, open);
+  const totals = () => JSON.stringify(getContactStatement(db(), 'k1', today));
+  const before = totals();
+  expect(() => resplit(result.bookingId, both(open))).toThrow(/Rückzahlung von Auslagen/);
+  expect(totals()).toBe(before);
+  undo(db(), { groupId: result.groupId }, { actor: 'test' });
+  const plain = plainInflow(80000);
+  const statement = totals();
+  const done = resplit(plain, both(listContactChecklist(db(), 'k1', date)));
+  expect(totals()).toBe(statement);
+  undo(db(), { groupId: done.groupId }, { actor: 'test' });
+  expect(totals()).toBe(statement);
+});
+
+it('unlinking one of two contributions keeps the sibling at its own share and status', () => {
+  const { rent, open } = scenario();
+  const result = run(81999, open, { outlaySplitIds: [], occurrenceIds: both(open) });
+  const abo = linkedTo(result.bookingId).find((o) => o.expectedAmountCents === 1999)!;
+  unlinkOccurrence(db(), abo.id, testCtx);
+  const rest = linkedTo(result.bookingId);
+  expect(rest).toHaveLength(1);
+  expect(rest[0]).toMatchObject({ expectedAmountCents: 80000, status: 'received' });
+  const row = upcoming(db(), '2026-09-01', '2026-09-30').find((r) => r.paymentId === rent.id)!;
+  expect(row.bookedAmountCents).toBe(80000);
+});
+
+it('status uses the payment tolerance, not exact equality', () => {
+  const rent = contribution('Mietanteil', 'miete', 80000, 3);
+  db()
+    .update(expectedPayment)
+    .set({ amountToleranceCents: 100 })
+    .where(eq(expectedPayment.id, rent.id))
+    .run();
+  const open = listContactChecklist(db(), 'k1', date);
+  const result = run(79950, open, { outlaySplitIds: [] });
+  expect(linkedTo(result.bookingId)[0]!.status).toBe('received');
+});
+
+it('same-category contributions keep their own shares, also when the splits are reordered', () => {
+  contribution('Eins', 'miete', 300, 3);
+  contribution('Zwei', 'miete', 700, 4);
+  const open = listContactChecklist(db(), 'k1', date);
+  const result = run(1000, open, { outlaySplitIds: [], occurrenceIds: both(open) });
+  const byAmount = () => {
+    const shares = linkedOccurrenceShares(db(), result.bookingId)!;
+    return Object.fromEntries(
+      linkedTo(result.bookingId).map((o) => [o.expectedAmountCents, shares.get(o.id)]),
+    );
+  };
+  expect(byAmount()).toEqual({ 300: 300, 700: 700 });
+  const rows = db()
+    .select()
+    .from(bookingSplit)
+    .where(eq(bookingSplit.bookingId, result.bookingId))
+    .all();
+  rows.forEach((r, i) =>
+    db()
+      .update(bookingSplit)
+      .set({ sortOrder: rows.length - i })
+      .where(eq(bookingSplit.id, r.id))
+      .run(),
+  );
+  expect(byAmount()).toEqual({ 300: 300, 700: 700 });
+});
+
+it('the automatic category return is never taken as a contribution share', () => {
+  outlay('miete', 1000, '2026-09-01');
+  contribution('Mietanteil', 'miete', 80000, 3);
+  const open = listContactChecklist(db(), 'k1', date);
+  const result = run(81000, open, { occurrenceIds: open.contributions.map((c) => c.occurrenceId) });
+  const returned = db()
+    .select()
+    .from(bookingSplit)
+    .where(eq(bookingSplit.bookingId, result.bookingId))
+    .all()
+    .filter((s) => s.memo === 'Rückzahlung in die ursprüngliche Kategorie');
+  expect(returned.length).toBeGreaterThan(0);
+  const occ = linkedTo(result.bookingId)[0]!;
+  expect([...linkedOccurrenceShares(db(), result.bookingId)!.values()]).toEqual([80000]);
+  expect(occ.status).toBe('received');
+});
+
+it('contract history lists one entry per linked occurrence of the same payment', () => {
+  const rent = contribution('Mietanteil', 'miete', 800, 3);
+  const id = createBooking(
+    db(),
+    {
+      accountId: 'giro',
+      date,
+      amountCents: 1600,
+      splits: [
+        { categoryId: 'miete', memo: 'Mietanteil', amountCents: 800 },
+        { categoryId: 'miete', memo: 'Mietanteil', amountCents: 800 },
+      ],
+    },
+    testCtx,
+  );
+  const first = occurrences().find((o) => o.expectedPaymentId === rent.id)!;
+  db()
+    .update(expectedOccurrence)
+    .set({ status: 'received', bookingId: id })
+    .where(eq(expectedOccurrence.id, first.id))
+    .run();
+  db()
+    .insert(expectedOccurrence)
+    .values({
+      id: 'occ-second',
+      expectedPaymentId: rent.id,
+      dueDate: '2026-10-03',
+      expectedAmountCents: 800,
+      status: 'received',
+      bookingId: id,
+    })
+    .run();
+  const charges = matchedCharges(db(), rent.id, 'EUR').filter((c) => c.bookingId === id);
+  expect(charges.map((c) => c.amountCents)).toEqual([800, 800]);
 });

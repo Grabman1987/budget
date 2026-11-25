@@ -12,6 +12,7 @@ import {
   expectedOccurrence,
   expectedPayment,
   INCOME_TYPES,
+  payee,
 } from '../schema';
 import { updateTracked, withGroup, type AuditContext } from './audit';
 import { createBooking, getBooking, updateBooking, type SplitInput } from './bookings';
@@ -24,6 +25,7 @@ import {
 import { contactIdentityIds, resolveContactForWrite } from './contact-label';
 import { getContactRepaymentAllocation, reallocateContactRepayment } from './contact-reallocation';
 import { BookingInvariantError } from './errors';
+import { expectedStatusForAmount } from './expected-links';
 import { assertLedgerInvariants } from './invariants';
 import { runInTransaction, type Executor } from './types';
 
@@ -385,7 +387,7 @@ export function settleContactChecklist(
         expectedOccurrence,
         [c.occurrenceId],
         {
-          status: paid(c.occurrenceId) === c.amountCents ? 'received' : 'deviating',
+          status: expectedStatusForAmount(tx, c.occurrenceId, paid(c.occurrenceId)),
           bookingId,
         },
         grouped,
@@ -465,11 +467,31 @@ export function resplitContactChecklist(
       throw new BookingInvariantError('Eine Zahlung des Kontakts muss bereits erfolgt sein.');
     if (new Set(input.occurrenceIds).size !== input.occurrenceIds.length)
       throw new BookingInvariantError('Jede Zeile kann nur einmal ausgewählt werden.');
+    // Only a plain inflow of THIS contact: never a settlement, never a repayment split, never a
+    // booking that belongs to another payment (payslip, statement, another contact).
+    const identity = contactIdentityIds(tx, contactId);
+    if (
+      tx.select().from(contactSettlement).where(eq(contactSettlement.bookingId, bookingId)).get() ||
+      cur.splits.some((x) => x.contactId !== null)
+    )
+      throw new BookingInvariantError(
+        'Diese Zahlung enthält eine Rückzahlung von Auslagen. Bitte zuerst die Kontaktabrechnung rückgängig machen.',
+      );
     const own = tx
-      .select({ id: expectedOccurrence.id })
+      .select({ id: expectedOccurrence.id, contactId: expectedPayment.contactId })
       .from(expectedOccurrence)
+      .innerJoin(expectedPayment, eq(expectedPayment.id, expectedOccurrence.expectedPaymentId))
       .where(and(eq(expectedOccurrence.bookingId, bookingId), isNull(expectedOccurrence.deletedAt)))
       .all();
+    if (own.some((o) => !o.contactId || !identity.includes(o.contactId)))
+      throw new BookingInvariantError(
+        'Diese Buchung gehört zu einer anderen erwarteten Zahlung und kann hier nicht neu aufgeteilt werden.',
+      );
+    const payeeContact = cur.payeeId
+      ? tx.select({ c: payee.contactId }).from(payee).where(eq(payee.id, cur.payeeId)).get()?.c
+      : null;
+    if (own.length === 0 && !(payeeContact && identity.includes(payeeContact)))
+      throw new BookingInvariantError('Diese Zahlung gehört nicht zu diesem Kontakt.');
     // Release the old links first so they can be ticked again; a refused edit rolls this back.
     for (const o of own)
       updateTracked(
@@ -516,7 +538,7 @@ export function resplitContactChecklist(
         tx,
         expectedOccurrence,
         [c.occurrenceId],
-        { status: paid(c.occurrenceId) === c.amountCents ? 'received' : 'deviating', bookingId },
+        { status: expectedStatusForAmount(tx, c.occurrenceId, paid(c.occurrenceId)), bookingId },
         grouped,
       );
     assertLedgerInvariants(tx, [bookingId]);

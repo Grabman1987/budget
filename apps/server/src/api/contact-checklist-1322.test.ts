@@ -169,10 +169,12 @@ it('stores the payer: existing payee by id, new payee by name, and Undo removes 
 
 it('re-splits an existing inflow through the API; the list offers its own links; Undo reverts', async () => {
   seed();
+  opened.db.update(schema.payee).set({ contactId: 'k1' }).where(eq(schema.payee.id, 'p1')).run();
   const bookingId = createBooking(
     opened.db,
     {
       accountId: 'giro',
+      payeeId: 'p1',
       date: '2026-09-10',
       amountCents: 80000,
       splits: [{ categoryId: 'essen', amountCents: 80000 }],

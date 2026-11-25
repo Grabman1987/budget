@@ -1082,6 +1082,7 @@ export function unlinkOccurrence(
   return runInTransaction(db, (tx) => {
     const { occ } = liveOccurrence(tx, occurrenceId);
     if (occ.bookingId === null) throw new ConflictError('This occurrence has no booking to unlink');
+    const bookingId = occ.bookingId;
     updateTracked(
       tx,
       expectedOccurrence,
@@ -1089,6 +1090,9 @@ export function unlinkOccurrence(
       { status: 'missed', bookingId: null },
       grouped,
     );
+    // Siblings of a multi-linked booking keep their own share and get a fresh status (#1336).
+    for (const { id, patch } of expectedLinkPatches(tx, [bookingId]))
+      updateTracked(tx, expectedOccurrence, [id], patch, grouped);
     return { occurrence: liveOccurrence(tx, occurrenceId).occ, groupId: grouped.groupId };
   });
 }

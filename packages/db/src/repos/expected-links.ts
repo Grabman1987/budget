@@ -50,6 +50,9 @@ type ShareSplit = Pick<
 >;
 type SharePayment = Pick<Payment, 'categoryId' | 'incomeTypeId'> & Partial<Pick<Payment, 'name'>>;
 
+/** Memo of the automatic split that returns a repayment to the outlay's category. */
+const CATEGORY_RETURN_MEMO = 'Rückzahlung in die ursprüngliche Kategorie';
+
 const splitMatches = (s: ShareSplit, p: SharePayment) =>
   s.contactId === null &&
   s.transferId === null &&
@@ -59,9 +62,10 @@ const splitMatches = (s: ShareSplit, p: SharePayment) =>
  * SHARE RULE (#1336, the one rule for a booking linked to several occurrences): an occurrence owns
  * only its own split(s), never the whole booking amount. Linked occurrences are taken in due-date
  * order and each claims one still unclaimed split of its category / income type (preferring the
- * split named like the payment, then the one with its expected amount, then the first). No
- * matching split = share 0. `null` = the booking is linked to fewer than two live occurrences, the
- * caller then uses the single-link rules below. Summing the shares never exceeds the booking.
+ * split named like the payment and sized like it, then named, then sized, then the first; the
+ * automatic category-return split only as a last resort). No matching split = share 0. `null` = the
+ * booking is linked to one occurrence that the checklist did not split, the caller then uses the
+ * single-link rules below. Summing the shares never exceeds the booking.
  */
 export function linkedOccurrenceShares(
   db: Executor,
@@ -74,26 +78,39 @@ export function linkedOccurrenceShares(
     .where(and(eq(expectedOccurrence.bookingId, bookingId), isNull(expectedOccurrence.deletedAt)))
     .orderBy(asc(expectedOccurrence.dueDate), asc(expectedOccurrence.id))
     .all();
-  if (linked.length < 2) return null;
+  if (linked.length === 0) return null;
   const splits = db
     .select()
     .from(bookingSplit)
     .where(eq(bookingSplit.bookingId, bookingId))
     .orderBy(asc(bookingSplit.sortOrder))
     .all();
+  // One remaining link keeps its own share only when the checklist split it (its split is named
+  // like the payment and other splits exist), e.g. after a sibling link was removed (#1336).
+  if (
+    linked.length === 1 &&
+    !(
+      splits.length > 1 &&
+      splits.some((s) => s.memo === linked[0]!.payment.name && splitMatches(s, linked[0]!.payment))
+    )
+  )
+    return null;
   const used = new Set<number>();
   const shares = new Map<string, number>();
   for (const { occ, payment } of linked) {
-    const open = splits
+    let open = splits
       .map((s, i) => ({ s, i }))
       .filter(
         ({ s, i }) =>
           !used.has(i) && (payment.categoryId || payment.incomeTypeId) && splitMatches(s, payment),
       );
+    // The automatic category return of a repayment is never a contribution split.
+    const plain = open.filter(({ s }) => s.memo !== CATEGORY_RETURN_MEMO);
+    if (plain.length) open = plain;
+    const named = (x: (typeof open)[number]) => x.s.memo === payment.name;
+    const sized = (x: (typeof open)[number]) => x.s.amountCents === occ.expectedAmountCents;
     const pick =
-      open.find(({ s }) => s.memo === payment.name) ??
-      open.find(({ s }) => s.amountCents === occ.expectedAmountCents) ??
-      open[0];
+      open.find((x) => named(x) && sized(x)) ?? open.find(named) ?? open.find(sized) ?? open[0];
     if (pick) used.add(pick.i);
     shares.set(occ.id, pick?.s.amountCents ?? 0);
   }
@@ -137,12 +154,11 @@ export function bookedAmountIn(
   return bookingRow.amountCents;
 }
 
-function statusForBooking(
-  db: Executor,
+function statusForAmount(
   occurrence: OccurrenceRow,
   payment: Payment,
   versions: Version[],
-  booked: BookingRow,
+  amount: number,
 ): OccurrenceRow['status'] {
   const version = versionOn(versions, occurrence.dueDate);
   const sign = payment.kind === 'outflow' ? -1 : 1;
@@ -152,13 +168,53 @@ function statusForBooking(
     amountMaxCents: version?.amountMaxCents == null ? null : sign * version.amountMaxCents,
     contactShareCents: occurrence.contactShareCents,
   };
-  const amount =
-    mixedReceiptShareCents(db, booked.id, payment, occurrence.id) ??
-    bookedAmountIn(booked, version?.currency ?? 'EUR');
   const inside =
     Math.sign(amount) === Math.sign(planned.amountCents) &&
     amountGap(planned, amount) <= payment.amountToleranceCents;
   return inside ? 'received' : 'deviating';
+}
+
+function statusForBooking(
+  db: Executor,
+  occurrence: OccurrenceRow,
+  payment: Payment,
+  versions: Version[],
+  booked: BookingRow,
+): OccurrenceRow['status'] {
+  const version = versionOn(versions, occurrence.dueDate);
+  const amount =
+    mixedReceiptShareCents(db, booked.id, payment, occurrence.id) ??
+    bookedAmountIn(booked, version?.currency ?? 'EUR');
+  return statusForAmount(occurrence, payment, versions, amount);
+}
+
+/**
+ * Status of an occurrence that receives `amountCents` of a booking (the checklist knows the amount
+ * before the links exist): same range and tolerance rule as every other link.
+ */
+export function expectedStatusForAmount(
+  tx: Executor,
+  occurrenceId: string,
+  amountCents: number,
+): OccurrenceRow['status'] {
+  const { occurrence, payment } = tx
+    .select({ occurrence: expectedOccurrence, payment: expectedPayment })
+    .from(expectedOccurrence)
+    .innerJoin(expectedPayment, eq(expectedPayment.id, expectedOccurrence.expectedPaymentId))
+    .where(eq(expectedOccurrence.id, occurrenceId))
+    .get()!;
+  const versions = tx
+    .select()
+    .from(expectedPaymentVersion)
+    .where(
+      and(
+        eq(expectedPaymentVersion.expectedPaymentId, payment.id),
+        isNull(expectedPaymentVersion.deletedAt),
+      ),
+    )
+    .orderBy(asc(expectedPaymentVersion.validFrom))
+    .all();
+  return statusForAmount(occurrence, payment, versions, amountCents);
 }
 
 /** Recompute status using the same currency, range, and tolerance logic as lifecycle updates. */

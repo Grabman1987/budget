@@ -501,18 +501,17 @@ export function CaptureForm({
           ? payeeContactId
           : ''
       : '';
-  // #1336: an existing inflow of a contact (payee linked to a contact, or contact splits) can be
-  // re-split; locked bookings follow the ordinary edit rules and offer nothing here.
+  // #1336: an existing inflow whose payee is linked to a contact can be re-split; locked bookings
+  // follow the ordinary edit rules, settled ones (repayment splits) are refused by the server.
   const resplitContactId =
     editing &&
     !queued &&
     !locked &&
     !legOfTransfer &&
     editing.amountCents > 0 &&
-    editing.date <= today
-      ? (editing.splits.find((x) => x.contactId)?.contactId ??
-        payees.data?.payees.find((p) => p.id === editing.payeeId)?.contactId ??
-        '')
+    editing.date <= today &&
+    !editing.splits.some((x) => x.contactId)
+      ? (payees.data?.payees.find((p) => p.id === editing.payeeId)?.contactId ?? '')
       : '';
   const checklist = useContactChecklist({
     contactId: checklistContactId,
