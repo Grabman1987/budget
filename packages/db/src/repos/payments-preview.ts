@@ -20,6 +20,7 @@ import {
   expectedPaymentVersion,
 } from '../schema';
 import { schedulePayment, scheduleVersion } from './expected';
+import { linkedOccurrenceShares } from './expected-links';
 import { runInTransaction, type Executor } from './types';
 import { readPaymentLifecycles, paymentOpenSuppressed } from './expected-lifecycle-invariants';
 import {
@@ -88,7 +89,11 @@ function readPaymentsPreviewInSnapshot(db: Executor, asOf: string) {
     )
     .map(({ storedBookingId, ...row }) => {
       void storedBookingId; // Read-filter input only; preserve the existing public stored shape.
-      return row;
+      // A booking linked to several occurrences (#1336) shows each one's own share, not N x the total.
+      const share = row.bookingId ? linkedOccurrenceShares(db, row.bookingId) : null;
+      return share?.has(row.occurrenceId)
+        ? { ...row, bookedAmountCents: share.get(row.occurrenceId)! }
+        : row;
     });
   const projected: PreviewPayment[] = payments.map(({ payment: p, ...c }) => ({
     ...schedulePayment(p, lifecycle.get(p.id)),

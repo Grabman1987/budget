@@ -140,6 +140,30 @@ export function useLedgerWrites() {
     onSettled: settled,
   });
 
+  /** #1336: re-split an existing inflow of a contact; one Undo group. */
+  const resplit = useMutation({
+    networkMode: 'always',
+    mutationFn: ({
+      contactId,
+      bookingId,
+      occurrenceIds,
+    }: {
+      contactId: string;
+      bookingId: string;
+      occurrenceIds: string[];
+    }) =>
+      request<{ bookingId: string; groupId: string }>(
+        'POST',
+        `/api/contacts/${encodeURIComponent(contactId)}/checklist-resplit`,
+        { bookingId, occurrenceIds },
+      ),
+    onSuccess: (result) => {
+      flashRows([result.bookingId]);
+      offerUndo('Buchung neu aufgeteilt.', result.groupId);
+    },
+    onSettled: settled,
+  });
+
   const patch = useMutation({
     networkMode: 'always',
     mutationFn: async ({
@@ -234,5 +258,5 @@ export function useLedgerWrites() {
     onSettled: settled,
   });
 
-  return { create, checklist, patch, remove, bulk, offerUndo };
+  return { create, checklist, resplit, patch, remove, bulk, offerUndo };
 }

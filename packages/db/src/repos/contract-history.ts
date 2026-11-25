@@ -46,7 +46,7 @@ export function matchedCharges(db: Executor, paymentId: string, currency: string
     .where(eq(expectedPayment.id, paymentId))
     .get();
   const linked = db
-    .select({ date: booking.date, b: booking })
+    .select({ date: booking.date, b: booking, occurrenceId: expectedOccurrence.id })
     .from(expectedOccurrence)
     .innerJoin(booking, eq(booking.id, expectedOccurrence.bookingId))
     .where(
@@ -63,7 +63,7 @@ export function matchedCharges(db: Executor, paymentId: string, currency: string
       bookingId: r.b.id,
       date: r.date,
       amountCents:
-        (paymentRow ? mixedReceiptShareCents(db, r.b.id, paymentRow) : null) ??
+        (paymentRow ? mixedReceiptShareCents(db, r.b.id, paymentRow, r.occurrenceId) : null) ??
         bookedAmountIn(r.b, currency),
     }));
   const p = db.select().from(expectedPayment).where(eq(expectedPayment.id, paymentId)).get();
@@ -91,8 +91,9 @@ export function matchedCharges(db: Executor, paymentId: string, currency: string
   );
   // Occurrences only link the recent bookings inside the matching window; the older history of the
   // same contract stays unlinked, so the linked bookings are the start and the fallback adds the rest.
-  const perBooking = new Map(linked.map((l) => [l.bookingId, l]));
-  const alreadyLinked = new Set(perBooking.keys());
+  // One entry per linked OCCURRENCE (a checklist booking can link several, each with its own share).
+  const alreadyLinked = new Set(linked.map((l) => l.bookingId));
+  const perBooking = new Map<string, (typeof linked)[number]>();
   const rows = db
     .select({ b: booking, split: bookingSplit.amountCents })
     .from(booking)
@@ -128,5 +129,5 @@ export function matchedCharges(db: Executor, paymentId: string, currency: string
     if (sum) sum.amountCents = cents(sum.amountCents + amountCents);
     else perBooking.set(b.id, { bookingId: b.id, date: b.date, amountCents });
   }
-  return [...perBooking.values()];
+  return [...linked, ...perBooking.values()];
 }

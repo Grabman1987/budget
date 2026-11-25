@@ -69,3 +69,18 @@
 .cc-row input:disabled + .cc-label {
   color: var(--ink-2);
 }
+.cc-hint {
+  margin: 8px 0;
+  font-size: var(--fs-label);
+  color: var(--ink-2);
+}
+.cc-resplit {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+.cc-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}

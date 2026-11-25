@@ -69,6 +69,7 @@ import {
 } from '../schema';
 import { allocationMonth, isIncomeCategorySplit } from './allocation';
 import { scheduleVersion, schedulePayment } from './expected';
+import { linkedOccurrenceShares } from './expected-links';
 import { netWorthAsOf, netWorthValuationAsOf, type NetWorth } from './portfolio';
 import { MissingFxRateError } from './errors';
 import { fxRateOnOrBefore } from './prices';
@@ -196,8 +197,9 @@ function readFacts(db: Executor, upTo: string, ledger: ReturnType<typeof budgetL
 
   const incomePauses = db.select().from(incomePause).where(isNull(incomePause.deletedAt)).all();
   const planMarks = new Map<string, PlanMark>();
-  for (const o of db
+  const markRows = db
     .select({
+      occurrenceId: expectedOccurrence.id,
       paymentId: expectedOccurrence.expectedPaymentId,
       dueDate: expectedOccurrence.dueDate,
       status: expectedOccurrence.status,
@@ -214,7 +216,26 @@ function readFacts(db: Executor, upTo: string, ledger: ReturnType<typeof budgetL
         inArray(expectedOccurrence.status, ['skipped', 'missed', 'received', 'deviating']),
       ),
     )
-    .all())
+    .all();
+  // A booking linked to several occurrences (#1336) forecasts its cash once: every occurrence gets
+  // its own share (see linkedOccurrenceShares), the first one also the unattributed rest.
+  const linkCount = new Map<string, number>();
+  for (const o of markRows)
+    if (o.bookingId && (o.status === 'received' || o.status === 'deviating'))
+      linkCount.set(o.bookingId, (linkCount.get(o.bookingId) ?? 0) + 1);
+  const shareCache = new Map<string, Map<string, number> | null>();
+  const forecastCents = (o: (typeof markRows)[number]): number => {
+    if (!o.bookingId || (linkCount.get(o.bookingId) ?? 0) < 2) return o.bookedCents ?? 0;
+    if (!shareCache.has(o.bookingId))
+      shareCache.set(o.bookingId, linkedOccurrenceShares(db, o.bookingId));
+    const shares = shareCache.get(o.bookingId);
+    const share = shares?.get(o.occurrenceId);
+    if (!shares || share === undefined) return o.bookedCents ?? 0;
+    const first = shares.keys().next().value === o.occurrenceId;
+    const rest = (o.bookedCents ?? 0) - [...shares.values()].reduce((a, b) => a + b, 0);
+    return share + (first ? rest : 0);
+  };
+  for (const o of markRows)
     planMarks.set(
       `${o.paymentId}|${o.dueDate}`,
       o.status === 'received' || o.status === 'deviating'
@@ -222,7 +243,7 @@ function readFacts(db: Executor, upTo: string, ledger: ReturnType<typeof budgetL
             settledOn: o.bookedOn ?? o.dueDate,
             bookingId: o.bookingId,
             accountId: o.bookedAccountId,
-            cents: o.bookedCents,
+            cents: o.bookedCents === null ? null : forecastCents(o),
           }
         : (o.status as 'skipped' | 'missed'),
     );

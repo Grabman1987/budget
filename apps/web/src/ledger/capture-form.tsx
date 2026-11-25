@@ -21,7 +21,7 @@ import {
   todayInVienna,
   type ManualBankStatus,
 } from '@budget/domain';
-import { useContactChecklist } from './contact-checklist';
+import { ContactResplit, useContactChecklist } from './contact-checklist';
 import { useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   CalendarDays,
@@ -486,16 +486,35 @@ export function CaptureForm({
   // #1322: a payment from one contact lists the contact's open items as a checklist.
   const checklistLines = captureLines(draft, singleMetadata);
   const received = parseAmount(draft.amount);
-  const checklist = useContactChecklist({
-    contactId:
-      !editing &&
-      !queued &&
-      draft.kind === 'income' &&
-      checklistLines.length === 1 &&
-      checklistLines[0]?.type === 'contact' &&
-      checklistLines[0].shares.length === 0
+  // The contact comes from the "Rückzahlung von Kontakt" line, or (#1336) from a typed/picked payee
+  // that is linked to a contact. The typed payee name is kept either way (payeeId / payeeName).
+  const payeeKey = draft.payee.trim().toLowerCase();
+  const payeeContactId =
+    draft.kind === 'income' && payeeKey !== '' && !draft.splitOn
+      ? (payees.data?.payees.find((p) => p.name.toLowerCase() === payeeKey)?.contactId ?? '')
+      : '';
+  const checklistContactId =
+    !editing && !queued && draft.kind === 'income' && checklistLines.length === 1
+      ? checklistLines[0]?.type === 'contact' && checklistLines[0].shares.length === 0
         ? (checklistLines[0].contactId ?? '')
-        : '',
+        : checklistLines[0]?.type === 'category'
+          ? payeeContactId
+          : ''
+      : '';
+  // #1336: an existing inflow whose payee is linked to a contact can be re-split; locked bookings
+  // follow the ordinary edit rules, settled ones (repayment splits) are refused by the server.
+  const resplitContactId =
+    editing &&
+    !queued &&
+    !locked &&
+    !legOfTransfer &&
+    editing.amountCents > 0 &&
+    editing.date <= today &&
+    !editing.splits.some((x) => x.contactId)
+      ? (payees.data?.payees.find((p) => p.id === editing.payeeId)?.contactId ?? '')
+      : '';
+  const checklist = useContactChecklist({
+    contactId: checklistContactId,
     date: parsedDate && parsedDate <= today ? parsedDate : '',
     receivedCents: received.ok ? received.cents : 0,
     enabled: true,
@@ -864,7 +883,7 @@ export function CaptureForm({
         if (known) checklistBody.payeeId = known.id;
         else checklistBody.payeeName = name;
       }
-      const contactId = checklistLines[0]?.contactId ?? '';
+      const contactId = checklistContactId;
       let createdId: string | undefined;
       if (checklistBody && contactId) {
         createdId = (await writes.checklist.mutateAsync({ contactId, body: checklistBody }))
@@ -1399,6 +1418,15 @@ export function CaptureForm({
               if (canLearn) onBankCategorized?.(editing.id);
               onDone();
             }}
+          />
+        )}
+        {resplitContactId && editing && (
+          <ContactResplit
+            bookingId={editing.id}
+            contactId={resplitContactId}
+            date={editing.date}
+            amountCents={editing.amountCents}
+            onDone={onDone}
           />
         )}
         {locked && (

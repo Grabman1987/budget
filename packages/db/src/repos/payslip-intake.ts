@@ -51,7 +51,7 @@ import { storePayslipWageRead } from './payslip-wages';
 import { earliestAccountDate } from './portfolio';
 import { listEntities } from './entities';
 import { createBooking } from './bookings';
-import { expectedLinkedStatus } from './expected-links';
+import { assertBookingUnclaimed, expectedLinkedStatus } from './expected-links';
 import { applyPayslipPayoutSplit, previewPayslipPayoutSplit } from './payslip-payout-split';
 
 export const getPayslipSourceConfig = (db: Executor): PayslipSourceConfig => {
@@ -754,6 +754,7 @@ export function decidePayslipIntake(
           .get();
         if (!matchedBooking || matchedBooking.accountId !== expected!.accountId)
           throw new ConflictError('Die Buchung passt nicht zur erwarteten Gehaltszahlung.');
+        assertBookingUnclaimed(tx, matchedBooking.id, occurrence.id);
         updateTracked(
           tx,
           expectedOccurrence,
@@ -835,6 +836,7 @@ export function decidePayslipIntake(
           if (!linkedBooking)
             throw new ConflictError('Die Gehaltsbuchung ist nicht mehr verfügbar.');
           const status = expectedLinkedStatus(tx, occurrence, expected!, linkedBooking);
+          assertBookingUnclaimed(tx, payoutId, occurrence.id);
           updateTracked(
             tx,
             expectedOccurrence,

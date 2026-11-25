@@ -4,7 +4,7 @@ import {
   planContactChecklist,
   type ChecklistItem,
 } from '@budget/domain';
-import { and, asc, eq, inArray, isNull, lte } from 'drizzle-orm';
+import { and, asc, eq, inArray, isNull, lte, or } from 'drizzle-orm';
 import {
   account,
   category,
@@ -12,9 +12,10 @@ import {
   expectedOccurrence,
   expectedPayment,
   INCOME_TYPES,
+  payee,
 } from '../schema';
 import { updateTracked, withGroup, type AuditContext } from './audit';
-import { createBooking, type SplitInput } from './bookings';
+import { createBooking, getBooking, updateBooking, type SplitInput } from './bookings';
 import {
   chooseContactCredit,
   getContactStatement,
@@ -24,6 +25,7 @@ import {
 import { contactIdentityIds, resolveContactForWrite } from './contact-label';
 import { getContactRepaymentAllocation, reallocateContactRepayment } from './contact-reallocation';
 import { BookingInvariantError } from './errors';
+import { expectedStatusForAmount } from './expected-links';
 import { assertLedgerInvariants } from './invariants';
 import { runInTransaction, type Executor } from './types';
 
@@ -62,6 +64,8 @@ export interface ChecklistContribution {
   incomeTypeId: string | null;
   /** False when the expected payment has neither category nor income type: shown, not tickable. */
   selectable: boolean;
+  /** Re-split only: this contribution is linked to the booking being re-split. */
+  linkedHere: boolean;
 }
 
 /**
@@ -72,6 +76,8 @@ export function listContactChecklist(
   db: Executor,
   askedId: string,
   date: string,
+  /** Re-splitting this booking (#1336): its own linked contributions are offered as open again. */
+  ownBookingId?: string,
 ): {
   outlays: ChecklistOutlay[];
   contributions: ChecklistContribution[];
@@ -129,8 +135,21 @@ export function listContactChecklist(
         isNull(expectedPayment.deletedAt),
         eq(expectedPayment.kind, 'inflow'),
         inArray(expectedPayment.contactId, contactIdentityIds(db, contactId)),
-        inArray(expectedOccurrence.status, ['expected', 'missed']),
-        isNull(expectedOccurrence.bookingId),
+        ownBookingId
+          ? or(
+              and(
+                inArray(expectedOccurrence.status, ['expected', 'missed']),
+                isNull(expectedOccurrence.bookingId),
+              ),
+              and(
+                inArray(expectedOccurrence.status, ['received', 'deviating']),
+                eq(expectedOccurrence.bookingId, ownBookingId),
+              ),
+            )
+          : and(
+              inArray(expectedOccurrence.status, ['expected', 'missed']),
+              isNull(expectedOccurrence.bookingId),
+            ),
         lte(expectedOccurrence.dueDate, lastDayOfMonth(date.slice(0, 7))),
       ),
     )
@@ -153,8 +172,25 @@ export function listContactChecklist(
       categoryName: r.categoryName,
       incomeTypeId: r.payment.incomeTypeId,
       selectable: Boolean(r.payment.categoryId || r.payment.incomeTypeId),
+      linkedHere: ownBookingId !== undefined && r.occ.bookingId === ownBookingId,
     }));
   return { outlays, contributions, credits };
+}
+
+/** One split per paid contribution, in the category (or income type) of its expected payment. */
+function contributionSplits(
+  contributions: readonly ChecklistContribution[],
+  paid: (occurrenceId: string) => number,
+): SplitInput[] {
+  return contributions.flatMap((c) =>
+    paid(c.occurrenceId)
+      ? [
+          c.categoryId
+            ? { categoryId: c.categoryId, amountCents: paid(c.occurrenceId), memo: c.name }
+            : { incomeTypeId: c.incomeTypeId!, amountCents: paid(c.occurrenceId), memo: c.name },
+        ]
+      : [],
+  );
 }
 
 export interface ChecklistReceiptInput {
@@ -209,18 +245,21 @@ export function settleContactChecklist(
       !['checking', 'savings', 'cash'].includes(cash.type)
     )
       throw new BookingInvariantError('Bitte ein offenes EUR-Budgetkonto wählen.');
-    // v1: one expected occurrence can be linked per booking, so one contribution per receipt.
-    if (input.occurrenceIds.length > 1)
-      throw new BookingInvariantError(
-        'Pro Zahlung kann nur ein erwarteter Beitrag gewählt werden.',
-      );
     const open = listContactChecklist(tx, contactId, input.date);
-    const contributions = input.occurrenceIds.map((id) => {
-      const row = open.contributions.find((c) => c.occurrenceId === id);
-      if (!row?.selectable)
-        throw new BookingInvariantError('Dieser erwartete Beitrag ist nicht mehr offen.');
-      return row;
-    });
+    // Due contributions are paid first, oldest due date first (the order of the list).
+    const contributions = input.occurrenceIds
+      .map((id) => {
+        const row = open.contributions.find((c) => c.occurrenceId === id);
+        if (!row?.selectable)
+          throw new BookingInvariantError('Dieser erwartete Beitrag ist nicht mehr offen.');
+        return row;
+      })
+      .sort(
+        (a, b) =>
+          a.dueDate.localeCompare(b.dueDate) ||
+          a.name.localeCompare(b.name) ||
+          a.occurrenceId.localeCompare(b.occurrenceId),
+      );
     const tickedOutlays = input.outlaySplitIds
       .map((id) => {
         const row = open.outlays.find((o) => o.splitId === id);
@@ -290,15 +329,7 @@ export function settleContactChecklist(
     const plan = planContactChecklist(items, input.amountCents);
     const paid = (id: string) => plan.paid.find((p) => p.id === id)?.amountCents ?? 0;
 
-    const directSplits: SplitInput[] = contributions.flatMap((c) =>
-      paid(c.occurrenceId)
-        ? [
-            c.categoryId
-              ? { categoryId: c.categoryId, amountCents: paid(c.occurrenceId), memo: c.name }
-              : { incomeTypeId: c.incomeTypeId!, amountCents: paid(c.occurrenceId), memo: c.name },
-          ]
-        : [],
-    );
+    const directSplits = contributionSplits(contributions, paid);
     const allocations = outlays.flatMap((o) =>
       paid(o.splitId) ? [{ outlaySplitId: o.splitId, amountCents: paid(o.splitId) }] : [],
     );
@@ -347,22 +378,21 @@ export function settleContactChecklist(
       );
     }
 
-    // A booking can belong to one occurrence only: the link goes to the largest paid
-    // contribution; its status follows what it actually received.
-    const linked = [...contributions]
-      .filter((c) => paid(c.occurrenceId) > 0)
-      .sort((a, b) => b.amountCents - a.amountCents || a.dueDate.localeCompare(b.dueDate))[0];
-    if (linked)
+    // Every paid contribution is linked to the booking (#1336); its own split carries its amount
+    // (see linkedOccurrenceShares). Status follows what it actually received. One audit group.
+    const linkedContributions = contributions.filter((c) => paid(c.occurrenceId) > 0);
+    for (const c of linkedContributions)
       updateTracked(
         tx,
         expectedOccurrence,
-        [linked.occurrenceId],
+        [c.occurrenceId],
         {
-          status: paid(linked.occurrenceId) === linked.amountCents ? 'received' : 'deviating',
+          status: expectedStatusForAmount(tx, c.occurrenceId, paid(c.occurrenceId)),
           bookingId,
         },
         grouped,
       );
+    const linked = linkedContributions[0];
 
     if (plan.surplusCents > 0 && input.surplus === 'gift' && settlementId) {
       const receiptSplitId = tx
@@ -405,6 +435,118 @@ export function settleContactChecklist(
       groupId: grouped.groupId,
       restCents: plan.restCents,
       linkedOccurrenceId: linked?.occurrenceId ?? null,
+      linkedOccurrenceIds: linkedContributions.map((c) => c.occurrenceId),
+    };
+  });
+}
+
+/**
+ * Re-split an existing inflow booking of a contact (#1336): the ticked contributions get their own
+ * split and occurrence link, the selection must cover the whole (unchanged) amount. Amount,
+ * account and date do not change. Everything is one audit group (one Undo restores the old
+ * splits and links). Locked or settled bookings are refused by the ordinary edit rules.
+ */
+export function resplitContactChecklist(
+  db: Executor,
+  bookingId: string,
+  askedId: string,
+  input: { occurrenceIds: string[] },
+  ctx: AuditContext,
+  today: string,
+) {
+  const grouped = withGroup(ctx);
+  return runInTransaction(db, (tx) => {
+    const contactId = resolveContactForWrite(tx, askedId);
+    const cur = getBooking(tx, bookingId);
+    if (!cur) throw new BookingInvariantError('Diese Buchung gibt es nicht mehr.');
+    if (cur.amountCents <= 0 || cur.transferId)
+      throw new BookingInvariantError(
+        'Nur eine Zahlung eines Kontakts kann neu aufgeteilt werden.',
+      );
+    if (cur.date > today)
+      throw new BookingInvariantError('Eine Zahlung des Kontakts muss bereits erfolgt sein.');
+    if (new Set(input.occurrenceIds).size !== input.occurrenceIds.length)
+      throw new BookingInvariantError('Jede Zeile kann nur einmal ausgewählt werden.');
+    // Only a plain inflow of THIS contact: never a settlement, never a repayment split, never a
+    // booking that belongs to another payment (payslip, statement, another contact).
+    const identity = contactIdentityIds(tx, contactId);
+    if (
+      tx.select().from(contactSettlement).where(eq(contactSettlement.bookingId, bookingId)).get() ||
+      cur.splits.some((x) => x.contactId !== null)
+    )
+      throw new BookingInvariantError(
+        'Diese Zahlung enthält eine Rückzahlung von Auslagen. Bitte zuerst die Kontaktabrechnung rückgängig machen.',
+      );
+    const own = tx
+      .select({ id: expectedOccurrence.id, contactId: expectedPayment.contactId })
+      .from(expectedOccurrence)
+      .innerJoin(expectedPayment, eq(expectedPayment.id, expectedOccurrence.expectedPaymentId))
+      .where(and(eq(expectedOccurrence.bookingId, bookingId), isNull(expectedOccurrence.deletedAt)))
+      .all();
+    if (own.some((o) => !o.contactId || !identity.includes(o.contactId)))
+      throw new BookingInvariantError(
+        'Diese Buchung gehört zu einer anderen erwarteten Zahlung und kann hier nicht neu aufgeteilt werden.',
+      );
+    const payeeContact = cur.payeeId
+      ? tx.select({ c: payee.contactId }).from(payee).where(eq(payee.id, cur.payeeId)).get()?.c
+      : null;
+    if (own.length === 0 && !(payeeContact && identity.includes(payeeContact)))
+      throw new BookingInvariantError('Diese Zahlung gehört nicht zu diesem Kontakt.');
+    // Release the old links first so they can be ticked again; a refused edit rolls this back.
+    for (const o of own)
+      updateTracked(
+        tx,
+        expectedOccurrence,
+        [o.id],
+        { status: 'expected', bookingId: null },
+        grouped,
+      );
+    const open = listContactChecklist(tx, contactId, cur.date);
+    const contributions = input.occurrenceIds
+      .map((id) => {
+        const row = open.contributions.find((c) => c.occurrenceId === id);
+        if (!row?.selectable)
+          throw new BookingInvariantError('Dieser erwartete Beitrag ist nicht mehr offen.');
+        return row;
+      })
+      .sort(
+        (a, b) =>
+          a.dueDate.localeCompare(b.dueDate) || a.occurrenceId.localeCompare(b.occurrenceId),
+      );
+    const plan = planContactChecklist(
+      contributions.map((c) => ({
+        id: c.occurrenceId,
+        kind: 'contribution' as const,
+        amountCents: c.amountCents,
+      })),
+      cur.amountCents,
+    );
+    const paid = (id: string) => plan.paid.find((p) => p.id === id)?.amountCents ?? 0;
+    const direct = contributionSplits(contributions, paid);
+    const restCents = cur.amountCents - direct.reduce((sum, d) => sum + d.amountCents, 0);
+    // An edit cannot be undone once it adds a contact receipt (the ordinary edit rules), so a rest
+    // is refused here: pick rows that cover the whole amount, or delete and re-enter the payment.
+    if (restCents > 0)
+      throw new BookingInvariantError(
+        'Die Auswahl muss den ganzen Betrag decken (Rest 0,00 €). Sonst die Buchung löschen und neu mit der Abhakliste erfassen.',
+      );
+    const splits = direct;
+    updateBooking(tx, bookingId, { splits }, grouped, { contactModel: true });
+    const linked = contributions.filter((c) => paid(c.occurrenceId) > 0);
+    for (const c of linked)
+      updateTracked(
+        tx,
+        expectedOccurrence,
+        [c.occurrenceId],
+        { status: expectedStatusForAmount(tx, c.occurrenceId, paid(c.occurrenceId)), bookingId },
+        grouped,
+      );
+    assertLedgerInvariants(tx, [bookingId]);
+    return {
+      bookingId,
+      groupId: grouped.groupId,
+      restCents,
+      linkedOccurrenceIds: linked.map((c) => c.occurrenceId),
     };
   });
 }
