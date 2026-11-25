@@ -104,6 +104,13 @@ export const longDay = (day: string) => `${shortDay(day)}${day.slice(0, 4)}`;
 /** `Do 17.09.` — heading of a day group. */
 export const dayHeading = (day: string) =>
   `${WEEKDAY.format(at(day)).replace('.', '')} ${shortDay(day)}`;
+/** `Mo 01.12.`, with `· heute` / `· morgen` — heading of an upcoming day group. */
+export const upcomingDayHeading = (day: string, today: string) => {
+  const days = daysBetween(today, day);
+  return days === 0 || days === 1
+    ? `${dayHeading(day)} · ${days === 0 ? 'heute' : 'morgen'}`
+    : dayHeading(day);
+};
 
 const MONTHS = [
   'Jänner',

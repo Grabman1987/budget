@@ -1,5 +1,4 @@
 import { captureSaveControl } from './ledger-helpers';
-import { minimumControlHeight } from './control-geometry';
 import { redesignLoaded, registerContext, pickCategory } from './ledger-helpers';
 
 import AxeBuilder from '@axe-core/playwright';
@@ -79,16 +78,30 @@ test('separates future captures and next weekly occurrence, projects cents and u
     const booked = section.locator(`[data-booking="${future.id}"]`);
     await expect(scheduled).toHaveCount(1);
     const phone = info.project.name === 'mobile';
-    // The phone shows a scheduled occurrence as one compact two-line row (#1328): amount and
-    // date, no running-balance column; the booked future row keeps its balance and date.
+    // The phone shows planned occurrences and future captures as the same compact two-line
+    // rows (#1328): amount, date and the projected balance on the right.
     if (phone) {
       await expect(scheduled.locator('.kschedule-m-amount')).toContainText('2,03');
-      await expect(scheduled.locator('.kschedule-m-meta')).toContainText('19.10.');
-    } else await expect(scheduled.locator('.kx-run')).toContainText('995,94');
+      // The date heads the day group instead of repeating in each row.
+      await expect(section.locator('.kupcoming-day[data-day="2026-10-19"]')).toContainText(
+        '19.10.',
+      );
+      await expect(section.locator('.kupcoming-day[data-day="2026-10-27"]')).toContainText(
+        '27.10.',
+      );
+      await expect(scheduled.locator('.kschedule-m-meta')).not.toContainText('19.10.');
+      await expect(scheduled.locator('.kschedule-m-balance')).toContainText('995,94');
+      // The account name is shown only in Alle Buchungen.
+      if (url.endsWith('/buchungen'))
+        await expect(booked.locator('.kschedule-m-meta')).toContainText(account.name);
+      else await expect(booked.locator('.kschedule-m-meta')).not.toContainText(account.name);
+    } else {
+      await expect(scheduled.locator('.kx-run')).toContainText('995,94');
+      await expect(booked.locator('.kx-date')).toContainText('27.10.');
+      await expect(booked.locator('.kx-date')).not.toContainText('Tagen');
+    }
     await expect(booked.locator('.kx-run')).toContainText('983,60');
-    await expect(booked.locator('.kx-date')).toContainText('27.10.');
-    await expect(booked.locator('.kx-date')).not.toContainText('Tagen');
-    for (const row of phone ? [booked] : [scheduled, booked]) {
+    for (const row of phone ? [] : [scheduled, booked]) {
       const date = await row.locator('.kx-date').boundingBox();
       const payee = await row.locator('.kx-payee').boundingBox();
       expect(date).not.toBeNull();
@@ -96,8 +109,9 @@ test('separates future captures and next weekly occurrence, projects cents and u
       expect(date!.y >= payee!.y + payee!.height || date!.x + date!.width <= payee!.x).toBe(true);
     }
     await expect(booked.getByRole('img', { name: 'Kommende Buchung' })).toBeVisible();
-    if (!phone)
-      await expect(scheduled.getByRole('img', { name: 'Nächste Wiederholung' })).toBeVisible();
+    await expect(scheduled.getByRole('img', { name: 'Nächste Wiederholung' })).toBeVisible();
+    // Kommend is a read-only preview: no book/skip actions in planned rows.
+    await expect(scheduled.getByRole('button')).toHaveCount(0);
     await registerContext(page);
     await expect(page.getByTestId('register-today')).toContainText('Heute · Saldo 997,97');
     await registerContext(page, false);
@@ -109,9 +123,11 @@ test('separates future captures and next weekly occurrence, projects cents and u
       await expect(scheduled.locator('.kschedule-m-meta')).toContainText(account.name);
     else await expect(scheduled.locator('.kx-acct')).toHaveText(account.name);
     await expect(booked).toHaveClass(/is-upcoming/);
-    expect(await booked.locator('.kname-s').evaluate((el) => getComputedStyle(el).fontWeight)).toBe(
-      '400',
-    );
+    expect(
+      await booked
+        .locator(phone ? '.kschedule-m-name' : '.kname-s')
+        .evaluate((el) => getComputedStyle(el).fontWeight),
+    ).toBe('400');
     if (info.project.name === 'desktop') {
       // Same columns as the history rows, compact actions on one line.
       const history = page.locator(`[data-booking="${past.id}"]`);
@@ -132,31 +148,9 @@ test('separates future captures and next weekly occurrence, projects cents and u
       }
       const rowHeight = (await booked.boundingBox())!.height;
       expect((await scheduled.boundingBox())!.height).toBeLessThan(rowHeight * 1.4);
-      await scheduled.hover();
-      const actions = await scheduled.getByRole('button', { name: 'Jetzt buchen' }).boundingBox();
-      const skip = await scheduled.getByRole('button', { name: 'Überspringen' }).boundingBox();
-      const redesign = (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
-      if (redesign)
-        expect(actions!.height).toBeGreaterThanOrEqual(
-          await minimumControlHeight(scheduled.getByRole('button', { name: 'Jetzt buchen' })),
-        );
-      expect(actions!.height).toBeLessThanOrEqual(
-        redesign
-          ? Math.ceil(
-              await minimumControlHeight(scheduled.getByRole('button', { name: 'Jetzt buchen' })),
-            ) + 0.1
-          : 34,
-      );
-      expect(Math.abs(actions!.y - skip!.y)).toBeLessThan(2);
     }
     if (info.project.name === 'mobile') {
-      expect((await booked.locator('.kx-payee').boundingBox())!.width).toBeGreaterThan(100);
-      await scheduled.getByRole('button', { name: /^Aktionen:/ }).click();
-      for (const name of ['Jetzt buchen', 'Überspringen']) {
-        const box = await scheduled.getByRole('button', { name }).boundingBox();
-        expect(box!.height).toBeGreaterThanOrEqual(44);
-        expect(box!.width).toBeGreaterThanOrEqual(44);
-      }
+      expect((await booked.locator('.kschedule-m-main').boundingBox())!.width).toBeGreaterThan(100);
     }
     await section.scrollIntoViewIfNeeded();
     for (const theme of ['light', 'dark']) {
@@ -178,11 +172,20 @@ test('separates future captures and next weekly occurrence, projects cents and u
     await summary.click();
     await expect(summary).toHaveAttribute('aria-expanded', 'true');
   }
-  // Future captures retain inline editing; changing to today moves the row into history.
+  // Future captures retain inline editing (phone: the booking dialog); changing to today
+  // moves the row into history.
   const futureRow = page.locator(`.kupcoming [data-booking="${future.id}"]`);
-  await futureRow.getByRole('button', { name: /Datum ändern:/ }).click();
-  await futureRow.getByLabel('Datum bearbeiten', { exact: true }).fill('2026-10-13');
-  await futureRow.getByLabel('Datum bearbeiten', { exact: true }).press('Enter');
+  if (info.project.name === 'mobile') {
+    await futureRow.locator('.kschedule-m-main').click();
+    const edit = page.getByRole('dialog', { name: 'Buchung bearbeiten' });
+    await edit.getByLabel('Datum', { exact: true }).fill('13.10.2026');
+    await captureSaveControl(edit).click();
+    await expect(edit).toBeHidden();
+  } else {
+    await futureRow.getByRole('button', { name: /Datum ändern:/ }).click();
+    await futureRow.getByLabel('Datum bearbeiten', { exact: true }).fill('2026-10-13');
+    await futureRow.getByLabel('Datum bearbeiten', { exact: true }).press('Enter');
+  }
   await expect(futureRow).toHaveCount(0);
   await expect(page.locator(`[data-booking="${future.id}"]`)).toBeVisible();
   await registerContext(page);
@@ -193,36 +196,7 @@ test('separates future captures and next weekly occurrence, projects cents and u
   await expect(page.getByTestId('register-today')).toContainText('997,97');
   await registerContext(page, false);
   const scheduled = page.locator('.kupcoming [data-occurrence]');
-  // Hover-only (desktop) or behind ⋯ (touch): reveal the actions the way a user does, then press.
-  const press = async (name: string) => {
-    const more = scheduled.getByRole('button', { name: /^Aktionen:/ });
-    if (!(await more.isVisible())) await scheduled.hover();
-    else if ((await more.getAttribute('aria-expanded')) === 'false') await more.click();
-    await scheduled.getByRole('button', { name }).click();
-  };
-  const originalId = await scheduled.getAttribute('data-occurrence');
-  await press('Überspringen');
-  await expect(scheduled).not.toHaveAttribute('data-occurrence', originalId!);
-  await page.getByRole('button', { name: 'Rückgängig', exact: true }).click();
-  await expect(scheduled).toHaveAttribute('data-occurrence', originalId!);
-  const saved = page.waitForResponse(
-    (r) => r.url().endsWith(`/occurrences/${originalId}/book`) && r.request().method() === 'POST',
-  );
-  await press('Jetzt buchen');
-  const savedResponse = await saved;
-  expect(savedResponse.status()).toBe(201);
-  const result = await savedResponse.json();
-  await expect(page.locator(`[data-booking="${result.bookingId}"]`)).toBeVisible();
-  await expect(scheduled).not.toHaveAttribute('data-occurrence', originalId!);
-  await registerContext(page);
-  await expect(page.getByTestId('register-today')).toContainText('995,94');
-  await page.getByRole('button', { name: 'Rückgängig', exact: true }).click();
-  await expect(page.locator(`[data-booking="${result.bookingId}"]`)).toHaveCount(0);
-  await expect(scheduled).toHaveAttribute('data-occurrence', originalId!);
-  await registerContext(page);
-  await expect(page.getByTestId('register-today')).toContainText('997,97');
-  await registerContext(page, false);
-  await scheduled.getByRole('link', { name: 'Wöchentlich Muster' }).click();
+  await scheduled.getByRole('link', { name: /Wöchentlich Muster/ }).click();
   await expect(page).toHaveURL(/\/plan\/erwartet\/[^?]+/);
   await expect(
     page.getByRole('heading', { name: 'Wöchentlich Muster', exact: true }).last(),

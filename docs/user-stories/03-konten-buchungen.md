@@ -356,3 +356,18 @@ Bereich: Konten (`/konten`, `/konten/$id`), Alle Buchungen (`/konten/buchungen`)
   3. Ohne Verrechnungskonto entfällt dessen Anzeige; ohne eigenes Bargeld entfällt die Zeile „Bargeld im Depotkonto“.
   4. Auf dem Telefon bleiben alle Bedienelemente mindestens 44 px groß, es gibt kein seitliches Scrollen.
 - **Status:** umgesetzt (Branch `feat/review-depot-1346`), noch nicht abgenommen — **Verweis:** #1346
+
+### K-17 – Kommend im Konto: nächster Monat, Saldo daneben
+- **Story:** Als Nutzer möchte ich im Bereich „Kommend“ eines Kontos nur die Zahlungen der nächsten Wochen sehen und neben jeder Zeile den Kontostand danach, damit ich auf dem Telefon sofort erkenne, wie weit das Geld bis zum nächsten Gehalt reicht.
+- **Ausgangslage:** Ich öffne ein Girokonto auf dem Telefon; „Kommend“ ist aufgeklappt.
+- **Ablauf:**
+  1. Geplante wiederkehrende Zahlungen erscheinen nur, wenn sie in den nächsten 31 Tagen fällig sind; eine jährliche Sonderzahlung im Juni erscheint im November also noch nicht. Mit einem „Bis“-Filter sehe ich auch spätere Termine.
+  2. Bereits erfasste zukünftige Buchungen erscheinen immer.
+  3. Auf dem Telefon steht das Datum einmal als Tagesüberschrift (z. B. „Mo 01.12.“) vor den Zeilen dieses Tages. Jede Zeile zeigt oben Empfänger und Betrag, darunter die Kategorie und rechts den voraussichtlichen Kontostand danach. Den Kontonamen zeigt nur „Alle Buchungen“.
+  4. „Kommend“ ist eine reine Vorschau ohne „Jetzt buchen“ und „Überspringen“: ein Tipp auf eine erfasste zukünftige Buchung öffnet die Buchung (dort lässt sich z. B. das Datum ändern), ein Tipp auf eine geplante Zahlung öffnet sie unter Plan › Erwartet (dort Termin streichen, verknüpfen oder als ausgefallen markieren). Ein kleines Symbol unterscheidet geplant (Wiederholung) und erfasst (Kalender).
+- **Ergebnis:** Kompakte, gleich aufgebaute Zeilen mit laufendem Kontostand.
+- **Abnahmekriterien:**
+  1. Kein Termin mehr als 31 Tage nach heute ohne passenden „Bis“-Filter.
+  2. Der Kontostand je Zeile ist derselbe wie in der Saldo-Spalte am Desktop.
+  3. Aufgeteilte zukünftige Buchungen erscheinen auf dem Telefon nicht mehr als zerrissene Tabellenzeile.
+- **Status:** umgesetzt (Branch `fix/kommend-phone-horizon`), noch nicht abgenommen — **Verweis:** Owner-Feedback 25.11.2026

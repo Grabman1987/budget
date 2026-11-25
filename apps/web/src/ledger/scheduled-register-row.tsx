@@ -1,13 +1,16 @@
-import { Button, cx, useAmountPrivacy } from '@budget/ui';
-import { Ellipsis, Repeat2 } from 'lucide-react';
-import { useState } from 'react';
+import { useAmountPrivacy } from '@budget/ui';
+import { Repeat2 } from 'lucide-react';
 import { useNavigate } from '@tanstack/react-router';
-import { bookOccurrence, skipOccurrence, type Occurrence } from '../expected/api';
-import { useBudgetWrite } from '../budget/use-category-writes';
+import { type Occurrence } from '../expected/api';
 import { AppLink } from '../shell/app-link';
 import { nativeCurrency, upcomingDate } from './format';
 import { REDESIGN_ENABLED } from '../shell/redesign-flag';
+import { cx } from '@budget/ui';
 
+/**
+ * Next occurrence of a recurring payment in the "Kommend" preview. Read-only: a tap opens the
+ * expected payment, where single dates can be struck, linked or marked as missed.
+ */
 export function ScheduledRegisterRow({
   occurrence: s,
   today,
@@ -28,33 +31,25 @@ export function ScheduledRegisterRow({
   phone?: boolean;
 }) {
   useAmountPrivacy();
-  const write = useBudgetWrite();
   const navigate = useNavigate();
-  const [busy, setBusy] = useState(false);
-  const [actionsOpen, setActionsOpen] = useState(false);
-  const action = async (book: boolean) => {
-    if (busy) return;
-    setBusy(true);
-    try {
-      await write<{ groupId: string }>(
-        () =>
-          book ? bookOccurrence(s.occurrenceId, today) : skipOccurrence(s.paymentId, s.dueDate),
-        () => (book ? 'Zahlung gebucht.' : 'Termin übersprungen.'),
-      );
-    } finally {
-      setBusy(false);
-    }
-  };
+  const to = `/plan/erwartet/${encodeURIComponent(s.paymentId)}`;
+  const marker = (
+    <span
+      className="kstatus-btn kschedule-m-status"
+      role="img"
+      aria-label="Nächste Wiederholung"
+      title="Nächste Wiederholung"
+    >
+      <Repeat2 size={16} aria-hidden="true" />
+    </span>
+  );
   if (phone) {
     const category = s.categoryName ?? (s.kind === 'inflow' ? 'Zu verteilen' : 'ohne Kategorie');
     return (
       <tr className="is-upcoming kschedule-phone" data-occurrence={s.occurrenceId}>
         <td colSpan={20}>
-          <div className={cx('kschedule-m', actionsOpen && 'is-open')}>
-            <AppLink
-              className="kschedule-m-main"
-              to={`/plan/erwartet/${encodeURIComponent(s.paymentId)}`}
-            >
+          <div className="kschedule-m">
+            <AppLink className="kschedule-m-main" to={to}>
               <span className="kschedule-m-line">
                 <span className="kschedule-m-name">{s.name}</span>
                 <span
@@ -66,27 +61,19 @@ export function ScheduledRegisterRow({
                   {nativeCurrency(s.amountCents, s.currency, true)}
                 </span>
               </span>
-              <span className="kschedule-m-meta">
-                {category} · {s.accountName} · {upcomingDate(s.dueDate, today)}
+              <span className="kschedule-m-line">
+                <span className="kschedule-m-meta">
+                  {category}
+                  {all && <> · {s.accountName}</>}
+                </span>
+                {showBalance && (
+                  <span className="kschedule-m-balance kx-run">
+                    {balance === null ? '–' : nativeCurrency(balance, s.currency)}
+                  </span>
+                )}
               </span>
             </AppLink>
-            <button
-              type="button"
-              className="kschedule-more"
-              aria-label={`Aktionen: ${s.name}`}
-              aria-expanded={actionsOpen}
-              onClick={() => setActionsOpen((open) => !open)}
-            >
-              <Ellipsis size={16} strokeWidth={1.75} aria-hidden="true" />
-            </button>
-            <div className="kschedule-actions">
-              <Button size="xs" variant="ghost" disabled={busy} onClick={() => void action(true)}>
-                Jetzt buchen
-              </Button>
-              <Button size="xs" variant="ghost" disabled={busy} onClick={() => void action(false)}>
-                Überspringen
-              </Button>
-            </div>
+            {marker}
           </div>
         </td>
       </tr>
@@ -104,31 +91,9 @@ export function ScheduledRegisterRow({
       {blankCheck && <td className="kc-check kx-check" />}
       <td className="kc-date kx-date">{upcomingDate(s.dueDate, today)}</td>
       <td className="kx-payee">
-        <div className={cx('kschedule-line', actionsOpen && 'is-open')}>
-          <AppLink
-            className="kname-btn kschedule-name"
-            to={`/plan/erwartet/${encodeURIComponent(s.paymentId)}`}
-          >
-            {s.name}
-          </AppLink>
-          <button
-            type="button"
-            className="kschedule-more"
-            aria-label={`Aktionen: ${s.name}`}
-            aria-expanded={actionsOpen}
-            onClick={() => setActionsOpen((open) => !open)}
-          >
-            <Ellipsis size={16} strokeWidth={1.75} aria-hidden="true" />
-          </button>
-          <div className="kschedule-actions">
-            <Button size="xs" variant="ghost" disabled={busy} onClick={() => void action(true)}>
-              Jetzt buchen
-            </Button>
-            <Button size="xs" variant="ghost" disabled={busy} onClick={() => void action(false)}>
-              Überspringen
-            </Button>
-          </div>
-        </div>
+        <AppLink className="kname-btn kschedule-name" to={to}>
+          {s.name}
+        </AppLink>
       </td>
       {all ? (
         <td className="kc-acct kx-acct">{s.accountName}</td>
@@ -160,16 +125,7 @@ export function ScheduledRegisterRow({
           {balance === null ? (all ? 'Saldo offen' : '–') : nativeCurrency(balance, s.currency)}
         </td>
       )}
-      <td className="kc-status kx-status">
-        <span
-          className="kstatus-btn"
-          role="img"
-          aria-label="Nächste Wiederholung"
-          title="Nächste Wiederholung"
-        >
-          <Repeat2 size={16} aria-hidden="true" />
-        </span>
-      </td>
+      <td className="kc-status kx-status">{marker}</td>
     </tr>
   );
 }

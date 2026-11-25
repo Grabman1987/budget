@@ -416,20 +416,6 @@
   }
 }
 
-@media (hover: hover) and (min-width: 768px) {
-  .ktx.ktx-redesign .kschedule-line {
-    position: relative;
-    min-height: 44px;
-  }
-  .ktx.ktx-redesign .kschedule-actions {
-    position: absolute;
-    inset-inline-start: calc(100% + 4px);
-    inset-block-start: 0;
-    z-index: 5;
-    width: max-content;
-    background: var(--surface);
-  }
-}
 @media (max-width: 767px) {
   .ktx.ktx-redesign tr.is-upcoming {
     grid-template-columns: minmax(0, 1fr) minmax(44px, 30%) 44px;
@@ -578,8 +564,28 @@
     font-size: var(--fs-meta);
     color: var(--ink-2);
   }
-  .kschedule-m .kschedule-actions {
-    grid-column: 1 / -1;
-    padding: 0 12px 8px 0;
+  /* Projected balance after the row, right-aligned under the amount. */
+  .kschedule-m-balance {
+    flex: none;
+    white-space: nowrap;
+    font-size: var(--fs-meta);
+    font-variant-numeric: tabular-nums;
+    color: var(--ink-3);
+  }
+  button.kschedule-m-main {
+    width: 100%;
+    padding-inline: 0;
+    border: 0;
+    background: none;
+    color: inherit;
+    font: inherit;
+    text-align: start;
+    cursor: pointer;
+  }
+  .kschedule-m-meta .kcat {
+    display: inline;
+  }
+  .kschedule-m-status {
+    justify-self: center;
   }
 }
