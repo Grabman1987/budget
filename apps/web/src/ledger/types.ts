@@ -234,6 +234,8 @@ export interface PayeeRow {
   name: string;
   /** Category capture pre-fills for this payee. */
   defaultCategoryId?: string | null;
+  /** Contact this payee stands for (a payment from it offers the contact checklist). */
+  contactId?: string | null;
   systemKind?: string | null;
   bookingCount?: number;
   lastBookingDate?: string | null;

@@ -20,6 +20,7 @@ const create = vi.hoisted(() => vi.fn());
 const patch = vi.hoisted(() => vi.fn());
 const checklistWrite = vi.hoisted(() => vi.fn());
 const http = vi.hoisted(() => ({ request: vi.fn() }));
+const payeeRows = vi.hoisted(() => ({ rows: [] as unknown[] }));
 vi.mock('../api/http', async (original) => ({
   ...(await original<typeof Http>()),
   request: http.request,
@@ -54,7 +55,7 @@ vi.mock('./queries', () => ({
       projects: [],
     }),
   }),
-  payeesQuery: () => ({ queryKey: ['payees'], queryFn: async () => ({ payees: [] }) }),
+  payeesQuery: () => ({ queryKey: ['payees'], queryFn: async () => ({ payees: payeeRows.rows }) }),
 }));
 vi.mock('../pwa/queue-store', () => ({
   readChoices: async () => undefined,
@@ -114,20 +115,25 @@ beforeEach(() => {
   create.mockReset();
   patch.mockReset();
   checklistWrite.mockReset();
+  payeeRows.rows = [];
   checklistWrite.mockResolvedValue({ bookingId: 'new', groupId: 'g', restCents: 0 });
   http.request.mockReset();
   http.request.mockResolvedValue(checklist);
 });
 afterEach(() => vi.useRealTimers());
 
-async function open(amount: string, data: unknown = checklist) {
+async function open(
+  amount: string,
+  data: unknown = checklist,
+  prefillExtra: Partial<BookingDraft> = { contactId: 'k1' },
+) {
   http.request.mockResolvedValue(data);
   const prefill: Partial<BookingDraft> = {
     kind: 'income',
     accountId: 'giro',
     date: '2026-10-05',
     amount,
-    contactId: 'k1',
+    ...prefillExtra,
   };
   render(
     <QueryClientProvider
@@ -306,4 +312,30 @@ it('shows an earmarked credit disabled and does not reduce the total', async () 
   expect(credit.disabled).toBe(true);
   expect(credit.checked).toBe(false);
   expect(rest()).toMatch(/^0,00\s€$/);
+});
+
+it('saves two ticked contributions in one receipt', async () => {
+  const user = await open('819,99');
+  await user.click(screen.getByRole('checkbox', { name: /Abo/ }));
+  await user.click(screen.getByRole('checkbox', { name: /Auslage/ }));
+  expect(rest()).toMatch(/^0,00\s€$/);
+  await user.click(screen.getByRole('button', { name: 'Speichern' }));
+  await waitFor(() => expect(checklistWrite).toHaveBeenCalledTimes(1));
+  expect(checklistWrite.mock.calls[0]![0].body).toMatchObject({
+    outlaySplitIds: [],
+    occurrenceIds: ['c1', 'c2'],
+  });
+});
+
+it('payee path: a payee linked to a contact shows the checklist and keeps the payee', async () => {
+  payeeRows.rows = [{ id: 'pz', name: 'Zahler Muster', contactId: 'k1', defaultCategoryId: null }];
+  const user = await open('825,01', checklist, { payee: 'Zahler Muster' });
+  expect(screen.getAllByRole('checkbox')).toHaveLength(3);
+  await user.click(screen.getByRole('button', { name: 'Speichern' }));
+  await waitFor(() => expect(checklistWrite).toHaveBeenCalledTimes(1));
+  expect(checklistWrite.mock.calls[0]![0]).toMatchObject({
+    contactId: 'k1',
+    body: { payeeId: 'pz', occurrenceIds: ['c1'], outlaySplitIds: ['o1'] },
+  });
+  expect(create).not.toHaveBeenCalled();
 });
