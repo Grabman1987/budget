@@ -1,5 +1,5 @@
 import { MobileSheetContext, ToastProvider, cx, useIsPhone } from '@budget/ui';
-import { Outlet, useLocation } from '@tanstack/react-router';
+import { Outlet, useLocation, useRouterState } from '@tanstack/react-router';
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
 import { TITLE_ON_MOBILE_AREAS } from '../pages/area-head';
 import { MobileHeader, TabBar, phoneTitle } from './mobile-chrome';
@@ -57,6 +57,8 @@ export function AppShell() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [controlsInBody, setControlsInBody] = useState(false);
   const phone = useIsPhone();
+  // Slow route loads keep the old view; show a thin bar so a clicked link visibly reacts (#1348).
+  const routeLoading = useRouterState({ select: (state) => state.status === 'pending' });
   const headerControls = heuteControls ? (
     <HeuteShellHead showStand={false} showPeriod={pathname !== '/'} />
   ) : REDESIGN_ENABLED && reportHeaderId ? (
@@ -155,6 +157,7 @@ export function AppShell() {
               )}
               {(page?.area === 'heute' || page?.area === 'konten') && <QueueList />}
               {REDESIGN_ENABLED && <HeuteSourceReturn />}
+              {routeLoading && <div className="route-progress" aria-hidden="true" />}
               <Outlet />
               {REDESIGN_ENABLED && heuteControls && <HeuteStatusFooter />}
             </main>
