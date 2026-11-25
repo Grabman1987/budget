@@ -116,3 +116,47 @@ it('refuses unknown ids, a closed account and several contributions', async () =
   expect((await post({ ...base, outlaySplitIds: [], occurrenceIds: [id] })).status).toBe(422);
   expect(cash()).toBe(before);
 });
+
+it('stores the payer: existing payee by id, new payee by name, and Undo removes the new one', async () => {
+  seed();
+  const list = (await call('GET', '/contacts/k1/checklist?asOf=2026-09-10')).body;
+  const body = {
+    accountId: 'giro',
+    date: '2026-09-10',
+    amountCents: 80000,
+    outlaySplitIds: [],
+    occurrenceIds: [list.contributions[0].occurrenceId],
+  };
+  const payeeOf = (bookingId: string) =>
+    opened.db.select().from(schema.booking).where(eq(schema.booking.id, bookingId)).get()!.payeeId;
+  const byId = await call('POST', '/contacts/k1/checklist-receipts', { ...body, payeeId: 'p1' });
+  expect(byId.status).toBe(201);
+  expect(payeeOf(byId.body.bookingId)).toBe('p1');
+  expect((await call('POST', '/undo', { groupId: byId.body.groupId })).status).toBe(200);
+
+  const payeesBefore = opened.db.select().from(schema.payee).all().length;
+  const byName = await call('POST', '/contacts/k1/checklist-receipts', {
+    ...body,
+    payeeName: '  Zahler   Neu ',
+  });
+  expect(byName.status).toBe(201);
+  const created = opened.db
+    .select()
+    .from(schema.payee)
+    .where(eq(schema.payee.id, payeeOf(byName.body.bookingId)!))
+    .get()!;
+  expect(created.name).toBe('Zahler Neu');
+  expect(opened.db.select().from(schema.payee).all().length).toBe(payeesBefore + 1);
+  expect((await call('POST', '/undo', { groupId: byName.body.groupId })).status).toBe(200);
+  const gone = opened.db.select().from(schema.payee).where(eq(schema.payee.id, created.id)).get();
+  expect(gone?.deletedAt ?? 'removed').not.toBeNull();
+  expect(
+    (
+      await call('POST', '/contacts/k1/checklist-receipts', {
+        ...body,
+        payeeId: 'p1',
+        payeeName: 'X',
+      })
+    ).status,
+  ).toBe(400);
+});

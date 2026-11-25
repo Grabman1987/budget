@@ -7,6 +7,7 @@ import {
   removeContactAlias,
   reopenContact,
   createEntity,
+  createPayee,
   chooseContactCredit,
   convertContactOutlayToGift,
   getContactStatement,
@@ -25,7 +26,7 @@ import {
   type Db,
 } from '@budget/db';
 import { randomBytes, randomUUID } from 'node:crypto';
-import { and, eq, isNull } from 'drizzle-orm';
+import { and, eq, isNull, sql } from 'drizzle-orm';
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { contactTotals } from '@budget/domain';
@@ -113,13 +114,43 @@ export function contactRoutes(db: Db, today: () => string): Hono {
           creditReceiptSplitIds: z.array(id).max(1000).optional(),
           shortfall: z.enum(['open', 'waive']).optional(),
           surplus: z.enum(['credit', 'gift']).optional(),
+          payeeId: id.optional(),
+          payeeName: z.string().trim().min(1).max(200).optional(),
         })
         .strict(),
     );
+    if (input.payeeId && input.payeeName)
+      throw new ApiError(400, 'invalid', 'Empfänger entweder als Name oder Auswahl senden.');
     if (input.date > today())
       throw new ApiError(422, 'future_receipt', 'A contact receipt must be an actual payment');
+    const ctx = audit();
+    const { payeeName, ...rest } = input;
+    // Same payee rule as a plain booking: reuse by name or create, in the one audit group.
     return c.json(
-      settleContactChecklist(db, c.req.param('id'), defined(input), audit(), today()),
+      db.transaction((tx) => {
+        let payeeId = rest.payeeId;
+        if (payeeName) {
+          const name = payeeName.replace(/\s+/g, ' ').trim();
+          payeeId =
+            tx
+              .select({ id: schema.payee.id })
+              .from(schema.payee)
+              .where(
+                and(
+                  isNull(schema.payee.deletedAt),
+                  sql`lower(${schema.payee.name}) = lower(${name})`,
+                ),
+              )
+              .get()?.id ?? createPayee(tx, { name, defaultCategoryId: null }, ctx).id;
+        }
+        return settleContactChecklist(
+          tx,
+          c.req.param('id'),
+          defined({ ...rest, payeeId }),
+          ctx,
+          today(),
+        );
+      }),
       201,
     );
   });

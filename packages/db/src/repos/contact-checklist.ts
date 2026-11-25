@@ -167,6 +167,7 @@ export interface ChecklistReceiptInput {
   occurrenceIds: string[];
   /** Ticked credit lots (receipt split ids), offset against the ticked outlays first. */
   creditReceiptSplitIds?: string[];
+  payeeId?: string | null;
   /** Paid less: the rest stays an open claim (default) or is waived through the gift path. */
   shortfall?: 'open' | 'waive';
   /** Paid more: the surplus stays as contact credit (default) or is booked as a gift to me. */
@@ -321,6 +322,7 @@ export function settleContactChecklist(
           date: input.date,
           amountCents: contactCents,
           memo: input.memo ?? null,
+          payeeId: input.payeeId ?? null,
           allocations,
           retainCredit: true,
           directSplits,
@@ -338,6 +340,7 @@ export function settleContactChecklist(
           amountCents: input.amountCents,
           status: 'confirmed',
           memo: input.memo ?? null,
+          payeeId: input.payeeId ?? null,
           splits: directSplits,
         },
         grouped,
