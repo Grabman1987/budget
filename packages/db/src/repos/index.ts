@@ -93,6 +93,7 @@ export * from './payslip-wages';
 
 export * from './read-source';
 export * from './assignment-rules';
+export * from './recurring-suggestions';
 export * from './booking-category-suggestion';
 export * from './income-month';
 
@@ -132,3 +133,4 @@ export * from './strategy-signal-basis';
 export * from './signal-index-id';
 export * from './statement-purchase-check';
 export * from './scenario-baseline';
+export * from './contact-checklist';

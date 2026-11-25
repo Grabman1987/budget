@@ -8,7 +8,7 @@ import {
   expectedOccurrence,
   expectedPayment,
 } from '../schema';
-import { bookedAmountIn } from './expected-links';
+import { bookedAmountIn, mixedReceiptShareCents } from './expected-links';
 import type { Executor } from './types';
 
 /**
@@ -40,6 +40,11 @@ export function matchedCharges(db: Executor, paymentId: string, currency: string
     !systemPayees.has(b.payeeId ?? '') &&
     (b.currency === currency ||
       (b.originalCurrency === currency && b.originalAmountCents !== null));
+  const paymentRow = db
+    .select()
+    .from(expectedPayment)
+    .where(eq(expectedPayment.id, paymentId))
+    .get();
   const linked = db
     .select({ date: booking.date, b: booking })
     .from(expectedOccurrence)
@@ -54,7 +59,13 @@ export function matchedCharges(db: Executor, paymentId: string, currency: string
     )
     .all()
     .filter((r) => eligible(r.b))
-    .map((r) => ({ bookingId: r.b.id, date: r.date, amountCents: bookedAmountIn(r.b, currency) }));
+    .map((r) => ({
+      bookingId: r.b.id,
+      date: r.date,
+      amountCents:
+        (paymentRow ? mixedReceiptShareCents(db, r.b.id, paymentRow) : null) ??
+        bookedAmountIn(r.b, currency),
+    }));
   const p = db.select().from(expectedPayment).where(eq(expectedPayment.id, paymentId)).get();
   if (!p?.payeeId || !p.categoryId) return linked;
   const siblings = db

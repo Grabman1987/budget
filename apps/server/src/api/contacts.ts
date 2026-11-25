@@ -7,6 +7,7 @@ import {
   removeContactAlias,
   reopenContact,
   createEntity,
+  createPayee,
   chooseContactCredit,
   convertContactOutlayToGift,
   getContactStatement,
@@ -18,12 +19,14 @@ import {
   listContactStatements,
   schema,
   settleContact,
+  settleContactChecklist,
+  listContactChecklist,
   writeOffContact,
   updateEntity,
   type Db,
 } from '@budget/db';
 import { randomBytes, randomUUID } from 'node:crypto';
-import { and, eq, isNull } from 'drizzle-orm';
+import { and, eq, isNull, sql } from 'drizzle-orm';
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { contactTotals } from '@budget/domain';
@@ -91,6 +94,65 @@ export function contactRoutes(db: Db, today: () => string): Hono {
   app.get('/:id/credit-availability', (c) => {
     const { asOf } = readQuery(c, z.object({ asOf: day }));
     return c.json(getContactCreditAvailability(db, c.req.param('id'), asOf));
+  });
+  app.get('/:id/checklist', (c) => {
+    const { asOf } = readQuery(c, z.object({ asOf: day }));
+    return c.json(listContactChecklist(db, c.req.param('id'), asOf));
+  });
+  app.post('/:id/checklist-receipts', async (c) => {
+    const id = z.string().min(1).max(100);
+    const input = await readBody(
+      c,
+      z
+        .object({
+          accountId: id,
+          date: day,
+          amountCents: z.number().int().positive().max(Number.MAX_SAFE_INTEGER),
+          memo: z.string().max(2000).nullable().optional(),
+          outlaySplitIds: z.array(id).max(1000),
+          occurrenceIds: z.array(id).max(1000),
+          creditReceiptSplitIds: z.array(id).max(1000).optional(),
+          shortfall: z.enum(['open', 'waive']).optional(),
+          surplus: z.enum(['credit', 'gift']).optional(),
+          payeeId: id.optional(),
+          payeeName: z.string().trim().min(1).max(200).optional(),
+        })
+        .strict(),
+    );
+    if (input.payeeId && input.payeeName)
+      throw new ApiError(400, 'invalid', 'Empfänger entweder als Name oder Auswahl senden.');
+    if (input.date > today())
+      throw new ApiError(422, 'future_receipt', 'A contact receipt must be an actual payment');
+    const ctx = audit();
+    const { payeeName, ...rest } = input;
+    // Same payee rule as a plain booking: reuse by name or create, in the one audit group.
+    return c.json(
+      db.transaction((tx) => {
+        let payeeId = rest.payeeId;
+        if (payeeName) {
+          const name = payeeName.replace(/\s+/g, ' ').trim();
+          payeeId =
+            tx
+              .select({ id: schema.payee.id })
+              .from(schema.payee)
+              .where(
+                and(
+                  isNull(schema.payee.deletedAt),
+                  sql`lower(${schema.payee.name}) = lower(${name})`,
+                ),
+              )
+              .get()?.id ?? createPayee(tx, { name, defaultCategoryId: null }, ctx).id;
+        }
+        return settleContactChecklist(
+          tx,
+          c.req.param('id'),
+          defined({ ...rest, payeeId }),
+          ctx,
+          today(),
+        );
+      }),
+      201,
+    );
   });
   app.patch('/:id', async (c) => {
     const input = await readBody(

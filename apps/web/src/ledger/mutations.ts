@@ -21,8 +21,9 @@ import { bulkSummary, errorText, redoFailedText } from './labels';
 import { LEDGER_KEY, lookupsQuery, payeesQuery } from './queries';
 import type { BookingPage, ListedBooking, WriteResult } from './types';
 import { emptyDraft, type BookingDraft } from './booking-model';
+import type { ChecklistReceiptBody } from './contact-checklist';
 import { submitCapture, requestQueueSync } from '../pwa/queue';
-import { ApiError } from '../api/http';
+import { ApiError, request } from '../api/http';
 
 const BOOKINGS_KEY = [...LEDGER_KEY, 'bookings'] as const;
 
@@ -123,6 +124,22 @@ export function useLedgerWrites() {
     onSettled: settled,
   });
 
+  /** #1322: one cash receipt of a contact settled through the checklist; one Undo group. */
+  const checklist = useMutation({
+    networkMode: 'always',
+    mutationFn: ({ contactId, body }: { contactId: string; body: ChecklistReceiptBody }) =>
+      request<{ bookingId: string; groupId: string; restCents: number }>(
+        'POST',
+        `/api/contacts/${encodeURIComponent(contactId)}/checklist-receipts`,
+        body,
+      ),
+    onSuccess: (result) => {
+      flashRows([result.bookingId]);
+      offerUndo('Buchung gespeichert.', result.groupId);
+    },
+    onSettled: settled,
+  });
+
   const patch = useMutation({
     networkMode: 'always',
     mutationFn: async ({
@@ -217,5 +234,5 @@ export function useLedgerWrites() {
     onSettled: settled,
   });
 
-  return { create, patch, remove, bulk, offerUndo };
+  return { create, checklist, patch, remove, bulk, offerUndo };
 }

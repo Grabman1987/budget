@@ -59,7 +59,12 @@ import {
   RESOLUTION_LINKED,
   RESOLUTION_MISSED,
 } from './expected-auto-link';
-import { bookedAmountIn, expectedLinkPatches, expectedLinkedStatus } from './expected-links';
+import {
+  bookedAmountIn,
+  expectedLinkPatches,
+  expectedLinkedStatus,
+  mixedReceiptShareCents,
+} from './expected-links';
 import { runInTransaction, type Executor } from './types';
 import {
   readPaymentLifecycles,
@@ -1343,17 +1348,24 @@ function upcomingInSnapshot(
     .map((r) => {
       const version = versionOn(versions.get(r.payment.id) ?? [], r.occ.dueDate);
       const currency = version?.currency ?? 'EUR';
+      // A mixed contact receipt (#1322) counts only this occurrence's own share.
+      const share =
+        r.occ.bookingId !== null && r.bookingDate !== null
+          ? mixedReceiptShareCents(db, r.occ.bookingId, r.payment)
+          : null;
       let suggestion: VersionSuggestion | null = null;
       if (r.occ.status === 'deviating' && r.occ.bookingId !== null && r.bookingDate !== null) {
-        const booked = bookedAmountIn(
-          {
-            amountCents: r.bookingAmount!,
-            currency: r.bookingCurrency!,
-            originalAmountCents: r.bookingOriginalAmount,
-            originalCurrency: r.bookingOriginalCurrency,
-          },
-          currency,
-        );
+        const booked =
+          share ??
+          bookedAmountIn(
+            {
+              amountCents: r.bookingAmount!,
+              currency: r.bookingCurrency!,
+              originalAmountCents: r.bookingOriginalAmount,
+              originalCurrency: r.bookingOriginalCurrency,
+            },
+            currency,
+          );
         suggestion = versionSuggestion(
           r.payment.id,
           {
@@ -1387,7 +1399,7 @@ function upcomingInSnapshot(
         incomeTypeId: r.payment.incomeTypeId,
         incomeTypeName: r.incomeTypeName,
         bookingId: r.bookingDate === null ? null : r.occ.bookingId,
-        bookedAmountCents: r.bookingDate === null ? null : r.bookingAmount,
+        bookedAmountCents: r.bookingDate === null ? null : (share ?? r.bookingAmount),
         suggestion,
       };
     });

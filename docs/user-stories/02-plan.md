@@ -203,6 +203,21 @@ Bereich: Plan (`/plan/monat`, `/plan/jahr`, `/plan/erwartet`, `/plan/sparziele`,
 - **Receipt-link verification/status:** Repository and API regressions cover explicit linking, stale proposals and grouped Undo; UI/e2e cover the proposal, monthly totals, privacy, themes and phone layout. This continuation is ready for review after local checks, not live-accepted. No migration.
 - **Remaining #1109:** Same-payer receipt linking for mismatched amounts, foreign currency, different-month receipts and already-linked combined payments, combined-payment proposal and confirmation, automatic regular/special payslip settlement, settling a linked partial payment, explained-deviation settlement/labels, and outstanding monthly contact compensation claims. These are not delivered by this slice. Combined-payment linking requires extending the current one-booking/one-occurrence model; acknowledgment without a link already works.
 
+### P-09b – Wiederkehrende Zahlungen automatisch erkennen
+- **Story:** Als Nutzer möchte ich, dass die App regelmäßige Buchungen ohne erwartete Zahlung selbst erkennt und zur Übernahme anbietet, damit Fixkosten, Abos und Dauereingänge in Plan und Prognose stehen, ohne dass ich sie einzeln anlege.
+- **Ausgangslage:** Mehrere gleichartige Buchungen liegen vor (gleicher Empfänger oder gleiche Gegenpartei im Bankumsatz, gleiche Richtung und Konto), aber unter „Plan › Zahlungen“ gibt es noch keine wiederkehrende Zahlung dazu.
+- **Ablauf:**
+  1. Ich öffne „Plan › Zahlungen“; über der Liste steht „Erkannte wiederkehrende Zahlungen“, je Zeile Name, Rhythmus, Kategorie, Anzahl der Buchungen, letztes Datum und Betrag.
+  2. Ich wähle „Übernehmen“: die App legt die wiederkehrende Zahlung mit erkanntem Rhythmus, Betrag, Kategorie und Konto an.
+  3. Oder ich wähle „Verwerfen“; der Vorschlag kommt nicht wieder.
+- **Ergebnis:** Erst „Übernehmen“ schreibt eine wiederkehrende Zahlung, „Verwerfen“ merkt sich nur die Entscheidung; beides lässt sich mit „Rückgängig“ zurücknehmen.
+- **Abnahmekriterien:**
+  1. Erkannt wird ab drei Buchungen in regelmäßigem Abstand (wöchentlich, 14-tägig, monatlich, vierteljährlich, halbjährlich, jährlich), Betrag innerhalb ±10 % (bei festen Beträgen exakt), letzte Buchung nicht älter als 1,5 Zyklen.
+  2. Prozessor-Vorsätze („PayPal *“) und wechselnde Ziffern im Bankumsatz trennen eine Gegenpartei nicht in mehrere Gruppen.
+  3. Gruppen mit bestehender wiederkehrender Zahlung (gleicher Empfänger oder Name) oder mit verknüpften Terminen erscheinen nicht.
+  4. Das reine Erkennen schreibt nichts.
+- **Status:** offen; Draft-PR, Prüfung und Live-Abnahme stehen aus. Keine Migration (Verwerfen liegt in `app_setting`).
+
 ### P-10 – Sparziele und Rücklagen
 - **Story:** Als Nutzer möchte ich Sparziele und Rücklagen führen und Kategorieziele übernehmen, damit ich sehe, wie weit ich bin und wie viel ich monatlich zurücklegen muss.
 - **Ausgangslage:** Ich spare auf etwas mit Betrag und Datum.

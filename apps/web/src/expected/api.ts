@@ -323,3 +323,38 @@ export const acknowledgeIncomeReceipt = (paymentId: string, dueDate: string, boo
     dueDate,
     bookingId,
   });
+
+/** Detected recurring bookings without an expected payment (read-only until accepted). */
+export interface RecurringSuggestion {
+  id: string;
+  name: string;
+  kind: ExpectedKind;
+  accountId: string;
+  payeeId: string | null;
+  categoryId: string | null;
+  incomeTypeId: string | null;
+  rhythm: Rhythm;
+  intervalWeeks: number | null;
+  dueDay: number;
+  dueMonth: number | null;
+  startDate: string | null;
+  /** Positive cents. */
+  amountCents: number;
+  toleranceCents: number;
+  currency: string;
+  count: number;
+  lastDate: string;
+}
+
+export const recurringSuggestionsQuery = () =>
+  queryOptions({
+    queryKey: [...EXPECTED_KEY, 'suggestions'],
+    queryFn: () =>
+      request<{ suggestions: RecurringSuggestion[] }>('GET', url('/suggestions')).then(
+        (r) => r.suggestions,
+      ),
+  });
+export const acceptRecurringSuggestion = (id: string) =>
+  request<{ paymentId: string } & WriteResult>('POST', url(`/suggestions/${enc(id)}/accept`), {});
+export const dismissRecurringSuggestion = (id: string) =>
+  request<WriteResult>('POST', url(`/suggestions/${enc(id)}/dismiss`), {});

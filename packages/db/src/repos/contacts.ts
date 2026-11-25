@@ -276,6 +276,15 @@ export interface ContactReceiptInput {
   amountCents: number;
   memo?: string | null;
   allocations?: ContactAllocation[];
+  /** Keep the part no allocation takes as contact credit although other outlays stay open. */
+  retainCredit?: boolean;
+  /** Payer of the cash receipt, as on a plain booking. */
+  payeeId?: string | null;
+  /**
+   * Further parts of the same cash receipt that never touch the contact (checklist contributions,
+   * #1322). `amountCents` stays the contact part; the booking carries both.
+   */
+  directSplits?: SplitInput[];
 }
 
 /** Explicit decision on one remaining receipt lot; never sweeps older or unrelated credit. */
@@ -289,6 +298,8 @@ export function chooseContactCredit(
     choice: 'free' | 'category' | 'gift';
     categoryId?: string;
     accountId?: string;
+    /** Income type of a gift; defaults to Sonstiges, as the contact page books it. */
+    giftIncomeTypeId?: string;
   },
   ctx: AuditContext,
   today: string,
@@ -385,7 +396,11 @@ export function chooseContactCredit(
         splits: [
           { categoryId: advanceId, contactId, amountCents: -input.amountCents, memo },
           input.choice === 'gift'
-            ? { incomeTypeId: INCOME_TYPES.other.id, amountCents: input.amountCents, memo }
+            ? {
+                incomeTypeId: input.giftIncomeTypeId ?? INCOME_TYPES.other.id,
+                amountCents: input.amountCents,
+                memo,
+              }
             : { categoryId: advanceId, contactId, amountCents: input.amountCents, memo },
         ],
       },
@@ -624,7 +639,12 @@ export function settleContact(
     const before = getContactStatement(tx, contactId, input.date);
     let plan;
     try {
-      plan = allocateContactReceipt(before.outlays, input.amountCents, input.allocations);
+      plan = allocateContactReceipt(
+        before.outlays,
+        input.amountCents,
+        input.allocations,
+        input.retainCredit ? { retainCredit: true } : {},
+      );
     } catch (error) {
       throw new BookingInvariantError(
         error instanceof Error ? error.message : 'Invalid contact allocation',
@@ -652,8 +672,10 @@ export function settleContact(
       {
         accountId: input.accountId,
         date: input.date,
-        amountCents: input.amountCents,
+        amountCents:
+          input.amountCents + (input.directSplits ?? []).reduce((sum, d) => sum + d.amountCents, 0),
         memo: input.memo ?? null,
+        payeeId: input.payeeId ?? null,
         status: 'confirmed',
         splits: [
           { categoryId, contactId, amountCents: input.amountCents },
@@ -661,6 +683,7 @@ export function settleContact(
           ...(returned.length
             ? [{ categoryId, amountCents: -returned.reduce((sum, r) => sum + r.amountCents, 0) }]
             : []),
+          ...(input.directSplits ?? []),
         ],
       },
       grouped,

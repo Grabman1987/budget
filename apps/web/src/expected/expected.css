@@ -558,3 +558,41 @@ h4.xp-sub {
   min-width: var(--touch);
   min-height: var(--touch);
 }
+
+/* Detected recurring bookings (suggestions) */
+.xp-suggest {
+  display: grid;
+  gap: var(--sp-2, 8px);
+  justify-items: start;
+}
+.xp-suggest ul[hidden] {
+  display: none;
+}
+.xp-suggest ul {
+  display: grid;
+  gap: var(--sp-2, 8px);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.xp-suggest-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto auto;
+  align-items: center;
+  gap: var(--sp-2, 8px);
+}
+.xp-suggest-text {
+  display: grid;
+  min-width: 0;
+}
+.xp-suggest-amount {
+  font-variant-numeric: tabular-nums;
+}
+@media (max-width: 640px) {
+  .xp-suggest-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .xp-suggest-text {
+    grid-column: 1 / -1;
+  }
+}

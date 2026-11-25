@@ -1,6 +1,12 @@
 import { amountGap, versionOn, type Occurrence } from '@budget/domain';
 import { and, asc, eq, inArray, isNotNull, isNull } from 'drizzle-orm';
-import { booking, expectedOccurrence, expectedPayment, expectedPaymentVersion } from '../schema';
+import {
+  booking,
+  bookingSplit,
+  expectedOccurrence,
+  expectedPayment,
+  expectedPaymentVersion,
+} from '../schema';
 import type { Executor } from './types';
 
 type Payment = typeof expectedPayment.$inferSelect;
@@ -13,6 +19,30 @@ const chunks = <T>(values: T[]): T[][] => {
   for (let i = 0; i < values.length; i += CHUNK) result.push(values.slice(i, i + CHUNK));
   return result;
 };
+
+/**
+ * Mixed contact receipt (#1322): one cash booking that also repays outlays or leaves credit. The
+ * occurrence of a contact's expected inflow then only owns its own split(s), never the whole cash
+ * amount. `null` = not a mixed receipt, use the booking amount.
+ */
+export function mixedReceiptShareCents(
+  db: Executor,
+  bookingId: string,
+  payment: Pick<Payment, 'contactId' | 'categoryId' | 'incomeTypeId'>,
+): number | null {
+  if (!payment.contactId || (!payment.categoryId && !payment.incomeTypeId)) return null;
+  const splits = db.select().from(bookingSplit).where(eq(bookingSplit.bookingId, bookingId)).all();
+  if (!splits.some((s) => s.contactId !== null)) return null;
+  const own = splits.filter(
+    (s) =>
+      s.contactId === null &&
+      s.transferId === null &&
+      (payment.categoryId
+        ? s.categoryId === payment.categoryId
+        : s.incomeTypeId === payment.incomeTypeId),
+  );
+  return own.length ? own.reduce((sum, s) => sum + s.amountCents, 0) : null;
+}
 
 /** Amount of a live booking in the currency of an expected payment's version. */
 export function bookedAmountIn(
@@ -29,6 +59,7 @@ export function bookedAmountIn(
 }
 
 function statusForBooking(
+  db: Executor,
   occurrence: OccurrenceRow,
   payment: Payment,
   versions: Version[],
@@ -42,7 +73,9 @@ function statusForBooking(
     amountMaxCents: version?.amountMaxCents == null ? null : sign * version.amountMaxCents,
     contactShareCents: occurrence.contactShareCents,
   };
-  const amount = bookedAmountIn(booked, version?.currency ?? 'EUR');
+  const amount =
+    mixedReceiptShareCents(db, booked.id, payment) ??
+    bookedAmountIn(booked, version?.currency ?? 'EUR');
   const inside =
     Math.sign(amount) === Math.sign(planned.amountCents) &&
     amountGap(planned, amount) <= payment.amountToleranceCents;
@@ -67,7 +100,7 @@ export function expectedLinkedStatus(
     )
     .orderBy(asc(expectedPaymentVersion.validFrom))
     .all();
-  return statusForBooking(occurrence, payment, versions, linkedBooking);
+  return statusForBooking(tx, occurrence, payment, versions, linkedBooking);
 }
 
 export interface ExpectedLinkPatch {
@@ -133,6 +166,7 @@ export function expectedLinkPatches(
         : {
             bookingId: linkedBooking.id,
             status: statusForBooking(
+              tx,
               row.occurrence,
               row.payment,
               byPayment.get(row.payment.id) ?? [],
