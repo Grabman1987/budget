@@ -8,7 +8,8 @@ import {
 import { eq } from 'drizzle-orm';
 import { Hono } from 'hono';
 import { describe, expect, it, vi } from 'vitest';
-import { createLedgerApi, warmReadModels } from './index';
+import { AuthStore } from '../auth/store';
+import { createLedgerApi, warmPaths, warmReadModels } from './index';
 import { readModelCache } from './response-cache';
 
 function setup(day = { value: '2026-03-18' }) {
@@ -55,7 +56,7 @@ describe('readModelCache', () => {
     );
     const selected = vi.spyOn(db, 'select');
     try {
-      const read = async (expectedCents: number) => {
+      const read = async (expectedCents: number, mayReplay = false) => {
         const readCached = async (path: string, verify: (value: unknown) => void) => {
           const before = selected.mock.calls.length;
           const response = await app.request(path);
@@ -63,7 +64,9 @@ describe('readModelCache', () => {
           const body = await response.text();
           verify(JSON.parse(body) as unknown);
           const readCount = selected.mock.calls.length;
-          expect(readCount).toBeGreaterThan(before);
+          // A rolled-back write restores the ledger version with the data: the cached answer is
+          // still the right one and may be replayed at once.
+          if (!mayReplay) expect(readCount).toBeGreaterThan(before);
           const repeated = await app.request(path);
           expect(repeated.status).toBe(200);
           expect(await repeated.text()).toBe(body);
@@ -118,11 +121,67 @@ describe('readModelCache', () => {
           }),
         ).toThrow('synthetic financial rollback');
       });
-      expect(await read(1_250)).toBe(booked);
+      expect(await read(1_250, true)).toBe(booked);
     } finally {
       selected.mockRestore();
       opened.close();
     }
+  });
+
+  it('keeps an answer across session touches and market logs, but not a ledger write', async () => {
+    const { db } = createTestDatabase();
+    let computed = 0;
+    const app = new Hono();
+    app.use(
+      '*',
+      readModelCache(db, () => '2026-03-18'),
+    );
+    app.get('/api/heute', (c) => c.json({ n: ++computed }));
+    app.get('/api/budget/2026-03/uncategorized', (c) => c.json({ n: ++computed }));
+    app.get('/api/budget/months', (c) => c.json({ n: ++computed }));
+    const store = new AuthStore(db);
+    store.createSession({
+      id: 's1',
+      passkeyId: null,
+      now: new Date('2026-03-18T10:00:00Z'),
+      expiresAt: new Date('2026-04-18T10:00:00Z'),
+      stepUp: false,
+      viaRecovery: false,
+    });
+    await app.request('/api/heute');
+    // The session guard writes `last_seen_at`; nothing a read model reads changed.
+    store.touchSession('s1', new Date('2026-03-18T10:30:00Z'), new Date('2026-04-18T10:30:00Z'));
+    sqliteOf(db)
+      .prepare(
+        "insert into market_run (id, trigger, started_at, finished_at, as_of, status) values ('r1', 'nightly', 'a', 'b', '2026-03-17', 'ok')",
+      )
+      .run();
+    await app.request('/api/heute');
+    expect(computed).toBe(1);
+    // A ledger write recomputes (every ledger table shares the trigger; a setting row is cheapest).
+    sqliteOf(db).prepare('insert into app_setting (id, value) values (?, ?)').run('k', 'v');
+    await app.request('/api/heute');
+    expect(computed).toBe(2);
+    // Answers with a connection-bound basis are never replayed.
+    await app.request('/api/budget/2026-03/uncategorized');
+    await app.request('/api/budget/2026-03/uncategorized');
+    await app.request('/api/budget/months?months=2026-03&previewBasis=1');
+    await app.request('/api/budget/months?months=2026-03&previewBasis=1');
+    await app.request('/api/budget/months?months=2026-03');
+    await app.request('/api/budget/months?months=2026-03');
+    expect(computed).toBe(2 + 2 + 2 + 1);
+  });
+
+  it('plans the warm-up pages for this and the next month, across a year end', () => {
+    expect(warmPaths('2026-12-05')).toEqual([
+      '/heute?period=month&month=2026-12',
+      '/heute?period=payday&month=2026-12',
+      '/accounts',
+      '/budget/2026-12',
+      '/budget/2027-01',
+      '/liquidity?horizon=35d',
+      '/inbox/count',
+    ]);
   });
 
   it('serves a repeated read model from memory while nothing was written', async () => {
@@ -186,14 +245,16 @@ describe('readModelCache', () => {
     const transaction = vi.spyOn(db, 'transaction');
 
     try {
-      expect(await warmReadModels(api, () => day)).toBe(2);
+      // Heute (two periods), accounts, two budget months, liquidity and the inbox badge.
+      expect(await warmReadModels(api, () => day)).toBe(7);
       const afterWarm = transaction.mock.calls.length;
       const first = await app.request('/api/inbox/count');
       expect(first.status).toBe(200);
       const body = await first.text();
       expect(JSON.parse(body)).toEqual({ asOf: day, count: 0 });
+      // The warm-up already stored the badge.
       const afterFirst = transaction.mock.calls.length;
-      expect(afterFirst).toBe(afterWarm + 1);
+      expect(afterFirst).toBe(afterWarm);
 
       const second = await app.request('/api/inbox/count');
       expect(second.status).toBe(200);

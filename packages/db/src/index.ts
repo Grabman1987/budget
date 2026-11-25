@@ -17,6 +17,7 @@ export { goalsReport } from './repos/goals';
 export * from './repos/account-preview';
 
 export { databaseStamp, runInReadSnapshot } from './repos/request-memo';
+export { ensureLedgerVersionTriggers, ledgerVersion } from './repos/ledger-version';
 export * from './repos/booking-views';
 export * from './repos/operator-contact-allocate';
 export { forecastBacktest, type ForecastBacktest } from './repos/forecast-backtest';

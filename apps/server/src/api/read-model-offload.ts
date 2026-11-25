@@ -1,8 +1,21 @@
 import type { MiddlewareHandler } from 'hono';
 import { Worker } from 'node:worker_threads';
+import { connectionBound } from './response-cache';
 
-/** Read models computed in the worker: the expensive Heute page model (#956). */
-const OFFLOADED = /^\/heute(\/|$)/;
+/**
+ * Read models computed in the worker: the expensive Heute page model (#956), and the budget month
+ * views, liquidity forecast, account list and series and inbox badge that otherwise queue the
+ * server thread. Only pure GETs: the worker's connection cannot write, and a 5xx answer (for
+ * instance a handler that wrote after all) falls back to the server thread.
+ */
+const OFFLOADED =
+  /^\/(heute(\/|$)|liquidity(\/|$)|accounts(\/series)?$|inbox\/count$|budget\/(\d{4}-\d{2}|months)$)/;
+
+/** Idle time after which the worker ends and drops its caches; `BUDGET_READ_WORKER_IDLE_MIN`. */
+export const workerIdleMs = (env: NodeJS.ProcessEnv = process.env): number => {
+  const minutes = Number(env['BUDGET_READ_WORKER_IDLE_MIN']);
+  return (Number.isFinite(minutes) && minutes > 0 ? minutes : 45) * 60_000;
+};
 
 export interface ReadModelWorkerInput {
   path: string;
@@ -46,7 +59,7 @@ const workerUrl = (): URL =>
 export function readModelOffload(
   databasePath: string,
   today: () => string,
-  { workerHeapMb = 192, idleMs = 5 * 60_000, now = () => Date.now() } = {},
+  { workerHeapMb = 192, idleMs = workerIdleMs(), now = () => Date.now() } = {},
 ): ReadModelOffload {
   let worker: Worker | undefined;
   let next = 0;
@@ -114,10 +127,11 @@ export function readModelOffload(
       const route = c.req.path.replace(/^\/api/, '');
       if (c.req.method !== 'GET' || !OFFLOADED.test(route)) return next();
       const url = new URL(c.req.url);
+      if (connectionBound(route, url.search)) return next();
       const path = `${route}${url.search}`;
       asked.delete(path);
       asked.set(path, now());
-      while (asked.size > 8) asked.delete(asked.keys().next().value!);
+      while (asked.size > 24) asked.delete(asked.keys().next().value!);
       const answer = await ask(path, today());
       if ('failed' in answer) return next();
       served++;
@@ -139,16 +153,23 @@ export function readModelOffload(
 }
 
 /**
- * Keeps the offloaded read models a visitor used recently computed for the current database
- * stamp, so the next visit after a change is answered from the cache. Every write moves the stamp,
- * and so does Litestream's own commit about a minute after it (#956); the model is recomputed in
- * the worker once the stamp has been quiet for one check, at most once per stamp.
+ * Keeps the offloaded read models a visitor used recently, plus the pages every visit opens
+ * (`always`), computed for the current ledger version, so the next visit after a change is
+ * answered from the cache. Only ledger writes move the version (the Litestream commit, session
+ * touches and logs do not); the models are recomputed in the worker once it has been quiet for one
+ * check, at most once per version and day. The worker answers one request at a time and this loop
+ * asks for one path at a time, so a visitor's request waits for at most one of them.
  */
 export function startReadModelRefresh(
   api: { request: (path: string) => Response | Promise<Response> },
   stampOf: () => string,
   offload: ReadModelOffload,
-  { everyMs = 5_000, activeMs = 30 * 60_000, now = () => Date.now() } = {},
+  {
+    everyMs = 5_000,
+    activeMs = 30 * 60_000,
+    now = () => Date.now(),
+    always = () => [] as string[],
+  } = {},
 ): () => void {
   let seen = stampOf();
   let refreshed = seen;
@@ -161,12 +182,16 @@ export function startReadModelRefresh(
       return;
     }
     if (stamp === refreshed) return;
-    const paths = offload.recent(now() - activeMs);
+    const paths = [...new Set([...offload.recent(now() - activeMs), ...always()])];
     if (paths.length === 0) return;
     running = true;
     refreshed = stamp;
     try {
-      for (const path of paths) await (await api.request(path)).arrayBuffer();
+      for (const path of paths) {
+        await (await api.request(path)).arrayBuffer();
+        // Let ready HTTP I/O run between two models.
+        await new Promise<void>((done) => setImmediate(done));
+      }
     } catch {
       // The next visit computes it and reports any failure.
     } finally {

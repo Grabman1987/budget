@@ -71,25 +71,43 @@ import { portfolioStrategyRoutes, type StrategyEvidenceProvider } from './portfo
 export type LedgerApi = Hono & { warm: () => Promise<number> };
 
 /**
- * Asks Heute in both balance periods for the current month once, in process (no session needed,
- * nothing is sent), so the first visit after a deploy or restart can use the read-model cache.
- * Returns the number of successful responses from those cacheable read models.
+ * The read models every visit opens, in the exact form the pages ask for them: Heute in both
+ * balance periods, the account list, the budget of this and the next month, the 35-day liquidity
+ * forecast and the inbox badge. Asked in process after start and after each ledger change
+ * (`startReadModelRefresh`) so the next visit is answered from the cache.
  */
-export async function warmReadModels(api: Hono, today: () => string): Promise<number> {
-  const month = today().slice(0, 7);
-  let warmed = 0;
-  for (const path of [
+export function warmPaths(day: string): string[] {
+  const month = day.slice(0, 7);
+  const next = new Date(Date.UTC(Number(month.slice(0, 4)), Number(month.slice(5, 7)), 1))
+    .toISOString()
+    .slice(0, 7);
+  return [
     `/heute?period=month&month=${month}`,
     `/heute?period=payday&month=${month}`,
-  ]) {
+    '/accounts',
+    `/budget/${month}`,
+    `/budget/${next}`,
+    '/liquidity?horizon=35d',
+    '/inbox/count',
+  ];
+}
+
+/**
+ * Asks `warmPaths` once, in process (no session needed, nothing is sent), so the first visit after
+ * a deploy or restart can use the read-model cache. Returns the number of successful responses.
+ */
+export async function warmReadModels(api: Hono, today: () => string): Promise<number> {
+  let warmed = 0;
+  for (const path of warmPaths(today())) {
     try {
       const response = await api.request(path);
       if (response.status === 200) warmed++;
     } catch {
       // A failing page is for the first real visit to report.
     }
-    // Both cold models are synchronous CPU work. Give ready HTTP/health I/O a turn
-    // between them; awaiting an already-computed response only drains microtasks.
+    // Cold models are synchronous CPU work when they run on the server thread. Give ready
+    // HTTP/health I/O a turn between them; awaiting an already-computed response only drains
+    // microtasks.
     await new Promise<void>((done) => setImmediate(done));
   }
   return warmed;

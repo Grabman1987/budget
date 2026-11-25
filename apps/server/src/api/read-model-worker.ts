@@ -31,6 +31,9 @@ parentPort?.on('message', (ask: ReadModelAsk) => {
       today = ask.today;
       answer = await runInReadSnapshot(db, async () => {
         const response = await api.request(ask.path);
+        // A failing handler (also a write refused by `query_only`) is for the server thread to
+        // answer with its own connection.
+        if (response.status >= 500) throw new Error('worker answer failed');
         return {
           id: ask.id,
           status: response.status,
