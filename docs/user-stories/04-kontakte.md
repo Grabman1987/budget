@@ -129,3 +129,21 @@ Bereich: „Konten › Kontakte“ (`/konten/kontakte`, Kontoblatt je Person unt
 - **Status:** teilweise, zur Review vorbereitet — **Verweis:** #1147. Erster Teil: Anzeige mit vorher/nachher und Texte je Fall; die Verrechnung war schon vorhanden und ist nun durch API-Tests mit synthetischen Beträgen abgesichert. Offen: Auswahl „nicht verrechnen“ pro Anteil, Hinweis beim Bearbeiten, Browser-Abnahme. Keine Live-Abnahme behauptet.
 
 **Delivery update (#1147).** In new shared purchases, each contact share with eligible credit has a checked “Mit Guthaben verrechnen” option. Clearing it keeps the credit available and leaves that share open. A later share can use the retained credit. The preview shows eligible credit before and after the choice and respects reservations already saved for later dates. Saving and Undo use the same booking group. The choice is made during capture. Editing a previously saved purchase keeps its recorded offset.
+
+### C-10 – Zahlung eines Kontakts per Abhakliste aufteilen
+
+- **Story:** Als Nutzer möchte ich eine Sammelüberweisung eines Kontakts beim Erfassen auf seine offenen Posten verteilen, damit ich sie nicht von Hand aufteilen muss und Auslagen, Beiträge und Rest sauber verbucht sind.
+- **Ausgangslage:** Ein Kontakt überweist einen Betrag, der mehrere Dinge deckt (z. B. 845,00 € = Mietanteil 800,00 € + Abo 19,99 € + Auslage 25,01 €, synthetisches Beispiel).
+- **Ablauf:**
+  1. In „Buchung erfassen“ wähle ich „Einnahme“, Betrag, Konto, Datum und bei der Zeile „Rückzahlung von Kontakt“ den Kontakt.
+  2. Unter den Zeilen erscheint eine Liste: Kopfzeile „Erhalten“ mit dem Betrag, je offenem Posten eine Zeile mit Häkchen (erwartete Beiträge des Kontakts mit „→ Kategorie“, danach offene Auslagen, älteste zuerst; alle vorab angehakt) und die Fußzeile „Rest“, die bei jedem Häkchen mitrechnet.
+  3. Rest 0,00 €: alles angehakt ist beglichen. Rest unter 0: „bleibt offen bis nächsten Monat“ (Vorgabe) oder „schenken“. Rest über 0: „als Guthaben für nächsten Monat stehen lassen“ (Vorgabe) oder „als Geschenk an mich buchen“ (Einnahmeart Geschenke).
+  4. „Speichern“ bucht eine Buchung mit den passenden Teilen: Kategorie-Einnahmen der Beiträge, Rückzahlung der Auslagen und, je nach Wahl, Guthaben oder Geschenk; eine Kürzung trifft zuerst die Auslagen (jüngste zuletzt), erst danach die Beiträge.
+- **Ergebnis:** Eine Buchung, eine Änderungsgruppe; „Rückgängig“ stellt Kontoblatt, Guthaben, Salden und Verknüpfungen exakt wieder her.
+- **Abnahmekriterien:**
+  1. 845,00 € bei Auslage 25,01 € und Beiträgen 800,00 € + 19,99 €: drei Zeilen, Rest 0,00 €, Teile ergeben 84500 Cent, Kontaktsaldo 0.
+  2. 830,00 € alles angehakt: Rest −15,00 €; „bleibt offen“ lässt genau 15,00 € als Forderung offen, „schenken“ gleicht sie über den vorhandenen Geschenk-Weg aus.
+  3. 860,00 € alles angehakt: Rest +15,00 €; „Guthaben“ erhöht das Kontaktguthaben um 15,00 €, „Geschenk an mich“ bucht 15,00 € als Einnahmeart Geschenke.
+  4. Die Liste ist mit Tastatur bedienbar (Leertaste), Zeilen sind mindestens 44 px hoch.
+  5. Hat der Kontakt keine offenen Posten, erscheint keine Liste und die Buchung läuft wie bisher.
+- **Status:** teilweise, Entwurf (#1322). Fehlt noch: Eine Buchung kann nur mit einem erwarteten Beitrag verknüpft werden (eindeutiger Index); bei mehreren angehakten Beiträgen wird der größte verknüpft, die übrigen bleiben „erwartet“. Zahlung ohne Kontaktzeile (nur Empfänger) und Bearbeiten einer vorhandenen Buchung zeigen die Liste noch nicht. Keine Live-Abnahme.
