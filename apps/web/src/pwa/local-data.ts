@@ -1,4 +1,5 @@
 import { clearChoices } from './queue-store';
+import { clearPersistedQueries } from './query-persist';
 import { clearReceiptIntents } from './receipt-store';
 import { clearSnapshots, revokeSnapshots } from './snapshots';
 
@@ -46,7 +47,10 @@ export async function clearDeviceFinancialData({
       timer = setTimeout(resolve, 3000);
     });
     try {
-      await Promise.race([Promise.all([clearChoices(), clearSnapshots(), receipts]), giveUp]);
+      await Promise.race([
+        Promise.all([clearChoices(), clearSnapshots(), clearPersistedQueries(), receipts]),
+        giveUp,
+      ]);
     } finally {
       clearTimeout(timer);
     }

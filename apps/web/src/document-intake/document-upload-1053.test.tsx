@@ -1,4 +1,6 @@
 // @vitest-environment jsdom
+// Lazy chunk resolved from the module cache, so the dialog opens within the test's wait.
+import './document-upload-flow';
 import type { ReactNode } from 'react';
 import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -110,7 +112,7 @@ function renderButton(accountId?: string) {
 const pick = async (file: File) => {
   const user = userEvent.setup();
   await user.click(screen.getByRole('button', { name: 'Dokument hochladen' }));
-  await user.upload(screen.getByLabelText('Dokument auswählen'), file);
+  await user.upload(await screen.findByLabelText('Dokument auswählen'), file);
   return user;
 };
 const pdf = () => new File(['%PDF-1.7'], 'synthetic.pdf', { type: 'application/pdf' });

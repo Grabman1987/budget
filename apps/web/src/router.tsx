@@ -15,6 +15,7 @@ import {
   type LiquidityHorizon,
 } from '@budget/domain';
 import type { HeutePeriod } from './heute/api';
+import { prefetchStartPage } from './heute/prefetch';
 import { heuteReturn } from './heute/return-context';
 import { AUTH_STATUS_KEY, authStatusQuery, queryClient } from './auth/status-query';
 import { REDESIGN_ENABLED } from './shell/redesign-flag';
@@ -196,6 +197,8 @@ const homeRoute = createRoute({
   getParentRoute: () => shellRoute,
   path: '/',
   staticData: { meta: HEUTE },
+  // The session is known here: start all reads of the page now, in parallel with its chunk.
+  beforeLoad: ({ search }) => prefetchStartPage(search),
   component: lazyRouteComponent(heutePage, 'HeutePage'),
 });
 const captureRoute = createRoute({

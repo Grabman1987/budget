@@ -7,6 +7,7 @@ import type {
 import type { freedomInvestmentBasis } from '@budget/db';
 import { queryOptions } from '@tanstack/react-query';
 import { request } from '../api/http';
+import { HEAVY_READ_STALE_MS } from '../api/stale-times';
 import { LEDGER_KEY } from '../ledger/queries';
 import type { ValuationSource, WithValuationNotes } from '../ledger/valuation-hint';
 
@@ -259,6 +260,7 @@ export const HEUTE_KEY = [...LEDGER_KEY, 'heute'] as const;
 export const heuteQuery = (month: string, period: HeutePeriod) =>
   queryOptions({
     queryKey: [...HEUTE_KEY, month, period],
+    staleTime: HEAVY_READ_STALE_MS,
     queryFn: () =>
       request<Heute>('GET', `/api/heute?period=${period}&month=${encodeURIComponent(month)}`),
   });
