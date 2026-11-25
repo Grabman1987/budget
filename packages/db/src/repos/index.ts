@@ -93,6 +93,7 @@ export * from './payslip-wages';
 
 export * from './read-source';
 export * from './assignment-rules';
+export * from './recurring-suggestions';
 export * from './booking-category-suggestion';
 export * from './income-month';
 

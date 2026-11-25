@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { counterpartyKey } from './recurring-detection';
 
 /** Derive a percent template from confirmed, same-direction category splits. */
 export function learnAssignmentSplits(
@@ -153,7 +154,8 @@ export function matchesAssignment(match: AssignmentMatch, row: AssignmentRow): b
     switch (condition.type) {
       case 'counterparty':
         return (
-          !!row.counterparty && bankAliasKey(row.counterparty) === bankAliasKey(condition.text)
+          !!row.counterparty &&
+          counterpartyKey(row.counterparty) === counterpartyKey(condition.text)
         );
       case 'payee':
         return row.payeeId === condition.payeeId;

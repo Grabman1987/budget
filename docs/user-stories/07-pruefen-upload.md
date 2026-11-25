@@ -96,6 +96,21 @@ Bildschirm Prüfen: `/konten/pruefen` (Konten › Prüfen). Zähler: „Umsätze
 - **Status:** teilweise — **Verweis:** Y16, #1081, #1101
   Allgemeine Aufgaben sind live. Die Ursachenansicht und Quellvorschau für Kurswarnungen sind in PR #1112 umgesetzt; sichere Währungsbelege je Vorschauquelle sind im zweiten Schritt ergänzt. Gespeicherte historische Fehlerbelege, weitere verbleibende Kriterien und private Abnahme siehe V-14. Selbstschließende Abrufwarnungen mit Verlauf (#1101) sind umgesetzt, private Abnahme offen.
 
+### I-01e – Zuordnungsregeln aus bestätigten Umsätzen automatisch lernen
+- **Story:** Als Nutzer möchte ich, dass die App aus meinen Bestätigungen Regeln lernt und eigene Konten erkennt, damit gleichartige Bankumsätze (auch über Zahlungsdienste) von selbst Empfänger, Kategorie oder Umbuchung vorgeschlagen bekommen.
+- **Ausgangslage:** Ein Bankumsatz kommt ohne Empfänger, Kategorie oder Umbuchungsvorschlag, obwohl ähnliche Umsätze schon bestätigt wurden.
+- **Ablauf:**
+  1. Ich bestätige einen Umsatz (Empfänger plus Kategorie, Split-Vorlage, Einnahmeart oder Umbuchung auf ein eigenes Konto).
+  2. Gab es davor schon einen bestätigten Umsatz derselben Gegenpartei, Richtung und desselben Kontos mit gleicher Zuordnung, legt die App eine Regel als Vorschlag an (nicht automatisch bestätigend), benannt nach der Gegenpartei.
+  3. Nennt der Banktext die IBAN oder den Namen genau eines anderen eigenen Kontos, schlägt die App die Umbuchung auf dieses Konto vor; ich bestätige oder ändere.
+- **Ergebnis:** Folgeumsätze zeigen den Vorschlag; die Regel steht unter „Einstellungen › Zuordnungsregeln“ und lässt sich bearbeiten, deaktivieren oder löschen.
+- **Abnahmekriterien:**
+  1. Keine doppelte Regel für Gegenpartei, Richtung und Konto; eine bearbeitete, deaktivierte oder gelöschte Regel wird nie verändert, aktiviert oder neu angelegt.
+  2. „Rückgängig“ der Bestätigung entfernt Regel und Umbuchung gemeinsam.
+  3. Prozessor-Vorsätze und wechselnde Ziffern ändern die Gegenpartei nicht.
+  4. Mehrdeutige oder fehlende Kontoübereinstimmung ergibt keinen Vorschlag; nichts wird ohne Bestätigung angewendet.
+- **Status:** offen; Draft-PR, Prüfung und Live-Abnahme stehen aus. Keine Migration. IBANs sind nicht gespeichert: Treffer entstehen über IBAN im Kontonamen oder in der Bezeichnung der Bankanbindung (vollständig oder letzte vier Stellen) sowie über den Kontonamen.
+
 ### I-02 – Prüfen geführt durchgehen
 - **Story:** Als Nutzer möchte ich die offenen Umsätze der Reihe nach mit Fortschrittsanzeige durchgehen, damit ich in einer Sitzung fertig werde und sehe, wie viel noch fehlt.
 - **Ausgangslage:** Viele offene Umsätze; der Nutzer will sie am Stück abarbeiten, am Handy oder mit der Tastatur.

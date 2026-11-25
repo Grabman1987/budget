@@ -56,6 +56,7 @@ import {
   type PaymentWeek,
 } from './expected-model';
 import { IncomeButton } from './income-panel';
+import { RecurringSuggestions } from './recurring-suggestions';
 import { draftFromBooking } from './payment-draft';
 import { PaymentPanel, type PaymentPanelState } from './payment-panel';
 import { StatusStamp } from './status-stamp';
@@ -317,6 +318,7 @@ export function ExpectedPage({
                 <PaymentsCalendar />
               ) : (
                 <>
+                  <RecurringSuggestions />
                   {refreshError && (
                     <ErrorNote
                       what="Fälligkeiten"
