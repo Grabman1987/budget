@@ -110,6 +110,18 @@ it.each(baseline.responses)(
       // #1195 adds this read-only bridge. Retain the original digest for all other bytes.
       delete report.cashReconciliation;
       body = Buffer.from(JSON.stringify(payload));
+    } else if (path === '/inbox/count') {
+      // #1320 adds read-only warning facts; strip exactly those fields and keep the stock bytes.
+      const payload = JSON.parse(body.toString('utf8'));
+      expect(Object.keys(payload).slice(-4)).toEqual([
+        'oldestOpenDate',
+        'overAgeCount',
+        'openUncategorizedCents',
+        'thresholds',
+      ]);
+      for (const key of ['oldestOpenDate', 'overAgeCount', 'openUncategorizedCents', 'thresholds'])
+        delete payload[key];
+      body = Buffer.from(JSON.stringify(payload));
     }
     expect(`${body.length}:${createHash('sha256').update(body).digest('hex')}`).toBe(digest);
   },

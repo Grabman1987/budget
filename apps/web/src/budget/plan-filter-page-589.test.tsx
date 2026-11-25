@@ -154,6 +154,7 @@ function mount(at = '/plan/monat?monat=2026-10', restoredTriage = false) {
       '/api/auth/status',
       '/api/accounts',
       '/api/expected',
+      '/api/inbox/count', // #1320: Prüfen warning facts are a plain read on Heute and Plan
       '/api/categories',
       '/api/budget/2026-10',
       '/api/budget/2026-11',

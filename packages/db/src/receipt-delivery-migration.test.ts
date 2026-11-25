@@ -69,12 +69,15 @@ it('migrates a copied existing ledger additively, reverses only the empty cache 
       .all() as { name: string }[];
     const rows = (opened: OpenedDatabase) =>
       Object.fromEntries(
-        tables.map(({ name }) => [
-          name,
-          opened.sqlite
-            .prepare(`SELECT * FROM "${name.replaceAll('"', '""')}" ORDER BY rowid`)
-            .all(),
-        ]),
+        // ledger_version is a monotone write counter, not ledger content.
+        tables
+          .filter(({ name }) => name !== 'ledger_version')
+          .map(({ name }) => [
+            name,
+            opened.sqlite
+              .prepare(`SELECT * FROM "${name.replaceAll('"', '""')}" ORDER BY rowid`)
+              .all(),
+          ]),
       );
     const original = rows(existing);
     expect(

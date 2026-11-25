@@ -85,7 +85,7 @@ const legacyDump = () =>
     (
       opened.sqlite
         .prepare(
-          "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name NOT IN ('payslip_wage_read','payslip_wage_line','wage_component_mapping','audit_log') ORDER BY name",
+          "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name NOT IN ('ledger_version','payslip_wage_read','payslip_wage_line','wage_component_mapping','audit_log') ORDER BY name",
         )
         .all() as { name: string }[]
     ).map(({ name }) => [

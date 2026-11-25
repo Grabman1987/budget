@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
 import { ToastProvider } from '@budget/ui';
 import { CategoryCell } from './booking-cells';
@@ -101,7 +101,12 @@ it('discards an unsent edit without accessing unavailable device storage', async
       </ToastProvider>
     </QueryClientProvider>,
   );
-  fireEvent.click(screen.getByRole('button', { name: 'Verwerfen' }));
+  // The footer also has a (close-now) Verwerfen; the confirmation lives in the alert dialog.
+  fireEvent.click(
+    within(screen.getByRole('alertdialog', { name: 'Eingaben verwerfen?' })).getByRole('button', {
+      name: 'Verwerfen',
+    }),
+  );
   await waitFor(() => expect(discard).toHaveBeenCalledOnce());
   expect(patch).not.toHaveBeenCalled();
 });

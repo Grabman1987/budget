@@ -134,6 +134,7 @@ function mount(at = '/?monat=2026-09&period=month') {
     const plain = new Set([
       '/api/auth/status',
       '/api/expected',
+      '/api/inbox/count', // #1320: Prüfen warning facts are a plain read on Heute and Plan
       '/api/savings-plans/execution-proposals',
       '/api/budget/2026-08',
       '/api/budget/2026-09',

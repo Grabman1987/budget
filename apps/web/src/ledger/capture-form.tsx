@@ -594,6 +594,19 @@ export function CaptureForm({
         : {}),
     };
   };
+  const openRef = useRef(open);
+  useLayoutEffect(() => {
+    openRef.current = open;
+  });
+  const pendingAccount = useRef<{ version: number; id: string } | null>(null);
+  useEffect(() => {
+    const pending = pendingAccount.current;
+    if (!pending || !open.length) return;
+    pendingAccount.current = null;
+    if (pending.version !== accountRequest.current || accountChosen.current) return;
+    setAllowDefaultAccount(false);
+    set('accountId', open.some((account) => account.id === pending.id) ? pending.id : '');
+  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
   // A history answer that arrives before the categories are loaded waits for them.
   const pendingCategory = useRef<{ request: number; ids: string[] } | null>(null);
   useEffect(() => {
@@ -642,8 +655,14 @@ export function CaptureForm({
     const applyAccount = (last: string | undefined) => {
       if (!suggestAccount || accountVersion !== accountRequest.current || accountChosen.current)
         return;
+      // A history answer that arrives before the accounts are loaded waits for them.
+      if (last && !openRef.current.length) {
+        pendingAccount.current = { version: accountVersion, id: last };
+        return;
+      }
+      pendingAccount.current = null;
       setAllowDefaultAccount(false);
-      set('accountId', open.some((account) => account.id === last) ? last! : '');
+      set('accountId', openRef.current.some((account) => account.id === last) ? last! : '');
     };
     // Clear automatic values together while the changed payee's history is unresolved.
     applyAccount(undefined);

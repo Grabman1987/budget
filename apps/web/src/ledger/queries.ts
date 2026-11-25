@@ -20,6 +20,7 @@ export const accountsQuery = () =>
   queryOptions({
     queryKey: [...LEDGER_KEY, 'accounts'],
     staleTime: HEAVY_READ_STALE_MS,
+    refetchOnWindowFocus: true,
     queryFn: () => fetchAccounts(),
   });
 
@@ -41,6 +42,7 @@ export const seriesQuery = (accountId: string, days: number) => {
   return queryOptions({
     queryKey: [...LEDGER_KEY, 'series', accountId, days, to],
     staleTime: HEAVY_READ_STALE_MS,
+    refetchOnWindowFocus: true,
     queryFn: () => fetchSeries(accountId, from, to),
   });
 };
@@ -58,6 +60,7 @@ export const seriesBatchQuery = (days: number, options?: { asOf?: string; qualit
       ...(options?.quality ? ['quality-v1'] : []),
     ],
     staleTime: HEAVY_READ_STALE_MS,
+    refetchOnWindowFocus: true,
     queryFn: () => fetchSeriesBatch(from, to, options?.quality ? { quality: true } : undefined),
   });
 };

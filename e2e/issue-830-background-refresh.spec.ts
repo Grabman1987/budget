@@ -78,6 +78,9 @@ async function readableControl(control: Locator, scroll: boolean) {
 test('same-context focus refresh preserves money only in the redesign and clears failed reads', async ({
   page,
 }, info) => {
+  // Heute stays fresh for minutes; a focus read only happens once it is stale, so the page clock
+  // is moved forward before the window comes back.
+  await page.clock.install();
   for (const colorScheme of ['light', 'dark'] as const) {
     await page.emulateMedia({ colorScheme, reducedMotion: 'reduce' });
     await page.goto(heuteReviewUrl(redesign, '/?monat=2026-09&period=month'));
@@ -100,6 +103,7 @@ test('same-context focus refresh preserves money only in the redesign and clears
       await route.fulfill({ status: 503, json: { error: 'synthetic_unavailable' } });
     });
     const read = page.waitForRequest('**/api/heute?*');
+    await page.clock.fastForward('04:00');
     await page.evaluate(() => {
       Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'hidden' });
       window.dispatchEvent(new Event('visibilitychange'));

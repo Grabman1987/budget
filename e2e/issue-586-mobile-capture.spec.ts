@@ -1,10 +1,5 @@
 import { minimumControlHeight } from './control-geometry';
-import {
-  captureCloseControl,
-  captureSaveControl,
-  categoryLineControl,
-  redesignLoaded,
-} from './ledger-helpers';
+import { captureSaveControl, categoryLineControl, redesignLoaded } from './ledger-helpers';
 import AxeBuilder from '@axe-core/playwright';
 import { readFileSync } from 'node:fs';
 

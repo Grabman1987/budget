@@ -1,5 +1,4 @@
 import { captureSaveControl } from './ledger-helpers';
-import { captureCloseControl } from './ledger-helpers';
 import { openAccountCapture, redesignLoaded } from './ledger-helpers';
 import AxeBuilder from '@axe-core/playwright';
 import { expect, type APIRequestContext } from '@playwright/test';

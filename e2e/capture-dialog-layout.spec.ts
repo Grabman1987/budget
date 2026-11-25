@@ -27,10 +27,13 @@ test('Escape, close and a genuine outside click discard a dirty booking at once 
     else if (close === 'button') await captureCloseControl(dialog).click();
     else if (page.viewportSize()!.width < 768) {
       // #995 exposes a scrim above the redesign sheet; rollback remains full-screen.
+      const redesign = await redesignLoaded(page);
+      // The sheet slides in: measure it once it has settled.
+      await expect
+        .poll(async () => (await dialog.boundingBox())!.y, { message: 'sheet top' })
+        .toBe(redesign ? 24 : 0);
       const bounds = (await dialog.boundingBox())!;
       expect(bounds.x).toBe(0);
-      const redesign = await redesignLoaded(page);
-      expect(bounds.y).toBe(redesign ? 24 : 0);
       expect(bounds.width).toBe(page.viewportSize()!.width);
       if (redesign) await page.mouse.click(page.viewportSize()!.width / 2, 12);
       else await captureCloseControl(dialog).click();
@@ -91,7 +94,11 @@ test('capture rows, native calendar and dropdowns keep the draft on desktop and 
     await page.keyboard.press('Escape');
     // Headless WebKit can forward picker Escape to the native dialog instead of consuming it.
     // Preserve the Chromium popup check; verify the dirty guard for a delivered WebKit cancel.
-    if (browserName === 'webkit' && (await dialog.getAttribute('data-picker-cancel')) === 'true') {
+    if (
+      browserName === 'webkit' &&
+      ((await dialog.count()) === 0 ||
+        (await dialog.getAttribute('data-picker-cancel', { timeout: 1000 })) === 'true')
+    ) {
       await expect(dialog).toBeHidden();
       test.skip(
         true,

@@ -21,7 +21,8 @@ const STORE = 'entries';
 const MAX_AGE_MS = 24 * 3_600_000;
 const SAVE_DELAY_MS = 1_000;
 const RESTORE_TIMEOUT_MS = 300;
-const BUSTER = String(import.meta.env['VITE_BUDGET_BUILD'] ?? 'dev');
+// `import.meta.env` is undefined when e2e helpers import this module under plain Node.
+const BUSTER = String(import.meta.env?.['VITE_BUDGET_BUILD'] ?? 'dev');
 
 interface Entry {
   hash: string;
@@ -158,8 +159,10 @@ async function restore(client: QueryClient): Promise<void> {
         now - row.updatedAt < MAX_AGE_MS &&
         isPersistedQuery(row.key);
       if (!usable) drop.push(row.hash);
+      // updatedAt 0: a restored answer is always stale, whatever the query's stale time, so it is
+      // read again at once (a change made elsewhere must show after a reload, not minutes later).
       else if (!client.getQueryData(row.key))
-        client.setQueryData(row.key, row.data, { updatedAt: row.updatedAt });
+        client.setQueryData(row.key, row.data, { updatedAt: 0 });
     }
   } finally {
     restoring = false;
