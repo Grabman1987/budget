@@ -11,7 +11,7 @@ it('prefers the named payee over transfer and memo information', () => {
 
 it('shows transfers in both directions and handles a missing counter account', () => {
   const transfer = { ...booking, transferId: 't', transferAccountName: 'Sparkonto', memo: 'Text' };
-  expect(bookingCounterparty(transfer)).toBe('Umbuchung nach Sparkonto');
+  expect(bookingCounterparty(transfer)).toBe('Umbuchung auf Sparkonto');
   expect(bookingCounterparty({ ...transfer, amountCents: 1234 })).toBe('Umbuchung von Sparkonto');
   expect(bookingCounterparty({ ...transfer, transferAccountName: null })).toBe('Umbuchung');
 });

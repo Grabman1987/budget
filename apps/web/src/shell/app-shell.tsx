@@ -58,7 +58,7 @@ export function AppShell() {
   const [controlsInBody, setControlsInBody] = useState(false);
   const phone = useIsPhone();
   const headerControls = heuteControls ? (
-    <HeuteShellHead showStand={false} />
+    <HeuteShellHead showStand={false} showPeriod={pathname !== '/'} />
   ) : REDESIGN_ENABLED && reportHeaderId ? (
     <ReportNavigation id={reportHeaderId} />
   ) : undefined;
@@ -145,7 +145,7 @@ export function AppShell() {
             <main className="sheet" id="main" tabIndex={-1} ref={main}>
               {REDESIGN_ENABLED && heuteControls && controlsInBody && !phone && (
                 <div className="page-controls-row" ref={controlsRow}>
-                  <HeuteShellHead />
+                  <HeuteShellHead showPeriod={pathname !== '/'} />
                 </div>
               )}
               {REDESIGN_ENABLED && reportHeaderId && controlsInBody && !phone && (

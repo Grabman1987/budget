@@ -83,7 +83,14 @@ function useShellRead() {
 }
 
 /** Same cached query as the page; the shell does not invent a source clock. */
-export function HeuteShellHead({ showStand = false }: { showStand?: boolean }) {
+export function HeuteShellHead({
+  showStand = false,
+  showPeriod = true,
+}: {
+  showStand?: boolean;
+  /** False on the overview, where the switch sits inside the "Frei bis …" tile. */
+  showPeriod?: boolean;
+}) {
   const { data, updatedAt, period, setPeriod, paydayAvailable } = useShellRead();
   return (
     <HeuteHeader
@@ -93,6 +100,7 @@ export function HeuteShellHead({ showStand = false }: { showStand?: boolean }) {
       setPeriod={setPeriod}
       paydayAvailable={paydayAvailable}
       showStand={showStand}
+      showPeriod={showPeriod}
     />
   );
 }
@@ -116,6 +124,36 @@ export function HeuteStatusFooter() {
   );
 }
 
+/** The Monat / Bis Gehalt switch; lives in the "Frei bis …" tile and on the detail pages. */
+function PeriodTabs({
+  period,
+  setPeriod,
+  paydayAvailable,
+}: {
+  period: HeutePeriod;
+  setPeriod: (value: HeutePeriod) => void;
+  paydayAvailable: boolean;
+}) {
+  return (
+    <Segmented
+      label="Zeitraum"
+      className="hv-period-tabs"
+      slide={REDESIGN_ENABLED}
+      value={period}
+      onChange={setPeriod}
+      options={[
+        { value: 'month', label: 'Monat' },
+        {
+          value: 'payday',
+          label: 'Bis Gehalt',
+          disabled: !paydayAvailable,
+          ...(!paydayAvailable ? { description: PAYDAY_ONLY_THIS_MONTH } : {}),
+        },
+      ]}
+    />
+  );
+}
+
 export function HeuteHeader({
   data,
   updatedAt,
@@ -124,6 +162,7 @@ export function HeuteHeader({
   paydayAvailable,
   phone = false,
   showStand = false,
+  showPeriod = true,
 }: {
   data: Heute | undefined;
   updatedAt: number;
@@ -133,6 +172,8 @@ export function HeuteHeader({
   phone?: boolean;
   /** False when the Stand line renders elsewhere (top of the body) so it appears once. */
   showStand?: boolean;
+  /** False on the overview, where the switch sits inside the "Frei bis …" tile. */
+  showPeriod?: boolean;
 }) {
   const [month] = useMonth();
   return (
@@ -142,22 +183,9 @@ export function HeuteHeader({
         {showStand && <span title={STAND_TITLE}>{standText(data, updatedAt)}</span>}
       </div>
       <MonthSwitch heading={monthLabel(month)} headingAs="span" returnLabel />
-      <Segmented
-        label="Zeitraum"
-        className="hv-period-tabs"
-        slide={REDESIGN_ENABLED}
-        value={period}
-        onChange={setPeriod}
-        options={[
-          { value: 'month', label: 'Monat' },
-          {
-            value: 'payday',
-            label: 'Bis Gehalt',
-            disabled: !paydayAvailable,
-            ...(!paydayAvailable ? { description: PAYDAY_ONLY_THIS_MONTH } : {}),
-          },
-        ]}
-      />
+      {showPeriod && (
+        <PeriodTabs period={period} setPeriod={setPeriod} paydayAvailable={paydayAvailable} />
+      )}
     </div>
   );
 }
@@ -302,6 +330,7 @@ export function HeuteOverview({
         period={period}
         setPeriod={setPeriod}
         paydayAvailable={paydayAvailable}
+        showPeriod={false}
       />
       {data && month !== data.stand.today.slice(0, 7) && (
         <p className="hv-status">
@@ -323,6 +352,7 @@ export function HeuteOverview({
                 ? `bis ${shortDay(leadView(data).day)} · ${leadView(data).days} Tage`
                 : 'Stand wird geladen'}
             </span>
+            <PeriodTabs period={period} setPeriod={setPeriod} paydayAvailable={paydayAvailable} />
           </div>
           {data ? (
             <>
@@ -556,19 +586,31 @@ export function HeuteOverview({
             ) : !data.lastBookings.length ? (
               <EmptyNote>Noch keine Buchungen vorhanden.</EmptyNote>
             ) : (
-              <ul className="hv-booking-list">
-                {data.lastBookings.slice(0, 4).map((item) => (
-                  <li key={item.id}>
-                    <span>
-                      <strong>{privateAmount(bookingCounterparty(item))}</strong>
-                      <small>
-                        {item.accountName} · {shortDay(item.date)}
-                      </small>
-                    </span>
-                    <b>{eur(item.amountCents, { sign: true })}</b>
-                  </li>
-                ))}
-              </ul>
+              <table className="hv-booking-list">
+                <caption className="sr-only">Letzte Buchungen</caption>
+                <thead>
+                  <tr>
+                    <th scope="col">Datum</th>
+                    <th scope="col">Buchung</th>
+                    <th scope="col">Wert</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.lastBookings.slice(0, 4).map((item) => (
+                    <tr key={item.id}>
+                      <td>
+                        <time dateTime={item.date}>{shortDay(item.date)}</time>
+                      </td>
+                      <td title={privateAmount(item.accountName)}>
+                        <strong>{privateAmount(bookingCounterparty(item))}</strong>
+                      </td>
+                      <td>
+                        <b>{eur(item.amountCents, { sign: true })}</b>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             )}
           </Card>
         </div>

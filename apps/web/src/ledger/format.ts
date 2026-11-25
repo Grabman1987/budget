@@ -95,7 +95,9 @@ const at = (day: string) => new Date(`${day}T00:00:00Z`);
 export const shortDay = (day: string) => `${day.slice(8, 10)}.${day.slice(5, 7)}.`;
 export const upcomingDate = (day: string, today: string) => {
   const days = daysBetween(today, day);
-  return `${shortDay(day)} · ${days === 0 ? 'heute' : days === 1 ? 'morgen' : `in ${days} Tagen`}`;
+  return days === 0 || days === 1
+    ? `${shortDay(day)} · ${days === 0 ? 'heute' : 'morgen'}`
+    : shortDay(day);
 };
 /** `17.09.2026` */
 export const longDay = (day: string) => `${shortDay(day)}${day.slice(0, 4)}`;

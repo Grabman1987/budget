@@ -519,7 +519,7 @@ function PaceDrawing({
   const [showContextChoice, setShowContext] = useState(compact);
   const showContext = alwaysContext || showContextChoice;
   const m = data.pace;
-  const height = compact ? 160 : width < 640 ? 230 : 280;
+  const height = compact ? 240 : width < 640 ? 230 : 280;
   const narrow = width < 520;
   const left = 44;
   const capLabel = `Deckel ${eur(m.figures.limitCents, { cents: false })}`;
@@ -575,7 +575,12 @@ function PaceDrawing({
         height={height}
         label={summary}
         testId="heute-pace-chart"
-        tooltipNote="Hochrechnung = Ausgegeben + offene Fixkosten + Rest des variablen Plans (ab Tag 7 hochgerechnet)"
+        {...(compact
+          ? {}
+          : {
+              tooltipNote:
+                'Hochrechnung = Ausgegeben + offene Fixkosten + Rest des variablen Plans (ab Tag 7 hochgerechnet)',
+            })}
         points={chartPoints(
           m.expected.map((_, i) =>
             i === 0 ? `Beginn ${m.month}` : `${m.month}-${String(i).padStart(2, '0')}`,
@@ -583,25 +588,33 @@ function PaceDrawing({
           xScale,
           [
             { name: 'Ist', values: m.actual, color: 'var(--ink)' },
-            {
-              name: 'Hochrechnung',
-              color: forecastColor,
-              values: m.expected.map((_, i) =>
-                i < m.todayDay ? null : m.forecast[i - m.todayDay],
-              ),
-            },
-            {
-              name: 'Deckel',
-              values: m.expected.map(() => m.figures.limitCents),
-              color: 'var(--rule-strong)',
-            },
+            ...(compact
+              ? []
+              : [
+                  {
+                    name: 'Hochrechnung',
+                    color: forecastColor,
+                    values: m.expected.map((_, i) =>
+                      i < m.todayDay ? null : m.forecast[i - m.todayDay],
+                    ),
+                  },
+                  {
+                    name: 'Deckel',
+                    values: m.expected.map(() => m.figures.limitCents),
+                    color: 'var(--rule-strong)',
+                  },
+                ]),
             { name: 'Plan bis heute', values: m.plan, color: 'var(--ink-3)' },
-            { name: 'Einnahmen bis dahin', values: m.income ?? [], color: 'var(--future)' },
-            {
-              name: 'Differenz',
-              values: m.actual.map((v, i) => (m.income?.[i] ?? 0) - v),
-              color: 'var(--ink)',
-            },
+            ...(compact
+              ? []
+              : [
+                  { name: 'Einnahmen bis dahin', values: m.income ?? [], color: 'var(--future)' },
+                  {
+                    name: 'Differenz',
+                    values: m.actual.map((v, i) => (m.income?.[i] ?? 0) - v),
+                    color: 'var(--ink)',
+                  },
+                ]),
             { name: 'Vormonat', values: m.previous, color: 'var(--ink-3)' },
           ],
         )}

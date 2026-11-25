@@ -48,10 +48,10 @@
 .hv-head .month-switch .icon-btn {
   width: 32px;
 }
-.hv-head .seg {
+:is(.hv-head, .hv-lead) .seg {
   flex-shrink: 0;
 }
-.hv-head .seg button {
+:is(.hv-head, .hv-lead) .seg button {
   min-width: 80px;
   min-height: 44px;
   padding: 0 10px;
@@ -61,13 +61,13 @@
 }
 /* ON, desktop/tablet: compact 34px segments (outer 38px) keep the 64px header. */
 @media (min-width: 768px) {
-  .hv-head .seg-slide {
+  :is(.hv-head, .hv-lead) .seg-slide {
     --seg-pad: 1px;
   }
-  .hv-head .seg.seg.seg-slide {
+  :is(.hv-head, .hv-lead) .seg.seg.seg-slide {
     padding: var(--seg-pad);
   }
-  .hv-head .seg-slide button {
+  :is(.hv-head, .hv-lead) .seg-slide button {
     height: 34px;
     min-height: 34px;
     padding-inline: 12px;
@@ -80,9 +80,11 @@
   gap: 28px;
   align-items: start;
 }
+/* Both tiles start at the same top edge and share the row height; the row gap equals the 12px
+   gap between the other tiles. */
 .hv-top {
-  margin-bottom: 8px;
-  align-items: center;
+  margin-bottom: 12px;
+  align-items: stretch;
 }
 .hv-main,
 .hv-aside {
@@ -139,9 +141,13 @@
 }
 .hv-lead-label {
   display: flex;
+  flex-wrap: wrap;
   align-items: baseline;
-  justify-content: space-between;
-  gap: 12px;
+  gap: 4px 12px;
+}
+.hv-lead-label .hv-period-tabs {
+  margin-left: auto;
+  align-self: center;
 }
 .hv-lead-label h2 {
   font-size: var(--fs-body);
@@ -319,6 +325,9 @@
   margin: 0 0 4px;
   font-size: var(--fs-table);
 }
+.hv-pace .heute-chart.heute-pace-chart .pace-limit-line {
+  stroke-width: var(--stroke-measure);
+}
 .heute-screen .heute-pace-chart {
   margin: 0;
 }
@@ -386,8 +395,7 @@
 .hv-mobile-stand {
   display: none;
 }
-.hv-due-list,
-.hv-booking-list {
+.hv-due-list {
   padding: 0;
   margin: 0;
   list-style: none;
@@ -401,8 +409,7 @@
   border-top: 1px solid var(--rule);
   font-size: var(--fs-meta);
 }
-.hv-due-list li:first-child,
-.hv-booking-list li:first-child {
+.hv-due-list li:first-child {
   border-top: 0;
 }
 .hv-due-list li > span:nth-child(2) {
@@ -415,11 +422,59 @@
   font-size: var(--fs-label);
   color: var(--ink-2);
 }
-.hv-due-list strong,
-.hv-booking-list b {
+.hv-due-list strong {
   font-weight: 500;
   white-space: nowrap;
   text-align: right;
+}
+.hv-booking-list {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+  font-size: var(--fs-meta);
+}
+.hv-booking-list th {
+  color: var(--ink-2);
+  font-family: var(--font-tech);
+  text-transform: uppercase;
+  font-size: var(--fs-label);
+  font-weight: 500;
+  text-align: left;
+  border-bottom: 1px solid var(--rule-strong);
+}
+.hv-booking-list th:first-child,
+.hv-booking-list td:first-child {
+  width: 52px;
+}
+.hv-booking-list th:last-child,
+.hv-booking-list td:last-child {
+  width: 96px;
+  text-align: right;
+}
+.hv-booking-list td {
+  min-height: 24px;
+  height: 24px;
+  border-bottom: 1px solid var(--rule);
+  vertical-align: middle;
+}
+.hv-booking-list tr:last-child td {
+  border-bottom: 0;
+}
+.hv-booking-list time {
+  font-family: var(--font-tech);
+  font-size: var(--fs-label);
+  color: var(--ink-2);
+}
+.hv-booking-list strong {
+  display: block;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.hv-booking-list b {
+  font-weight: 500;
+  white-space: nowrap;
 }
 .hv-uncovered {
   color: var(--warning);
@@ -440,34 +495,6 @@
   display: inline-flex;
   align-items: center;
   min-height: 24px;
-}
-.hv-booking-list li {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 8px;
-  align-items: center;
-  min-height: 24px;
-  border-top: 1px solid var(--rule);
-  font-size: var(--fs-meta);
-}
-.hv-booking-list li > span {
-  min-width: 0;
-  display: flex;
-  gap: 6px;
-  align-items: baseline;
-}
-.hv-booking-list strong {
-  font-weight: 500;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.hv-booking-list small {
-  font-size: var(--fs-label);
-  color: var(--ink-2);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 .hv-more {
   display: flex;
@@ -507,7 +534,7 @@
     flex-direction: column;
     gap: 0;
   }
-  .hv-head .seg button {
+  :is(.hv-head, .hv-lead) .seg button {
     min-width: 70px;
   }
 }
@@ -534,10 +561,10 @@
     width: 28px;
     height: 44px;
   }
-  .hv-head .seg {
+  :is(.hv-head, .hv-lead) .seg {
     padding: 2px;
   }
-  .hv-head .seg button {
+  :is(.hv-head, .hv-lead) .seg button {
     min-width: 74px;
     min-height: 44px;
     font-size: var(--fs-meta);
@@ -667,16 +694,8 @@
     min-height: 48px;
   }
   .hv-due-list li,
-  .hv-booking-list li {
+  .hv-booking-list td {
     min-height: 34px;
-  }
-  .hv-booking-list li > span {
-    flex-direction: column;
-    gap: 0;
-  }
-  .hv-booking-list strong,
-  .hv-booking-list small {
-    max-width: 100%;
   }
   .hv-card-head > a {
     min-height: 44px;
@@ -1183,16 +1202,16 @@
 
 /* ON, touch tablets: same 44px control as the phone. */
 @media (min-width: 768px) and (pointer: coarse) {
-  .hv-head .seg-slide {
+  :is(.hv-head, .hv-lead) .seg-slide {
     --seg-pad: 0px;
     --seg-gap: 0px;
   }
-  .hv-head .seg.seg.seg-slide {
+  :is(.hv-head, .hv-lead) .seg.seg.seg-slide {
     padding: 0;
     border: 0;
     box-shadow: inset 0 0 0 var(--stroke-hairline) var(--rule-strong);
   }
-  .hv-head .seg-slide button {
+  :is(.hv-head, .hv-lead) .seg-slide button {
     height: 44px;
     min-height: 44px;
   }
