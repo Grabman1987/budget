@@ -1099,3 +1099,27 @@
     flex: 0 0 var(--touch);
   }
 }
+
+/* #1345: empty task sources are plain muted rows; an opened source unfolds under its own row. */
+.inbox-task-sources-v1 .inbox-task-row-empty .inbox-task-title,
+.inbox-task-sources-v1 .inbox-task-row-empty .inbox-task-count {
+  color: var(--ink-2);
+}
+.inbox-task-sources-v1 .inbox-task-row-empty .inbox-task-title > svg {
+  color: var(--ink-2);
+}
+.inbox-task-none {
+  font-size: var(--fs-meta);
+  color: var(--ink-2);
+}
+.inbox-task-sources-v1 .inbox-task-detail > td {
+  padding: 0 12px 12px;
+  border-top: 1px solid var(--rule);
+}
+.inbox-task-sources-v1 .inbox-task-detail .btn {
+  width: auto;
+}
+.inbox-task-none {
+  display: block;
+  text-align: center;
+}

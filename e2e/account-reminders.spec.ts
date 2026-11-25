@@ -126,7 +126,11 @@ test('Today and inbox reminders open existing dialogs and include one-off plans 
       .getByRole('link', { name: 'Prüfen', exact: true })
       .click();
     await expect(row).toContainText('Prüfung fällig seit 27.08.2026');
-    await row.getByRole('link', { name: 'Kontostand prüfen' }).click();
+    await row
+      .getByRole('link', {
+        name: (await redesignLoaded(page)) ? 'Konto öffnen' : 'Kontostand prüfen',
+      })
+      .click();
     await expect(
       page.getByRole('dialog', { name: 'Kontostand prüfen · ' + checking.account.name }),
     ).toBeVisible();

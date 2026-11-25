@@ -1,0 +1,10 @@
+.account-review-balance {
+  display: block;
+  color: var(--ink-2);
+  font-size: var(--fs-meta);
+}
+.account-review-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+}

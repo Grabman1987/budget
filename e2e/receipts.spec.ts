@@ -33,6 +33,15 @@ test('capture receipt first, link, attach PDF, remove and undo', async ({
   const filename = `${tag}.png`,
     pdfname = `${tag}.pdf`;
   await page.goto('/konten/posteingang');
+  if (await redesignLoaded(page)) {
+    // #1345: a source without open items is a plain row; seed one receipt so the source opens.
+    const seeded = await request.post(`${MAIN_URL}/api/receipts`, {
+      headers,
+      multipart: { file: { name: `${tag} Start.png`, mimeType: 'image/png', buffer: PNG } },
+    });
+    expect(seeded.ok()).toBeTruthy();
+    await page.reload();
+  }
   await openPruefenPart(page, 'Aufgaben');
   await openPruefenSource(page, 'Belege ohne Buchung');
   const unlinked = page.getByRole('region', { name: 'Beleg ohne Buchung' });

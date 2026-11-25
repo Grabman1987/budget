@@ -330,6 +330,25 @@ Bildschirm Prüfen: `/konten/pruefen` (Konten › Prüfen). Zähler: „Umsätze
 - **Status:** offen — **Verweis:** #516
   Fehlt noch: Erklärung, warum und woher ein Treffer kommt (Herkunft und Versionen der Quelle) und fehlende Gründe bei Mehrdeutigkeit; die Auswahl selbst gibt es schon.
 
+### I-11 – Prüfen-Seite im neuen Aufbau: Aufgaben ruhig und direkt erledigen (#1345)
+- **Story:** Als Nutzer möchte ich auf Konten › Prüfen nur anklicken können, was wirklich offen ist, und einen Kontostand gleich dort mit einem Klick bestätigen, damit ich nicht für jede Kleinigkeit die Seite wechsle.
+- **Ausgangslage:** Neuer Aufbau (Redesign), Teil „Aufgaben“. Die Tabelle „Aufgaben nach Quelle“ zeigt je Quelle die Anzahl offener Einträge.
+- **Ablauf:**
+  1. Quellen mit Anzahl 0 (z. B. „Belege ohne Buchung 0“) sind schlichte, abgeblasste Zeilen mit „Nichts offen“ und keine Taste.
+  2. „Prüfen · Konten prüfen“ klappt die Konten direkt unter der eigenen Zeile auf, nicht unter der ganzen Tabelle. Dasselbe gilt für „Zuordnen · Belege ohne Buchung“.
+  3. Jedes fällige Konto zeigt den aktuellen (gebuchten) Kontostand, bei vorgemerkten Beträgen zusätzlich deren Summe. „Passt“ bestätigt den angezeigten Stand für heute (bestehende Kontoabstimmung, ohne Ausgleichsbuchung). Ein Hinweis bietet „Rückgängig“ an.
+  4. Stimmt der Stand nicht, öffnet der Link „Konto öffnen“ das Konto mit dem normalen Ablauf „Kontostand prüfen“. Nichts leitet von selbst weiter. Bei Konten mit Wertpflege bleibt „Wert aktualisieren“.
+  5. Bei Aufgaben mit Zuordnungsvorschlag (wiederkehrende Zahlung ↔ Bankbuchung) ist die vorgeschlagene Buchung gesetzt; rechts stehen „Bestätigen“, „Ablehnen“ und „Buchung öffnen“.
+  6. „Automatisch geschlossene Warnungen“ erscheinen auf dieser Seite nicht mehr.
+- **Ergebnis:** Kontostand geprüft (Stand heute) bzw. Zuordnung bestätigt oder abgelehnt; keine neue Geldlogik, nur bestehende Schreibwege mit Rückgängig.
+- **Abnahmekriterien:**
+  1. Zeilen mit Anzahl 0 sind weder fokussierbar noch klickbar.
+  2. Die aufgeklappte Quelle steht unmittelbar unter ihrer Zeile; die übrigen Zeilen rutschen nach unten.
+  3. „Passt“ ruft genau eine Kontoabstimmung mit dem angezeigten gebuchten Stand und dem heutigen Datum auf; ohne Klick wird nichts geschrieben.
+  4. Zurück ist die gemeinsame linksbündige Taste „← Zurück“.
+- **Status:** teilweise — **Verweis:** #1345
+  Umgesetzt im neuen Aufbau; Live-Abnahme durch Fabian offen. Der bisherige Aufbau bleibt unverändert.
+
 ### Payment-provider funding (#1290)
 
 As a household member reviewing bank activity, I can choose a suggested opposite booking and explicitly link the two funding legs as an internal transfer. When several eligible counterparts match, the most recently confirmed one is proposed. I can change the selection before confirming or undo both legs together afterwards.
