@@ -4,6 +4,7 @@ import {
   maskMoneyText,
   privateAmount,
   useAmountPrivacy,
+  useIsPhone,
   type DimensionChainTerm,
 } from '@budget/ui';
 import { useParams, useSearch } from '@tanstack/react-router';
@@ -13,6 +14,7 @@ import { eur, longDay } from '../ledger/format';
 import { PageFrame as LegacyPageFrame, type PageFrameProps } from '../pages/placeholder-page';
 import { AppLink } from '../shell/app-link';
 import { REDESIGN_ENABLED } from '../shell/redesign-flag';
+import { findReport } from '../nav/reports-catalog';
 import { hubReport } from './report-hub-model';
 import { ReportNavigation } from './report-navigation';
 import { VerdictLine } from './verdict-line';
@@ -72,6 +74,7 @@ function RedesignReportFrame({
   children,
 }: ReportFrameProps) {
   useAmountPrivacy();
+  const phone = useIsPhone();
   const params = useParams({ strict: false }) as { reportId?: string };
   const id =
     sourceReportId ?? params.reportId ?? verdict?.reportId ?? location.pathname.split('/')[2] ?? '';
@@ -101,7 +104,9 @@ function RedesignReportFrame({
           <div className="redesign-report-title">
             <h1>{maskMoneyText(name)}</h1>
           </div>
-          {id && <ReportNavigation id={id} />}
+          {id && (phone || !findReport(location.pathname.split('/')[2] ?? '')) && (
+            <ReportNavigation id={id} />
+          )}
         </div>
         <div className="redesign-report-toolbar">
           <div className="redesign-report-controls">

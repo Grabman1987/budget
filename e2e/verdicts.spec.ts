@@ -151,11 +151,7 @@ async function sourceArea(page: Page, id: 'vorschau' | 'sparziele' | 'kontakte')
       }
     }
   } else {
-    if (on)
-      await expect(page.getByRole('combobox', { name: 'Darstellung der Kontakte' })).toHaveValue(
-        'salden',
-      );
-    else
+    if (!on)
       await expect(page.getByRole('button', { name: 'Offen', exact: true })).toHaveAttribute(
         'aria-pressed',
         'true',
@@ -164,7 +160,7 @@ async function sourceArea(page: Page, id: 'vorschau' | 'sparziele' | 'kontakte')
     expect(response.ok()).toBe(true);
     const data = (await response.json()) as ContactOverview;
     const contacts = on ? data.contacts.filter((c) => c.balanceCents !== 0) : data.contacts;
-    const rows = page.locator(on ? '.r4-contact-list li' : '.contacts-table tbody tr');
+    const rows = page.locator(on ? '.r4-contact-list > ul > li' : '.contacts-table tbody tr');
     await expect(rows).toHaveCount(contacts.length);
     if (on)
       await expect(page.getByTestId('report-frame-result')).toContainText(

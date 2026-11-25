@@ -170,11 +170,9 @@ it('shows both sides of a zero net header and credit in the default list and aut
   expect(within(list).getByRole('link', { name: /Beispiel Forderung/ }).textContent).toContain(
     'Offen: 50,00 €',
   );
-  expect(within(list).queryByRole('link', { name: /Beispiel Ausgeglichen/ })).toBeNull();
-  expect(
-    (screen.getByRole('checkbox', { name: 'Auch ausgeglichene Kontakte' }) as HTMLInputElement)
-      .checked,
-  ).toBe(false);
+  const settled = list.querySelector<HTMLDetailsElement>('details.r4-contact-settled-list')!;
+  expect(settled.open).toBe(false);
+  expect(settled.querySelector('summary')!.textContent).toBe('Ausgeglichene Kontakte (1)');
   fireEvent.click(screen.getByText('Berechnung und Einordnung'));
   const chain = screen.getByRole('group', { name: 'Maßkette Kontakte' });
   expect(chain.textContent).toContain('Wir bekommen');
@@ -334,11 +332,13 @@ it('puts only outstanding shares above the chart and keeps completed rows in clo
   expect(container.innerHTML).not.toMatch(/100,01|30,01|70,00/);
 });
 
-it('lists settled contacts below the open ones under "Ausgeglichen" when history is included', () => {
+it('lists settled contacts in a disclosure below the open ones, open when history is requested', () => {
   route.search = { verlauf: 1 };
   show();
   const list = screen.getByRole('region', { name: 'Kontaktsalden' });
-  expect(within(list).getByRole('heading', { name: 'Ausgeglichen' })).toBeTruthy();
+  expect(list.querySelector<HTMLDetailsElement>('details.r4-contact-settled-list')!.open).toBe(
+    true,
+  );
   expect(within(list).getByRole('link', { name: /Beispiel Ausgeglichen/ })).toBeTruthy();
   expect(screen.queryByRole('heading', { name: 'Kontoblatt Beispiel Ausgeglichen' })).toBeNull();
 });

@@ -35,6 +35,9 @@
   align-items: center;
   overflow: hidden;
 }
+.page-header-controls.has-menu {
+  overflow: visible;
+}
 .page-header-controls > * {
   min-width: 0;
 }
