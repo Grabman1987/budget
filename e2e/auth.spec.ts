@@ -228,9 +228,6 @@ test('bootstrap, login, recovery, device management and CSRF on a fresh server',
       );
       await expect(dialog.getByLabel('Bezahlt von', { exact: true })).toHaveValue(account.id);
       await captureCloseControl(dialog).click();
-      const discard = dialog.getByRole('alertdialog', { name: 'Eingaben verwerfen?', exact: true });
-      await expect(discard).toBeVisible();
-      await discard.getByRole('button', { name: 'Verwerfen', exact: true }).click();
       await expect(dialog).toBeHidden();
       expect(writes).toEqual([]);
       const bookings = await page.request.get(

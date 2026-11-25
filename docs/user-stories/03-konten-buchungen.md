@@ -76,7 +76,7 @@ Bereich: Konten (`/konten`, `/konten/$id`), Alle Buchungen (`/konten/buchungen`)
   1. Eine neue Bankbuchung startet „vorgemerkt“, eine Bargeldbuchung „bestätigt“.
   2. „Wiederholen“ legt Buchung und Plan gemeinsam an (alles oder nichts).
   3. Ohne Konto meldet das Formular „Bitte ein verfügbares Konto wählen.“
-  4. Beim Schließen mit Eingaben fragt „Eingaben verwerfen?“.
+  4. Das × (und Esc) schließt den Dialog sofort und verwirft die Eingaben, ohne Rückfrage (#1324). Unten steht links „Verwerfen“ (wie ×), rechts „Speichern und neu“ und ganz rechts das blaue „Speichern“. Nur eine abgelehnte wartende Bearbeitung verlangt weiter ihr ausdrückliches Verwerfen.
   5. Die Buchung ist über „Rückgängig“ bzw. „Buchung löschen?“ wieder entfernbar.
   6. Neue Kategorien lassen sich auch bei der Inline-Kategorieänderung und beim Bearbeiten unter Prüfen anlegen und auswählen. Doppelte Namen zeigen „Dieser Name wird schon verwendet.“; Abbrechen erhält den Entwurf und gibt den Fokus zurück.
   7. Die Kategorieanlage ist separat rückgängig machbar, solange die Kategorie unbenutzt ist. Erst das explizite Speichern der Buchung ordnet ihr Geld zu.

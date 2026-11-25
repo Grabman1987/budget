@@ -1461,6 +1461,9 @@
 .bk-foot .btn {
   height: 42px;
 }
+.bk-foot > .bk-cancel:not(:has(+ .bk-foot-extra)) {
+  margin-right: auto;
+}
 .bk-foot-extra {
   display: flex;
   flex-wrap: wrap;

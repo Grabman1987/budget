@@ -58,11 +58,7 @@ test('booking cells, cash capture, repetition and account preview on desktop and
     await row.getByRole('button', { name: /bearbeiten/ }).click();
     await edit.getByLabel('Datum', { exact: true }).fill('02.10.2026');
     await captureCloseControl(edit).click();
-    // A changed field asks before the dialog closes.
-    await edit
-      .getByRole('alertdialog', { name: 'Eingaben verwerfen?' })
-      .getByRole('button', { name: 'Verwerfen', exact: true })
-      .click();
+    // × discards a changed field at once, without a question (#1324).
     await expect(edit).toBeHidden();
     expect((await (await request.get('/api/bookings/' + id)).json()).booking.date).toBe(
       '2026-10-01',
@@ -344,7 +340,6 @@ test('single payee suggestion selects its recent account and keeps capture contr
     await page.screenshot({ path: info.outputPath(`booking-polish-${theme}.png`) });
   }
   await captureCloseControl(panel).click();
-  await panel.getByRole('button', { name: 'Verwerfen', exact: true }).click();
   await expect(panel).toBeHidden();
   const { id } = await post('/bookings', {
     type: 'booking',
