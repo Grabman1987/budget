@@ -168,6 +168,8 @@ describe('future preview setting', () => {
     expect(await (await call('GET', '/settings')).json()).toEqual({
       futurePreviewDays: 35,
       accountReminderDays: 35,
+      inboxWarnAgeDays: 7,
+      inboxWarnCount: 10,
     });
     const zero = (await (await call('PATCH', '/settings', { futurePreviewDays: 0 })).json()) as {
       id: string;
@@ -177,11 +179,15 @@ describe('future preview setting', () => {
     expect(await (await call('GET', '/settings')).json()).toEqual({
       futurePreviewDays: 0,
       accountReminderDays: 35,
+      inboxWarnAgeDays: 7,
+      inboxWarnCount: 10,
     });
     undo(opened.db, { groupId: zero.groupId }, { actor: 'tester' });
     expect(await (await call('GET', '/settings')).json()).toEqual({
       futurePreviewDays: 35,
       accountReminderDays: 35,
+      inboxWarnAgeDays: 7,
+      inboxWarnCount: 10,
     });
     expect((await call('PATCH', '/settings', { futurePreviewDays: 365 })).status).toBe(200);
   });

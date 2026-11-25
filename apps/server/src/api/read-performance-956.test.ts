@@ -61,7 +61,20 @@ it.each(baseline.responses)(
   async ({ path, bytes, sha256 }) => {
     const response = await api().request(path);
     expect(response.status).toBe(200);
-    const body = Buffer.from(await response.arrayBuffer());
+    let body = Buffer.from(await response.arrayBuffer());
+    if (path === '/inbox/count') {
+      // #1320 adds read-only warning facts; strip exactly those fields and keep the stock bytes.
+      const payload = JSON.parse(body.toString('utf8'));
+      expect(Object.keys(payload).slice(-4)).toEqual([
+        'oldestOpenDate',
+        'overAgeCount',
+        'openUncategorizedCents',
+        'thresholds',
+      ]);
+      for (const key of ['oldestOpenDate', 'overAgeCount', 'openUncategorizedCents', 'thresholds'])
+        delete payload[key];
+      body = Buffer.from(JSON.stringify(payload));
+    }
     expect(body.length).toBe(bytes);
     expect(createHash('sha256').update(body).digest('hex')).toBe(sha256);
   },

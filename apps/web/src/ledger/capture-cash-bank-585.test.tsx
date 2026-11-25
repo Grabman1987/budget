@@ -193,7 +193,8 @@ describe('capture cash/bank leg intent #585', () => {
           .getByRole('button', { name: 'Giro Muster: Status Bestätigt' })
           .getAttribute('aria-pressed'),
       ).toBe('true');
-      await waitFor(() => expect(dirty.current).toBe(true));
+      // #1324: closing discards typed inputs at once, so only a refused queued edit is "dirty".
+      expect(dirty.current).toBe(false);
       await user.click(saveButton());
       await waitFor(() => expect(calls.create).toHaveBeenCalledTimes(1));
       expect(calls.create.mock.calls[0]![0].input).toMatchObject({
