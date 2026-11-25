@@ -15,7 +15,7 @@ const revisionLabels = new Set([
 const activeRegisters = new Set([
   ".registers a[aria-current='page']",
   ".registers button[aria-pressed='true']",
-  '.depot-tabs a[aria-current]',
+  ".depot-tabs button[aria-selected='true']",
   ".close-stepper button[aria-current='step']",
 ]);
 

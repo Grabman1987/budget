@@ -137,6 +137,25 @@ describe('depotComparison (report 4.1)', () => {
     expect(a?.products.map((p) => p.securityId).sort()).toEqual(['div', 'etf']);
   });
 
+  it('returns the daily value and return of the requested depot only', () => {
+    const result = depotComparison(opened.db, {
+      today: REPORT_TODAY,
+      period: 'Alles',
+      historyFor: 'depot-a',
+    });
+    const depot = result.depots.find((d) => d.accountId === 'depot-a')!;
+    expect(result.history!.length).toBeGreaterThan(1);
+    expect(result.history!.at(-1)?.valueCents).toBe(depot.valueCents);
+    expect(result.history![0]?.date).toBe(result.window!.from);
+    expect(depotComparison(opened.db, { today: REPORT_TODAY, period: 'Alles' }).history).toBe(
+      undefined,
+    );
+    expect(
+      depotComparison(opened.db, { today: REPORT_TODAY, period: 'Alles', historyFor: 'nope' })
+        .history,
+    ).toEqual([]);
+  });
+
   it('adds up: depot values, shares and products equal the total', () => {
     const result = depotComparison(opened.db, { today: REPORT_TODAY, period: 'Alles' });
     const total = result.total!;
