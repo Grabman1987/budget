@@ -81,3 +81,4 @@ export * from './broker-documents/trade-confirmation';
 export * from './broker-documents/trade-proposal';
 export * from './statement-purchase-check';
 export * from './scenario';
+export * from './inbox-warning';

@@ -130,7 +130,12 @@ export function PageHeader({
         )}
         <div className="page-header-actions topbar-actions">
           <PrivacyButton />
-          <InboxHeaderLink className="review-pill" aria-label={inbox.label}>
+          <InboxHeaderLink
+            className={`review-pill${inbox.warning ? ' is-warning' : ''}`}
+            aria-label={inbox.label}
+            title={inbox.warning ?? undefined}
+            aria-description={inbox.warning ?? undefined}
+          >
             {!phone && <span className="page-header-review-label">Prüfen</span>}
             {inbox.count !== undefined && inbox.count > 0 && (
               <span>{phone ? inbox.count : ` · ${inbox.count}`}</span>

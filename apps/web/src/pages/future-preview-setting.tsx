@@ -9,14 +9,16 @@ import { LEDGER_KEY } from '../ledger/queries';
 import { REDESIGN_ENABLED } from '../shell/redesign-flag';
 import { SettingsDraftGuard } from './settings-draft-guard';
 
+export interface DisplaySettings {
+  futurePreviewDays: number;
+  accountReminderDays: number;
+  inboxWarnAgeDays: number;
+  inboxWarnCount: number;
+}
 export const displaySettingsQuery = () =>
   queryOptions({
     queryKey: ['display-settings'],
-    queryFn: () =>
-      request<{ futurePreviewDays: number; accountReminderDays: number }>(
-        'GET',
-        '/api/display-settings',
-      ),
+    queryFn: () => request<DisplaySettings>('GET', '/api/display-settings'),
   });
 export function FuturePreviewSetting({ reminder = false }: { reminder?: boolean }) {
   return reminder ? (
@@ -75,10 +77,7 @@ function FuturePreviewEditor() {
             setBusy(true);
             void (async () => {
               if (REDESIGN_ENABLED) {
-                const latest = await request<{
-                  futurePreviewDays: number;
-                  accountReminderDays: number;
-                }>('GET', '/api/display-settings');
+                const latest = await request<DisplaySettings>('GET', '/api/display-settings');
                 if (latest.futurePreviewDays !== source) {
                   qc.setQueryData(displaySettingsQuery().queryKey, latest);
                   setError(

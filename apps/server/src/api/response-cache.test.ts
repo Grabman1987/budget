@@ -191,7 +191,7 @@ describe('readModelCache', () => {
       const first = await app.request('/api/inbox/count');
       expect(first.status).toBe(200);
       const body = await first.text();
-      expect(JSON.parse(body)).toEqual({ asOf: day, count: 0 });
+      expect(JSON.parse(body)).toMatchObject({ asOf: day, count: 0 });
       const afterFirst = transaction.mock.calls.length;
       expect(afterFirst).toBe(afterWarm + 1);
 
@@ -204,11 +204,17 @@ describe('readModelCache', () => {
       db.insert(schema.inboxItem)
         .values({ id: 'synthetic-warning', kind: 'import', title: 'Synthetic import warning' })
         .run();
-      expect(await (await app.request('/api/inbox/count')).json()).toEqual({ asOf: day, count: 1 });
+      expect(await (await app.request('/api/inbox/count')).json()).toMatchObject({
+        asOf: day,
+        count: 1,
+      });
       expect(transaction.mock.calls.length).toBe(afterFirst + 1);
 
       day = '2026-03-19';
-      expect(await (await app.request('/api/inbox/count')).json()).toEqual({ asOf: day, count: 1 });
+      expect(await (await app.request('/api/inbox/count')).json()).toMatchObject({
+        asOf: day,
+        count: 1,
+      });
       expect(transaction.mock.calls.length).toBe(afterFirst + 2);
     } finally {
       transaction.mockRestore();

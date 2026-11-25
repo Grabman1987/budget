@@ -2,6 +2,7 @@ import {
   prepareInboxBankSuggestions,
   readInbox,
   readInboxCount,
+  readInboxWarnFacts,
   resolveInboxItem,
   type Db,
 } from '@budget/db';
@@ -169,7 +170,15 @@ export function inboxRoutes(db: Db, today: () => string): Hono {
     });
   });
   // The header pill is the Prüfen total (Umsätze + Aufgaben); overspent categories live in Heute/Plan.
-  app.get('/count', (c) => c.json(readInboxCount(db, today(), { excludeOverspent: true })));
+  app.get('/count', (c) => {
+    const day = today();
+    return c.json(
+      db.transaction((tx) => ({
+        ...readInboxCount(tx, day, { excludeOverspent: true }),
+        ...readInboxWarnFacts(tx, day),
+      })),
+    );
+  });
   app.get('/:id', (c) => {
     const id = z.string().min(1).max(100).parse(c.req.param('id'));
     const inbox = readInbox(db, today());

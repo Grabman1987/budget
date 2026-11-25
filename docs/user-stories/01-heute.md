@@ -115,3 +115,9 @@ Bereich: Startseite „Heute“ (Route `/`). Status und Verweise wie in `docs/US
   2. Ich tippe eine offene Zeile in „Fällig 14 Tage“. Die wiederkehrende Zahlung öffnet sich mit Buchen, Verknüpfen und Überspringen; bei einer bereits zugeordneten Fälligkeit öffnet sich die verknüpfte Buchung im Bearbeiten-Dialog.
 - **Abnahmekriterien:** Zeilen sind Schaltflächen mit Namen, 44 px hoch, per Tastatur bedienbar; „Alle →“ führt unverändert in die Listen.
 - **Status:** in Arbeit — **Verweis:** #1323
+
+### H-xx – Prüfen-Warnung (#1320)
+- **Story:** Als Nutzer möchte ich auf Heute sehen, wenn offene Buchungen ohne Kategorie zu alt werden oder zu viele sind, samt Summe, damit „Zu verteilen“ und die Monatsauswertung nicht verzerrt bleiben.
+- **Abnahmekriterien:** Warnung genau ab Schwelle + 1 Tag bzw. + 1 Eintrag; Schwellen in Einstellungen änderbar und gespeichert; im Plan erscheint „Enthält … ohne Kategorie“ nur bei Summe ≠ 0.
+- **Status:** in Arbeit — **Verweis:** #1320
+

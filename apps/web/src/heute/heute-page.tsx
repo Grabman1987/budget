@@ -43,6 +43,7 @@ import { VerdictLine } from '../reports/verdict-line';
 import { heuteVerdictFacts } from '../reports/verdict-facts';
 import { Upcoming } from './upcoming-payments';
 import { useBookingEditor } from './booking-editor';
+import { useInboxCount } from '../shell/inbox';
 import { occurrencesQuery } from '../expected/api';
 import type { DimensionKind } from './dimension-page';
 import { REDESIGN_ENABLED } from '../shell/redesign-flag';
@@ -117,6 +118,7 @@ function HeuteBody({
   const navigate = useNavigate();
   const qc = useQueryClient();
   const bookingEditor = useBookingEditor();
+  const inboxWarning = useInboxCount().warning;
   // A matched occurrence opens its booking; otherwise the payment page carries book/link/skip.
   const openOccurrence = (item: HeuteOccurrence) => {
     const openPayment = () =>
@@ -439,6 +441,7 @@ function HeuteBody({
         data={data}
         pending={pending}
         savingsPending={savingsPending}
+        inboxWarning={inboxWarning}
         savingsRows={savingsRows}
         savingsError={
           savings.isError &&

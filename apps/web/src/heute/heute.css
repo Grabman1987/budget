@@ -1603,3 +1603,9 @@
   position: relative;
   z-index: 1;
 }
+
+/* Prüfen past a threshold: calm warning colour from the existing tokens. */
+.heute-inbox-warning,
+.hv-inbox-warning {
+  color: var(--warning);
+}

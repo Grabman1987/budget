@@ -388,3 +388,7 @@ bleiben unverändert, und Rückgängig stellt die Prüfliste wieder her.
 ## Heute: Fälliges und letzte Buchungen antippen (#1323)
 
 Auf Heute öffnet ein Tipp auf eine Zeile in „Letzte Buchungen“ genau diese Buchung im Bearbeiten-Dialog. Nach Speichern oder Schließen bleibe ich auf Heute und die Karte aktualisiert sich. Ein Tipp auf eine Zeile in „Fällig 14 Tage“ öffnet die wiederkehrende Zahlung mit Buchen, Verknüpfen und Überspringen; ist die Fälligkeit schon zugeordnet, öffnet sie die verknüpfte Buchung zum Bearbeiten. „Alle →“ führt wie bisher in die Listen.
+
+## Prüfen: Alter und Summe offener Buchungen (#1320)
+
+Prüfen zeigt neben der Anzahl, wie alt die offenen Buchungen ohne Kategorie sind und wie viel Geld daran hängt. Ab einer Buchung, die älter ist als die eingestellte Zahl an Tagen (Standard 7), oder ab mehr offenen Einträgen als eingestellt (Standard 10) wird der Zähler im Kopf und auf Heute zur ruhigen Warnung, etwa „8 Buchungen älter als 7 Tage · −1.234,56 € ohne Kategorie“. Beide Schwellen ändere ich unter Einstellungen › Profil › Prüfen · Warnung. Im laufenden Plan-Monat steht unter „Zu verteilen“ „Enthält −1.234,56 € ohne Kategorie“ mit Link nach Prüfen, solange dieser Betrag nicht 0 ist.
