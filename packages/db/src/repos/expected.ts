@@ -63,6 +63,7 @@ import {
   bookedAmountIn,
   expectedLinkPatches,
   expectedLinkedStatus,
+  assertBookingUnclaimed,
   mixedReceiptShareCents,
 } from './expected-links';
 import { runInTransaction, type Executor } from './types';
@@ -831,7 +832,7 @@ export interface MatchSummary {
  * (`missed`). A booking fits when it is on the payment's account, has the same sign and its payee
  * (or the payee's contact), category or income type is the payment's; nearest day first, then
  * nearest amount. Fits inside the tolerance are assigned before deviating ones, and a booking
- * belongs to at most one occurrence (also enforced by a unique index). Existing live links only
+ * belongs to at most one occurrence (enforced in code, see assertBookingUnclaimed). Existing live links only
  * have their amount status refreshed; unlinked or manually missed occurrences are left alone.
  *
  * Recurring debits (kind `outflow`, #1102) are stricter: only an unambiguous pairing
@@ -1059,18 +1060,7 @@ export function linkOccurrence(
       .where(and(eq(booking.id, bookingId), isNull(booking.deletedAt)))
       .get();
     if (!b) throw new EntityNotFoundError('booking', bookingId);
-    const other = tx
-      .select({ id: expectedOccurrence.id })
-      .from(expectedOccurrence)
-      .where(
-        and(
-          eq(expectedOccurrence.bookingId, bookingId),
-          isNull(expectedOccurrence.deletedAt),
-          ne(expectedOccurrence.id, occurrenceId),
-        ),
-      )
-      .get();
-    if (other) throw new ConflictError('This booking already belongs to another occurrence');
+    assertBookingUnclaimed(tx, bookingId, occurrenceId);
     const status = expectedLinkedStatus(tx, occ, payment, b);
     updateTracked(tx, expectedOccurrence, [occurrenceId], { status, bookingId }, grouped);
     // The owner decided: proposals of this occurrence and this booking close in the same step.
@@ -1351,7 +1341,7 @@ function upcomingInSnapshot(
       // A mixed contact receipt (#1322) counts only this occurrence's own share.
       const share =
         r.occ.bookingId !== null && r.bookingDate !== null
-          ? mixedReceiptShareCents(db, r.occ.bookingId, r.payment)
+          ? mixedReceiptShareCents(db, r.occ.bookingId, r.payment, r.occ.id)
           : null;
       let suggestion: VersionSuggestion | null = null;
       if (r.occ.status === 'deviating' && r.occ.bookingId !== null && r.bookingDate !== null) {

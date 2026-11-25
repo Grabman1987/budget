@@ -1,5 +1,5 @@
 import { amountGap, versionOn, type Occurrence } from '@budget/domain';
-import { and, asc, eq, inArray, isNotNull, isNull } from 'drizzle-orm';
+import { and, asc, eq, inArray, isNotNull, isNull, ne } from 'drizzle-orm';
 import {
   booking,
   bookingSplit,
@@ -7,6 +7,7 @@ import {
   expectedPayment,
   expectedPaymentVersion,
 } from '../schema';
+import { ConflictError } from './errors';
 import type { Executor } from './types';
 
 type Payment = typeof expectedPayment.$inferSelect;
@@ -21,26 +22,104 @@ const chunks = <T>(values: T[]): T[][] => {
 };
 
 /**
- * Mixed contact receipt (#1322): one cash booking that also repays outlays or leaves credit. The
- * occurrence of a contact's expected inflow then only owns its own split(s), never the whole cash
- * amount. `null` = not a mixed receipt, use the booking amount.
+ * Manual, automatic and payslip linking attach at most one occurrence to a booking (only the
+ * contact checklist links several, #1336); the unique index is gone, so this guards it in code.
+ */
+export function assertBookingUnclaimed(
+  db: Executor,
+  bookingId: string,
+  exceptOccurrenceId: string,
+): void {
+  const other = db
+    .select({ id: expectedOccurrence.id })
+    .from(expectedOccurrence)
+    .where(
+      and(
+        eq(expectedOccurrence.bookingId, bookingId),
+        isNull(expectedOccurrence.deletedAt),
+        ne(expectedOccurrence.id, exceptOccurrenceId),
+      ),
+    )
+    .get();
+  if (other) throw new ConflictError('This booking already belongs to another occurrence');
+}
+
+type ShareSplit = Pick<
+  typeof bookingSplit.$inferSelect,
+  'amountCents' | 'categoryId' | 'incomeTypeId' | 'contactId' | 'transferId' | 'memo'
+>;
+type SharePayment = Pick<Payment, 'categoryId' | 'incomeTypeId'> & Partial<Pick<Payment, 'name'>>;
+
+const splitMatches = (s: ShareSplit, p: SharePayment) =>
+  s.contactId === null &&
+  s.transferId === null &&
+  (p.categoryId ? s.categoryId === p.categoryId : s.incomeTypeId === p.incomeTypeId);
+
+/**
+ * SHARE RULE (#1336, the one rule for a booking linked to several occurrences): an occurrence owns
+ * only its own split(s), never the whole booking amount. Linked occurrences are taken in due-date
+ * order and each claims one still unclaimed split of its category / income type (preferring the
+ * split named like the payment, then the one with its expected amount, then the first). No
+ * matching split = share 0. `null` = the booking is linked to fewer than two live occurrences, the
+ * caller then uses the single-link rules below. Summing the shares never exceeds the booking.
+ */
+export function linkedOccurrenceShares(
+  db: Executor,
+  bookingId: string,
+): Map<string, number> | null {
+  const linked = db
+    .select({ occ: expectedOccurrence, payment: expectedPayment })
+    .from(expectedOccurrence)
+    .innerJoin(expectedPayment, eq(expectedPayment.id, expectedOccurrence.expectedPaymentId))
+    .where(and(eq(expectedOccurrence.bookingId, bookingId), isNull(expectedOccurrence.deletedAt)))
+    .orderBy(asc(expectedOccurrence.dueDate), asc(expectedOccurrence.id))
+    .all();
+  if (linked.length < 2) return null;
+  const splits = db
+    .select()
+    .from(bookingSplit)
+    .where(eq(bookingSplit.bookingId, bookingId))
+    .orderBy(asc(bookingSplit.sortOrder))
+    .all();
+  const used = new Set<number>();
+  const shares = new Map<string, number>();
+  for (const { occ, payment } of linked) {
+    const open = splits
+      .map((s, i) => ({ s, i }))
+      .filter(
+        ({ s, i }) =>
+          !used.has(i) && (payment.categoryId || payment.incomeTypeId) && splitMatches(s, payment),
+      );
+    const pick =
+      open.find(({ s }) => s.memo === payment.name) ??
+      open.find(({ s }) => s.amountCents === occ.expectedAmountCents) ??
+      open[0];
+    if (pick) used.add(pick.i);
+    shares.set(occ.id, pick?.s.amountCents ?? 0);
+  }
+  return shares;
+}
+
+/**
+ * Amount of a booking that belongs to one occurrence (#1322, #1336), `null` = use the booking
+ * amount. A booking linked to several occurrences follows the share rule above. A mixed contact
+ * receipt (it also repays outlays or leaves credit) only counts the split(s) of the payment's
+ * category / income type.
  */
 export function mixedReceiptShareCents(
   db: Executor,
   bookingId: string,
-  payment: Pick<Payment, 'contactId' | 'categoryId' | 'incomeTypeId'>,
+  payment: SharePayment & Pick<Payment, 'contactId'>,
+  occurrenceId?: string,
 ): number | null {
+  if (occurrenceId) {
+    const share = linkedOccurrenceShares(db, bookingId)?.get(occurrenceId);
+    if (share !== undefined) return share;
+  }
   if (!payment.contactId || (!payment.categoryId && !payment.incomeTypeId)) return null;
   const splits = db.select().from(bookingSplit).where(eq(bookingSplit.bookingId, bookingId)).all();
   if (!splits.some((s) => s.contactId !== null)) return null;
-  const own = splits.filter(
-    (s) =>
-      s.contactId === null &&
-      s.transferId === null &&
-      (payment.categoryId
-        ? s.categoryId === payment.categoryId
-        : s.incomeTypeId === payment.incomeTypeId),
-  );
+  const own = splits.filter((s) => splitMatches(s, payment));
   return own.length ? own.reduce((sum, s) => sum + s.amountCents, 0) : null;
 }
 
@@ -74,7 +153,7 @@ function statusForBooking(
     contactShareCents: occurrence.contactShareCents,
   };
   const amount =
-    mixedReceiptShareCents(db, booked.id, payment) ??
+    mixedReceiptShareCents(db, booked.id, payment, occurrence.id) ??
     bookedAmountIn(booked, version?.currency ?? 'EUR');
   const inside =
     Math.sign(amount) === Math.sign(planned.amountCents) &&

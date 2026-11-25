@@ -165,14 +165,17 @@ it('lists every open item; one contribution and all outlays are ticked, Rest 0,0
   expect(screen.queryByRole('radiogroup')).toBeNull();
 });
 
-it('contributions are single-select, outlays stay multi-select', async () => {
+it('contributions are multi-select like outlays; Rest and the sent ids follow', async () => {
   const user = await open('825,01');
   const rent = screen.getByRole('checkbox', { name: /Mietanteil/ }) as HTMLInputElement;
   const abo = screen.getByRole('checkbox', { name: /Abo/ }) as HTMLInputElement;
   await user.click(abo);
   expect(abo.checked).toBe(true);
+  expect(rent.checked).toBe(true);
+  expect(rest()).toMatch(/^-?19,99\s€$|^−19,99\s€$/);
+  await user.click(rent);
   expect(rent.checked).toBe(false);
-  expect(rest()).toMatch(/^780,01\s€$/);
+  expect(abo.checked).toBe(true);
   await user.click(abo);
   expect(abo.checked).toBe(false);
 });

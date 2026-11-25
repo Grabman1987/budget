@@ -326,7 +326,7 @@ function readPaymentDetailInSnapshot(db: Executor, paymentId: string, asOf: stri
 
   const storedRow = ({ occurrence: row, linked }: (typeof past)[number]): PaymentDetailRow => {
     const currency = currencies.get(row.id) ?? null;
-    const share = linked?.id ? mixedReceiptShareCents(db, linked.id, payment) : null;
+    const share = linked?.id ? mixedReceiptShareCents(db, linked.id, payment, row.id) : null;
     const actual =
       linked === null || currency === null
         ? null

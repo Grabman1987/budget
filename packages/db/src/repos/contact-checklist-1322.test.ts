@@ -3,8 +3,9 @@ import { and, eq, isNull } from 'drizzle-orm';
 import { createTestDatabase, type OpenedDatabase } from '../client';
 import { booking, bookingSplit, expectedOccurrence, INCOME_TYPES } from '../schema';
 import { seedBasics, testCtx } from './test-helpers';
-import { createBooking, getBooking } from './bookings';
-import { createExpectedPayment, upcoming } from './expected';
+import { createBooking, deleteBooking, getBooking } from './bookings';
+import { createExpectedPayment, linkOccurrence, monthIncome, upcoming } from './expected';
+import { loadFacts } from './rule-inputs';
 import { readPaymentDetail } from './expected-detail';
 import { matchedCharges } from './contract-history';
 import {
@@ -121,13 +122,86 @@ it('lists outlays and contributions; advance targets are left out, targetless on
   ).toThrow(/nicht mehr offen/);
 });
 
-it('refuses more than one contribution per receipt and writes nothing', () => {
+const both = (open: Open) => open.contributions.map((x) => x.occurrenceId);
+const linkedTo = (bookingId: string) => occurrences().filter((o) => o.bookingId === bookingId);
+
+it('two contributions in one receipt, paid exactly: both received, each owns only its split', () => {
+  const { rent, open } = scenario();
+  const abo = open.contributions.find((c) => c.name === 'Abo')!;
+  const result = run(81999, open, { outlaySplitIds: [], occurrenceIds: both(open) });
+  expect(result.linkedOccurrenceIds).toHaveLength(2);
+  expect(splitsOf(result.bookingId).map((s) => s.amountCents)).toEqual([80000, 1999]);
+  const linked = linkedTo(result.bookingId);
+  expect(linked.map((o) => o.status)).toEqual(['received', 'received']);
+  // No double count: each row shows its own share, the shares add up to the cash received.
+  const rows = upcoming(db(), '2026-09-01', '2026-09-30').filter((r) =>
+    [rent.id, abo.paymentId].includes(r.paymentId),
+  );
+  expect(rows.map((r) => r.bookedAmountCents).sort()).toEqual([1999, 80000]);
+  expect(monthIncome(db(), '2026-09').byPayment.reduce((s, l) => s + l.receivedCents, 0)).toBe(
+    81999,
+  );
+  const marks = loadFacts(db(), today).planMarks;
+  const cents = [...marks.values()].flatMap((m) => (typeof m === 'object' ? [m.cents ?? 0] : []));
+  expect(cents.reduce((a, b) => a + b, 0)).toBe(81999);
+});
+
+it('two contributions, paid less: the last one is deviating, the first received', () => {
   const { open } = scenario();
-  const before = liveBookings();
-  expect(() =>
-    run(84500, open, { occurrenceIds: open.contributions.map((c) => c.occurrenceId) }),
-  ).toThrow(/nur ein erwarteter Beitrag/);
-  expect(liveBookings()).toBe(before);
+  const result = run(80500, open, { outlaySplitIds: [], occurrenceIds: both(open) });
+  const byAmount = (n: number) =>
+    linkedTo(result.bookingId).find((o) => o.expectedAmountCents === n)!;
+  expect(byAmount(80000).status).toBe('received');
+  expect(byAmount(1999).status).toBe('deviating');
+  expect(result.restCents).toBe(-1499);
+  const rows = upcoming(db(), '2026-09-01', '2026-09-30');
+  expect(
+    rows
+      .filter((r) => r.bookingId === result.bookingId)
+      .map((r) => r.bookedAmountCents)
+      .sort((a, b) => a! - b!),
+  ).toEqual([500, 80000]);
+});
+
+it('two contributions plus more than expected: surplus stays credit, shares stay exact', () => {
+  const { open } = scenario();
+  const result = run(83000, open, { outlaySplitIds: [], occurrenceIds: both(open) });
+  expect(result.restCents).toBe(1001);
+  const linked = linkedTo(result.bookingId);
+  expect(linked.map((o) => o.status)).toEqual(['received', 'received']);
+  const rows = upcoming(db(), '2026-09-01', '2026-09-30').filter(
+    (r) => r.bookingId === result.bookingId,
+  );
+  expect(rows.map((r) => r.bookedAmountCents).sort((a, b) => a! - b!)).toEqual([1999, 80000]);
+  expect(getContactStatement(db(), 'k1', today).creditCents).toBe(1001);
+});
+
+it('one Undo reverts both occurrence links; deleting the booking unlinks both', () => {
+  const { open } = scenario();
+  const before = occurrences();
+  const result = run(81999, open, { outlaySplitIds: [], occurrenceIds: both(open) });
+  expect(linkedTo(result.bookingId)).toHaveLength(2);
+  undo(db(), { groupId: result.groupId }, { actor: 'test' });
+  expect(occurrences()).toEqual(before);
+
+  const again = run(81999, listContactChecklist(db(), 'k1', date), {
+    outlaySplitIds: [],
+    occurrenceIds: both(listContactChecklist(db(), 'k1', date)),
+  });
+  expect(linkedTo(again.bookingId)).toHaveLength(2);
+  deleteBooking(db(), again.bookingId, testCtx);
+  expect(occurrences().filter((o) => o.bookingId !== null)).toHaveLength(0);
+  expect(occurrences().every((o) => o.status === 'expected')).toBe(true);
+});
+
+it('manual linking never attaches a second occurrence to a checklist booking', () => {
+  const { open } = scenario();
+  contribution('Dritter', 'essen', 300, 7);
+  const result = run(81999, open, { outlaySplitIds: [], occurrenceIds: both(open) });
+  const third = occurrences().find((o) => o.expectedAmountCents === 300)!;
+  expect(() => linkOccurrence(db(), third.id, result.bookingId, testCtx)).toThrow(
+    /another occurrence/,
+  );
 });
 
 it('paid exactly: one booking, splits sum to 82501, contact settled, occurrence received', () => {

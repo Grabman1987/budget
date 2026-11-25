@@ -62,11 +62,13 @@ it('occurrence-skipped migration keeps stored occurrences, links and audit verba
         "INSERT INTO expected_occurrence (id,expected_payment_id,due_date,expected_amount_cents) VALUES ('dup','p','2026-11-01',-1234)",
       ),
     ).toThrow();
+    // Migration 0057 (#1336) dropped the unique booking index: one booking may link several
+    // occurrences (the checklist); the code guards manual and automatic linking.
     expect(() =>
       opened.sqlite.exec(
         "INSERT INTO expected_occurrence (id,expected_payment_id,due_date,expected_amount_cents,status,booking_id) VALUES ('dup2','p','2027-01-01',-1234,'received','b')",
       ),
-    ).toThrow();
+    ).not.toThrow();
   } finally {
     opened.close();
     rmSync(dir, { recursive: true, force: true });

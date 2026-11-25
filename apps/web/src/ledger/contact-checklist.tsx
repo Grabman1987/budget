@@ -58,8 +58,8 @@ export function useContactChecklist({
   const [state, setState] = useState({
     contactId,
     unticked: new Set<string>() as ReadonlySet<string>,
-    /** v1: one contribution per receipt. `undefined` = the first one, `null` = none. */
-    contribution: undefined as string | null | undefined,
+    /** Explicit tick of a contribution row; without an entry only the first selectable one is ticked. */
+    contributionTicks: new Map<string, boolean>() as ReadonlyMap<string, boolean>,
     shortfall: 'open' as 'open' | 'waive',
     surplus: 'credit' as 'credit' | 'gift',
   });
@@ -69,7 +69,7 @@ export function useContactChecklist({
       : {
           contactId,
           unticked: new Set<string>(),
-          contribution: undefined,
+          contributionTicks: new Map<string, boolean>(),
           shortfall: 'open' as const,
           surplus: 'credit' as const,
         };
@@ -80,10 +80,7 @@ export function useContactChecklist({
   const contributions = useMemo(() => data?.contributions ?? [], [data]);
   const outlays = useMemo(() => data?.outlays ?? [], [data]);
   const credits = useMemo(() => data?.credits ?? [], [data]);
-  const picked =
-    current.contribution === undefined
-      ? contributions.find((c) => c.selectable)?.occurrenceId
-      : current.contribution;
+  const firstContribution = contributions.find((c) => c.selectable)?.occurrenceId;
   const rows = useMemo(
     () => [
       ...contributions.map((c) => ({
@@ -118,7 +115,7 @@ export function useContactChecklist({
   );
   const isTicked = (row: (typeof rows)[number]) =>
     row.kind === 'contribution'
-      ? row.id === picked
+      ? (current.contributionTicks.get(row.id) ?? (row.selectable && row.id === firstContribution))
       : row.kind === 'credit'
         ? row.selectable && !unticked.has(row.key)
         : !unticked.has(row.key);
@@ -151,7 +148,10 @@ export function useContactChecklist({
   const heading = useId();
   const toggle = (row: (typeof rows)[number]) => {
     if (row.kind === 'contribution')
-      return setState({ ...current, contribution: row.id === picked ? null : row.id });
+      return setState({
+        ...current,
+        contributionTicks: new Map(current.contributionTicks).set(row.id, !isTicked(row)),
+      });
     const next = new Set(unticked);
     if (!next.delete(row.key)) next.add(row.key);
     setState({ ...current, unticked: next });

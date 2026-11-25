@@ -209,18 +209,21 @@ export function settleContactChecklist(
       !['checking', 'savings', 'cash'].includes(cash.type)
     )
       throw new BookingInvariantError('Bitte ein offenes EUR-Budgetkonto wählen.');
-    // v1: one expected occurrence can be linked per booking, so one contribution per receipt.
-    if (input.occurrenceIds.length > 1)
-      throw new BookingInvariantError(
-        'Pro Zahlung kann nur ein erwarteter Beitrag gewählt werden.',
-      );
     const open = listContactChecklist(tx, contactId, input.date);
-    const contributions = input.occurrenceIds.map((id) => {
-      const row = open.contributions.find((c) => c.occurrenceId === id);
-      if (!row?.selectable)
-        throw new BookingInvariantError('Dieser erwartete Beitrag ist nicht mehr offen.');
-      return row;
-    });
+    // Due contributions are paid first, oldest due date first (the order of the list).
+    const contributions = input.occurrenceIds
+      .map((id) => {
+        const row = open.contributions.find((c) => c.occurrenceId === id);
+        if (!row?.selectable)
+          throw new BookingInvariantError('Dieser erwartete Beitrag ist nicht mehr offen.');
+        return row;
+      })
+      .sort(
+        (a, b) =>
+          a.dueDate.localeCompare(b.dueDate) ||
+          a.name.localeCompare(b.name) ||
+          a.occurrenceId.localeCompare(b.occurrenceId),
+      );
     const tickedOutlays = input.outlaySplitIds
       .map((id) => {
         const row = open.outlays.find((o) => o.splitId === id);
@@ -347,22 +350,21 @@ export function settleContactChecklist(
       );
     }
 
-    // A booking can belong to one occurrence only: the link goes to the largest paid
-    // contribution; its status follows what it actually received.
-    const linked = [...contributions]
-      .filter((c) => paid(c.occurrenceId) > 0)
-      .sort((a, b) => b.amountCents - a.amountCents || a.dueDate.localeCompare(b.dueDate))[0];
-    if (linked)
+    // Every paid contribution is linked to the booking (#1336); its own split carries its amount
+    // (see linkedOccurrenceShares). Status follows what it actually received. One audit group.
+    const linkedContributions = contributions.filter((c) => paid(c.occurrenceId) > 0);
+    for (const c of linkedContributions)
       updateTracked(
         tx,
         expectedOccurrence,
-        [linked.occurrenceId],
+        [c.occurrenceId],
         {
-          status: paid(linked.occurrenceId) === linked.amountCents ? 'received' : 'deviating',
+          status: paid(c.occurrenceId) === c.amountCents ? 'received' : 'deviating',
           bookingId,
         },
         grouped,
       );
+    const linked = linkedContributions[0];
 
     if (plan.surplusCents > 0 && input.surplus === 'gift' && settlementId) {
       const receiptSplitId = tx
@@ -405,6 +407,7 @@ export function settleContactChecklist(
       groupId: grouped.groupId,
       restCents: plan.restCents,
       linkedOccurrenceId: linked?.occurrenceId ?? null,
+      linkedOccurrenceIds: linkedContributions.map((c) => c.occurrenceId),
     };
   });
 }
