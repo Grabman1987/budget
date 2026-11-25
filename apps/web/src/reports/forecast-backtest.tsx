@@ -49,8 +49,8 @@ function BacktestResults() {
   return (
     <div className="rf-backtest-content">
       <p>
-        Letzte sechs abgeschlossene Monate. Je Budget-Konto vergleichen wir die rekonstruierte
-        Prognose vom ersten Monatstag mit den gebuchten Tagesständen.
+        Letzte sechs Monate: Prognose vom Monatsersten gegen die gebuchten Tagesstände je
+        Budget-Konto.
       </p>
       {incompleteAccounts > 0 && (
         <p>Ausgelassene Kontomonate mit fehlenden Daten: {incompleteAccounts}</p>

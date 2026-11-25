@@ -15,7 +15,7 @@ import {
   versionOn,
   type ForecastAccountItem,
 } from '@budget/domain';
-import { and, asc, gte, inArray, sql } from 'drizzle-orm';
+import { and, asc, gte, inArray, isNull, eq, sql } from 'drizzle-orm';
 import type { SQLiteTable } from 'drizzle-orm/sqlite-core';
 import {
   account,
@@ -164,14 +164,36 @@ function causes(
   };
 }
 
-/** Closed months only. The information cutoff is the end of day one in Vienna. */
+/** Days after the first account was recorded that still count as bulk data onboarding. */
+const ONBOARDING_DAYS = 7;
+
+/**
+ * Closed months only. The information cutoff is the end of day one in Vienna. Months that end
+ * before the data was taken over into the app cannot be rewound (every row was created during the
+ * takeover), so their cutoff is raised to the end of the onboarding week; later months keep the
+ * exact cutoff.
+ */
 export function forecastBacktest(db: Executor, today: string, count = 6) {
   if (!Number.isInteger(count) || count < 1 || count > 24)
     throw new RangeError('Expected 1 to 24 closed months');
   return runInTransaction(db, (tx) => {
     const currentMonth = monthOf(today);
     const months = monthsBetween(addMonths(currentMonth, -count), addMonths(currentMonth, -1));
-    const firstCutoff = cutoffAfter(`${months[0]}-01`);
+    const firstRecorded = tx
+      .select({ ts: auditLog.ts })
+      .from(auditLog)
+      .where(and(eq(auditLog.entityType, tableMeta(account).name), isNull(auditLog.beforeJson)))
+      .orderBy(asc(auditLog.ts))
+      .limit(1)
+      .get();
+    const onboardingEnd = firstRecorded
+      ? cutoffAfter(addDays(firstRecorded.ts.slice(0, 10), ONBOARDING_DAYS))
+      : '';
+    const cutoffOf = (month: string) => {
+      const exact = cutoffAfter(`${month}-01`);
+      return exact < onboardingEnd ? onboardingEnd : exact;
+    };
+    const firstCutoff = cutoffOf(months[0]!);
     const revisions = tx
       .select({
         ts: auditLog.ts,
@@ -218,7 +240,7 @@ export function forecastBacktest(db: Executor, today: string, count = 6) {
     for (const month of months) {
       const start = `${month}-01`;
       const end = lastDayOfMonth(month);
-      const cutoff = cutoffAfter(start);
+      const cutoff = cutoffOf(month);
       const historicAccounts = atCutoff(account, accounts, revisions, cutoff)
         .filter((row) => isLiquidityAccount(row, start))
         .sort((a, b) => a.id.localeCompare(b.id));

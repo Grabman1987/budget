@@ -486,15 +486,20 @@ export interface PaceChartData {
 export function HeutePaceChart({
   data,
   compact = false,
+  alwaysContext = false,
 }: {
   data: PaceChartData;
   compact?: boolean;
+  /** Show income and previous month permanently, without the "Mehr anzeigen" toggle. */
+  alwaysContext?: boolean;
 }) {
   useAmountPrivacy();
   const [ref, width] = useWidth();
   return (
     <div ref={ref} className="heute-chart heute-pace-chart">
-      {width > 0 && <PaceDrawing data={data} width={width} compact={compact} />}
+      {width > 0 && (
+        <PaceDrawing data={data} width={width} compact={compact} alwaysContext={alwaysContext} />
+      )}
     </div>
   );
 }
@@ -503,13 +508,16 @@ function PaceDrawing({
   data,
   width,
   compact,
+  alwaysContext,
 }: {
   data: PaceChartData;
   width: number;
   compact: boolean;
+  alwaysContext: boolean;
 }) {
   useAmountPrivacy();
-  const [showContext, setShowContext] = useState(compact);
+  const [showContextChoice, setShowContext] = useState(compact);
+  const showContext = alwaysContext || showContextChoice;
   const m = data.pace;
   const height = compact ? 160 : width < 640 ? 230 : 280;
   const narrow = width < 520;
@@ -666,7 +674,7 @@ function PaceDrawing({
             : []),
         ]}
       />
-      {!compact && (income.length > 1 || previous.length > 1) && (
+      {!compact && !alwaysContext && (income.length > 1 || previous.length > 1) && (
         <Button
           variant="ghost"
           size="sm"

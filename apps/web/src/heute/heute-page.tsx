@@ -17,6 +17,7 @@ import { useQuery, useQueryClient, type UseQueryResult } from '@tanstack/react-q
 import { useNavigate, useLocation } from '@tanstack/react-router';
 import { useMemo, useState, type ReactNode } from 'react';
 import { TriangleAlert, ArrowDown, ArrowUp, ChevronRight } from 'lucide-react';
+import { ReportTable } from '../reports/report-table';
 import { PaceAccuracyNote } from '../reports/planning-accuracy-report';
 import { eur, longDay, shortDay } from '../ledger/format';
 import { EmptyNote, ErrorNote, LoadingNote } from '../ledger/states';
@@ -31,6 +32,7 @@ import { heuteQuery, type Heute, type HeuteOccurrence } from './api';
 import { CompactForecastCard } from './compact-forecast-card';
 import { useBalancePeriod } from './use-balance-period';
 import './heute.css';
+import './pace-bookings.css';
 import { useIsPhone } from '../budget/month-span';
 import { useStoredFlag } from '../shell/use-stored-flag';
 import { AttentionBar, FundingNotes } from './attention-bar';
@@ -308,6 +310,8 @@ function HeuteBody({
       )}
     </>
   );
+  // The Pace detail page is the stripped-down home of the figures; "Mehr zum Monat" keeps all.
+  const paceDetailPage = REDESIGN_ENABLED && detail === 'pace';
   const pace = (
     <>
       {data ? (
@@ -330,7 +334,9 @@ function HeuteBody({
                 )
               }
             />
-            {REDESIGN_ENABLED && <div className="heute-verdict-slot">{verdict}</div>}
+            {REDESIGN_ENABLED && !paceDetailPage && (
+              <div className="heute-verdict-slot">{verdict}</div>
+            )}
             <div className="heute-figures">
               <PaceFigure
                 label="Ausgegeben"
@@ -359,8 +365,9 @@ function HeuteBody({
                 extra={`von ${eur(data.pace.figures.limitCents, { cents: false })} Limit`}
               />
             </div>
-            <HeutePaceChart data={data} />
+            <HeutePaceChart data={data} alwaysContext={paceDetailPage} />
             <PaceAccuracyNote summary={data.planningAccuracy} />
+            {paceDetailPage && <PaceBookings pace={data.pace} />}
             {paceDetail && (
               <div className="heute-figure-detail" role="status">
                 <strong>
@@ -384,19 +391,22 @@ function HeuteBody({
                 )}
               </div>
             )}
-            <p className="heute-note">
-              {data.pace.todayDay < 7
-                ? 'Vorläufig: ausgegeben plus offene fixe und wiederkehrende Zahlungen plus verbleibender variabler Plan. Ab dem 7. Tag werden variable Ausgaben hochgerechnet.'
-                : 'Fixe und wiederkehrende Zahlungen zählen einmal; nur variable Ausgaben werden hochgerechnet.'}
-              {!data.pace.figures.forecastAvailable &&
-                ' Für eine Prognose braucht es einen positiven Plan.'}
-            </p>
+            {!paceDetailPage && (
+              <p className="heute-note">
+                {data.pace.todayDay < 7
+                  ? 'Vorläufig: ausgegeben plus offene fixe und wiederkehrende Zahlungen plus verbleibender variabler Plan. Ab dem 7. Tag werden variable Ausgaben hochgerechnet.'
+                  : 'Fixe und wiederkehrende Zahlungen zählen einmal; nur variable Ausgaben werden hochgerechnet.'}
+                {!data.pace.figures.forecastAvailable &&
+                  ' Für eine Prognose braucht es einen positiven Plan.'}
+              </p>
+            )}
           </section>
         </>
       ) : (
         <PaceSectionState
           month={month}
-          verdict={REDESIGN_ENABLED ? verdict : undefined}
+          verdict={REDESIGN_ENABLED && !paceDetailPage ? verdict : undefined}
+          bare={paceDetailPage}
           pending={pending}
           failed={read.isError && !pending}
           error={read.error}
@@ -411,6 +421,7 @@ function HeuteBody({
         data={data}
         read={read}
         refreshing={refreshing}
+        bare={REDESIGN_ENABLED && detail === 'forecast'}
         returnTo={
           REDESIGN_ENABLED
             ? `/heute/details/${detail ?? 'month'}?monat=${month}&period=${period}`
@@ -1021,6 +1032,7 @@ function SectionReadNote({ name, pending }: { name: string; pending: boolean }) 
 function PaceSectionState({
   month,
   verdict,
+  bare,
   pending,
   failed,
   error,
@@ -1028,6 +1040,7 @@ function PaceSectionState({
 }: {
   month: string;
   verdict?: ReactNode;
+  bare: boolean;
   pending: boolean;
   failed: boolean;
   error: unknown;
@@ -1080,9 +1093,11 @@ function PaceSectionState({
             { kind: 'plan', label: 'Deckel' },
           ]}
         />
-        <Button variant="ghost" size="sm" className="pace-context-toggle" disabled>
-          Mehr anzeigen
-        </Button>
+        {!bare && (
+          <Button variant="ghost" size="sm" className="pace-context-toggle" disabled>
+            Mehr anzeigen
+          </Button>
+        )}
       </div>
       <p className="heute-note heute-pace-state-note">
         Monatsausgaben, Plan und Hochrechnung {pending ? 'werden geladen' : 'sind nicht verfügbar'}.
@@ -1201,6 +1216,56 @@ function LeadDetail({ data, kind }: { data: Heute; kind: 'balance' | 'open' }) {
         </ul>
       ) : (
         <p>Keine Budget-Konten.</p>
+      )}
+    </div>
+  );
+}
+
+/** The bookings that make up the Ist line, newest first; the amounts add up to "Ausgegeben". */
+export function PaceBookings({ pace }: { pace: Heute['pace'] }) {
+  useAmountPrivacy();
+  const rows = pace.bookings;
+  if (!rows) return null;
+  return (
+    <div className="pace-bookings">
+      {rows.length === 0 ? (
+        <EmptyNote>Bis heute keine Ausgaben in diesem Monat.</EmptyNote>
+      ) : (
+        <ReportTable
+          caption="Buchungen der Pace-Linie"
+          regionLabel="Buchungen der Pace-Linie"
+          className="pace-bookings-table"
+          data-testid="pace-bookings"
+        >
+          <thead>
+            <tr>
+              <th scope="col">Datum</th>
+              <th scope="col">Buchung</th>
+              <th scope="col">Kategorie</th>
+              <th scope="col" className="n">
+                Betrag
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row, index) => (
+              <tr key={`${row.bookingId ?? 'x'}-${index}`}>
+                <td>{shortDay(row.day)}</td>
+                <td>{row.name}</td>
+                <td>{row.categoryName ?? '–'}</td>
+                <td className="n">{eur(row.cents)}</td>
+              </tr>
+            ))}
+          </tbody>
+          <tfoot>
+            <tr>
+              <th scope="row" colSpan={3}>
+                Ausgegeben
+              </th>
+              <td className="n">{eur(pace.figures.spentCents)}</td>
+            </tr>
+          </tfoot>
+        </ReportTable>
       )}
     </div>
   );

@@ -32,15 +32,17 @@ export function HeuteSourceReturn() {
   const source = heuteReturn(
     new URL(location.href, 'https://budget.invalid').searchParams.get('von'),
   );
-  if (!source || !source.startsWith('/heute/details/')) return null;
-  const url = new URL(source, 'https://budget.invalid');
+  const url = source ? new URL(source, 'https://budget.invalid') : undefined;
+  // The Heute overview links straight to the Prognose page, so it may return to "/" as well.
+  const toOverview = location.pathname === '/plan/prognose' && url?.pathname === '/';
+  if (!url || !(toOverview || source?.startsWith('/heute/details/'))) return null;
   return (
     <div className="page-back-row">
       <BackButton
         to={url.pathname}
         search={Object.fromEntries(url.searchParams)}
         hash={url.hash.slice(1)}
-        label="Zurück zur Heute-Herleitung"
+        label={toOverview ? 'Zurück zu Heute' : 'Zurück zur Heute-Herleitung'}
       />
     </div>
   );
