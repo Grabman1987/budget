@@ -1,6 +1,6 @@
 import { useId, useMemo, useState, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { planContactChecklist } from '@budget/domain';
+import { applyChecklistCredits, planContactChecklist } from '@budget/domain';
 import type { listContactChecklist } from '@budget/db';
 import { request } from '../api/http';
 import { eur } from './format';
@@ -15,6 +15,7 @@ export interface ChecklistReceiptBody {
   memo?: string | null;
   outlaySplitIds: string[];
   occurrenceIds: string[];
+  creditReceiptSplitIds: string[];
   shortfall: 'open' | 'waive';
   surplus: 'credit' | 'gift';
 }
@@ -75,6 +76,7 @@ export function useContactChecklist({
   const data = live ? query.data : undefined;
   const contributions = useMemo(() => data?.contributions ?? [], [data]);
   const outlays = useMemo(() => data?.outlays ?? [], [data]);
+  const credits = useMemo(() => data?.credits ?? [], [data]);
   const picked =
     current.contribution === undefined
       ? contributions.find((c) => c.selectable)?.occurrenceId
@@ -99,21 +101,49 @@ export function useContactChecklist({
         selectable: true,
         categoryId: o.categoryId,
       })),
+      ...credits.map((c) => ({
+        key: `k:${c.receiptSplitId}`,
+        id: c.receiptSplitId,
+        kind: 'credit' as const,
+        label: `Guthaben${c.categoryName ? ` → ${c.categoryName}` : ''}`,
+        amountCents: c.remainingCents,
+        selectable: c.usable,
+        categoryId: c.categoryId,
+      })),
     ],
-    [contributions, outlays],
+    [contributions, outlays, credits],
   );
   const isTicked = (row: (typeof rows)[number]) =>
-    row.kind === 'contribution' ? row.id === picked : !unticked.has(row.key);
+    row.kind === 'contribution'
+      ? row.id === picked
+      : row.kind === 'credit'
+        ? row.selectable && !unticked.has(row.key)
+        : !unticked.has(row.key);
   const ticked = rows.filter(isTicked);
-  const plan = planContactChecklist(ticked, receivedCents);
+  // Credits offset the ticked outlays first (same rule as the server); cash settles the rest.
+  const offset = applyChecklistCredits(
+    ticked.filter((r) => r.kind === 'outlay'),
+    ticked.filter((r) => r.kind === 'credit'),
+  );
+  const net = new Map(offset.outlays.map((o) => [o.id, o.amountCents]));
+  const planned = ticked
+    .filter((r) => r.kind !== 'credit')
+    .map((r) => ({ ...r, amountCents: net.get(r.id) ?? r.amountCents }))
+    .filter((r) => r.amountCents > 0);
+  const plan = planContactChecklist(planned, receivedCents);
   const rest = plan.restCents;
-  const applied = (id: string) => plan.paid.find((p) => p.id === id)?.amountCents ?? 0;
+  const paidCash = (id: string) => plan.paid.find((p) => p.id === id)?.amountCents ?? 0;
+  const applied = (row: (typeof rows)[number]) =>
+    row.kind === 'credit'
+      ? -(offset.appliedByCredit.get(row.id) ?? 0)
+      : paidCash(row.id) + (row.amountCents - (net.get(row.id) ?? row.amountCents));
   // "schenken" only exists for an outlay that falls short and has a category to waive into.
-  const shortOutlays = ticked.filter((r) => r.kind === 'outlay' && applied(r.id) < r.amountCents);
+  const shortOutlays = planned.filter((r) => r.kind === 'outlay' && paidCash(r.id) < r.amountCents);
   const canWaive = shortOutlays.length > 0 && shortOutlays.every((r) => r.categoryId);
   const effectiveShortfall = canWaive ? shortfall : 'open';
   const active = rows.length > 0;
   const outlayIds = ticked.filter((r) => r.kind === 'outlay').map((r) => r.id);
+  const creditIds = ticked.filter((r) => r.kind === 'credit').map((r) => r.id);
   const occurrenceIds = ticked.filter((r) => r.kind === 'contribution').map((r) => r.id);
   const heading = useId();
   const toggle = (row: (typeof rows)[number]) => {
@@ -159,10 +189,10 @@ export function useContactChecklist({
           />
           <span className="cc-label">{row.label}</span>
           <span className="cc-amount">
-            {eur(row.amountCents)}
+            {eur(row.kind === 'credit' ? -row.amountCents : row.amountCents)}
             {isTicked(row) && (
               <span className="cc-applied" data-testid={`applied-${row.id}`}>
-                davon {eur(applied(row.id))}
+                davon {eur(applied(row))}
               </span>
             )}
           </span>
@@ -202,6 +232,7 @@ export function useContactChecklist({
             ...base,
             outlaySplitIds: outlayIds,
             occurrenceIds,
+            creditReceiptSplitIds: creditIds,
             shortfall: effectiveShortfall,
             surplus,
           }

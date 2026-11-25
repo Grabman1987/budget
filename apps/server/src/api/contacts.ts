@@ -110,6 +110,7 @@ export function contactRoutes(db: Db, today: () => string): Hono {
           memo: z.string().max(2000).nullable().optional(),
           outlaySplitIds: z.array(id).max(1000),
           occurrenceIds: z.array(id).max(1000),
+          creditReceiptSplitIds: z.array(id).max(1000).optional(),
           shortfall: z.enum(['open', 'waive']).optional(),
           surplus: z.enum(['credit', 'gift']).optional(),
         })

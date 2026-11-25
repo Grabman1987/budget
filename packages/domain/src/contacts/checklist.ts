@@ -55,3 +55,38 @@ export function planContactChecklist(
     surplusCents: Math.max(0, restCents),
   };
 }
+
+/**
+ * Offset ticked credit lots against ticked outlays before any cash moves (#1322): credits in the
+ * given order, outlays oldest first (the given order). A credit never exceeds what the outlays
+ * can take; what is not applicable stays unapplied and is reported, never silently dropped.
+ */
+export function applyChecklistCredits(
+  outlays: readonly { id: string; amountCents: number }[],
+  credits: readonly { id: string; amountCents: number }[],
+): {
+  allocations: { creditId: string; outlayId: string; amountCents: number }[];
+  outlays: { id: string; amountCents: number }[];
+  appliedByCredit: Map<string, number>;
+} {
+  const left = new Map(outlays.map((o) => [o.id, o.amountCents]));
+  const allocations: { creditId: string; outlayId: string; amountCents: number }[] = [];
+  const appliedByCredit = new Map<string, number>();
+  for (const credit of credits) {
+    if (!isCents(credit.amountCents)) throw new RangeError('Credit must be whole cents');
+    let remaining = credit.amountCents;
+    for (const outlay of outlays) {
+      const take = Math.min(remaining, left.get(outlay.id) ?? 0);
+      if (take <= 0) continue;
+      left.set(outlay.id, left.get(outlay.id)! - take);
+      remaining -= take;
+      allocations.push({ creditId: credit.id, outlayId: outlay.id, amountCents: take });
+    }
+    appliedByCredit.set(credit.id, credit.amountCents - remaining);
+  }
+  return {
+    allocations,
+    outlays: outlays.map((o) => ({ id: o.id, amountCents: left.get(o.id)! })),
+    appliedByCredit,
+  };
+}

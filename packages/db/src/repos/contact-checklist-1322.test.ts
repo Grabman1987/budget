@@ -7,7 +7,12 @@ import { createBooking, getBooking } from './bookings';
 import { createExpectedPayment, upcoming } from './expected';
 import { readPaymentDetail } from './expected-detail';
 import { matchedCharges } from './contract-history';
-import { getContactStatement, waiveContactOutlay } from './contacts';
+import {
+  chooseContactCredit,
+  getContactStatement,
+  settleContact,
+  waiveContactOutlay,
+} from './contacts';
 import { listContactChecklist, settleContactChecklist } from './contact-checklist';
 import { undo } from './audit';
 import { bookedBalance } from './reconciliation';
@@ -284,4 +289,97 @@ it('refuses a row that is no longer open and an amount that is not positive whol
   expect(() => run(0, open)).toThrow();
   expect(() => run(10.5, open)).toThrow();
   expect(liveBookings()).toBe(before);
+});
+
+/** Outlay 300 plus a plain repayment lot of 100 that no outlay took (synthetic). */
+function outlayWithCredit() {
+  const o = outlay('essen', 300, '2026-09-01');
+  settleContact(
+    db(),
+    'k1',
+    {
+      accountId: 'giro',
+      date: '2026-09-02',
+      amountCents: 100,
+      allocations: [],
+      retainCredit: true,
+    },
+    testCtx,
+  );
+  return o;
+}
+
+it('credit offsets the outlay first: receipt of the net 200 settles to balance 0, credit used', () => {
+  const o = outlayWithCredit();
+  const before = getContactStatement(db(), 'k1', today);
+  expect(before.balanceCents).toBe(200);
+  expect(before.creditCents).toBe(100);
+  const open = listContactChecklist(db(), 'k1', date);
+  expect(open.credits.map((c) => [c.remainingCents, c.usable])).toEqual([[100, true]]);
+  const result = run(200, open, {
+    occurrenceIds: [],
+    creditReceiptSplitIds: open.credits.map((c) => c.receiptSplitId),
+  });
+  expect(result.restCents).toBe(0);
+  expect(getBooking(db(), result.bookingId)!.amountCents).toBe(200);
+  const after = getContactStatement(db(), 'k1', today);
+  expect(after.balanceCents).toBe(0);
+  expect(after.creditCents).toBe(0);
+  expect(after.outlays.find((x) => x.splitId === o.id)!.remainingCents).toBe(0);
+});
+
+it('Undo of the group restores the credit and the open outlay exactly', () => {
+  outlayWithCredit();
+  const before = getContactStatement(db(), 'k1', today);
+  const balance = bookedBalance(db(), 'giro', today);
+  const open = listContactChecklist(db(), 'k1', date);
+  const result = run(200, open, {
+    occurrenceIds: [],
+    creditReceiptSplitIds: open.credits.map((c) => c.receiptSplitId),
+  });
+  undo(db(), { groupId: result.groupId }, { actor: 'test' });
+  expect(getContactStatement(db(), 'k1', today)).toEqual(before);
+  expect(bookedBalance(db(), 'giro', today)).toBe(balance);
+});
+
+it('an earmarked credit lot is not usable for an existing outlay and is refused', () => {
+  outlay('essen', 300, '2026-09-01');
+  const receipt = settleContact(
+    db(),
+    'k1',
+    {
+      accountId: 'giro',
+      date: '2026-09-02',
+      amountCents: 100,
+      allocations: [],
+      retainCredit: true,
+    },
+    testCtx,
+  );
+  const lot = getBooking(db(), receipt.bookingId)!.splits[0]!.id;
+  chooseContactCredit(
+    db(),
+    'k1',
+    {
+      receiptSplitId: lot,
+      amountCents: 100,
+      date: '2026-09-03',
+      choice: 'category',
+      categoryId: 'reise',
+    },
+    testCtx,
+    today,
+  );
+  const open = listContactChecklist(db(), 'k1', date);
+  expect(open.credits.map((c) => [c.remainingCents, c.categoryId, c.usable])).toEqual([
+    [100, 'reise', false],
+  ]);
+  const before = liveBookings();
+  expect(() =>
+    run(200, open, { occurrenceIds: [], creditReceiptSplitIds: [open.credits[0]!.receiptSplitId] }),
+  ).toThrow(/nicht verrechnet/);
+  expect(liveBookings()).toBe(before);
+  // Without the credit row the gross 300 is what the receipt settles; the credit stays untouched.
+  run(300, open, { occurrenceIds: [] });
+  expect(getContactStatement(db(), 'k1', today).creditCents).toBe(100);
 });

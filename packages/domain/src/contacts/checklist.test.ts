@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { planContactChecklist, type ChecklistItem } from './checklist';
+import { applyChecklistCredits, planContactChecklist, type ChecklistItem } from './checklist';
 
 const rows: ChecklistItem[] = [
   { id: 'rent', kind: 'contribution', amountCents: 80000 },
@@ -56,5 +56,39 @@ describe('planContactChecklist', () => {
     expect(() => planContactChecklist([{ id: 'x', kind: 'outlay', amountCents: 0 }], 100)).toThrow(
       RangeError,
     );
+  });
+});
+
+describe('applyChecklistCredits', () => {
+  it('offsets a credit against the oldest outlay first, in whole cents', () => {
+    const r = applyChecklistCredits(
+      [
+        { id: 'a', amountCents: 300 },
+        { id: 'b', amountCents: 150 },
+      ],
+      [{ id: 'k', amountCents: 400 }],
+    );
+    expect(r.allocations).toEqual([
+      { creditId: 'k', outlayId: 'a', amountCents: 300 },
+      { creditId: 'k', outlayId: 'b', amountCents: 100 },
+    ]);
+    expect(r.outlays).toEqual([
+      { id: 'a', amountCents: 0 },
+      { id: 'b', amountCents: 50 },
+    ]);
+    expect(r.appliedByCredit.get('k')).toBe(400);
+  });
+
+  it('reports the part of a credit the outlays cannot take', () => {
+    const r = applyChecklistCredits(
+      [{ id: 'a', amountCents: 100 }],
+      [
+        { id: 'k1', amountCents: 80 },
+        { id: 'k2', amountCents: 80 },
+      ],
+    );
+    expect(r.appliedByCredit.get('k1')).toBe(80);
+    expect(r.appliedByCredit.get('k2')).toBe(20);
+    expect(r.outlays).toEqual([{ id: 'a', amountCents: 0 }]);
   });
 });

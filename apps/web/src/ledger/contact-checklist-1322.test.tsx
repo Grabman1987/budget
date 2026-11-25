@@ -256,9 +256,51 @@ it('saves one checklist receipt with the ticked ids and the chosen rest handling
       memo: null,
       outlaySplitIds: ['o1'],
       occurrenceIds: ['c1'],
+      creditReceiptSplitIds: [],
       shortfall: 'open',
       surplus: 'gift',
     },
   });
   expect(create).not.toHaveBeenCalled();
+});
+
+const withCredit = (usable: boolean) => ({
+  outlays: checklist.outlays,
+  contributions: [],
+  credits: [
+    {
+      receiptSplitId: 'r1',
+      date: '2026-09-02',
+      remainingCents: 1000,
+      categoryId: usable ? null : 'reise',
+      categoryName: usable ? null : 'Reise',
+      usable,
+    },
+  ],
+});
+
+it('offsets a usable credit against the outlays: Rest and the sent ids follow the net amount', async () => {
+  const user = await open('15,01', withCredit(true));
+  const credit = screen.getByRole('checkbox', { name: /Guthaben/ }) as HTMLInputElement;
+  expect(credit.checked).toBe(true);
+  expect(screen.getByText(/^[−-]10,00\s€/)).toBeTruthy();
+  expect(rest()).toMatch(/^0,00\s€$/);
+  expect(applied('o1')).toMatch(/25,01\s€$/);
+  await user.click(screen.getByRole('button', { name: 'Speichern' }));
+  await waitFor(() => expect(checklistWrite).toHaveBeenCalledTimes(1));
+  expect(checklistWrite.mock.calls[0]![0].body).toMatchObject({
+    amountCents: 1501,
+    outlaySplitIds: ['o1'],
+    creditReceiptSplitIds: ['r1'],
+  });
+  await user.click(credit);
+  expect(rest()).toMatch(/^[−-]10,00\s€$/);
+});
+
+it('shows an earmarked credit disabled and does not reduce the total', async () => {
+  await open('25,01', withCredit(false));
+  const credit = screen.getByRole('checkbox', { name: /Guthaben → Reise/ }) as HTMLInputElement;
+  expect(credit.disabled).toBe(true);
+  expect(credit.checked).toBe(false);
+  expect(rest()).toMatch(/^0,00\s€$/);
 });
