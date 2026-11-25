@@ -130,7 +130,8 @@ test('Heute toggle stays compact in the Frei-bis tile on desktop', async ({ page
     0,
   );
   expect((await box(page.locator('.page-header'))).height).toBe(64);
-  expect((await box(group)).height).toBeLessThanOrEqual(40);
+  // Inside the tile the switch keeps the full 44px target (outer box incl. padding stays <= 56px).
+  expect((await box(group)).height).toBeLessThanOrEqual(56);
   await expectPillUnderSelected(group);
   await expectLabelsUnclipped(group);
 });
