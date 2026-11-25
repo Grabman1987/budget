@@ -19,6 +19,7 @@ vi.mock('../shell/redesign-flag', () => flags);
 const create = vi.hoisted(() => vi.fn());
 const patch = vi.hoisted(() => vi.fn());
 const checklistWrite = vi.hoisted(() => vi.fn());
+const resplitWrite = vi.hoisted(() => vi.fn());
 const http = vi.hoisted(() => ({ request: vi.fn() }));
 const payeeRows = vi.hoisted(() => ({ rows: [] as unknown[] }));
 vi.mock('../api/http', async (original) => ({
@@ -29,6 +30,7 @@ vi.mock('./mutations', () => ({
   useLedgerWrites: () => ({
     create: { mutateAsync: create },
     checklist: { mutateAsync: checklistWrite },
+    resplit: { mutateAsync: resplitWrite, isPending: false },
     patch: { mutateAsync: patch },
   }),
 }));
@@ -115,6 +117,8 @@ beforeEach(() => {
   create.mockReset();
   patch.mockReset();
   checklistWrite.mockReset();
+  resplitWrite.mockReset();
+  resplitWrite.mockResolvedValue({ bookingId: 'b9', groupId: 'g' });
   payeeRows.rows = [];
   checklistWrite.mockResolvedValue({ bookingId: 'new', groupId: 'g', restCents: 0 });
   http.request.mockReset();
@@ -338,4 +342,82 @@ it('payee path: a payee linked to a contact shows the checklist and keeps the pa
     body: { payeeId: 'pz', occurrenceIds: ['c1'], outlaySplitIds: ['o1'] },
   });
   expect(create).not.toHaveBeenCalled();
+});
+
+it('re-split: an existing inflow of a contact offers Neu aufteilen with its own links ticked', async () => {
+  const own = {
+    outlays: [],
+    credits: [],
+    contributions: checklist.contributions.map((c, i) => ({ ...c, linkedHere: i === 0 })),
+  };
+  http.request.mockImplementation(async (_method: string, url: string) =>
+    url.includes('/checklist') ? own : url.includes('receipt') ? { receipts: [] } : {},
+  );
+  payeeRows.rows = [{ id: 'pz', name: 'Zahler Muster', contactId: 'k1', defaultCategoryId: null }];
+  const booking = {
+    id: 'b9',
+    accountId: 'giro',
+    accountName: 'Giro Muster',
+    date: '2026-10-01',
+    amountCents: 80000,
+    payeeId: 'pz',
+    payeeName: 'Zahler Muster',
+    memo: null,
+    status: 'confirmed',
+    flag: null,
+    transferId: null,
+    transferAccountId: null,
+    transferAccountName: null,
+    projectId: null,
+    currency: 'EUR',
+    originalAmountCents: null,
+    originalCurrency: null,
+    balanceAfterCents: null,
+    splits: [
+      {
+        id: 's1',
+        categoryId: 'miete',
+        categoryName: 'Miete',
+        amountCents: 80000,
+        memo: null,
+        contactId: null,
+        incomeTypeId: null,
+        transferId: null,
+      },
+    ],
+  };
+  const onDone = vi.fn();
+  render(
+    <QueryClientProvider
+      client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
+    >
+      <ToastProvider>
+        <CaptureForm
+          state={{ mode: 'edit', booking } as never}
+          onDone={onDone}
+          dirtyRef={{ current: false }}
+          discard={{ asking: false, keep: vi.fn(), discard: vi.fn() }}
+          requestClose={vi.fn()}
+        />
+      </ToastProvider>
+    </QueryClientProvider>,
+  );
+  const user = userEvent.setup();
+  await user.click(await screen.findByRole('button', { name: 'Neu aufteilen' }));
+  const rent = (await screen.findByRole('checkbox', { name: /Mietanteil/ })) as HTMLInputElement;
+  expect(rent.checked).toBe(true);
+  expect((screen.getByRole('checkbox', { name: /Abo/ }) as HTMLInputElement).checked).toBe(false);
+  expect(rest()).toMatch(/^0,00\s€$/);
+  await user.click(screen.getByRole('button', { name: 'Neu aufteilen speichern' }));
+  await waitFor(() => expect(resplitWrite).toHaveBeenCalledTimes(1));
+  expect(resplitWrite).toHaveBeenCalledWith({
+    contactId: 'k1',
+    bookingId: 'b9',
+    occurrenceIds: ['c1'],
+  });
+  await user.click(screen.getByRole('checkbox', { name: /Mietanteil/ }));
+  expect(screen.getByRole('alert').textContent).toMatch(/ganzen Betrag/);
+  expect(
+    (screen.getByRole('button', { name: 'Neu aufteilen speichern' }) as HTMLButtonElement).disabled,
+  ).toBe(true);
 });

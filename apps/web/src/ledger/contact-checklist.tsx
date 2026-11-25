@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { applyChecklistCredits, planContactChecklist } from '@budget/domain';
 import type { listContactChecklist } from '@budget/db';
 import { request } from '../api/http';
+import { useLedgerWrites } from './mutations';
 import { eur } from './format';
 import './contact-checklist.css';
 
@@ -24,13 +25,15 @@ export interface ChecklistReceiptBody {
 }
 
 /** Open items of a contact for the payment date (#1322). Keyed under the ledger family. */
-const checklistQuery = (contactId: string, date: string) => ({
-  queryKey: ['ledger', 'contact-checklist', contactId, date],
+const checklistQuery = (contactId: string, date: string, ownBookingId?: string) => ({
+  queryKey: ['ledger', 'contact-checklist', contactId, date, ownBookingId ?? null],
   retry: false,
   queryFn: () =>
     request<Checklist>(
       'GET',
-      `/api/contacts/${encodeURIComponent(contactId)}/checklist?asOf=${encodeURIComponent(date)}`,
+      `/api/contacts/${encodeURIComponent(contactId)}/checklist?asOf=${encodeURIComponent(date)}${
+        ownBookingId ? `&bookingId=${encodeURIComponent(ownBookingId)}` : ''
+      }`,
     ),
 });
 
@@ -46,14 +49,17 @@ export function useContactChecklist({
   date,
   receivedCents,
   enabled,
+  ownBookingId,
 }: {
   contactId: string;
   date: string;
   receivedCents: number;
   enabled: boolean;
+  /** Re-split of this existing booking (#1336): contributions only, its own links ticked. */
+  ownBookingId?: string;
 }) {
   const live = enabled && contactId !== '' && date !== '' && receivedCents > 0;
-  const query = useQuery({ ...checklistQuery(contactId, date), enabled: live });
+  const query = useQuery({ ...checklistQuery(contactId, date, ownBookingId), enabled: live });
   // The selection belongs to one contact: another contact starts from the defaults again.
   const [state, setState] = useState({
     contactId,
@@ -78,9 +84,11 @@ export function useContactChecklist({
   const setSurplus = (value: 'credit' | 'gift') => setState({ ...current, surplus: value });
   const data = live ? query.data : undefined;
   const contributions = useMemo(() => data?.contributions ?? [], [data]);
-  const outlays = useMemo(() => data?.outlays ?? [], [data]);
-  const credits = useMemo(() => data?.credits ?? [], [data]);
-  const firstContribution = contributions.find((c) => c.selectable)?.occurrenceId;
+  const outlays = useMemo(() => (ownBookingId ? [] : (data?.outlays ?? [])), [data, ownBookingId]);
+  const credits = useMemo(() => (ownBookingId ? [] : (data?.credits ?? [])), [data, ownBookingId]);
+  const firstContribution = ownBookingId
+    ? undefined
+    : contributions.find((c) => c.selectable)?.occurrenceId;
   const rows = useMemo(
     () => [
       ...contributions.map((c) => ({
@@ -115,7 +123,10 @@ export function useContactChecklist({
   );
   const isTicked = (row: (typeof rows)[number]) =>
     row.kind === 'contribution'
-      ? (current.contributionTicks.get(row.id) ?? (row.selectable && row.id === firstContribution))
+      ? (current.contributionTicks.get(row.id) ??
+        (row.selectable &&
+          (row.id === firstContribution ||
+            contributions.some((c) => c.occurrenceId === row.id && c.linkedHere))))
       : row.kind === 'credit'
         ? row.selectable && !unticked.has(row.key)
         : !unticked.has(row.key);
@@ -207,12 +218,20 @@ export function useContactChecklist({
           {eur(rest)}
         </span>
       </div>
-      {rest < 0 &&
+      {ownBookingId && rest > 0 && (
+        <p className="cc-hint" role="alert">
+          Die Auswahl muss den ganzen Betrag decken. Wähle weitere Zeilen oder erfasse die Zahlung
+          neu.
+        </p>
+      )}
+      {!ownBookingId &&
+        rest < 0 &&
         choice('Zahlung kleiner als Auswahl', effectiveShortfall, setShortfall, [
           ['open', 'bleibt offen bis nächsten Monat'],
           ...(canWaive ? ([['waive', 'schenken']] as const) : []),
         ] as const)}
-      {rest > 0 &&
+      {!ownBookingId &&
+        rest > 0 &&
         choice('Zahlung größer als Auswahl', surplus, setSurplus, [
           ['credit', 'als Guthaben für nächsten Monat stehen lassen'],
           ['gift', 'als Geschenk an mich buchen'],
@@ -223,6 +242,8 @@ export function useContactChecklist({
     active,
     view,
     loading: live && query.isPending,
+    /** Re-split: the ticked contributions, only valid when they cover the whole amount. */
+    resplit: { occurrenceIds, restCents: rest, valid: active && rest <= 0 },
     /** Request body for the server; `null` while the list is not shown. */
     payload: (base: {
       accountId: string;
@@ -241,4 +262,78 @@ export function useContactChecklist({
           }
         : null,
   };
+}
+
+/**
+ * "Neu aufteilen" (#1336): an existing inflow of a contact is re-split over the contact's due
+ * contributions. Amount, account and date stay; the server refuses locked or settled bookings with
+ * the ordinary edit rules and one Undo restores the old splits and links.
+ */
+export function ContactResplit({
+  bookingId,
+  contactId,
+  date,
+  amountCents,
+  onDone,
+}: {
+  bookingId: string;
+  contactId: string;
+  date: string;
+  amountCents: number;
+  onDone: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [error, setError] = useState<string>();
+  const writes = useLedgerWrites();
+  const checklist = useContactChecklist({
+    contactId,
+    date,
+    receivedCents: amountCents,
+    enabled: open,
+    ownBookingId: bookingId,
+  });
+  if (!open)
+    return (
+      <button type="button" className="kbtn" onClick={() => setOpen(true)}>
+        Neu aufteilen
+      </button>
+    );
+  return (
+    <div className="cc-resplit">
+      {checklist.active ? (
+        checklist.view
+      ) : (
+        <p className="cc-hint">
+          {checklist.loading ? 'Lädt …' : 'Keine offenen Beiträge dieses Kontakts.'}
+        </p>
+      )}
+      {error && (
+        <p className="cc-hint" role="alert">
+          {error}
+        </p>
+      )}
+      <div className="cc-actions">
+        <button type="button" className="kbtn" onClick={() => setOpen(false)}>
+          Abbrechen
+        </button>
+        <button
+          type="button"
+          className="kbtn is-primary"
+          disabled={!checklist.resplit.valid || writes.resplit.isPending}
+          onClick={() => {
+            setError(undefined);
+            writes.resplit
+              .mutateAsync({ contactId, bookingId, occurrenceIds: checklist.resplit.occurrenceIds })
+              .then(onDone, (e: unknown) =>
+                setError(
+                  e instanceof Error ? e.message : 'Die Aufteilung wurde nicht gespeichert.',
+                ),
+              );
+          }}
+        >
+          Neu aufteilen speichern
+        </button>
+      </div>
+    </div>
+  );
 }

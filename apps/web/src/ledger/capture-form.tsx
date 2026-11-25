@@ -21,7 +21,7 @@ import {
   todayInVienna,
   type ManualBankStatus,
 } from '@budget/domain';
-import { useContactChecklist } from './contact-checklist';
+import { ContactResplit, useContactChecklist } from './contact-checklist';
 import { useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   CalendarDays,
@@ -500,6 +500,19 @@ export function CaptureForm({
         : checklistLines[0]?.type === 'category'
           ? payeeContactId
           : ''
+      : '';
+  // #1336: an existing inflow of a contact (payee linked to a contact, or contact splits) can be
+  // re-split; locked bookings follow the ordinary edit rules and offer nothing here.
+  const resplitContactId =
+    editing &&
+    !queued &&
+    !locked &&
+    !legOfTransfer &&
+    editing.amountCents > 0 &&
+    editing.date <= today
+      ? (editing.splits.find((x) => x.contactId)?.contactId ??
+        payees.data?.payees.find((p) => p.id === editing.payeeId)?.contactId ??
+        '')
       : '';
   const checklist = useContactChecklist({
     contactId: checklistContactId,
@@ -1406,6 +1419,15 @@ export function CaptureForm({
               if (canLearn) onBankCategorized?.(editing.id);
               onDone();
             }}
+          />
+        )}
+        {resplitContactId && editing && (
+          <ContactResplit
+            bookingId={editing.id}
+            contactId={resplitContactId}
+            date={editing.date}
+            amountCents={editing.amountCents}
+            onDone={onDone}
           />
         )}
         {locked && (

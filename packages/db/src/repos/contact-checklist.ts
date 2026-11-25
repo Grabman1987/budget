@@ -62,6 +62,8 @@ export interface ChecklistContribution {
   incomeTypeId: string | null;
   /** False when the expected payment has neither category nor income type: shown, not tickable. */
   selectable: boolean;
+  /** Re-split only: this contribution is linked to the booking being re-split. */
+  linkedHere: boolean;
 }
 
 /**
@@ -168,6 +170,7 @@ export function listContactChecklist(
       categoryName: r.categoryName,
       incomeTypeId: r.payment.incomeTypeId,
       selectable: Boolean(r.payment.categoryId || r.payment.incomeTypeId),
+      linkedHere: ownBookingId !== undefined && r.occ.bookingId === ownBookingId,
     }));
   return { outlays, contributions, credits };
 }
