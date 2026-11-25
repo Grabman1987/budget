@@ -85,6 +85,8 @@ it.each(baseline.responses)(
         path.includes('period=payday') ? 'payday' : 'monthEnd',
       );
       delete payload.leadBoundary;
+      // #1343 adds the read-only booking list behind the Pace line; strip exactly that field.
+      if (payload.pace) delete payload.pace.bookings;
       body = Buffer.from(JSON.stringify(payload));
     } else if (
       path === '/portfolio?period=1J' ||

@@ -1,5 +1,4 @@
 import { useSearch } from '@tanstack/react-router';
-import { AppLink } from '../shell/app-link';
 import { BackButton } from '../shell/back-button';
 import { useMonth } from '../shell/use-month';
 import { REDESIGN_ENABLED } from '../shell/redesign-flag';

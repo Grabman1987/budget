@@ -19,7 +19,6 @@ import { REPORTS, LIQUIDITY_FORECAST } from '../nav/reports-catalog';
 import { hubReport } from '../reports/report-hub-model';
 import { isTyping } from './capture-shortcut';
 import { KeyboardShortcuts } from './keyboard-shortcuts';
-import { AppLink } from './app-link';
 import { PrivacyButton } from './privacy-button';
 import { ThemeButton } from './theme-button';
 import { REDESIGN_ENABLED } from './redesign-flag';

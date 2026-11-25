@@ -7,7 +7,6 @@ import { eur } from '../ledger/format';
 import { EINSTELLUNGEN_KATEGORIEN, PLAN_SPARZIELE } from '../nav/pages';
 import { PageFrame } from '../pages/placeholder-page';
 import { GoalDetail, GoalHistory, goalsProgressReportQuery } from '../pages/goals-progress-report';
-import { AppLink } from '../shell/app-link';
 import { BackButton } from '../shell/back-button';
 import { useMonth } from '../shell/use-month';
 import { REDESIGN_ENABLED } from '../shell/redesign-flag';

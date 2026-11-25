@@ -6,7 +6,6 @@ import { ErrorNote, LoadingNote } from '../ledger/states';
 import { PLAN_MONAT } from '../nav/pages';
 import { monthLabel } from '../nav/month';
 import { PageFrame } from '../pages/placeholder-page';
-import { AppLink } from '../shell/app-link';
 import { BackButton } from '../shell/back-button';
 import { useMonth } from '../shell/use-month';
 import { REDESIGN_ENABLED } from '../shell/redesign-flag';

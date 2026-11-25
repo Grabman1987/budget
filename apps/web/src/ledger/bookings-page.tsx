@@ -1,4 +1,3 @@
-import { AppLink } from '../shell/app-link';
 import { BackButton } from '../shell/back-button';
 import { canLinkTransfer } from '@budget/domain';
 import { request } from '../api/http';

@@ -1352,16 +1352,16 @@
 }
 
 /* Detail "Fällig · alle Zahlungen": one card, one table; the phone uses two compact lines. */
-.hv-due-card {
+:root:has([data-budget-redesign='1']) .hv-due-card {
   padding: 4px 16px;
   min-width: 0;
 }
-.hv-due-table {
+:root:has([data-budget-redesign='1']) .hv-due-table {
   width: 100%;
   border-collapse: collapse;
   font-size: var(--fs-table);
 }
-.hv-due-table th {
+:root:has([data-budget-redesign='1']) .hv-due-table th {
   padding: 8px 8px 8px 0;
   color: var(--ink-2);
   font-family: var(--font-tech);
@@ -1371,81 +1371,81 @@
   text-align: left;
   border-bottom: 1px solid var(--rule-strong);
 }
-.hv-due-table td {
+:root:has([data-budget-redesign='1']) .hv-due-table td {
   padding: 6px 8px 6px 0;
   border-bottom: 1px solid var(--rule);
   vertical-align: middle;
 }
-.hv-due-table tr:last-child td {
+:root:has([data-budget-redesign='1']) .hv-due-table tr:last-child td {
   border-bottom: 0;
 }
-.hv-due-table .hv-due-amount,
-.hv-due-table:not(.hv-tasks-table) th:nth-child(4) {
+:root:has([data-budget-redesign='1']) .hv-due-table .hv-due-amount,
+:root:has([data-budget-redesign='1']) .hv-due-table:not(.hv-tasks-table) th:nth-child(4) {
   text-align: right;
   white-space: nowrap;
 }
-.hv-due-table .hv-due-date {
+:root:has([data-budget-redesign='1']) .hv-due-table .hv-due-date {
   white-space: nowrap;
   font-family: var(--font-tech);
   color: var(--ink-2);
 }
-.hv-due-table .hv-due-cover {
+:root:has([data-budget-redesign='1']) .hv-due-table .hv-due-cover {
   white-space: nowrap;
 }
-.hv-due-table .hv-due-cover svg {
+:root:has([data-budget-redesign='1']) .hv-due-table .hv-due-cover svg {
   vertical-align: -3px;
 }
-.hv-due-table .heute-row-open {
+:root:has([data-budget-redesign='1']) .hv-due-table .heute-row-open {
   text-align: left;
   font-weight: 600;
 }
-.hv-tasks-table .hv-task-what {
+:root:has([data-budget-redesign='1']) .hv-tasks-table .hv-task-what {
   display: flex;
   align-items: center;
   gap: 8px;
   border-bottom: 0;
 }
-.hv-tasks-table tr {
+:root:has([data-budget-redesign='1']) .hv-tasks-table tr {
   border-bottom: 1px solid var(--rule);
 }
-.hv-tasks-table tr:last-child {
+:root:has([data-budget-redesign='1']) .hv-tasks-table tr:last-child {
   border-bottom: 0;
 }
-.hv-tasks-table .rev-tri {
+:root:has([data-budget-redesign='1']) .hv-tasks-table .rev-tri {
   width: 22px;
   height: 20px;
   flex: none;
 }
-.hv-tasks-table .is-urgent .hv-task-what,
-.hv-tasks-table .is-urgent .hv-task-when {
+:root:has([data-budget-redesign='1']) .hv-tasks-table .is-urgent .hv-task-what,
+:root:has([data-budget-redesign='1']) .hv-tasks-table .is-urgent .hv-task-when {
   color: var(--red);
   font-weight: 600;
 }
-.hv-tasks-table .hv-task-action {
+:root:has([data-budget-redesign='1']) .hv-tasks-table .hv-task-action {
   text-align: right;
   white-space: nowrap;
 }
-.hv-tasks-table .hv-task-action a {
+:root:has([data-budget-redesign='1']) .hv-tasks-table .hv-task-action a {
   display: inline-flex;
   align-items: center;
   min-height: 44px;
 }
 @media (max-width: 767px) {
-  .hv-due-card {
+  :root:has([data-budget-redesign='1']) .hv-due-card {
     padding: 0 12px;
   }
-  .hv-due-table,
-  .hv-due-table tbody {
+  :root:has([data-budget-redesign='1']) .hv-due-table,
+  :root:has([data-budget-redesign='1']) .hv-due-table tbody {
     display: block;
   }
-  .hv-due-table thead {
+  :root:has([data-budget-redesign='1']) .hv-due-table thead {
     position: absolute;
     clip-path: inset(50%);
     width: 1px;
     height: 1px;
     overflow: hidden;
   }
-  .hv-due-table tbody tr {
+  :root:has([data-budget-redesign='1']) .hv-due-table tbody tr {
     display: grid;
     grid-template-columns: 52px minmax(0, 1fr) auto;
     grid-template-areas:
@@ -1456,49 +1456,49 @@
     padding: 6px 0;
     border-top: 1px solid var(--rule);
   }
-  .hv-due-table tbody tr:first-child {
+  :root:has([data-budget-redesign='1']) .hv-due-table tbody tr:first-child {
     border-top: 0;
   }
-  .hv-due-table td {
+  :root:has([data-budget-redesign='1']) .hv-due-table td {
     border: 0;
     padding: 0;
     min-width: 0;
     overflow-wrap: anywhere;
   }
-  .hv-due-table .hv-due-date {
+  :root:has([data-budget-redesign='1']) .hv-due-table .hv-due-date {
     grid-area: date;
   }
-  .hv-due-table .hv-due-name {
+  :root:has([data-budget-redesign='1']) .hv-due-table .hv-due-name {
     grid-area: name;
   }
-  .hv-due-table .hv-due-account {
+  :root:has([data-budget-redesign='1']) .hv-due-table .hv-due-account {
     grid-area: account;
     color: var(--ink-2);
     font-size: var(--fs-meta);
   }
-  .hv-due-table .hv-due-amount {
+  :root:has([data-budget-redesign='1']) .hv-due-table .hv-due-amount {
     grid-area: amount;
   }
-  .hv-due-table .hv-due-cover {
+  :root:has([data-budget-redesign='1']) .hv-due-table .hv-due-cover {
     grid-area: cover;
     font-size: var(--fs-meta);
     white-space: normal;
     text-align: right;
   }
-  .hv-tasks-table tbody tr {
+  :root:has([data-budget-redesign='1']) .hv-tasks-table tbody tr {
     grid-template-columns: minmax(0, 1fr) auto;
     grid-template-areas: 'what action' 'when action';
   }
-  .hv-tasks-table .hv-task-what {
+  :root:has([data-budget-redesign='1']) .hv-tasks-table .hv-task-what {
     grid-area: what;
   }
-  .hv-tasks-table .hv-task-when {
+  :root:has([data-budget-redesign='1']) .hv-tasks-table .hv-task-when {
     grid-area: when;
     padding-left: 30px;
     font-size: var(--fs-meta);
     color: var(--ink-2);
   }
-  .hv-tasks-table .hv-task-action {
+  :root:has([data-budget-redesign='1']) .hv-tasks-table .hv-task-action {
     grid-area: action;
   }
 }
