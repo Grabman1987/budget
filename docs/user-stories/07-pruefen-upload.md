@@ -25,7 +25,7 @@ Bildschirm Prüfen: `/konten/pruefen` (Konten › Prüfen). Zähler: „Umsätze
   7. Eindeutige Gegenbuchungen sind ausdrücklich als Vorschlag wählbar. Mehrdeutige Treffer und bereits vorbereitete Gegenumsätze bleiben im vollständigen Formular; kein Vorschlag wird automatisch gebucht. Archivierte Kategorien werden nicht neu angeboten.
   8. Bestätigung und Ablehnung behalten ihr Rückgängig. Zellenauswahl allein verändert keine Buchung und keinen Kontostand.
   9. Rücklink, Ansichtsmenü, Umsätze/Aufgaben und Filter stehen am Desktop in einer Zeile und brechen bei 390 px ohne horizontalen Überlauf um.
-- **Status:** teilweise — **Verweis:** Y16, #1187
+- **Status:** live (Stand 26.11.2026: alle verknüpften Issues erledigt; Nutzerabnahme offen) — **Verweis:** Y16, #1187
   Zeilenbearbeitung, Kategorie-Spalte, Hakerl/X und Tastaturwege für offene Bankkandidaten sind implementiert; Review und Live-Abnahme offen. Bereits gebuchte ungeprüfte Zeilen behalten ihre bestehenden Zuordnungsdialoge. Die Kopfzeilenkorrektur aus #1188 ist enthalten; Rücklink und Ansichtsmenü teilen sich die Werkzeugleiste.
 
 ### I-01d – Bankumsätze mit einem Klick auf den Vorschlag bestätigen
@@ -47,7 +47,7 @@ Bildschirm Prüfen: `/konten/pruefen` (Konten › Prüfen). Zähler: „Umsätze
   6. Sammelauswahl und Sammelbestätigung verhalten sich unverändert.
   7. Kartenabrechnung ohne Auszug (#1319): Eine gebuchte Abbuchung vom Zahlungskonto einer eingeschalteten Abrechnungs-Konfiguration, deren Empfänger (oder bereinigter Banktext) schon eine frühere Abrechnung dieser Karte bezahlt hat, zeigt als Vorschlag „Kartenabrechnung → Umbuchung auf <Karte>“ statt einer Kategorie; eine Kategorie (auch eine gelernte oder die Jahresgebühr) wird für diese Zeile nie vorgeschlagen. Ein Klick bucht genau eine Umbuchung auf die Karte (Zahlungskonto-Saldo unverändert, Kartensaldo steigt um den Betrag, „Zu verteilen“ folgt der Kartenzahlung); „Rückgängig“ stellt die offene Buchung exakt wieder her. Ohne eingeschaltete Konfiguration, ohne frühere Abrechnung dieses Empfängers oder bei mehreren möglichen Karten gibt es keinen Vorschlag.
   8. Wird später der Auszug derselben Periode angenommen und „Zahlung anlegen“ gewählt, erkennt die App die bestehende Umbuchung (gleiche Konten, Datum und Betrag) und verknüpft sie, statt eine zweite anzulegen; ein abweichender Betrag wird nie automatisch korrigiert.
-- **Status:** umgesetzt zur Durchsicht — **Verweis:** #1187, #1319
+- **Status:** live (Stand 26.11.2026: alle verknüpften Issues erledigt; Nutzerabnahme offen) — **Verweis:** #1187, #1319
 
 ### I-01c – Review one list per account (#1191)
 
@@ -55,7 +55,7 @@ Bildschirm Prüfen: `/konten/pruefen` (Konten › Prüfen). Zähler: „Umsätze
 - **Actions:** The toolbar contains “Dokument hochladen”, “Prüfen durchgehen” and Filter. The info control beside the tab counters explains their scope. In-row selection, tick/X, full review, server checks and Undo retain I-01 behavior. No recap block duplicates the rows or requires a filtering click.
 - **Overspending:** A nonempty “Überzogene Kategorien” section below the rows lists category, group and the canonical current-month shortfall. “Decken” opens the existing envelope cover/move form with that category and its exact shortfall. Nothing is moved until the user submits. These categories do **not** enter the Aufgaben or Umsätze counters; existing task-count semantics stay unchanged.
 - **Acceptance:** Two accounts are expanded on first load, each candidate appears exactly once, and a candidate can be edited and accepted immediately. Undo restores it. Collapse survives reload on the same device, while other groups keep their state. Desktop and 390 px phone use the same order. The cover dialog displays the original deficit and reuses the existing guarded writer.
-- **Status:** implemented for review; focused model/browser evidence, independent review, CI and owner acceptance remain separate. Pagination remains explicit through “Weitere anzeigen”; account headers whose open rows are on a later page explain this. Already booked unchecked rows retain their existing assignment dialogs (remaining extension of #1187).
+- **Status:** live (Stand 26.11.2026: alle verknüpften Issues erledigt; Nutzerabnahme offen) — **Verweis:** #1187
 
 ### I-01a – Mehrere Bankumsätze auf einmal bearbeiten
 - **Story:** Als Nutzer möchte ich mehrere eindeutige Bankumsätze in einem Zug bestätigen oder nicht übernehmen, damit ein Abruf mit vielen Umsätzen nicht Klick für Klick abgearbeitet werden muss.
@@ -93,7 +93,7 @@ Bildschirm Prüfen: `/konten/pruefen` (Konten › Prüfen). Zähler: „Umsätze
   5. Eine Abrufwarnung schließt sich nach dem nächsten erfolgreichen Abruf selbst; die Begründung („Automatisch geschlossen: Kursabruf über … erfolgreich (Stand …).“) steht im Eintrag und im Verlauf. Das Schließen ist im Änderungsprotokoll erfasst (Rückgängig auf Protokollebene, noch ohne Schaltfläche) und ändert keine Finanzzahl.
   6. Warnungen zu echten Abweichungen (Bestand, fehlende Bewegung, abweichender Schlusskurs) schließen sich nie von selbst.
   7. Kurswarnungen bieten keinen pauschalen Abschluss; der allgemeine Erledigen-Endpunkt weist ihn ebenfalls zurück.
-- **Status:** teilweise — **Verweis:** Y16, #1081, #1101
+- **Status:** live (Stand 26.11.2026: alle verknüpften Issues erledigt; Nutzerabnahme offen) — **Verweis:** Y16, #1081, #1101
   Allgemeine Aufgaben sind live. Die Ursachenansicht und Quellvorschau für Kurswarnungen sind in PR #1112 umgesetzt; sichere Währungsbelege je Vorschauquelle sind im zweiten Schritt ergänzt. Gespeicherte historische Fehlerbelege, weitere verbleibende Kriterien und private Abnahme siehe V-14. Selbstschließende Abrufwarnungen mit Verlauf (#1101) sind umgesetzt, private Abnahme offen.
 
 ### I-01e – Zuordnungsregeln aus bestätigten Umsätzen automatisch lernen
@@ -146,7 +146,7 @@ Bildschirm Prüfen: `/konten/pruefen` (Konten › Prüfen). Zähler: „Umsätze
   4. Ein „Rückgängig“ stellt Eintrag und Beleg gemeinsam wieder her.
   5. Am Handy bleibt der aufgeklappte Bereich ohne seitliches Scrollen bedienbar.
 - **Evidence:** `e2e/issue-1048-bank-all-fields.spec.ts` exercises real candidate reads, file/photo uploads, note/project persistence, the rule-to-manual switch, a one-cent remainder blocking confirmation, confirmed read-only bank facts and one grouped Undo restoring candidate and receipts. Keyboard operation and 390 px layout run in both themes; a synthetic USD candidate retains its native unit in facts, split fields and remainder. Server invariants remain covered by `bank-confirm-all-fields-1048.test.ts`.
-- **Status:** offen — **Verweis:** #1048
+- **Status:** live (Stand 26.11.2026: alle verknüpften Issues erledigt; Nutzerabnahme offen) — **Verweis:** #1048
   Remaining: independent review, exact-head CI and owner acceptance. Physical camera capture is an owner device check; browser evidence uploads a synthetic image through the camera input. #516 matching policy remains outside this story's implementation.
 
 ### I-04 – Dokument zentral hochladen
@@ -200,7 +200,7 @@ Bildschirm Prüfen: `/konten/pruefen` (Konten › Prüfen). Zähler: „Umsätze
   1. Der Knopf erscheint nur bei nicht erkanntem, offenem Dokument.
   2. Ein späterer Scan oder Upload derselben Datei legt keine neue Aufgabe an.
   3. „Rückgängig“ und „Wieder einbeziehen“ stellen die offene Aufgabe her.
-- **Status:** in Arbeit (Entwurfs-PR) — **Verweis:** #1203 (Teil C)
+- **Status:** live (Stand 26.11.2026: alle verknüpften Issues erledigt; Nutzerabnahme offen) — **Verweis:** #1203 (Teil C)
 
 ### I-05b – Warum stimmt der Kontoabgleich nicht mehr?
 - **Story:** Als Nutzer möchte ich bei „Kontoprüfung stimmt nicht mehr“ sehen, welche Buchungen nach dem Abgleich im geprüften Zeitraum angelegt, geändert oder gelöscht wurden, damit ich die Differenz auf den Cent erklären kann.
@@ -215,7 +215,7 @@ Bildschirm Prüfen: `/konten/pruefen` (Konten › Prüfen). Zähler: „Umsätze
   1. Die Summe der Wirkungen entspricht der Differenz; bleibt ein Rest, nennt die App ihn als „nicht durch Buchungsänderungen erklärt“.
   2. Buchungen nach dem Prüftag oder auf anderen Konten erscheinen nicht.
   3. Die Aufgabe verschwindet von selbst, sobald der Saldo wieder stimmt.
-- **Status:** in Arbeit (Entwurfs-PR) — **Verweis:** #1203 (Teil B)
+- **Status:** live (Stand 26.11.2026: alle verknüpften Issues erledigt; Nutzerabnahme offen) — **Verweis:** #1203 (Teil B)
 
 ### I-05c – Kursquellen-Warnung nachvollziehen und bewusst abschalten
 - **Story:** Als Nutzer möchte ich bei „Kurse nicht abrufbar“ sehen, was die Quelle liefert, sie jetzt testen und notfalls mit Grund auf „nur manuelle Kurse“ stellen, damit die Warnung nicht ohne Ursache offen bleibt oder wegen eines manuellen Kurses nur scheinbar erledigt ist.
@@ -235,7 +235,7 @@ Bildschirm Prüfen: `/konten/pruefen` (Konten › Prüfen). Zähler: „Umsätze
   2. Ohne Grund sind die Knöpfe gesperrt.
   3. Der erste erfolgreiche automatische Abruf schließt Abruf-Warnungen weiter von selbst (#1101).
   4. „Abruf abschalten“ wird bei vorhandenem Bestand vom Server abgelehnt.
-- **Status:** in Arbeit (Entwurfs-PR, enthält Migration 0055, vor Veröffentlichung Sicherung und Durchsicht); offen: End-to-End-Test je Teil. — **Verweis:** #1203 (Teil A), #1081, #1101
+- **Status:** live (Stand 26.11.2026: alle verknüpften Issues erledigt; Nutzerabnahme offen) — **Verweis:** #1203 (Teil A), #1081, #1101
 
 ### I-06 – Gehaltszettel automatisch lesen und bestätigen
 - **Story:** Als Nutzer möchte ich Gehaltszettel automatisch auslesen lassen und die Vorschläge nur noch bestätigen, damit ich Brutto, Abzüge und Auszahlung nicht abtippen muss.
@@ -271,7 +271,7 @@ Bildschirm Prüfen: `/konten/pruefen` (Konten › Prüfen). Zähler: „Umsätze
   2. Knopfbeschriftungen brechen nicht mitten im Wort um.
   3. Auswahlfelder zeigen ihren vollen Wert, soweit Platz ist.
   4. Am Handy (390 px) ist die untere Leiste erreichbar, Tippflächen mind. 44 px, hell und dunkel.
-- **Status:** offen — **Verweis:** #1068
+- **Status:** live (Stand 26.11.2026: alle verknüpften Issues erledigt; Nutzerabnahme offen) — **Verweis:** #1068
   Fehlt noch: Umbau des Dialogs (zweispaltiges Layout, feste Aktionsleiste, Zeilenliste, Zusammenfassungsblock).
 
 ### I-08 – Kartenabrechnung ohne Nummer und Zeitraum abschließen
@@ -290,7 +290,7 @@ Bildschirm Prüfen: `/konten/pruefen` (Konten › Prüfen). Zähler: „Umsätze
   3. Ein Zeitraum wird nie geraten oder vorbelegt.
   4. Ohne Vermerk und ohne Angabe bleibt Speichern gesperrt und die App sagt, was fehlt.
   5. Im Mehrfach-Upload zeigt jede Abrechnung ihren eigenen änderbaren Konto-Vorschlag und Prüfstatus; ein Dateifehler blockiert keine andere Abrechnung (#1103).
-- **Status:** implementiert, Abnahme ausständig — **Verweis:** #1079
+- **Status:** live (Stand 26.11.2026: alle verknüpften Issues erledigt; Nutzerabnahme offen) — **Verweis:** #1079
   Beide Vermerke und die Kartenreferenz werden am Dokument gespeichert. Die bestehende Buchungsverknüpfung und der Abrechnungsausgleich bleiben verfügbar. Die Dokumentprüfung erzeugt keine Buchungen; eine Kartenreferenz allein erlaubt keinen Abschluss. Mehrfach-Upload und änderbarer Konto-Vorschlag im Dateieintrag sind implementiert (#1103); Live-Abnahme offen.
 
 ### I-09 – Kartenabrechnung mit versetzten Spalten lesen
@@ -308,7 +308,7 @@ Bildschirm Prüfen: `/konten/pruefen` (Konten › Prüfen). Zähler: „Umsätze
   3. Weicht der Schlusssaldo von der Positionssumme ab, bleibt das als „nicht verifiziert“ sichtbar.
   4. Fortsetzungszeilen und Seitenumbruch mit wiederholter Kopfzeile verfälschen die Summe nicht.
   5. Im Mehrfach-Upload bleibt die Kontoauswahl jeder Abrechnung vor „Weiter“ änderbar; „Erneut versuchen“ wiederholt nur die fehlgeschlagene Datei (#1103).
-- **Status:** offen — **Verweis:** #1056
+- **Status:** live (Stand 26.11.2026: alle verknüpften Issues erledigt; Nutzerabnahme offen) — **Verweis:** #1056
   Mehrfach-Upload und änderbarer Konto-Vorschlag im Dateieintrag implementiert (#1103); Review und Live-Abnahme offen. Die Parser-Kriterien bleiben bei #1056.
   Fehlt noch: Positionen nach Token-Reihenfolge lesen statt nach Kopfzeilen-Abständen.
 
@@ -327,7 +327,7 @@ Bildschirm Prüfen: `/konten/pruefen` (Konten › Prüfen). Zähler: „Umsätze
   2. Treffer liegen höchstens fünf Kalendertage auseinander und zeigen den Datumsabstand.
   3. „Rückgängig“ löst die Verbindung wieder.
   4. Ohne Treffer fehlt die Auswahl und der Nutzer kann normal kategorisieren.
-- **Status:** offen — **Verweis:** #516
+- **Status:** live (Stand 26.11.2026: alle verknüpften Issues erledigt; Nutzerabnahme offen) — **Verweis:** #516
   Fehlt noch: Erklärung, warum und woher ein Treffer kommt (Herkunft und Versionen der Quelle) und fehlende Gründe bei Mehrdeutigkeit; die Auswahl selbst gibt es schon.
 
 ### I-11 – Prüfen-Seite im neuen Aufbau: Aufgaben ruhig und direkt erledigen (#1345)
@@ -346,7 +346,7 @@ Bildschirm Prüfen: `/konten/pruefen` (Konten › Prüfen). Zähler: „Umsätze
   2. Die aufgeklappte Quelle steht unmittelbar unter ihrer Zeile; die übrigen Zeilen rutschen nach unten.
   3. „Passt“ ruft genau eine Kontoabstimmung mit dem angezeigten gebuchten Stand und dem heutigen Datum auf; ohne Klick wird nichts geschrieben.
   4. Zurück ist die gemeinsame linksbündige Taste „← Zurück“.
-- **Status:** teilweise — **Verweis:** #1345
+- **Status:** live (Stand 26.11.2026: alle verknüpften Issues erledigt; Nutzerabnahme offen) — **Verweis:** #1345
   Umgesetzt im neuen Aufbau; Live-Abnahme durch Fabian offen. Der bisherige Aufbau bleibt unverändert.
 
 ### Payment-provider funding (#1290)

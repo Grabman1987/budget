@@ -24,7 +24,7 @@ Bildschirm: `/monatsabschluss/<Monat>` (z. B. 2026-10). Einstieg: Plan › Kopfz
   7. Bei verbleibender Differenz zeigt Schritt 2 den Betrag neben „Ausgleich buchen und abschließen“. Ein ausdrücklicher Klick erstellt Ausgleich und Kontoprüfung gemeinsam. Unter dem anfangs zugeklappten „Mehr“ bleiben Grund (optional, leer ohne Platzhalter) und Ausgleichsdatum verfügbar. Bereits geprüfte Zeiträume verlangen weiterhin die ausdrückliche Freigabe. Einmal Rückgängig entfernt Ausgleich und Kontoprüfung gemeinsam.
   8. Schritt 3 verwendet dieselbe Sammeldeckung und Vorschau wie das Plan-Menü; erst die Bestätigung schreibt eine gemeinsam rückgängig machbare Audit-Gruppe. Eine geänderte Grundlage erfordert eine neue Vorschau. Ohne Überziehung erscheint „Keine Kategorie ist überzogen.“ ohne Sammelaktion.
 - **Ergänzter Ablauf (#1163):** Nach dem Vergleich in Schritt 2 kann der Nutzer die sichtbare Differenz direkt mit „Ausgleich buchen und abschließen“ bestätigen oder zuvor „Mehr“ öffnen.
-- **Status:** teilweise; Bankstand-Vorbelegung und Einzelbestätigung (#1095) sowie Ein-Klick-Ausgleich mit optionalem Grund (#1163) lokal implementiert, Veröffentlichung und Nutzerabnahme ausständig. — **Verweis:** Y24, #1095, #1163, #1096 (Sammeldeckung implementiert; Live-Abnahme offen)
+- **Status:** live (Stand 26.11.2026: alle verknüpften Issues erledigt; Nutzerabnahme offen) — **Verweis:** Y24, #1095, #1163, #1096 (Sammeldeckung implementiert; Live-Abnahme offen)
   Fehlt noch: Einbindung der Hintergrundaufgabe „Job E“ und die Abnahme im Parallelbetrieb durch den Nutzer (Gate 4); die anderen Routinen siehe M-03.
 
 ### M-01a – Offene Arbeit mit Grund aufschieben

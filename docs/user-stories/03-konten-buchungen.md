@@ -38,7 +38,7 @@ Bereich: Konten (`/konten`, `/konten/$id`), Alle Buchungen (`/konten/buchungen`)
   5. Auf dem Handy lässt sich die Zeile antippen und bearbeiten.
   6. Kategorie und Empfänger sind bei Splitbuchungen und Umbuchungen nicht inline änderbar; ein Hinweis erklärt den Dialogweg. Geprüfte Buchungen bleiben durch die bestehende Freigabe geschützt.
   7. Jede Änderung ist protokolliert und rückgängig machbar. Eine Empfängeränderung übernimmt keine Standardkategorie und ändert weder Betrag noch Saldo.
-- **Status:** teilweise — bestehendes Register live; Inline-Erweiterung lokal implementiert (#1098). Fehlt noch: Integration, Veröffentlichung und Nutzerabnahme. Status colours #1190 implemented locally; review, CI, publication and owner acceptance pending. — **Verweis:** Y02, #1098, #1190
+- **Status:** live (Stand 26.11.2026: alle verknüpften Issues erledigt; Nutzerabnahme offen) — **Verweis:** Y02, #1098, #1190
 
 ### K-03 – Saldenverlauf mit Vorschau
 - **Story:** Als Nutzer möchte ich in einem Konto den Saldoverlauf mit Vorschau auf Geplantes sehen, damit ich künftige Kontostände abschätze und merke, wenn ein Limit berührt wird.
@@ -85,7 +85,7 @@ Bereich: Konten (`/konten`, `/konten/$id`), Alle Buchungen (`/konten/buchungen`)
   10. Fehlermeldungen zur Buchung erscheinen nach einem Speicherversuch; ungültiger Kategoriesuchtext wird nach Verlassen des Feldes erklärt. Ein frisches Formular zeigt keine Kategoriepflicht-Meldung während der Eingabe.
   11. Das Datum wird beim Erfassen und Bearbeiten von Ausgabe, Einnahme und Umbuchung in beiden Themes vollständig angezeigt, auch bei 390 px. Der Dialog hat keinen horizontalen Überlauf; Datumswert und Tastaturreihenfolge bleiben erhalten.
   12. The share unit survives closing and reloading on this device. Only the unit is remembered: new percentage shares start at 50 %, amount shares empty. Existing shares and saved bookings remain unchanged. Editing still works when device storage is blocked.
-- **Status:** Grundfunktion live; Kategorieanlage #1104 und Konsistenzkorrekturen #1145 implementiert, PR-/CI-Prüfung und Live-Abnahme offen — **Verweis:** Y03, #1104, #1145; Layout #1142 (Kategorie-Vorschlagschips entfernt, Kategorie nur über das Suchfeld bzw. Empfänger-Vorbelegung)
+- **Status:** live (Stand 26.11.2026: alle verknüpften Issues erledigt; Nutzerabnahme offen) — **Verweis:** Y03, #1104, #1145; Layout #1142 (Kategorie-Vorschlagschips entfernt, Kategorie nur über das Suchfeld bzw. Empfänger-Vorbelegung)
 
   Share-mode slice and layout slices of #1146 implemented; PR review/CI and live acceptance pending. The desktop dialog has a fixed height, so Abbrechen, Speichern und neu and Speichern keep their position while shares or splits expand and only the body scrolls. Save and new and adding a split keep the body's scroll position. The list „Gespeicherte Änderungen“ no longer exists (#1200); a short confirmation never shifts the register.
 
@@ -230,7 +230,7 @@ Bereich: Konten (`/konten`, `/konten/$id`), Alle Buchungen (`/konten/buchungen`)
   3. Verbindungsabbruch vor oder nach dem Speichern verliert und verdoppelt nichts.
   4. Der Warnhinweis bei unklarem Empfang bleibt erhalten.
   5. Eine bestätigte Änderung braucht kein Neuladen.
-- **Status:** offen — **Verweis:** #1075
+- **Status:** live (Stand 26.11.2026: alle verknüpften Issues erledigt; Nutzerabnahme offen) — **Verweis:** #1075
 - Fehlt noch: Idempotenzschlüssel, durchgängige Zustandsanzeige, Tests für Verbindungsabbruch. Belege zeigen schon „Wartet auf Senden“/„Unsicher“.
 
 ### K-11 – Fremdwährungsbuchungen mit Originalbetrag
@@ -264,7 +264,7 @@ Bereich: Konten (`/konten`, `/konten/$id`), Alle Buchungen (`/konten/buchungen`)
   2. „Unterwegs“ endet mit dem Eingang.
   3. Nur dokumentierte Seiten werden bestätigt; vorhandene Buchungen werden bevorzugt verknüpft.
   4. Ein Abgang ohne Gegenseite hebt den bestätigten Saldo des Empfängers nicht an.
-- **Status:** offen — **Verweis:** #1080
+- **Status:** live (Stand 26.11.2026: alle verknüpften Issues erledigt; Nutzerabnahme offen) — **Verweis:** #1080
 - Fehlt noch: gesamter Vorgang (Vorschau, Zustand „unterwegs“, Verknüpfung). Der Vorgang wird beim Konto geöffnet (Entscheidung 15.11.2026).
 
 ### K-13 – Wertpapierüberträge mit Kostenbasis
@@ -281,7 +281,7 @@ Bereich: Konten (`/konten`, `/konten/$id`), Alle Buchungen (`/konten/buchungen`)
   2. Eine unbekannte Basis bleibt unbekannt und geht in die manuelle Prüfung.
   3. Scheitert die zweite Seite, bleibt keine Hälfte stehen.
   4. Rückgängig stellt beide Seiten her.
-- **Status:** geplant — **Verweis:** #520
+- **Status:** zurückgestellt (Issue nicht geplant geschlossen; Stand 26.11.2026) — **Verweis:** #520
 - Wird noch nicht gebaut; bleibt offener Punkt (Entscheidung 15.11.2026). Gleiche Funktion wie V-17.
 - Fehlt noch: Nachweis der Erhaltung (Stufe A), danach Speicherung, Schnittstelle und Oberfläche.
 
@@ -355,7 +355,7 @@ Bereich: Konten (`/konten`, `/konten/$id`), Alle Buchungen (`/konten/buchungen`)
   2. Unter den Registerkarten steht keine doppelte Überschrift mit demselben Namen.
   3. Ohne Verrechnungskonto entfällt dessen Anzeige; ohne eigenes Bargeld entfällt die Zeile „Bargeld im Depotkonto“.
   4. Auf dem Telefon bleiben alle Bedienelemente mindestens 44 px groß, es gibt kein seitliches Scrollen.
-- **Status:** umgesetzt (Branch `feat/review-depot-1346`), noch nicht abgenommen — **Verweis:** #1346
+- **Status:** live (Stand 26.11.2026: alle verknüpften Issues erledigt; Nutzerabnahme offen) — **Verweis:** #1346
 
 ### K-17 – Kommend im Konto: nächster Monat, Saldo daneben
 - **Story:** Als Nutzer möchte ich im Bereich „Kommend“ eines Kontos nur die Zahlungen der nächsten Wochen sehen und neben jeder Zeile den Kontostand danach, damit ich auf dem Telefon sofort erkenne, wie weit das Geld bis zum nächsten Gehalt reicht.
@@ -370,4 +370,17 @@ Bereich: Konten (`/konten`, `/konten/$id`), Alle Buchungen (`/konten/buchungen`)
   1. Kein Termin mehr als 31 Tage nach heute ohne passenden „Bis“-Filter.
   2. Der Kontostand je Zeile ist derselbe wie in der Saldo-Spalte am Desktop.
   3. Aufgeteilte zukünftige Buchungen erscheinen auf dem Telefon nicht mehr als zerrissene Tabellenzeile.
-- **Status:** umgesetzt (Branch `fix/kommend-phone-horizon`), noch nicht abgenommen — **Verweis:** Owner-Feedback 25.11.2026
+- **Status:** live seit 26.11.2026 (#1351, fc819ad6), Nutzerabnahme offen — **Verweis:** #1351, Owner-Feedback 25.11.2026
+
+### K-18 – Geplanten Termin auf einen anderen Tag legen
+- **Story:** Als Nutzer möchte ich eine geplante, noch nicht gebuchte Zahlung aus „Kommend“ heraus auf einen anderen Tag legen, damit Vorschau und Prognose stimmen, wenn eine Zahlung früher oder später kommt, ohne die Regel zu ändern.
+- **Ausgangslage:** In „Kommend“ steht eine wiederkehrende Zahlung, die diesmal an einem anderen Tag abgebucht wird.
+- **Ablauf:**
+  1. Ich tippe auf die Zeile und wähle für diesen einen Termin ein neues Datum.
+  2. Kommend, Heute und Prognose zeigen den Termin am neuen Tag; die Regel und alle anderen Termine bleiben unverändert.
+  3. Rückgängig stellt das ursprüngliche Datum wieder her.
+- **Ergebnis:** Nur dieser Termin ist verschoben.
+- **Abnahmekriterien:**
+  1. Die Verschiebung verdoppelt den Termin nicht und erzeugt keine Buchung.
+  2. Die Bank-Zuordnung findet den Termin am neuen Datum.
+- **Status:** geplant — **Verweis:** #1360

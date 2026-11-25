@@ -386,7 +386,7 @@ Gemeinsamer Weg je Regel: Einstellungen › Regelwerk öffnen, die Zeile der Reg
   2. Kein Kredit oder kein Portfolio wird ausdrücklich behandelt, nicht still als 100.
   3. Derselbe Stand liefert denselben Score.
   4. Beträge folgen dem Datenschutz-Modus.
-- **Status:** geplant — **Verweis:** #814
+- **Status:** live (Stand 26.11.2026: alle verknüpften Issues erledigt; Nutzerabnahme offen) — **Verweis:** #814
   Fehlt noch: Bewertungsmethode, Gewichte, Anzeige.
 
 ### F-03 – Risikotoleranz und Risikotragfähigkeit freiwillig erfassen

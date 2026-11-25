@@ -41,7 +41,7 @@ Bereich: Plan (`/plan/monat`, `/plan/jahr`, `/plan/erwartet`, `/plan/sparziele`,
   5. Bestehende Buchungen bleiben der Kategorie zugeordnet.
   6. Im Buchungsdialog, bei der Inline-Kategorieänderung und unter Prüfen öffnet „Neue Kategorie …“ dasselbe Formular. Doppelte Namen werden mit „Dieser Name wird schon verwendet.“ abgelehnt.
   7. „Rückgängig“ entfernt eine neu angelegte, noch unbenutzte Kategorie; ein offener Buchungsentwurf verliert dabei die entfernte Auswahl. Das Anlegen allein verändert keine Geldwerte.
-- **Status:** Grundfunktion live; Kategorieanlage im Wähler #1104 implementiert, PR-/CI-Prüfung und Live-Abnahme offen — **Verweis:** Y06, #1104
+- **Status:** live (Stand 26.11.2026: alle verknüpften Issues erledigt; Nutzerabnahme offen) — **Verweis:** Y06, #1104
 
 ### P-03 – Kategoriestruktur wie im Vorsystem
 - **Story:** Als Nutzer möchte ich Gruppen und Kategorien wie in meiner früheren YNAB-Struktur wiederfinden (Reihenfolge, Einzelkategorien statt Sammelkategorien, versteckte Kategorien), damit ich mich nicht neu einarbeiten muss und alte Gewohnheiten weiter gelten.
@@ -59,7 +59,7 @@ Bereich: Plan (`/plan/monat`, `/plan/jahr`, `/plan/erwartet`, `/plan/sparziele`,
   3. Keine Buchung geht verloren; jede ist weiter einer Kategorie zugeordnet.
   4. Versteckte Kategorien erscheinen nicht im Plan, ihre Buchungen bleiben in den Konten sichtbar.
   5. Sparziele und Investieren stehen in der vereinbarten gemeinsamen Gruppe; bestehende Zielverknüpfungen bleiben erhalten.
-- **Status:** offen; Betreiber-Werkzeug vorhanden, synthetischer Wiederherstellungs-Probelauf und Ablauf dokumentiert — **Verweis:** #969
+- **Status:** live (Stand 26.11.2026: alle verknüpften Issues erledigt; Nutzerabnahme offen) — **Verweis:** #969
 - Fehlt noch: private Zuordnung, Probelauf auf der echten Datenbankkopie, Freigabe des konkreten Plans, Sicherung, Live-Lauf und Abnahme. Der synthetische Test ersetzt diese Schritte nicht.
 
 ### P-04 – Vorschläge und „Leere füllen“
@@ -270,7 +270,7 @@ Bereich: Plan (`/plan/monat`, `/plan/jahr`, `/plan/erwartet`, `/plan/sparziele`,
   2. Der Filter „Braucht Aufmerksamkeit“ lässt sich mit „Filter entfernen“ wieder aufheben.
   3. Die Monatsleiste ist nach Hochscrollen wieder sichtbar.
   4. Hell/dunkel, Desktop und iPhone gleich lesbar.
-- **Status:** offen — **Verweis:** #992
+- **Status:** live (Stand 26.11.2026: alle verknüpften Issues erledigt; Nutzerabnahme offen) — **Verweis:** #992
 - Fehlt noch: Punkt 3 (Filter „Braucht Aufmerksamkeit“) existiert im Plan bereits; Punkte 1, 2, 4, 5 sind laut Issue offen und im Code zu prüfen.
 
 ### P-13 – Forecast backtest (#1292)
@@ -289,4 +289,4 @@ Bereich: Plan (`/plan/monat`, `/plan/jahr`, `/plan/erwartet`, `/plan/sparziele`,
   2. Ich lese Tiefpunkt, Diagramm und Zahlungstabelle; die Erklärtexte sind auf je einen kurzen Satz reduziert.
   3. Ich klappe „Tilgen oder investieren“ auf: ab 1024 px Breite stehen links die Eingaben, rechts das Ergebnis; schmaler untereinander.
 - **Ergebnis:** Nur Anzeige. Es wird nichts gebucht.
-- **Status:** in Prüfung — **Verweis:** #1343
+- **Status:** live (Stand 26.11.2026: alle verknüpften Issues erledigt; Nutzerabnahme offen) — **Verweis:** #1343

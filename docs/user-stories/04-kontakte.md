@@ -55,7 +55,7 @@ Bereich: „Konten › Kontakte“ (`/konten/kontakte`, Kontoblatt je Person unt
   2. Die Anteile dürfen die Rückzahlung nicht übersteigen; beim Neuzuordnen bleibt der angezeigte Rest als Kontaktguthaben, auch wenn andere Auslagen offen sind.
   3. Eine Zuordnung über die offene Auslage hinaus wird abgelehnt.
   4. Nachträgliches Neuzuordnen ist rückgängig machbar.
-- **Status:** teilweise — **Verweis:** #978
+- **Status:** live (Stand 26.11.2026: alle verknüpften Issues erledigt; Nutzerabnahme offen) — **Verweis:** #978
 - Fehlt noch: private Abnahme. Die Zuordnungswahl der ursprünglichen Rückzahlung kann auch bereits automatisch verbrauchtes freies Guthaben einer anderen Auslage zuweisen.
 
 ### C-03b – Guthaben-Wahl auch nach automatischer Verrechnung
@@ -73,7 +73,7 @@ Bereich: „Konten › Kontakte“ (`/konten/kontakte`, Kontoblatt je Person unt
   2. Betroffene Auslagen bleiben nach dem Zurücknehmen der Verrechnung korrekt offen oder beglichen.
   3. Ohne Budgetkonto (oder bei Vormerkung ohne Kategorie) meldet das Formular „Bitte ein Budgetkonto und bei Vormerkung eine Kategorie wählen.“
   4. Rückgängig stellt die vorherige Verwendung wieder her.
-- **Status:** teilweise — **Verweis:** #978
+- **Status:** live (Stand 26.11.2026: alle verknüpften Issues erledigt; Nutzerabnahme offen) — **Verweis:** #978
 - Fehlt noch: private Abnahme. „Geschenk an Kontakt“ ist eine eigene Aktion an einer offenen Auslage, keine Guthaben-Wahl. Sie erlässt höchstens den offenen Anteil, behält die Ursprungskategorie und verändert Kontostände und Vermögen nicht. Eine alleinstehende Auslage benötigt eine ausdrücklich gewählte Ausgabenkategorie.
 
 ### C-03c – Kontakt-Korrekturen per Betreiber-Befehl
@@ -92,7 +92,7 @@ Bereich: „Konten › Kontakte“ (`/konten/kontakte`, Kontoblatt je Person unt
   3. `undo-group` stellt den Zustand vor dem Lauf her.
   4. Ein unbekannter oder fremder Kontakt bzw. eine fremde Auslage wird ohne Teilschreibung dieses Eintrags abgelehnt; andere gültige Einträge können angewendet werden (Exitcode 3 bei abgelehnten Einträgen, siehe `docs/ops.md`).
   5. Nach einer Zusammenführung gehören historische Rückzahlungen und Auslagen zur gemeinsamen Kontaktidentität; fremde Kontakte bleiben ausgeschlossen. Bankbetrag, Datum, Konto und Abgleichstatus bleiben auch mit `--unlock` unverändert.
-- **Status:** teilweise — **Verweis:** #978
+- **Status:** live (Stand 26.11.2026: alle verknüpften Issues erledigt; Nutzerabnahme offen) — **Verweis:** #978
 - Fehlt noch: Integration und private Abnahme der Identitätsprüfung im Betreiber-Befehl nach Zusammenführungen. Lokale synthetische Tests ersetzen die private Abnahme nicht.
 
 ### C-04 – Kontakte zusammenführen
@@ -111,7 +111,7 @@ Bereich: „Konten › Kontakte“ (`/konten/kontakte`, Kontoblatt je Person unt
   3. Lassen sich die Salden nicht sicher zusammenführen, bricht die App ab: „Die Salden beider Kontakte lassen sich nicht sicher zusammenführen.“ (kein stilles Verrechnen).
   4. Haben sich Daten zwischenzeitlich geändert, verlangt die App eine neue Vorschau.
   5. Rückgängig stellt beide Kontakte mit ihren Salden her.
-- **Status:** teilweise — **Verweis:** #871, #869
+- **Status:** live (Stand 26.11.2026: alle verknüpften Issues erledigt; Nutzerabnahme offen) — **Verweis:** #871, #869
 - Hinweis: Im Code ist ein Dialog bereits vorhanden (PR #1046, „Contact merge: preview, commit, Undo“); #871 und #869 sind offen. Status vor Abnahme klären, ob „geplant“ noch stimmt. Ohne diese Klärung gilt oben der im Code vorgefundene Ablauf.
 
 ### C-08 – Verknüpfte Auslage nach Rückfrage korrigieren
@@ -119,14 +119,14 @@ Bereich: „Konten › Kontakte“ (`/konten/kontakte`, Kontoblatt je Person unt
 - **Story:** Als Nutzer möchte ich eine bereits einer Rückzahlung zugeordnete Auslage korrigieren oder löschen können, ohne Verknüpfungen selbst aufzulösen.
 - **Flow:** Opening an outlay allocated by a repayment asks „Verknüpfte Auslage wirklich bearbeiten?“ and gives the repayment dates. Cancel and Escape close the question. „Bearbeitung bestätigen“ opens the form and authorizes the edit in this opening. Deletion has its own confirmation. Allocations that fit are retained. Any released amount becomes credit on the existing repayment, with the newest allocation reduced first.
 - **Abnahmekriterien:** Ohne `unlockContactLinked` (Löschen: `unlockLinked`) antwortet die API mit `contact_linked` und ändert nichts. Mit Bestätigung gilt: Summe der Zuordnungen je Auslage höchstens deren Anteil; Kontaktsaldo = Auslagen minus Rückzahlungen; Guthaben + Zuordnungen = Rückzahlung. Der Override (mit Grund) ist im Protokoll gespeichert, und ein Rückgängig stellt Buchung, Zuordnungen und Kategorierückgaben in einem Schritt wieder her.
-- **Status:** Prepared for review (#1108). This flow covers outlays with eligible repayment allocations. Repayment source bookings, gifts, write-offs and dependent credit changes continue to use their specialised contact actions and dependency guards.
+- **Status:** live (Stand 26.11.2026: alle verknüpften Issues erledigt; Nutzerabnahme offen) — **Verweis:** #1108
 
 ### C-09 – Bezahlt für: Anteil mit vorhandenem Guthaben des Kontakts verrechnen
 
 - **Story:** Als Nutzer möchte ich beim Erfassen sehen, dass ein Kontakt seinen Anteil schon vorab bezahlt hat, damit die Zeile nicht so tut, als würde ich auslegen.
 - **Ablauf:** In „Bezahlt für“ zeigt jede Anteilszeile eines Kontakts mit Guthaben, wie viel Guthaben er hat und was danach übrig ist. Deckt das Guthaben den Anteil, steht „Bereits beglichen“ und die Zeile „Kategorie trägt …“ nennt den Betrag ohne den beglichenen Anteil. Deckt es nur einen Teil, steht, wie viel verrechnet wird und dass der Rest bis zur Rückzahlung offen bleibt. Ohne Guthaben bleibt der bisherige Text. Das Guthaben gilt zum Buchungsdatum und für die gewählte Kategorie; mehrere Anteile desselben Kontakts verbrauchen es nacheinander, nie doppelt.
 - **Abnahmekriterien:** Die Verrechnung selbst läuft wie bisher beim Speichern in derselben Änderungsgruppe, ohne Geldbewegung: Kontaktsaldo vorher = nachher minus Anteil, Guthaben + Zuordnungen = Rückzahlung, die Konten ändern sich nur um den Einkauf; ein Rückgängig stellt Buchung und Verrechnung gemeinsam wieder her. Beim Bearbeiten einer bestehenden Buchung erscheint der Hinweis noch nicht.
-- **Status:** teilweise, zur Review vorbereitet — **Verweis:** #1147. Erster Teil: Anzeige mit vorher/nachher und Texte je Fall; die Verrechnung war schon vorhanden und ist nun durch API-Tests mit synthetischen Beträgen abgesichert. Offen: Auswahl „nicht verrechnen“ pro Anteil, Hinweis beim Bearbeiten, Browser-Abnahme. Keine Live-Abnahme behauptet.
+- **Status:** live (Stand 26.11.2026: alle verknüpften Issues erledigt; Nutzerabnahme offen) — **Verweis:** #1147. Erster Teil: Anzeige mit vorher/nachher und Texte je Fall; die Verrechnung war schon vorhanden und ist nun durch API-Tests mit synthetischen Beträgen abgesichert. Offen: Auswahl „nicht verrechnen“ pro Anteil, Hinweis beim Bearbeiten, Browser-Abnahme. Keine Live-Abnahme behauptet.
 
 **Delivery update (#1147).** In new shared purchases, each contact share with eligible credit has a checked “Mit Guthaben verrechnen” option. Clearing it keeps the credit available and leaves that share open. A later share can use the retained credit. The preview shows eligible credit before and after the choice and respects reservations already saved for later dates. Saving and Undo use the same booking group. The choice is made during capture. Editing a previously saved purchase keeps its recorded offset.
 
@@ -149,4 +149,4 @@ Bereich: „Konten › Kontakte“ (`/konten/kontakte`, Kontoblatt je Person unt
   6. Hat der Kontakt keine offenen Posten, erscheint keine Liste und die Buchung läuft wie bisher.
   7. Zwei Beiträge in einer Zahlung (81.999 Cent = 80.000 + 1.999): zwei Teile, beide Verknüpfungen „erhalten“; jede Zeile zeigt nur ihren eigenen Teil, nie den Gesamtbetrag doppelt (Einnahmen des Monats, Plangenauigkeit, Prognose). Zu wenig bezahlt: der letzte Beitrag steht „abweichend“. „Rückgängig“ und Löschen der Buchung lösen beide Verknüpfungen.
   8. Neu aufteilen (#1336): Bei einer vorhandenen Einnahme eines Kontakts (Empfänger gehört zum Kontakt) bietet das Bearbeiten „Neu aufteilen“ an. Die Liste zeigt nur Beiträge, die eigenen Verknüpfungen sind angehakt; gespeichert wird nur, wenn die Auswahl den ganzen Betrag deckt (Rest 0,00 €). Betrag, Konto und Datum bleiben; Teile und Verknüpfungen ersetzt eine Änderungsgruppe, „Rückgängig“ stellt beides her. Geprüfte (gesperrte) und schon abgerechnete Buchungen (Auslagen zurückgezahlt) bleiben nach den üblichen Bearbeitungsregeln gesperrt.
-- **Status:** teilweise, Entwurf (#1322, #1336). Mehrere Beiträge pro Zahlung, Einstieg über den Empfänger und Neu aufteilen (nur ohne Rest) sind umgesetzt. Fehlt noch: Neu aufteilen mit Auslagen/Rest (ein Rückgängig wäre dort nach den heutigen Regeln nicht möglich). „schenken“ gibt es nur, wenn eine zu kurz bezahlte Auslage eine Kategorie hat. Keine Live-Abnahme.
+- **Status:** live (Stand 26.11.2026: alle verknüpften Issues erledigt; Nutzerabnahme offen) — **Verweis:** #1322, #1336

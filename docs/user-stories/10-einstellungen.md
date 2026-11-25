@@ -56,7 +56,7 @@ Einstellungen erreicht der Nutzer über die Navigation „Einstellungen“. Die 
   2. The next scheduled retrieval appears only when the endpoint supplies a real date.
   3. The status column aligns on desktop. At 320 px, details and the 44 px action fit without horizontal scrolling.
   4. Amounts and names follow the existing privacy mode.
-- **Status:** teilweise — **Reference:** #859. Owner acceptance remains open.
+- **Status:** live (Stand 26.11.2026: alle verknüpften Issues erledigt; Nutzerabnahme offen) — **Verweis:** #859
 
 ### E-03a – Anlageklassen und Sollquoten verwalten
 - **Story:** Als Nutzer möchte ich Anlageklassen, Gruppen und Sollquoten pflegen, damit Portfolio, Rebalancing und die Regeln R13 bis R15 mit meinen Zielen rechnen.
@@ -91,7 +91,7 @@ Einstellungen erreicht der Nutzer über die Navigation „Einstellungen“. Die 
   3. Eine abgebrochene Freigabe meldet „Die Bankfreigabe wurde abgebrochen. Bitte erneut verbinden.“
   4. Während eines Abrufs oder bei Pause ist die Zuordnung gesperrt und die App sagt warum.
   5. Es wird kein grüner Erfolgsstempel ohne echten Lauf angezeigt.
-- **Status:** offen — **Verweis:** #859
+- **Status:** live (Stand 26.11.2026: alle verknüpften Issues erledigt; Nutzerabnahme offen) — **Verweis:** #859
   The redesign register distinguishes connected, expired consent, failed retrieval, partial retrieval, unmapped account and unavailable service, plus pending approval, paused, unconfigured and loading. Synthetic browser cases exercise recovery focus or retry. Owner acceptance and live provider verification remain open.
 
 ### E-05 – Mit Passkey anmelden und Passkeys verwalten
@@ -177,7 +177,7 @@ Einstellungen erreicht der Nutzer über die Navigation „Einstellungen“. Die 
   4. Die App stellt monatlich automatisch eine Probe-Wiederherstellung her und zeigt Datum, Sicherungsname und Ergebnis (in Ordnung / fehlgeschlagen / nicht durchgeführt mit Grund).
   5. Eine fehlgeschlagene oder mehr als 40 Tage überfällige Probe erzeugt einen Eintrag unter Konten › Prüfen.
   6. Die Prüfkopie wird nach jeder Probe gelöscht, auch bei Fehlern; reicht der freie Speicher nicht, wird die Probe mit Begründung ausgelassen.
-- **Status:** teilweise — **Verweis:** FEATURES KPIs, #522, #1106
+- **Status:** teilweise live (Stand 26.11.2026: Wiederherstellungsprobe #1106 erledigt, Download-Teil #522 nicht geplant) — **Verweis:** FEATURES KPIs, #522, #1106
   Umgesetzt mit #1106 (Abnahme durch den Nutzer steht aus): automatische Monatsprobe des Litestream-Stands samt Lesbarkeitsprüfung der Nachtkopie. Bewusste Abweichung: Die App entschlüsselt die Nachtkopie nicht (kein privater Schlüssel auf dem Server); Entschlüsselung und belegfähige Offline-Absicherung (#522) bleiben beim Nutzer.
 
 ### E-08 – Änderungen rückgängig machen und wiederholen
@@ -210,7 +210,7 @@ Einstellungen erreicht der Nutzer über die Navigation „Einstellungen“. Die 
   2. Neuladen mitten im Ablauf setzt beim letzten unfertigen Schritt fort.
   3. Doppeltes Absenden legt kein Konto doppelt an.
   4. Die Passkey-Einrichtung bleibt unabhängig davon.
-- **Status:** geplant — **Verweis:** #873
+- **Status:** zurückgestellt (Issue nicht geplant geschlossen; Stand 26.11.2026) — **Verweis:** #873
 
 ### E-10 – Bei Veröffentlichung: Login, Onboarding und Glossar
 - **Story:** Als Betreiber einer veröffentlichten App möchte ich einen vertrauenswürdigen Login, einen geführten Einstieg und ein Glossar, damit fremde Nutzer die App ohne Hilfe verstehen.
@@ -224,7 +224,7 @@ Einstellungen erreicht der Nutzer über die Navigation „Einstellungen“. Die 
   1. Ein neuer Nutzer kommt ohne Hilfe bis zur ersten Buchung.
   2. Ein Login-Fehler nennt, was zu tun ist.
   3. Am Handy ist alles ohne seitliches Scrollen bedienbar.
-- **Status:** geplant — **Verweis:** #490
+- **Status:** zurückgestellt (Issue nicht geplant geschlossen; Stand 26.11.2026) — **Verweis:** #490
   Bewusst offen gelassen (Glossar). Fehlt noch: Bewusst nach der Veröffentlichung; nicht vor den anderen Paketen bauen.
 
 ### E-11 – Konto anlegen und bearbeiten
@@ -319,7 +319,7 @@ Einstellungen erreicht der Nutzer über die Navigation „Einstellungen“. Die 
   2. Ein Guthaben wird nie automatisch mit offenen Auslagen des anderen verrechnet.
   3. Haben sich die Daten geändert, verlangt die App die Vorschau neu.
   4. Nach erfassten Zahlungen lässt sich die Zusammenführung nicht mehr rückgängig machen; die App warnt davor.
-- **Status:** teilweise — **Verweis:** #871, #869 (siehe auch C-04)
+- **Status:** live (Stand 26.11.2026: alle verknüpften Issues erledigt; Nutzerabnahme offen) — **Verweis:** #871, #869 (siehe auch C-04)
   Fehlt noch: Vertrag und Freigabe (#869, #871) sind offen; der Dialog mit Vorschau ist im Code vorhanden. Abgleich mit C-04 (dort „geplant“).
 
 ### E-14 – Empfänger zusammenführen, Hauptempfänger und Alias
@@ -338,7 +338,7 @@ Einstellungen erreicht der Nutzer über die Navigation „Einstellungen“. Die 
   3. Systemempfänger (z. B. Eröffnungssaldo) erscheinen nicht und lassen sich nicht zusammenführen.
   4. Ohne Auswahl von mindestens zwei Empfängern ist „Ausgewählte zusammenführen“ gesperrt.
   5. Am Handy bleibt die Seite ohne seitliches Scrollen bedienbar.
-- **Status:** offen — **Verweis:** #1202 (Kontakte siehe E-13b, #871)
+- **Status:** live (Stand 26.11.2026: alle verknüpften Issues erledigt; Nutzerabnahme offen) — **Verweis:** #1202 (Kontakte siehe E-13b, #871)
 
 ### E-15 – Krypto-Quellbewegungen als Vorgang abgleichen
 - **Story:** Als Nutzer möchte ich, dass die App zusammengehörige Bewegungen der Krypto-Quelle (Kauf mit Gebühr, Staking-Belohnung, Sparplan) als einen Vorgang gegen meine Trades und Buchungen abgleicht, damit nur echte Lücken offen bleiben und nichts doppelt erfasst wird.
@@ -357,4 +357,4 @@ Einstellungen erreicht der Nutzer über die Navigation „Einstellungen“. Die 
   3. „Rückgängig“ stellt die vorherigen Zustände der Einträge und Warnungen wieder her.
   4. Nicht lesbare Bewegungen nennen das fehlerhafte Feld (nie einen Wert).
   5. Eine Sparplan-Bewegung ohne Bankbuchung innerhalb von zehn Tagen bleibt offen.
-- **Status:** in Arbeit — **Verweis:** #1205, #1081
+- **Status:** live (Stand 26.11.2026: alle verknüpften Issues erledigt; Nutzerabnahme offen) — **Verweis:** #1205, #1081
