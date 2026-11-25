@@ -1,4 +1,4 @@
-import { projectUpcomingRegister, todayInVienna } from '@budget/domain';
+import { addDays, projectUpcomingRegister, todayInVienna } from '@budget/domain';
 import { useAmountPrivacy, useIsPhone } from '@budget/ui';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState, type ReactNode } from 'react';
@@ -29,6 +29,8 @@ export function useRegisterToday() {
   }, [today, qc]);
   return today;
 }
+
+export const UPCOMING_HORIZON_DAYS = 31;
 
 /** What the booking table needs to show the "Kommend" section inside its own columns. */
 export interface UpcomingModel {
@@ -102,8 +104,12 @@ export function useUpcomingRegister(
     today,
   );
   const bookingIds = new Set(filtered.data?.map((b) => b.id));
+  // Planned occurrences only for the coming month (a yearly bonus months ahead is noise);
+  // an explicit "bis" filter widens it. Captured future bookings always show.
+  const horizon = filter.to ?? addDays(today, UPCOMING_HORIZON_DAYS);
   const scheduled = (schedules.data ?? []).filter(
     (s) =>
+      s.dueDate <= horizon &&
       (!filter.accountId || s.accountId === filter.accountId) &&
       (!filter.categoryId ||
         s.categoryId === filter.categoryId ||

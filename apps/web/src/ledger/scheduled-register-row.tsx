@@ -66,8 +66,16 @@ export function ScheduledRegisterRow({
                   {nativeCurrency(s.amountCents, s.currency, true)}
                 </span>
               </span>
-              <span className="kschedule-m-meta">
-                {category} · {s.accountName} · {upcomingDate(s.dueDate, today)}
+              <span className="kschedule-m-line">
+                <span className="kschedule-m-meta">
+                  {category}
+                  {all && <> · {s.accountName}</>}
+                </span>
+                {showBalance && (
+                  <span className="kschedule-m-balance kx-run">
+                    {balance === null ? '–' : nativeCurrency(balance, s.currency)}
+                  </span>
+                )}
               </span>
             </AppLink>
             <button

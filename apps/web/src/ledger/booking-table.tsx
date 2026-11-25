@@ -15,6 +15,7 @@ import {
   valuedCurrency,
   shortDay,
   upcomingDate,
+  upcomingDayHeading,
   monthName,
 } from './format';
 import { ScheduledRegisterRow } from './scheduled-register-row';
@@ -384,40 +385,59 @@ export function BookingTable({
                 </tr>
               )}
               {upcoming.open &&
-                entries.map((entry) =>
-                  entry.schedule ? (
-                    <ScheduledRegisterRow
-                      key={entry.id}
-                      occurrence={entry.schedule}
-                      today={upcoming.today}
-                      all={all}
-                      blankCheck={!!selection}
-                      phone={phone}
-                      balance={upcoming.balances.get(entry.id) ?? null}
-                      showBalance={runColumn}
-                    />
-                  ) : (
-                    <Row
-                      key={entry.id}
-                      booking={entry.booking}
-                      variant={variant}
-                      classes={classes}
-                      upcomingToday={upcoming.today}
-                      projectedBalance={upcoming.balances.get(entry.id) ?? null}
-                      blankCheck={!!selection}
-                      runColumn={runColumn}
-                      dispoCents={dispo}
-                      onOpen={onOpen}
-                      onInspect={setInspected}
-                      categories={lookups.data?.categories ?? []}
-                      payees={payees.data?.payees ?? []}
-                      groups={lookups.data?.groups ?? []}
-                      onCategory={setCategory}
-                      onPatch={(patch) => writes.patch.mutateAsync({ id: entry.id, patch })}
-                      busy={writes.patch.isPending}
-                    />
-                  ),
-                )}
+                entries.map((entry, index) => (
+                  <Fragment key={entry.id}>
+                    {/* Phone: the date heads its day group instead of repeating in every row. */}
+                    {phone && entries[index - 1]?.date !== entry.date && (
+                      <tr className="kregister-day kupcoming-day" data-day={entry.date}>
+                        <th scope="rowgroup" colSpan={columns}>
+                          {upcomingDayHeading(entry.date, upcoming.today)}
+                        </th>
+                      </tr>
+                    )}
+                    {phone && entry.booking ? (
+                      <UpcomingBookingPhoneRow
+                        key={entry.id}
+                        booking={entry.booking}
+                        all={all}
+                        classes={classes}
+                        balance={upcoming.balances.get(entry.id) ?? null}
+                        onOpen={onOpen}
+                      />
+                    ) : entry.schedule ? (
+                      <ScheduledRegisterRow
+                        key={entry.id}
+                        occurrence={entry.schedule}
+                        today={upcoming.today}
+                        all={all}
+                        blankCheck={!!selection}
+                        phone={phone}
+                        balance={upcoming.balances.get(entry.id) ?? null}
+                        showBalance={runColumn}
+                      />
+                    ) : (
+                      <Row
+                        key={entry.id}
+                        booking={entry.booking}
+                        variant={variant}
+                        classes={classes}
+                        upcomingToday={upcoming.today}
+                        projectedBalance={upcoming.balances.get(entry.id) ?? null}
+                        blankCheck={!!selection}
+                        runColumn={runColumn}
+                        dispoCents={dispo}
+                        onOpen={onOpen}
+                        onInspect={setInspected}
+                        categories={lookups.data?.categories ?? []}
+                        payees={payees.data?.payees ?? []}
+                        groups={lookups.data?.groups ?? []}
+                        onCategory={setCategory}
+                        onPatch={(patch) => writes.patch.mutateAsync({ id: entry.id, patch })}
+                        busy={writes.patch.isPending}
+                      />
+                    )}
+                  </Fragment>
+                ))}
             </tbody>
             {showTodayBalance && !REDESIGN_ENABLED && (
               <tbody className="kregister-today">
@@ -457,6 +477,61 @@ function groupByDay(items: ReadonlyArray<ListedBooking>) {
     group.items.push(b);
   }
   return groups;
+}
+
+/** Phone: a future capture as the same compact two-line row as a planned occurrence (#1328). */
+function UpcomingBookingPhoneRow({
+  booking: b,
+  all,
+  classes,
+  balance,
+  onOpen,
+}: {
+  booking: ListedBooking;
+  all: boolean;
+  classes: Map<string, SwatchKind>;
+  balance: number | null;
+  onOpen: (b: ListedBooking) => void;
+}) {
+  useAmountPrivacy();
+  return (
+    <tr className="is-upcoming kschedule-phone" data-booking={b.id}>
+      <td colSpan={20}>
+        <div className="kschedule-m">
+          <button type="button" className="kschedule-m-main" onClick={() => onOpen(b)}>
+            <span className="kschedule-m-line">
+              <span className="kschedule-m-name">{b.payeeName ?? b.memo ?? 'Buchung'}</span>
+              <span
+                className={cx(
+                  'kschedule-m-amount',
+                  b.amountCents < 0 ? 'kupcoming-negative' : 'kupcoming-positive',
+                )}
+              >
+                {valuedCurrency(b.amountCents, b.currency, b.amountValuation, true)}
+              </span>
+            </span>
+            <span className="kschedule-m-line">
+              <span className="kschedule-m-meta">
+                <CategoryCell booking={b} classes={classes} showClass={false} />
+                {all && <> · {b.accountName}</>}
+              </span>
+              <span className="kschedule-m-balance kx-run">
+                {balance === null ? '–' : nativeCurrency(balance, b.currency)}
+              </span>
+            </span>
+          </button>
+          <span
+            className="kstatus-btn kschedule-m-status"
+            role="img"
+            aria-label="Kommende Buchung"
+            title="Kommende Buchung"
+          >
+            <CalendarDays size={16} strokeWidth={1.75} aria-hidden="true" />
+          </span>
+        </div>
+      </td>
+    </tr>
+  );
 }
 
 function Row({

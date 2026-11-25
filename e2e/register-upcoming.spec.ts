@@ -79,16 +79,30 @@ test('separates future captures and next weekly occurrence, projects cents and u
     const booked = section.locator(`[data-booking="${future.id}"]`);
     await expect(scheduled).toHaveCount(1);
     const phone = info.project.name === 'mobile';
-    // The phone shows a scheduled occurrence as one compact two-line row (#1328): amount and
-    // date, no running-balance column; the booked future row keeps its balance and date.
+    // The phone shows planned occurrences and future captures as the same compact two-line
+    // rows (#1328): amount, date and the projected balance on the right.
     if (phone) {
       await expect(scheduled.locator('.kschedule-m-amount')).toContainText('2,03');
-      await expect(scheduled.locator('.kschedule-m-meta')).toContainText('19.10.');
-    } else await expect(scheduled.locator('.kx-run')).toContainText('995,94');
+      // The date heads the day group instead of repeating in each row.
+      await expect(section.locator('.kupcoming-day[data-day="2026-10-19"]')).toContainText(
+        '19.10.',
+      );
+      await expect(section.locator('.kupcoming-day[data-day="2026-10-27"]')).toContainText(
+        '27.10.',
+      );
+      await expect(scheduled.locator('.kschedule-m-meta')).not.toContainText('19.10.');
+      await expect(scheduled.locator('.kschedule-m-balance')).toContainText('995,94');
+      // The account name is shown only in Alle Buchungen.
+      if (url.endsWith('/buchungen'))
+        await expect(booked.locator('.kschedule-m-meta')).toContainText(account.name);
+      else await expect(booked.locator('.kschedule-m-meta')).not.toContainText(account.name);
+    } else {
+      await expect(scheduled.locator('.kx-run')).toContainText('995,94');
+      await expect(booked.locator('.kx-date')).toContainText('27.10.');
+      await expect(booked.locator('.kx-date')).not.toContainText('Tagen');
+    }
     await expect(booked.locator('.kx-run')).toContainText('983,60');
-    await expect(booked.locator('.kx-date')).toContainText('27.10.');
-    await expect(booked.locator('.kx-date')).not.toContainText('Tagen');
-    for (const row of phone ? [booked] : [scheduled, booked]) {
+    for (const row of phone ? [] : [scheduled, booked]) {
       const date = await row.locator('.kx-date').boundingBox();
       const payee = await row.locator('.kx-payee').boundingBox();
       expect(date).not.toBeNull();
@@ -109,9 +123,11 @@ test('separates future captures and next weekly occurrence, projects cents and u
       await expect(scheduled.locator('.kschedule-m-meta')).toContainText(account.name);
     else await expect(scheduled.locator('.kx-acct')).toHaveText(account.name);
     await expect(booked).toHaveClass(/is-upcoming/);
-    expect(await booked.locator('.kname-s').evaluate((el) => getComputedStyle(el).fontWeight)).toBe(
-      '400',
-    );
+    expect(
+      await booked
+        .locator(phone ? '.kschedule-m-name' : '.kname-s')
+        .evaluate((el) => getComputedStyle(el).fontWeight),
+    ).toBe('400');
     if (info.project.name === 'desktop') {
       // Same columns as the history rows, compact actions on one line.
       const history = page.locator(`[data-booking="${past.id}"]`);
@@ -150,7 +166,7 @@ test('separates future captures and next weekly occurrence, projects cents and u
       expect(Math.abs(actions!.y - skip!.y)).toBeLessThan(2);
     }
     if (info.project.name === 'mobile') {
-      expect((await booked.locator('.kx-payee').boundingBox())!.width).toBeGreaterThan(100);
+      expect((await booked.locator('.kschedule-m-main').boundingBox())!.width).toBeGreaterThan(100);
       await scheduled.getByRole('button', { name: /^Aktionen:/ }).click();
       for (const name of ['Jetzt buchen', 'Überspringen']) {
         const box = await scheduled.getByRole('button', { name }).boundingBox();
@@ -178,11 +194,20 @@ test('separates future captures and next weekly occurrence, projects cents and u
     await summary.click();
     await expect(summary).toHaveAttribute('aria-expanded', 'true');
   }
-  // Future captures retain inline editing; changing to today moves the row into history.
+  // Future captures retain inline editing (phone: the booking dialog); changing to today
+  // moves the row into history.
   const futureRow = page.locator(`.kupcoming [data-booking="${future.id}"]`);
-  await futureRow.getByRole('button', { name: /Datum ändern:/ }).click();
-  await futureRow.getByLabel('Datum bearbeiten', { exact: true }).fill('2026-10-13');
-  await futureRow.getByLabel('Datum bearbeiten', { exact: true }).press('Enter');
+  if (info.project.name === 'mobile') {
+    await futureRow.locator('.kschedule-m-main').click();
+    const edit = page.getByRole('dialog', { name: 'Buchung bearbeiten' });
+    await edit.getByLabel('Datum', { exact: true }).fill('13.10.2026');
+    await captureSaveControl(edit).click();
+    await expect(edit).toBeHidden();
+  } else {
+    await futureRow.getByRole('button', { name: /Datum ändern:/ }).click();
+    await futureRow.getByLabel('Datum bearbeiten', { exact: true }).fill('2026-10-13');
+    await futureRow.getByLabel('Datum bearbeiten', { exact: true }).press('Enter');
+  }
   await expect(futureRow).toHaveCount(0);
   await expect(page.locator(`[data-booking="${future.id}"]`)).toBeVisible();
   await registerContext(page);

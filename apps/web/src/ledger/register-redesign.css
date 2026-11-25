@@ -578,6 +578,30 @@
     font-size: var(--fs-meta);
     color: var(--ink-2);
   }
+  /* Projected balance after the row, right-aligned under the amount. */
+  .kschedule-m-balance {
+    flex: none;
+    white-space: nowrap;
+    font-size: var(--fs-meta);
+    font-variant-numeric: tabular-nums;
+    color: var(--ink-3);
+  }
+  button.kschedule-m-main {
+    width: 100%;
+    padding-inline: 0;
+    border: 0;
+    background: none;
+    color: inherit;
+    font: inherit;
+    text-align: start;
+    cursor: pointer;
+  }
+  .kschedule-m-meta .kcat {
+    display: inline;
+  }
+  .kschedule-m-status {
+    justify-self: center;
+  }
   .kschedule-m .kschedule-actions {
     grid-column: 1 / -1;
     padding: 0 12px 8px 0;
