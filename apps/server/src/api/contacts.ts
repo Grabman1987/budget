@@ -19,6 +19,7 @@ import {
   listContactStatements,
   schema,
   settleContact,
+  resplitContactChecklist,
   settleContactChecklist,
   listContactChecklist,
   writeOffContact,
@@ -96,8 +97,30 @@ export function contactRoutes(db: Db, today: () => string): Hono {
     return c.json(getContactCreditAvailability(db, c.req.param('id'), asOf));
   });
   app.get('/:id/checklist', (c) => {
-    const { asOf } = readQuery(c, z.object({ asOf: day }));
-    return c.json(listContactChecklist(db, c.req.param('id'), asOf));
+    const { asOf, bookingId } = readQuery(
+      c,
+      z.object({ asOf: day, bookingId: z.string().min(1).max(100).optional() }),
+    );
+    return c.json(listContactChecklist(db, c.req.param('id'), asOf, bookingId));
+  });
+  /** #1336: re-split an existing inflow of the contact; one audit group, one Undo. */
+  app.post('/:id/checklist-resplit', async (c) => {
+    const id = z.string().min(1).max(100);
+    const input = await readBody(
+      c,
+      z.object({ bookingId: id, occurrenceIds: z.array(id).max(1000) }).strict(),
+    );
+    return c.json(
+      resplitContactChecklist(
+        db,
+        input.bookingId,
+        c.req.param('id'),
+        { occurrenceIds: input.occurrenceIds },
+        audit(),
+        today(),
+      ),
+      200,
+    );
   });
   app.post('/:id/checklist-receipts', async (c) => {
     const id = z.string().min(1).max(100);

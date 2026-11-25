@@ -14,7 +14,11 @@ import {
   settleContact,
   waiveContactOutlay,
 } from './contacts';
-import { listContactChecklist, settleContactChecklist } from './contact-checklist';
+import {
+  listContactChecklist,
+  resplitContactChecklist,
+  settleContactChecklist,
+} from './contact-checklist';
 import { undo } from './audit';
 import { bookedBalance } from './reconciliation';
 
@@ -456,4 +460,85 @@ it('an earmarked credit lot is not usable for an existing outlay and is refused'
   // Without the credit row the gross 300 is what the receipt settles; the credit stays untouched.
   run(300, open, { occurrenceIds: [] });
   expect(getContactStatement(db(), 'k1', today).creditCents).toBe(100);
+});
+
+const resplit = (bookingId: string, occurrenceIds: string[]) =>
+  resplitContactChecklist(db(), bookingId, 'k1', { occurrenceIds }, { actor: 'test' }, today);
+
+it('re-split: a plain inflow gets one split and one link per ticked contribution, one Undo restores', () => {
+  const { open } = scenario();
+  const id = createBooking(
+    db(),
+    {
+      accountId: 'giro',
+      date,
+      amountCents: 81999,
+      splits: [{ categoryId: 'essen', amountCents: 81999 }],
+    },
+    testCtx,
+  );
+  const before = {
+    splits: splitsOf(id),
+    occurrences: occurrences(),
+    balance: bookedBalance(db(), 'giro', today),
+  };
+  const result = resplit(id, both(open));
+  expect(result.linkedOccurrenceIds).toHaveLength(2);
+  expect(getBooking(db(), id)!.amountCents).toBe(81999);
+  expect(bookedBalance(db(), 'giro', today)).toBe(before.balance);
+  expect(splitsOf(id).map((x) => x.amountCents)).toEqual([80000, 1999]);
+  expect(linkedTo(id).map((o) => o.status)).toEqual(['received', 'received']);
+  undo(db(), { groupId: result.groupId }, { actor: 'test' });
+  expect(splitsOf(id)).toEqual(before.splits);
+  expect(occurrences()).toEqual(before.occurrences);
+});
+
+it('re-split refuses a rest and a selection that does not cover the amount, writes nothing', () => {
+  const { open } = scenario();
+  const id = createBooking(
+    db(),
+    {
+      accountId: 'giro',
+      date,
+      amountCents: 83000,
+      splits: [{ categoryId: 'essen', amountCents: 83000 }],
+    },
+    testCtx,
+  );
+  const before = { splits: splitsOf(id), occurrences: occurrences() };
+  expect(() => resplit(id, both(open))).toThrow(/ganzen Betrag/);
+  expect(() => resplit(id, [])).toThrow(/ganzen Betrag/);
+  expect(splitsOf(id)).toEqual(before.splits);
+  expect(occurrences()).toEqual(before.occurrences);
+});
+
+it('re-split of a settled booking (outlays repaid) is refused and nothing changes', () => {
+  const { open } = scenario();
+  const result = run(82501, open);
+  const before = { occurrences: occurrences(), splits: splitsOf(result.bookingId) };
+  expect(() => resplit(result.bookingId, [])).toThrow(/ganzen Betrag/);
+  expect(occurrences()).toEqual(before.occurrences);
+  expect(splitsOf(result.bookingId)).toEqual(before.splits);
+});
+
+it('re-split replaces the links: own contributions are offered again', () => {
+  const { open } = scenario();
+  const id = createBooking(
+    db(),
+    {
+      accountId: 'giro',
+      date,
+      amountCents: 80000,
+      splits: [{ categoryId: 'essen', amountCents: 80000 }],
+    },
+    testCtx,
+  );
+  const rent = open.contributions[0]!.occurrenceId;
+  resplit(id, [rent]);
+  expect(linkedTo(id)).toHaveLength(1);
+  expect(listContactChecklist(db(), 'k1', date, id).contributions).toHaveLength(2);
+  expect(listContactChecklist(db(), 'k1', date).contributions).toHaveLength(1);
+  const again = resplit(id, [rent]);
+  expect(again.restCents).toBe(0);
+  expect(linkedTo(id).map((o) => o.status)).toEqual(['received']);
 });

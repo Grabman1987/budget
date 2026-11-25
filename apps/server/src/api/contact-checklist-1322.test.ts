@@ -1,5 +1,11 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- Inspect real JSON boundary results. */
-import { createTestDatabase, createExpectedPayment, schema, type OpenedDatabase } from '@budget/db';
+import {
+  createBooking,
+  createTestDatabase,
+  createExpectedPayment,
+  schema,
+  type OpenedDatabase,
+} from '@budget/db';
 import { eq, isNull } from 'drizzle-orm';
 import type { Hono } from 'hono';
 import { afterEach, beforeEach, expect, it } from 'vitest';
@@ -159,4 +165,45 @@ it('stores the payer: existing payee by id, new payee by name, and Undo removes 
       })
     ).status,
   ).toBe(400);
+});
+
+it('re-splits an existing inflow through the API; the list offers its own links; Undo reverts', async () => {
+  seed();
+  const bookingId = createBooking(
+    opened.db,
+    {
+      accountId: 'giro',
+      date: '2026-09-10',
+      amountCents: 80000,
+      splits: [{ categoryId: 'essen', amountCents: 80000 }],
+    },
+    testCtx,
+  );
+  const list = (await call('GET', '/contacts/k1/checklist?asOf=2026-09-10')).body;
+  const occurrenceId = list.contributions[0].occurrenceId;
+  const done = await call('POST', '/contacts/k1/checklist-resplit', {
+    bookingId,
+    occurrenceIds: [occurrenceId],
+  });
+  expect(done.status).toBe(200);
+  expect(done.body.linkedOccurrenceIds).toEqual([occurrenceId]);
+  const own = (await call('GET', `/contacts/k1/checklist?asOf=2026-09-10&bookingId=${bookingId}`))
+    .body;
+  expect(own.contributions).toHaveLength(1);
+  expect((await call('GET', '/contacts/k1/checklist?asOf=2026-09-10')).body.contributions).toEqual(
+    [],
+  );
+  const refused = await call('POST', '/contacts/k1/checklist-resplit', {
+    bookingId,
+    occurrenceIds: [],
+  });
+  expect(refused.status).toBe(422);
+  expect((await call('POST', '/undo', { groupId: done.body.groupId })).status).toBe(200);
+  expect(
+    opened.db
+      .select()
+      .from(schema.expectedOccurrence)
+      .all()
+      .filter((o) => o.bookingId !== null),
+  ).toHaveLength(0);
 });
