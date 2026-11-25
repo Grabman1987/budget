@@ -1,0 +1,1 @@
+DROP INDEX `occurrence_booking_uq`;
