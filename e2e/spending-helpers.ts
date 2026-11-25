@@ -18,6 +18,13 @@ export async function inspectReport(page: Page, info: TestInfo, label: string) {
   });
   for (const theme of ['light', 'dark'] as const) {
     await setTheme(page, theme);
+    // Audit the palette after its colour transitions (a toast fading in or out) have finished.
+    await page.evaluate(async () => {
+      const finite = document
+        .getAnimations()
+        .filter((animation) => animation.effect?.getComputedTiming().iterations !== Infinity);
+      await Promise.all(finite.map((animation) => animation.finished.catch(() => undefined)));
+    });
     const axe = await new AxeBuilder({ page }).analyze();
     expect(
       axe.violations.filter((v) => ['serious', 'critical'].includes(v.impact ?? '')),

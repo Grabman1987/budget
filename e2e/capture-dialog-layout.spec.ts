@@ -27,10 +27,13 @@ test('Escape, close and a genuine outside click discard a dirty booking at once 
     else if (close === 'button') await captureCloseControl(dialog).click();
     else if (page.viewportSize()!.width < 768) {
       // #995 exposes a scrim above the redesign sheet; rollback remains full-screen.
+      const redesign = await redesignLoaded(page);
+      // The sheet slides in: measure it once it has settled.
+      await expect
+        .poll(async () => (await dialog.boundingBox())!.y, { message: 'sheet top' })
+        .toBe(redesign ? 24 : 0);
       const bounds = (await dialog.boundingBox())!;
       expect(bounds.x).toBe(0);
-      const redesign = await redesignLoaded(page);
-      expect(bounds.y).toBe(redesign ? 24 : 0);
       expect(bounds.width).toBe(page.viewportSize()!.width);
       if (redesign) await page.mouse.click(page.viewportSize()!.width / 2, 12);
       else await captureCloseControl(dialog).click();

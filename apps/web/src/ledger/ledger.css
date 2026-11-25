@@ -672,7 +672,8 @@
   .kschedule-actions {
     display: none;
   }
-  .kschedule-line.is-open .kschedule-actions {
+  .kschedule-line.is-open .kschedule-actions,
+  .kschedule-m.is-open .kschedule-actions {
     display: flex;
   }
 }

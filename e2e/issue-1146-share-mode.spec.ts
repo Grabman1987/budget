@@ -46,7 +46,7 @@ for (const theme of ['light', 'dark'] as const) {
     const phone = (page.viewportSize()?.width ?? 1280) < 768;
     const names = phone
       ? ['Speichern und neu', 'Speichern']
-      : ['Abbrechen', 'Speichern und neu', 'Speichern'];
+      : ['Verwerfen', 'Speichern und neu', 'Speichern'];
     const readFooter = async () =>
       Promise.all(
         names.map(async (name) => {

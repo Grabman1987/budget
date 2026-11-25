@@ -240,7 +240,7 @@ test('discard question, save-and-new keeps only register and date, selecting a p
     await expect(panel.getByRole('listbox')).toBeHidden();
   }
   await page.keyboard.press('Escape');
-  await panel.getByRole('button', { name: 'Verwerfen' }).click();
+  await expect(page.getByRole('dialog', { name: 'Buchung erfassen' })).toBeHidden();
 });
 
 test('the capture panel is axe clean in both themes and never scrolls sideways', async ({
@@ -293,9 +293,8 @@ test('the capture panel is axe clean in both themes and never scrolls sideways',
       ),
       `${scheme} scrolls sideways`,
     ).toBe(true);
-    // There is input in the panel: Esc asks before it goes away.
+    // Esc closes the dialog at once and discards the input (#1324).
     await page.keyboard.press('Escape');
-    await panel.getByRole('button', { name: 'Verwerfen' }).click();
     await expect(page.getByRole('dialog', { name: 'Buchung erfassen' })).toBeHidden();
   }
 });

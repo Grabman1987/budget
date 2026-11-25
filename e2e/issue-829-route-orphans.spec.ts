@@ -45,7 +45,8 @@ async function journal(p: Page) {
   await expect(
     p
       .getByLabel('In Buchungen suchen', { exact: true })
-      .or(p.getByRole('button', { name: /^Filter \(/ })),
+      .or(p.getByRole('button', { name: /^Filter \(/ }))
+      .first(),
   ).toBeVisible();
   await expect(
     p

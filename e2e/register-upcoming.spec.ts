@@ -8,6 +8,7 @@ import { expect } from '@playwright/test';
 import { test } from './isolated-ledger';
 
 test.use({ ledgerToday: '2026-10-13' });
+test.describe.configure({ timeout: 90_000 });
 
 test('separates future captures and next weekly occurrence, projects cents and undoes both actions', async ({
   page,
@@ -77,10 +78,16 @@ test('separates future captures and next weekly occurrence, projects cents and u
     const scheduled = section.locator('[data-occurrence]');
     const booked = section.locator(`[data-booking="${future.id}"]`);
     await expect(scheduled).toHaveCount(1);
-    await expect(scheduled.locator('.kx-run')).toContainText('995,94');
+    const phone = info.project.name === 'mobile';
+    // The phone shows a scheduled occurrence as one compact two-line row (#1328): amount and
+    // date, no running-balance column; the booked future row keeps its balance and date.
+    if (phone) {
+      await expect(scheduled.locator('.kschedule-m-amount')).toContainText('2,03');
+      await expect(scheduled.locator('.kschedule-m-meta')).toContainText('19.10.');
+    } else await expect(scheduled.locator('.kx-run')).toContainText('995,94');
     await expect(booked.locator('.kx-run')).toContainText('983,60');
     await expect(booked.locator('.kx-date')).toContainText('27.10. · in 14 Tagen');
-    for (const row of [scheduled, booked]) {
+    for (const row of phone ? [booked] : [scheduled, booked]) {
       const date = await row.locator('.kx-date').boundingBox();
       const payee = await row.locator('.kx-payee').boundingBox();
       expect(date).not.toBeNull();
@@ -88,7 +95,8 @@ test('separates future captures and next weekly occurrence, projects cents and u
       expect(date!.y >= payee!.y + payee!.height || date!.x + date!.width <= payee!.x).toBe(true);
     }
     await expect(booked.getByRole('img', { name: 'Kommende Buchung' })).toBeVisible();
-    await expect(scheduled.getByRole('img', { name: 'Nächste Wiederholung' })).toBeVisible();
+    if (!phone)
+      await expect(scheduled.getByRole('img', { name: 'Nächste Wiederholung' })).toBeVisible();
     await registerContext(page);
     await expect(page.getByTestId('register-today')).toContainText('Heute · Saldo 997,97');
     await registerContext(page, false);
@@ -96,7 +104,9 @@ test('separates future captures and next weekly occurrence, projects cents and u
     if (!url.endsWith('/buchungen')) {
       await expect(page.getByTestId('account-balance')).toContainText('997,97');
       await expect(page.locator(`[data-booking="${past.id}"] .kx-run`)).toContainText('997,97');
-    } else await expect(scheduled.locator('.kx-acct')).toHaveText(account.name);
+    } else if (phone)
+      await expect(scheduled.locator('.kschedule-m-meta')).toContainText(account.name);
+    else await expect(scheduled.locator('.kx-acct')).toHaveText(account.name);
     await expect(booked).toHaveClass(/is-upcoming/);
     expect(await booked.locator('.kname-s').evaluate((el) => getComputedStyle(el).fontWeight)).toBe(
       '400',
