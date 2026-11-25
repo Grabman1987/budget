@@ -79,6 +79,8 @@ export function ContactMovementTable({
   useAmountPrivacy();
   const [copyState, setCopyState] = useState<'idle' | 'copying' | 'copied' | 'manual'>('idle');
   const fallbackId = useId();
+  // A tick only marks a row; the gift dialog opens from its own explicit button.
+  const [skippedIds, setSkippedIds] = useState<ReadonlySet<string>>(new Set());
   const { giftReceiptIds, giftedByOutlay } = giftInfo(statement);
   const { monthEnd } = runningBalances(statement.movements);
   const shown = movements.filter((movement) => !giftReceiptIds.has(movement.splitId));
@@ -97,7 +99,19 @@ export function ContactMovementTable({
       outlay && outlay.remainingCents > 0 && outlay.remainingCents < -movement.amountCents
         ? outlay.remainingCents
         : undefined;
-    return { outlay, giftedCents, waived, rest };
+    // Repayments (not gifts) that were allocated to this outlay: when did the contact settle it?
+    const settlements = statement.receipts
+      .filter(
+        (row) =>
+          !giftReceiptIds.has(row.receiptSplitId) &&
+          row.allocations.some((a) => a.outlaySplitId === movement.splitId && a.amountCents > 0),
+      )
+      .flatMap((row) => {
+        const receipt = statement.movements.find((m) => m.splitId === row.receiptSplitId);
+        return receipt ? [receipt] : [];
+      })
+      .sort((a, b) => a.date.localeCompare(b.date));
+    return { outlay, giftedCents, waived, rest, settlements };
   };
   // Rebuilt from current rows/privacy on every render and again at the explicit click.
   // An earlier unmasked copy is never retained as fallback state.
@@ -136,7 +150,8 @@ export function ContactMovementTable({
   };
   // Report amounts stay in quiet ink: neither direction signals action or success.
   const renderRow = (movement: ContactMovement) => {
-    const { outlay, giftedCents, waived, rest } = rowInfo(movement);
+    const { outlay, giftedCents, waived, rest, settlements } = rowInfo(movement);
+    const settledBy = settlements[settlements.length - 1];
     const repayment = statement.receipts.find((row) => row.receiptSplitId === movement.splitId);
     const bookingNote = movement.bookingMemo?.trim();
     const visible = recipient(movement, name);
@@ -150,13 +165,20 @@ export function ContactMovementTable({
       .join(' ');
     const canGift =
       !!onGift && !!outlay && outlay.remainingCents > 0 && !outlay.creditSourceSplitId;
+    const skipped = canGift && skippedIds.has(movement.splitId);
     const checkTitle = waived
       ? 'Als Geschenk übernommen, wird nicht mehr verrechnet'
       : canGift
-        ? 'Abwählen: Auslage als Geschenk übernehmen'
-        : outlay && outlay.remainingCents === 0
-          ? 'Bereits ausgeglichen'
-          : 'Hier nicht änderbar';
+        ? skipped
+          ? 'Nicht ausgewählt: Mit „Als Geschenk“ kannst du die Auslage übernehmen'
+          : 'Ausgewählt zum Verrechnen. Abwählen, um sie als Geschenk zu übernehmen'
+        : outlay && outlay.creditSourceSplitId
+          ? 'Aus Kontaktguthaben entstanden, hier nicht änderbar'
+          : outlay && outlay.remainingCents === 0
+            ? 'Bereits ausgeglichen, nichts mehr zu verrechnen'
+            : !onGift
+              ? 'In dieser Ansicht nicht änderbar'
+              : 'Hier nicht änderbar';
     return (
       <tr key={movement.splitId} className={waived ? 'contact-row-waived' : undefined}>
         <td className="contact-date">{longDay(movement.date)}</td>
@@ -171,6 +193,19 @@ export function ContactMovementTable({
             {recipient(movement, name)}
           </button>
           {giftedCents > 0 && <span className="contact-gift-tag">Geschenk</span>}
+          {outlay && settledBy && !waived && (
+            <small className="contact-settled-note" data-contact-settled={movement.splitId}>
+              {outlay.remainingCents === 0 ? 'Ausgeglichen' : 'Teilweise ausgeglichen'} am{' '}
+              {longDay(settledBy.date)} ·{' '}
+              <button
+                type="button"
+                className="contact-settled-link"
+                onClick={() => onOpen(settledBy)}
+              >
+                Rückzahlung öffnen
+              </button>
+            </small>
+          )}
           {repayment && (
             <details className="contact-allocation-details">
               <summary>Zuordnung</summary>
@@ -204,16 +239,41 @@ export function ContactMovementTable({
           {rest !== undefined && <small className="contact-rest">Rest {eur(rest)}</small>}
         </td>
         <td className="contact-settle">
-          {outlay && (
-            <label className="contact-settle-box" title={checkTitle}>
-              <input
-                type="checkbox"
-                checked={!waived}
-                disabled={!canGift}
-                aria-label={`${description(movement)} verrechnen`}
-                onChange={() => onGift?.(outlay)}
-              />
-            </label>
+          {outlay ? (
+            <>
+              <label className="contact-settle-box" title={checkTitle}>
+                <input
+                  type="checkbox"
+                  checked={!waived && !skipped}
+                  disabled={!canGift}
+                  aria-label={`${description(movement)} verrechnen`}
+                  onChange={() =>
+                    setSkippedIds((previous) => {
+                      const next = new Set(previous);
+                      if (!next.delete(movement.splitId)) next.add(movement.splitId);
+                      return next;
+                    })
+                  }
+                />
+              </label>
+              {skipped && onGift && (
+                <Button
+                  variant="ghost"
+                  className="contact-gift-action"
+                  onClick={() => onGift(outlay)}
+                >
+                  Als Geschenk …
+                </Button>
+              )}
+            </>
+          ) : (
+            <span
+              className="contact-settle-none"
+              title="Rückzahlungen werden nicht verrechnet, sie gleichen Auslagen aus"
+              aria-label="Nicht verrechenbar"
+            >
+              –
+            </span>
           )}
         </td>
       </tr>
@@ -228,7 +288,11 @@ export function ContactMovementTable({
           <th scope="col" className="n">
             Betrag
           </th>
-          <th scope="col" className="contact-settle-head">
+          <th
+            scope="col"
+            className="contact-settle-head"
+            title="Haken: wird mit Rückzahlungen verrechnet. Ohne Haken: als Geschenk übernehmen. Rückzahlungen, Geschenke und bereits ausgeglichene Auslagen haben keinen änderbaren Haken."
+          >
             Verrechnen
           </th>
         </tr>

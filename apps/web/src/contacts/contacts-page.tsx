@@ -1,9 +1,9 @@
 import { budgetQuery } from '../budget/budget-api';
+import { SettingsFormDialog } from '../pages/settings-form-dialog';
 import {
   useAmountPrivacy,
   AmountInput,
   Button,
-  FormDialog,
   Field,
   maskMoneyText,
   Segmented,
@@ -270,7 +270,11 @@ export function ContactsPage() {
               </tbody>
             </table>
           ))}
-        <FormDialog open={creating} onClose={() => setCreating(false)} title="Neuer Kontakt">
+        <SettingsFormDialog
+          open={creating}
+          onClose={() => setCreating(false)}
+          title="Neuer Kontakt"
+        >
           {creating && (
             <NewContact
               onClose={() => setCreating(false)}
@@ -280,7 +284,7 @@ export function ContactsPage() {
               }}
             />
           )}
-        </FormDialog>
+        </SettingsFormDialog>
         {writeOff && (
           <ContactWriteOffDialog
             contact={currentWriteOff ?? writeOff}
@@ -321,9 +325,9 @@ export function ContactRenameDialog({
   onClose: () => void;
 }) {
   return (
-    <FormDialog open={contact !== null} onClose={onClose} title="Kontakt umbenennen">
+    <SettingsFormDialog open={contact !== null} onClose={onClose} title="Kontakt umbenennen">
       {contact && <NewContact contact={contact} onClose={onClose} onDone={onClose} />}
-    </FormDialog>
+    </SettingsFormDialog>
   );
 }
 
@@ -766,7 +770,7 @@ export function ContactWriteOffDialog({
     validDate &&
     (credit ? chosenType : categoryId);
   return (
-    <FormDialog
+    <SettingsFormDialog
       open
       onClose={onClose}
       title="Kontakt ausgleichen"
@@ -978,7 +982,7 @@ export function ContactWriteOffDialog({
           </Button>
         </div>
       </form>
-    </FormDialog>
+    </SettingsFormDialog>
   );
 }
 
@@ -1057,7 +1061,7 @@ export function ContactGiftDialog({
     amountCents <= outlay.remainingCents &&
     expenses.some((c) => c.id === categoryId);
   return (
-    <FormDialog
+    <SettingsFormDialog
       open
       title="Auslage als Geschenk übernehmen"
       onClose={onClose}
@@ -1083,7 +1087,6 @@ export function ContactGiftDialog({
           });
         }}
       >
-        <h2>Geschenk an Kontakt</h2>
         <p>
           {maskMoneyText(outlay.memo?.trim() || 'Auslage')} · {statement.contact.name}
         </p>
@@ -1142,7 +1145,7 @@ export function ContactGiftDialog({
           </Button>
         </div>
       </form>
-    </FormDialog>
+    </SettingsFormDialog>
   );
 }
 
@@ -1209,7 +1212,12 @@ function ContactAllocationDialog({
       'Die Anteile müssen zur Rückzahlung passen und dürfen die verfügbare Auslage nicht übersteigen.';
   }
   return (
-    <FormDialog open title="Rückzahlung neu zuordnen" onClose={onClose} beforeClose={() => !busy}>
+    <SettingsFormDialog
+      open
+      title="Rückzahlung neu zuordnen"
+      onClose={onClose}
+      beforeClose={() => !busy}
+    >
       <form
         className="contacts-form"
         onSubmit={(event) => {
@@ -1225,7 +1233,6 @@ function ContactAllocationDialog({
           });
         }}
       >
-        <h2>Rückzahlung neu zuordnen</h2>
         <p>
           Wähle, welche Auslagen diese Rückzahlung begleicht. Betrag, Buchungsdatum, Kontostand und
           Nettovermögen bleiben unverändert.
@@ -1327,7 +1334,7 @@ function ContactAllocationDialog({
           </Button>
         </div>
       </form>
-    </FormDialog>
+    </SettingsFormDialog>
   );
 }
 
@@ -1456,7 +1463,7 @@ function ContactCredits({ statement }: { statement: Statement }) {
         </section>
       )}
       {credit && (
-        <FormDialog
+        <SettingsFormDialog
           open
           onClose={() => {
             if (!busy) setSelected(null);
@@ -1526,7 +1533,7 @@ function ContactCredits({ statement }: { statement: Statement }) {
               Entscheidung speichern
             </Button>
           </form>
-        </FormDialog>
+        </SettingsFormDialog>
       )}
     </>
   );

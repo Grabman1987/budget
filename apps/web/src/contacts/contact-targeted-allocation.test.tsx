@@ -334,8 +334,13 @@ it('waives the open share on a locked partially settled outlay without changing 
   statement.receipts[0]!.allocations = [{ outlaySplitId: second.splitId, amountCents: 1001 }];
   show();
   fireEvent.click(screen.getByRole('checkbox', { name: 'Spätere Beispielauslage verrechnen' }));
+  // The tick only marks the row; the dialog opens from its own button.
+  expect(screen.queryByRole('dialog', { name: 'Auslage als Geschenk übernehmen' })).toBeNull();
+  fireEvent.click(screen.getByRole('button', { name: 'Als Geschenk …' }));
   const dialog = within(screen.getByRole('dialog', { name: 'Auslage als Geschenk übernehmen' }));
-  expect(dialog.getByRole('heading', { name: 'Geschenk an Kontakt' })).toBeTruthy();
+  expect(
+    dialog.getAllByRole('heading', { name: 'Auslage als Geschenk übernehmen' }).length,
+  ).toBeGreaterThan(0);
   const category = await dialog.findByLabelText('Eigene Geschenkkategorie');
   await waitFor(() => expect((category as HTMLSelectElement).value).toBe('category-example'));
   expect((category as HTMLSelectElement).disabled).toBe(true);

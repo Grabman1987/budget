@@ -209,8 +209,15 @@ test('owner confirms locked reallocation, keeps credit and waives an exact conta
   ).toEqual([1001, 501]);
   expect(current.creditCents).toBe(701);
   await sheet.getByRole('checkbox', { name: 'Abgeglichene Beispielauslage verrechnen' }).click();
+  // The tick only marks the row; the gift dialog opens from its own button.
+  await expect(page.getByRole('dialog', { name: 'Auslage als Geschenk übernehmen' })).toHaveCount(
+    0,
+  );
+  await sheet.getByRole('button', { name: 'Als Geschenk …' }).click();
   const gift = page.getByRole('dialog', { name: 'Auslage als Geschenk übernehmen' });
-  await expect(gift.getByRole('heading', { name: 'Geschenk an Kontakt' })).toBeVisible();
+  await expect(
+    gift.getByRole('heading', { name: 'Auslage als Geschenk übernehmen' }).last(),
+  ).toBeVisible();
   await gift.getByRole('textbox', { name: 'Geschenkbetrag' }).fill('5,01');
   await expect(gift.getByLabel('Eigene Geschenkkategorie')).toHaveValue(category.id);
   await expect(gift.getByLabel('Eigene Geschenkkategorie')).toBeDisabled();

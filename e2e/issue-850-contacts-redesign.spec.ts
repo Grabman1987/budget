@@ -81,13 +81,12 @@ test('961/962 contacts: zero net retains credit and movement source context', as
     'Offen 0,00 € · Guthaben 1.234,56 €',
   );
   await expect(sheet.locator('.contacts-balance')).toHaveText('Guthaben · 1.234,56 €');
-  const showAll = page.getByRole('checkbox', { name: 'Auch ausgeglichene Kontakte' });
-  await expect(showAll).not.toBeChecked();
-  await expect(list.getByRole('link', { name: new RegExp(settled.name) })).toHaveCount(0);
-  await showAll.check();
-  await expect(list.getByRole('heading', { name: 'Ausgeglichen' })).toBeVisible();
+  const settledList = list.locator('.r4-contact-settled-list');
+  await expect(settledList).not.toHaveAttribute('open', '');
+  await expect(list.getByRole('link', { name: new RegExp(settled.name) })).toBeHidden();
+  await settledList.getByText(/^Ausgeglichene Kontakte \(\d+\)$/).click();
   await expect(list.getByRole('link', { name: new RegExp(settled.name) })).toBeVisible();
-  await showAll.uncheck();
+  await settledList.getByText(/^Ausgeglichene Kontakte \(\d+\)$/).click();
   await expect(list.getByRole('link', { name: new RegExp(credit.name) })).toBeVisible();
   await list.getByRole('link', { name: new RegExp(owed.name) }).click();
   await sheet.locator('[data-r8-detail="contact-history"] > summary').click();
@@ -316,17 +315,9 @@ test('850 contacts: 5000-cent debt forgiveness, exact shortfall, cash unchanged,
   await expect(sheet.getByRole('button', { name: 'Kontakt ausgleichen', exact: true })).toHaveCount(
     0,
   );
-  const showAll = page.getByRole('checkbox', { name: 'Auch ausgeglichene Kontakte' });
-  await showAll.uncheck();
-  await expect(page).not.toHaveURL(/verlauf=/);
-  await page.reload();
-  await expect(showAll).not.toBeChecked();
-  await showAll.check();
-  await expect(page).toHaveURL(/verlauf=1/);
-  await page.goBack();
-  await expect(showAll).not.toBeChecked();
-  await page.goForward();
-  await expect(showAll).toBeChecked();
+  const settledList = page.locator('.r4-contact-settled-list');
+  // The balanced contact is selected, so the disclosure stays open around it.
+  await expect(settledList).toHaveAttribute('open', '');
   await body.getByRole('link', { name: new RegExp(owed.name) }).click();
   const history = sheet.locator('[data-r8-detail="contact-history"]');
   await history.locator(':scope > summary').click();
@@ -489,7 +480,7 @@ test('1149 contacts: open register and forgiveness remain readable and accessibl
       fullPage: true,
     });
   }
-  await page.getByRole('combobox', { name: 'Darstellung der Kontakte' }).selectOption('offen');
+  await expect(page.getByRole('combobox', { name: 'Darstellung der Kontakte' })).toHaveCount(0);
   const openTable = sheet.getByRole('table', { name: /Offene Forderungen/ });
   const tableRegion = sheet.getByRole('region', { name: `Offene Forderungen von ${owed.name}` });
   await expect(tableRegion).toHaveAttribute('tabindex', '0');

@@ -10,7 +10,6 @@ import { eur, longDay } from '../ledger/format';
 import { EmptyNote, LoadingNote } from '../ledger/states';
 import { AppLink } from '../shell/app-link';
 import { ReportFrame } from './report-frame';
-import { ReportViewControl } from './report-view-control';
 import { ContactReportRows } from './contact-report-rows';
 import {
   contactReportQuery,
@@ -75,16 +74,7 @@ export function ContactReportRedesign({
 }) {
   useAmountPrivacy();
   const navigate = useNavigate();
-  const search = useSearch({ strict: false }) as { kontakteansicht?: 'offen'; kontakt?: string };
-  const mode = search.kontakteansicht ?? 'salden';
-  const setMode = (value: string) =>
-    void navigate({
-      to: '.',
-      search: ((previous: Record<string, unknown>) => ({
-        ...previous,
-        kontakteansicht: value === 'offen' ? 'offen' : undefined,
-      })) as never,
-    });
+  const search = useSearch({ strict: false }) as { kontakt?: string };
   const [forgiving, setForgiving] = useState<{ id: string; name: string; balanceCents: number }>();
   const opener = useRef<HTMLButtonElement>(null);
   const root = useRef<HTMLDivElement>(null);
@@ -136,7 +126,9 @@ export function ContactReportRedesign({
   const blockedError = unsupported ? detailError : nextBlocked[blockedIds[0]!];
   const current = view?.contacts.find((contact) => contact.id === forgiving?.id);
   const visible = view?.contacts.filter(hasOpenAmount) ?? [];
-  const settledMenu = history ? (view?.contacts.filter((c) => !hasOpenAmount(c)) ?? []) : [];
+  const settledList = view?.contacts.filter((c) => !hasOpenAmount(c)) ?? [];
+  const selectedSettled = settledList.some((contact) => contact.id === selected);
+  const [settledOpen, setSettledOpen] = useState(history);
   const sheet = (id: string) => (
     <ContactSheetCard
       key={id}
@@ -190,17 +182,6 @@ export function ContactReportRedesign({
             : 'wird geladen'
       }
       calculation={ready && view ? contactCalculation(view) : undefined}
-      reportControls={
-        <ReportViewControl
-          label="Darstellung der Kontakte"
-          options={[
-            { value: 'salden', label: 'Salden' },
-            { value: 'offen', label: 'Offene Posten' },
-          ]}
-          value={mode}
-          onChange={setMode}
-        />
-      }
       extraFields={[{ label: 'Zeitraum', value: <span>Alle erfassten Bewegungen</span> }]}
     >
       <div className="r4-contact-report" ref={root} tabIndex={-1}>
@@ -231,9 +212,7 @@ export function ContactReportRedesign({
               {view && (
                 <section className="r4-contact-list" aria-labelledby="r4-contact-list-title">
                   <div className="r4-contact-heading">
-                    <h2 id="r4-contact-list-title">
-                      {mode === 'salden' ? 'Kontaktsalden' : 'Offene Kontakte'}
-                    </h2>
+                    <h2 id="r4-contact-list-title">Kontaktsalden</h2>
                     <span>{view.contacts.filter(hasOpenAmount).length} offen</span>
                   </div>
                   <ul>
@@ -243,8 +222,6 @@ export function ContactReportRedesign({
                           to="/reports/kontakte"
                           search={{
                             kontakt: contact.id,
-                            kontakteansicht: search.kontakteansicht,
-                            ...(history ? { verlauf: 1 } : {}),
                           }}
                           aria-current={selected === contact.id ? 'true' : undefined}
                         >
@@ -267,19 +244,19 @@ export function ContactReportRedesign({
                       </li>
                     ))}
                   </ul>
-                  {settledMenu.length > 0 && (
-                    <>
-                      <h3 className="r4-contact-subhead">Ausgeglichen</h3>
+                  {settledList.length > 0 && (
+                    <details
+                      className="r4-contact-settled-list"
+                      open={settledOpen || selectedSettled}
+                      onToggle={(event) => setSettledOpen(event.currentTarget.open)}
+                    >
+                      <summary>Ausgeglichene Kontakte ({settledList.length})</summary>
                       <ul>
-                        {settledMenu.map((contact) => (
+                        {settledList.map((contact) => (
                           <li key={contact.id}>
                             <AppLink
                               to="/reports/kontakte"
-                              search={{
-                                kontakt: contact.id,
-                                kontakteansicht: search.kontakteansicht,
-                                verlauf: 1,
-                              }}
+                              search={{ kontakt: contact.id, verlauf: 1 }}
                               aria-current={selected === contact.id ? 'true' : undefined}
                             >
                               <span>
@@ -289,7 +266,7 @@ export function ContactReportRedesign({
                           </li>
                         ))}
                       </ul>
-                    </>
+                    </details>
                   )}
                   {!visible.length && (
                     <EmptyNote>
@@ -297,23 +274,6 @@ export function ContactReportRedesign({
                       erhalten.
                     </EmptyNote>
                   )}
-                  <label className="r4-contact-history">
-                    <input
-                      type="checkbox"
-                      checked={history}
-                      onChange={(event) => {
-                        const show = event.currentTarget.checked;
-                        void navigate({
-                          to: '.',
-                          search: ((previous: Record<string, unknown>) => ({
-                            ...previous,
-                            verlauf: show ? 1 : undefined,
-                          })) as never,
-                        });
-                      }}
-                    />
-                    Auch ausgeglichene Kontakte
-                  </label>
                   <AppLink className="r4-contact-settings" to="/einstellungen/kontakte">
                     Stammdaten: Einstellungen › Kontakte
                   </AppLink>

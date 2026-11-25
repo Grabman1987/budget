@@ -19,6 +19,7 @@ import { usePrivacyShortcut } from './privacy-button';
 import { MobileStatusLine, OfflineStatus } from './header-status';
 import { restoreControlsFocus } from './controls-focus';
 import { HeuteShellHead, HeuteStandLine } from '../heute/overview';
+import { ReportNavigation } from '../reports/report-navigation';
 import { HeuteSourceReturn } from '../heute/return-context';
 import { REDESIGN_ENABLED } from './redesign-flag';
 import './mobile-sheets.css';
@@ -51,9 +52,16 @@ export function AppShell() {
   const kontenPageHeading = page?.area === 'konten' && !pathname.startsWith('/konten/kontakte');
   // Report frames carry their own visible heading on desktop and phone.
   const reportPageHeading = page?.area === 'reports' && !!findReport(pathname.split('/')[2] ?? '');
+  // Reports: the report switcher sits in the page header (desktop); the phone keeps it in the frame.
+  const reportHeaderId = reportPageHeading ? pathname.split('/')[2] : undefined;
   const [searchOpen, setSearchOpen] = useState(false);
   const [controlsInBody, setControlsInBody] = useState(false);
   const phone = useIsPhone();
+  const headerControls = heuteControls ? (
+    <HeuteShellHead showStand={false} />
+  ) : REDESIGN_ENABLED && reportHeaderId ? (
+    <ReportNavigation id={reportHeaderId} />
+  ) : undefined;
   const searching = searchOpen || pathname === '/suche';
   const area = searching ? undefined : page?.area;
   const main = useRef<HTMLElement>(null);
@@ -107,7 +115,8 @@ export function AppShell() {
                   !kontenPageHeading &&
                   !reportPageHeading
                 }
-                controls={heuteControls ? <HeuteShellHead showStand={false} /> : undefined}
+                controls={headerControls}
+                controlsOverflow={!!reportHeaderId}
                 onControlsPlacement={(place) => setControlsInBody(place === 'body')}
                 collapsed={collapsed}
                 onToggle={() => setCollapsed(!collapsed)}
@@ -137,6 +146,11 @@ export function AppShell() {
               {REDESIGN_ENABLED && heuteControls && controlsInBody && !phone && (
                 <div className="page-controls-row" ref={controlsRow}>
                   <HeuteShellHead />
+                </div>
+              )}
+              {REDESIGN_ENABLED && reportHeaderId && controlsInBody && !phone && (
+                <div className="page-controls-row" ref={controlsRow}>
+                  {headerControls}
                 </div>
               )}
               {REDESIGN_ENABLED && heuteControls && !controlsInBody && !phone && <HeuteStandLine />}

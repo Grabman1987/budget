@@ -17,7 +17,7 @@ Bereich: „Konten › Kontakte“ (`/konten/kontakte`, Kontoblatt je Person unt
   1. Der Kontakt zeigt Saldo und Verlauf.
   2. Eine Auslage mindert das Vermögen bis zur Rückzahlung.
   3. Ohne Kontaktbuchungen steht „In diesem Monat gibt es noch keine Kontaktbuchungen.“
-  4. Ausgeglichene Kontakte sind ausgeblendet, bis „Auch ausgeglichene Kontakte“ aktiv ist.
+  4. Ausgeglichene Kontakte stehen am Ende der Liste hinter dem Aufklapper „› Ausgeglichene Kontakte (n)“ und klappen nach unten auf (#1347). Der frühere Umschalter „Salden / Offene Posten“ hatte keine Wirkung auf die Daten und ist entfernt; „Bericht wechseln“ steht am Seitenanfang in der Kopfzeile (am Telefon im Berichtskopf).
   5. Ein Rückgängig („Rückgängig gemacht.“) stellt den vorherigen Saldo her.
 - **Status:** live — **Verweis:** Y15
 
@@ -36,7 +36,7 @@ Bereich: „Konten › Kontakte“ (`/konten/kontakte`, Kontoblatt je Person unt
   3. Ist Kopieren nicht möglich, steht „Kopieren nicht möglich. Text bitte manuell kopieren.“
   4. Ältere, nicht protokollierte Zuordnungen sind mit „Zuordnung nicht protokolliert“ gekennzeichnet.
   5. Die Spalte „Empfänger“ zeigt nur den Empfänger (kein „Auslage“, keine Notiz, kein zweites Datum); ein Klick öffnet die Ursprungsbuchung.
-  6. Abwählen des Häkchens bei einer offenen Auslage öffnet „Auslage als Geschenk übernehmen“ (Abbrechen lässt das Häkchen gesetzt). Eine als Geschenk übernommene Auslage zeigt kein Häkchen, ist gedämpft und trägt die Marke „Geschenk“. Zahlt der Kontakt mehr oder weniger als offen, bleibt die Zuordnung (älteste zuerst) wie bisher; „Rest“ und der Monatsstand machen die Differenz sichtbar.
+  6. Das Häkchen markiert nur die Zeile (nichts wird gespeichert, kein Dialog). Bei einer abgewählten offenen Auslage erscheint daneben die eigene Schaltfläche „Als Geschenk …“, die „Auslage als Geschenk übernehmen“ öffnet (#1347). Ohne Häkchen-Feld steht „–“: Rückzahlungen werden nicht verrechnet, sie gleichen Auslagen aus. Ein ausgegrautes Häkchen hat einen Hover-Hinweis mit dem Grund (bereits ausgeglichen, aus Guthaben entstanden, in dieser Ansicht nicht änderbar). Bei einer Auslage, die ein Kontakt zurückgezahlt hat, steht unter dem Empfänger „Ausgeglichen am TT.MM.JJJJ · Rückzahlung öffnen“ (bei Teilzahlung „Teilweise ausgeglichen am …“). Eine als Geschenk übernommene Auslage zeigt kein Häkchen, ist gedämpft und trägt die Marke „Geschenk“. Zahlt der Kontakt mehr oder weniger als offen, bleibt die Zuordnung (älteste zuerst) wie bisher; „Rest“ und der Monatsstand machen die Differenz sichtbar.
 - **Status:** live (Tabelle mit Verrechnen-Häkchen und Monatsstand: Entwurf, private Abnahme offen) — **Verweis:** Y15
 
 ### C-03a – Rückzahlung gezielt einer Auslage zuordnen
