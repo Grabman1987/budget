@@ -35,7 +35,7 @@ vi.mock('./mobile-chrome', async (original) => ({
 }));
 vi.mock('../pwa/queue-ui', () => ({ QueueList: () => null }));
 vi.mock('../pwa/storage-protection', () => ({ useStorageProtection: () => {} }));
-vi.mock('../heute/overview', () => ({ HeuteShellHead: () => null, HeuteStandLine: () => null }));
+vi.mock('../heute/overview', () => ({ HeuteShellHead: () => null, HeuteStatusFooter: () => null }));
 vi.mock('../heute/return-context', () => ({ HeuteSourceReturn: () => null }));
 vi.mock('../budget/use-category-writes', () => ({ useBudgetWrite: () => async () => {} }));
 

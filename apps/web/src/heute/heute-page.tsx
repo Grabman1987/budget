@@ -824,11 +824,6 @@ function HeuteBody({
   }
   return (
     <>
-      {refreshing && (
-        <p className="heute-note" role="status">
-          Heute-Daten werden aktualisiert · Stand heute {longDay(data!.stand.today)}
-        </p>
-      )}
       {away && (
         <p className="heute-month-note" role="note" data-testid="heute-month-note">
           <span>Ansicht: {monthName(month)} –</span>

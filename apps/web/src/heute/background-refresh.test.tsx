@@ -6,6 +6,7 @@ import {
   createRootRoute,
   createRoute,
   createRouter,
+  Outlet,
   RouterProvider,
 } from '@tanstack/react-router';
 import { accounts, createTestDatabase, type SavingsExecutionProposal } from '@budget/db';
@@ -14,6 +15,7 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { createLedgerApi } from '../../../server/src/api';
 import { HeutePage } from './heute-page';
 import { DimensionPage } from './dimension-page';
+import { HeuteStatusFooter } from './overview';
 import { HEUTE_KEY } from './api';
 import { budgetQuery } from '../budget/budget-api';
 import { liquidityQuery } from '../reports/liquidity-api';
@@ -151,6 +153,12 @@ afterEach(async () => {
 });
 function mount(at = '/?monat=2026-09&period=month') {
   const root = createRootRoute({
+    component: () => (
+      <>
+        <Outlet />
+        <HeuteStatusFooter />
+      </>
+    ),
     validateSearch: (search: Record<string, unknown>) => ({
       ...(isMonth(search['monat']) ? { monat: search['monat'] } : {}),
       ...(search['period'] === 'month' || search['period'] === 'payday'

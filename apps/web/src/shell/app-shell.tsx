@@ -18,7 +18,7 @@ import { useStorageProtection } from '../pwa/storage-protection';
 import { usePrivacyShortcut } from './privacy-button';
 import { MobileStatusLine, OfflineStatus } from './header-status';
 import { restoreControlsFocus } from './controls-focus';
-import { HeuteShellHead, HeuteStandLine } from '../heute/overview';
+import { HeuteShellHead, HeuteStatusFooter } from '../heute/overview';
 import { HeuteSourceReturn } from '../heute/return-context';
 import { REDESIGN_ENABLED } from './redesign-flag';
 import './mobile-sheets.css';
@@ -139,10 +139,10 @@ export function AppShell() {
                   <HeuteShellHead />
                 </div>
               )}
-              {REDESIGN_ENABLED && heuteControls && !controlsInBody && !phone && <HeuteStandLine />}
               {(page?.area === 'heute' || page?.area === 'konten') && <QueueList />}
               {REDESIGN_ENABLED && <HeuteSourceReturn />}
               <Outlet />
+              {REDESIGN_ENABLED && heuteControls && <HeuteStatusFooter />}
             </main>
           </div>
         </div>

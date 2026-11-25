@@ -3,6 +3,7 @@ import type { AnchorHTMLAttributes } from 'react';
 import type { InboxPeriod } from '@budget/domain';
 import { z } from 'zod';
 import { AppLink } from '../shell/app-link';
+import { BackButton } from '../shell/back-button';
 
 export function validateInboxSearch(search: Record<string, unknown>) {
   const value = search['von'];
@@ -69,8 +70,9 @@ export function InboxBack({ to, label }: { to: string; label: string }) {
   const inApp = useLocation({ select: (location) => location.state.inboxOpenedInApp });
   const url = new URL(to, 'https://budget.invalid');
   return (
-    <AppLink
-      className="btn btn-ghost inbox-back"
+    <BackButton
+      className="inbox-back"
+      label={label}
       to={url.pathname}
       search={Object.fromEntries(url.searchParams)}
       onClick={(event) => {
@@ -86,8 +88,6 @@ export function InboxBack({ to, label }: { to: string; label: string }) {
           router.history.back();
         }
       }}
-    >
-      {label}
-    </AppLink>
+    />
   );
 }

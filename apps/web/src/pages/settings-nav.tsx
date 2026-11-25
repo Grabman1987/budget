@@ -11,6 +11,7 @@ import {
 import { useLocation } from '@tanstack/react-router';
 import { SETTINGS_GROUPS, areaById } from '../nav/areas';
 import { AppLink } from '../shell/app-link';
+import { BackButton } from '../shell/back-button';
 import { REDESIGN_ENABLED } from '../shell/redesign-flag';
 import { validateInboxSearch } from '../inbox/navigation';
 import './settings-nav.css';
@@ -244,9 +245,7 @@ export function SettingsBack({ current }: { current: string | undefined }) {
       </AppLink>
       {label && <span className="settings-here">{label}</span>}
       {REDESIGN_ENABLED && von && (
-        <AppLink to={von} className="settings-source-return">
-          Zurück zur Ausgangsseite
-        </AppLink>
+        <BackButton to={von} className="settings-source-return" label="Zurück zur Ausgangsseite" />
       )}
     </div>
   );

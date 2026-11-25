@@ -7,6 +7,7 @@ import { PLAN_MONAT } from '../nav/pages';
 import { monthLabel } from '../nav/month';
 import { PageFrame } from '../pages/placeholder-page';
 import { AppLink } from '../shell/app-link';
+import { BackButton } from '../shell/back-button';
 import { useMonth } from '../shell/use-month';
 import { REDESIGN_ENABLED } from '../shell/redesign-flag';
 import { IncomeBody } from '../expected/income-panel';
@@ -26,7 +27,7 @@ function PlanDetailBack({ month }: { month: string }) {
   return (
     <div className="plan-detail-nav">
       <nav aria-label="Brotkrumen">
-        <AppLink
+        <BackButton
           to="/plan/monat"
           search={{ monat: month }}
           onClick={(event) => {
@@ -41,9 +42,8 @@ function PlanDetailBack({ month }: { month: string }) {
               router.history.back();
             }
           }}
-        >
-          Zurück zum Monat
-        </AppLink>
+          label="Zurück zum Monat"
+        />
       </nav>
     </div>
   );

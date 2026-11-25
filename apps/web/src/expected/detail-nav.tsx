@@ -1,5 +1,6 @@
 import { useSearch } from '@tanstack/react-router';
 import { AppLink } from '../shell/app-link';
+import { BackButton } from '../shell/back-button';
 import { useMonth } from '../shell/use-month';
 import { REDESIGN_ENABLED } from '../shell/redesign-flag';
 import './expected.css';
@@ -20,7 +21,7 @@ export function ExpectedDetailBack() {
   return (
     <div className="xp-detail-nav">
       <nav aria-label="Brotkrumen">
-        <AppLink
+        <BackButton
           to="/plan/erwartet"
           search={{
             monat: month,
@@ -29,9 +30,8 @@ export function ExpectedDetailBack() {
               : {}),
           }}
           state={state}
-        >
-          Zurück zu Erwartet
-        </AppLink>
+          label="Zurück zu Erwartet"
+        />
       </nav>
     </div>
   );

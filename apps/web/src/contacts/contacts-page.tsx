@@ -37,6 +37,7 @@ import { EmptyNote, ErrorNote, LoadingNote } from '../ledger/states';
 import { PAGES } from '../nav/pages';
 import { PageFrame } from '../pages/placeholder-page';
 import { AppLink } from '../shell/app-link';
+import { BackButton } from '../shell/back-button';
 import { contactBalanceLine, contactBalanceWords } from './contact-balance';
 import { ContactActionsMenu } from './contact-menu';
 import {
@@ -418,9 +419,7 @@ export function ContactStatementPage() {
     <PageFrame meta={META}>
       <section className="contacts-page contacts-statement" aria-label="Kontaktkontoauszug">
         <nav aria-label="Brotkrumen">
-          <AppLink className="btn btn-ghost" to="/konten/kontakte" search={context}>
-            Zurück zu Kontakte
-          </AppLink>
+          <BackButton to="/konten/kontakte" search={context} label="Zurück zu Kontakte" />
         </nav>
         {(statement.isPending || statement.isFetching) && <LoadingNote what="Kontoblatt" />}
         {statement.isError && (

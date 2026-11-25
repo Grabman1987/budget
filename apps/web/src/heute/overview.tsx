@@ -28,6 +28,7 @@ import { attentionModel } from './attention-model';
 import { leadView } from './lead-boundary';
 import './overview.css';
 import { AccountLiquidityAlerts } from '../reports/account-liquidity';
+import { StatusFooter } from '../shell/status-footer';
 
 const time = new Intl.DateTimeFormat('de-AT', {
   hour: '2-digit',
@@ -71,11 +72,18 @@ function useShellRead() {
     read.data.stand.period === period
       ? read.data
       : undefined;
-  return { data, updatedAt: read.dataUpdatedAt, period, setPeriod, paydayAvailable };
+  return {
+    data,
+    updatedAt: read.dataUpdatedAt,
+    refreshing: Boolean(data) && read.isFetching,
+    period,
+    setPeriod,
+    paydayAvailable,
+  };
 }
 
 /** Same cached query as the page; the shell does not invent a source clock. */
-export function HeuteShellHead({ showStand = true }: { showStand?: boolean }) {
+export function HeuteShellHead({ showStand = false }: { showStand?: boolean }) {
   const { data, updatedAt, period, setPeriod, paydayAvailable } = useShellRead();
   return (
     <HeuteHeader
@@ -96,13 +104,15 @@ function standText(data: Heute | undefined, updatedAt: number) {
     : 'Stand nicht verfügbar';
 }
 
-/** Data-freshness line at the top of the Heute body while the controls sit in the 64px header. */
-export function HeuteStandLine() {
-  const { data, updatedAt } = useShellRead();
+/** Shared footer of Heute and its detail pages: Stand left, refresh hint right, one fixed line. */
+export function HeuteStatusFooter() {
+  const { data, updatedAt, refreshing } = useShellRead();
   return (
-    <p className="page-stand-line" title={STAND_TITLE}>
-      {standText(data, updatedAt)}
-    </p>
+    <StatusFooter
+      stand={standText(data, updatedAt)}
+      title={STAND_TITLE}
+      hint={refreshing ? 'Heute-Daten werden aktualisiert' : null}
+    />
   );
 }
 
@@ -113,7 +123,7 @@ export function HeuteHeader({
   setPeriod,
   paydayAvailable,
   phone = false,
-  showStand = true,
+  showStand = false,
 }: {
   data: Heute | undefined;
   updatedAt: number;
@@ -293,11 +303,6 @@ export function HeuteOverview({
         setPeriod={setPeriod}
         paydayAvailable={paydayAvailable}
       />
-      {refreshing && (
-        <p className="hv-status" role="status">
-          Heute-Daten werden aktualisiert · Stand heute {longDay(data!.stand.today)}
-        </p>
-      )}
       {data && month !== data.stand.today.slice(0, 7) && (
         <p className="hv-status">
           Ansicht: {monthLabel(month)} · Spielraum und Monatsergebnis: Stand heute{' '}

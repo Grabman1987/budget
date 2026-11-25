@@ -8,6 +8,7 @@ import { EINSTELLUNGEN_KATEGORIEN, PLAN_SPARZIELE } from '../nav/pages';
 import { PageFrame } from '../pages/placeholder-page';
 import { GoalDetail, GoalHistory, goalsProgressReportQuery } from '../pages/goals-progress-report';
 import { AppLink } from '../shell/app-link';
+import { BackButton } from '../shell/back-button';
 import { useMonth } from '../shell/use-month';
 import { REDESIGN_ENABLED } from '../shell/redesign-flag';
 import { CategoryPanel, type PanelState } from './category-panel';
@@ -33,7 +34,7 @@ function DetailBack({
   return (
     <div className="plan-panel-nav">
       <nav aria-label="Brotkrumen">
-        <AppLink
+        <BackButton
           to={to}
           search={search}
           onClick={(event) => {
@@ -42,16 +43,16 @@ function DetailBack({
               router.history.back();
             }
           }}
-        >
-          Zurück{' '}
-          {label === 'Kategorien'
-            ? 'zu Kategorien'
-            : label === 'Ziele'
-              ? 'zu Zielen'
-              : label === 'Sparziele'
-                ? 'zu Sparzielen'
-                : 'zum Sparzielreport'}
-        </AppLink>
+          label={`Zurück ${
+            label === 'Kategorien'
+              ? 'zu Kategorien'
+              : label === 'Ziele'
+                ? 'zu Zielen'
+                : label === 'Sparziele'
+                  ? 'zu Sparzielen'
+                  : 'zum Sparzielreport'
+          }`}
+        />
       </nav>
     </div>
   );

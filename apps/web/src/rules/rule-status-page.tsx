@@ -5,6 +5,7 @@ import { EINSTELLUNGEN_REGELWERK } from '../nav/pages';
 import { PageFrame } from '../pages/placeholder-page';
 import { ErrorNote, LoadingNote } from '../ledger/states';
 import { AppLink } from '../shell/app-link';
+import { BackButton } from '../shell/back-button';
 import { RulePanel } from './rule-panel';
 import { RuleStatusContent } from './rule-status-content';
 import { rulesQuery, RULES_KEY } from './use-rule-writes';
@@ -59,8 +60,7 @@ export function RuleStatusPage() {
           {' › '}
           <span aria-current="page">{title}</span>
         </nav>
-        <AppLink
-          className="btn btn-ghost"
+        <BackButton
           to="/einstellungen/regelwerk"
           search={{ monat }}
           onClick={(event) => {
@@ -75,9 +75,8 @@ export function RuleStatusPage() {
               router.history.back();
             }
           }}
-        >
-          Zurück zum Regelwerk
-        </AppLink>
+          label="Zurück zum Regelwerk"
+        />
         {query.isPending && <LoadingNote what="Regel" />}
         {query.isError && (
           <ErrorNote what="Regel" error={query.error} onRetry={() => void query.refetch()} />
