@@ -278,6 +278,8 @@ export interface ContactReceiptInput {
   allocations?: ContactAllocation[];
   /** Keep the part no allocation takes as contact credit although other outlays stay open. */
   retainCredit?: boolean;
+  /** Payer of the cash receipt, as on a plain booking. */
+  payeeId?: string | null;
   /**
    * Further parts of the same cash receipt that never touch the contact (checklist contributions,
    * #1322). `amountCents` stays the contact part; the booking carries both.
@@ -673,6 +675,7 @@ export function settleContact(
         amountCents:
           input.amountCents + (input.directSplits ?? []).reduce((sum, d) => sum + d.amountCents, 0),
         memo: input.memo ?? null,
+        payeeId: input.payeeId ?? null,
         status: 'confirmed',
         splits: [
           { categoryId, contactId, amountCents: input.amountCents },

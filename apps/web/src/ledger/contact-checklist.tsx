@@ -16,6 +16,9 @@ export interface ChecklistReceiptBody {
   outlaySplitIds: string[];
   occurrenceIds: string[];
   creditReceiptSplitIds: string[];
+  /** Existing payee id or a typed name the server reuses/creates; at most one of both. */
+  payeeId?: string;
+  payeeName?: string;
   shortfall: 'open' | 'waive';
   surplus: 'credit' | 'gift';
 }

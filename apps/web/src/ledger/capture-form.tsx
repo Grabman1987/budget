@@ -860,11 +860,17 @@ export function CaptureForm({
         amountCents: received.ok ? received.cents : 0,
         memo: draft.memo.trim() === '' ? null : draft.memo,
       });
+      if (checklistBody && name !== '') {
+        if (known) checklistBody.payeeId = known.id;
+        else checklistBody.payeeName = name;
+      }
       const contactId = checklistLines[0]?.contactId ?? '';
       let createdId: string | undefined;
       if (checklistBody && contactId) {
         createdId = (await writes.checklist.mutateAsync({ contactId, body: checklistBody }))
           .bookingId;
+        if (name !== '' && !known) void qc.invalidateQueries({ queryKey: payeesQuery().queryKey });
+        learnPayeeDefault();
       } else {
         const result = await writes.create.mutateAsync({ input, draft: filled });
         if (result) learnPayeeDefault();
