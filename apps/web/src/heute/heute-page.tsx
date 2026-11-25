@@ -34,6 +34,8 @@ import './heute.css';
 import { useIsPhone } from '../budget/month-span';
 import { useStoredFlag } from '../shell/use-stored-flag';
 import { AttentionBar, FundingNotes } from './attention-bar';
+import { DueDetail } from './due-detail';
+import { TasksDetail } from './tasks-detail';
 import { savingsProposalsQuery } from '../wealth/savings-api';
 import { sourceMoney } from '../wealth/trade-api';
 import { Kennzahlen } from './kennzahlen';
@@ -781,18 +783,35 @@ function HeuteBody({
       case 'tasks':
         return (
           <>
-            {attention}
+            {data ? (
+              <TasksDetail data={data} savingsRows={savingsRows} inboxWarning={inboxWarning} />
+            ) : (
+              attention
+            )}
+            {savingsPending && <LoadingNote what="Sparplanvorschläge" />}
+            {savings.isError && !savingsPending && (
+              <ErrorNote
+                what="Sparplanvorschläge"
+                error={savings.error}
+                onRetry={() => void savings.refetch()}
+              />
+            )}
             <FinanceCheck data={data} pending={pending} context={{ month, period }} />
             <FundingNotes data={data} requestMonth={data?.stand.today.slice(0, 7)} />
           </>
         );
       case 'due':
-        return data &&
-          !data.upcoming14.length &&
+        return !data ? (
+          upcoming
+        ) : !data.upcoming14.length &&
           !data.upcomingEvents.some((event) => event.date <= addDays(data.stand.today, 14)) ? (
           <EmptyNote>Keine Zahlungen in den nächsten 14 Tagen.</EmptyNote>
         ) : (
-          upcoming
+          <DueDetail
+            data={data}
+            until={addDays(data.stand.today, 14)}
+            onOpenOccurrence={openOccurrence}
+          />
         );
       case 'bookings':
         return bookings;
