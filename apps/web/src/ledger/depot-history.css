@@ -1,0 +1,33 @@
+.depot-history {
+  margin-block: var(--space-md);
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+}
+.depot-history-controls {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-sm);
+}
+.depot-history .seg button {
+  min-height: var(--touch);
+  min-width: var(--touch);
+}
+.depot-history-figure {
+  margin: 0;
+}
+.depot-history-figure figcaption {
+  color: var(--ink-2);
+  font-size: var(--fs-label);
+}
+@media (max-width: 600px) {
+  .depot-history {
+    padding-inline: var(--space-sm);
+  }
+  .depot-history-controls .seg {
+    flex: 1 1 100%;
+  }
+}

@@ -414,7 +414,7 @@ test('manual buy, partial sell, source edit and group undo refresh holdings and 
   // Together these retain the old EUR 2,284 account total without a second Saldo.
   await expect(page.getByTestId('depot-value')).toHaveText('720,00 €');
   await expect(page.getByTestId('depot-cash')).toHaveText('Bargeld im Depotkonto: 1.564,00 €');
-  await page.getByRole('link', { name: 'Verrechnung', exact: true }).click();
+  await page.getByRole('tab', { name: 'Verrechnung', exact: true }).click();
   await expect(page.locator(`[data-booking="${sale.bookingId}"]`)).toBeVisible();
 });
 

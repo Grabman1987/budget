@@ -66,3 +66,21 @@ it('answers every period with consistent windows', async () => {
       if (depot.performance) expect(depot.performance.from).toBe(depots.window?.from);
   }
 });
+
+it('serves the daily history of one depot that ends at its comparison value', async () => {
+  const { depots } = (await (await get('/portfolio/depots?period=1J')).json()) as {
+    depots: DepotComparison;
+  };
+  const depot = depots.depots[0]!;
+  const response = await get(`/portfolio/depots/${depot.accountId}/history?period=1J`);
+  expect(response.status).toBe(200);
+  const { history } = (await response.json()) as {
+    history: { date: string; valueCents: number; index: number | null }[];
+  };
+  expect(history.length).toBeGreaterThan(30);
+  expect(history.at(-1)?.valueCents).toBe(depot.valueCents);
+  expect(history[0]?.date).toBe(depots.window?.from);
+  expect(
+    ((await (await get('/portfolio/depots/nope/history')).json()) as { history: [] }).history,
+  ).toEqual([]);
+});

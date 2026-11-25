@@ -10,23 +10,66 @@
   border-bottom: 1px solid var(--rule);
   margin-block: var(--space-lg);
 }
-.depot-tabs a,
+.depot-tabs button,
 .depot-link,
-.depot-settlement a,
+.depot-settlement-fig,
 .depot summary {
   display: inline-flex;
   align-items: center;
   min-height: var(--touch);
   padding-inline: var(--space-sm);
 }
-.depot-tabs a {
+.depot-tabs button {
+  border: 0;
+  border-bottom: 1px solid transparent;
+  background: none;
+  font: inherit;
   color: var(--ink-2);
-  text-decoration: none;
+  cursor: pointer;
 }
-.depot-tabs a[aria-current] {
+.depot-tabs button:focus-visible {
+  outline: 2px solid var(--line);
+  outline-offset: -2px;
+}
+.depot-tabs button[aria-selected='true'] {
   color: var(--ink);
   border-bottom: 2px solid var(--line);
   font-weight: 600;
+}
+.depot-headline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-sm) var(--space-lg);
+}
+.depot-cash {
+  margin: 0;
+  color: var(--ink-2);
+  font-size: var(--fs-label);
+}
+.depot-settlement-fig {
+  flex-direction: column;
+  align-items: flex-end;
+  margin-inline-start: auto;
+  text-align: end;
+  color: var(--ink);
+  text-decoration: none;
+}
+.depot-settlement-fig small {
+  color: var(--ink-2);
+  font-size: var(--fs-label);
+}
+.depot-settlement-fig strong {
+  font-size: var(--fs-headline);
+  font-variant-numeric: tabular-nums;
+}
+.depot-settlement-fig:hover strong {
+  text-decoration: underline;
+}
+.depot-panel-actions {
+  display: flex;
+  justify-content: flex-end;
 }
 .depot-table {
   width: 100%;
@@ -136,11 +179,6 @@ button.depot-link {
   font-size: var(--fs-dimension);
   line-height: 1.05;
 }
-.depot-v1 .depot-settlement {
-  margin-block: 0;
-  font-size: var(--fs-meta);
-  color: var(--ink-2);
-}
 .depot-v1 .depot-tabs {
   margin-block: 12px;
 }
@@ -171,5 +209,15 @@ button.depot-link {
   }
   .depot-v1 [data-testid='depot-value'] {
     font-size: var(--fs-dimension);
+  }
+}
+
+/* The account page's back chevron sits in the left gutter; keep the title clear of it. */
+.account-detail-redesign .depot-v1-head {
+  margin-inline-start: 30px;
+}
+@media (max-width: 767px) {
+  .account-detail-redesign .depot-v1-head {
+    margin-inline-start: 0;
   }
 }

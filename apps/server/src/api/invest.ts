@@ -724,6 +724,17 @@ export function portfolioRoutes(db: Db, today: () => string): Hono {
     const period = checkedReportPeriod(rawPeriod, today());
     return c.json({ depots: depotComparison(db, { today: today(), period }) });
   });
+  // Daily value and return of one depot for its account page.
+  app.get('/depots/:id/history', (c) => {
+    const { period: rawPeriod } = readQuery(c, depotsQuery);
+    const period = checkedReportPeriod(rawPeriod, today());
+    const history = depotComparison(db, {
+      today: today(),
+      period,
+      historyFor: c.req.param('id'),
+    }).history;
+    return c.json({ history: history ?? [] });
+  });
   // Report 4.2: allocation by class/product and region/product, Soll/Ist over time.
   app.get('/allocation-report', (c) =>
     c.json({ allocation: allocationReport(db, { today: today() }) }),
