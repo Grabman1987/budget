@@ -1,4 +1,5 @@
 import { monthsBetween } from '../date';
+import { roundDivCents } from '../wealth/int';
 import { z } from 'zod';
 import { isSalaryAllowanceLabel } from './wage-label-rules';
 
@@ -140,15 +141,43 @@ export function payslipPayNetCents(slip: PayslipInput) {
 }
 
 /**
+ * Read-only wage facts of one payslip for the month composition (#1321), derived from its wage
+ * lines and the owner mappings (`payrollCompositionFacts`). Never changes a net or tax figure.
+ */
+export interface PayslipCompositionFact {
+  /** Gross of the earning lines mapped to the special component. */
+  specialGrossCents: number;
+  /** A regular slip with unmapped earning lines whose gross is above the trailing running gross. */
+  openMappingTask: boolean;
+}
+
+/**
  * Per month: pay of the running slips, pay of separately captured special-payment slips and the
  * monthly total (both added). A combined slip is never split: its whole pay is carried in its month
- * (owner decision 2026-11-17). Tax is never re-allocated between the parts.
+ * (owner decision 2026-11-17). Tax is never re-allocated between the parts. A combined month is
+ * only marked: `containsSpecial` (a special slip or lines mapped to the special component) and the
+ * mapped `specialGrossCents` (null when none is mapped); `openMappingSlipIds` lists regular slips
+ * whose unmapped earning lines may hide a special payment (nothing is guessed).
  */
-export function payrollNetComposition(slips: CapturedPayslip[], month: string) {
+export function payrollNetComposition(
+  slips: CapturedPayslip[],
+  month: string,
+  facts: ReadonlyMap<string, PayslipCompositionFact> = new Map(),
+) {
   const inMonth = slips.filter((p) => p.month === month);
   const regular = inMonth.filter((p) => p.kind === 'regular');
   const special = inMonth.filter((p) => p.kind === 'special');
   const sum = (list: CapturedPayslip[]) => list.reduce((n, p) => n + payslipPayNetCents(p), 0);
+  const specialGross = inMonth
+    .map((p) => {
+      const fact = facts.get(p.id);
+      return fact
+        ? fact.specialGrossCents
+        : p.kind === 'special'
+          ? payrollTotals([p]).grossCents
+          : 0;
+    })
+    .filter((value) => value > 0);
   return {
     month,
     recorded: inMonth.length > 0,
@@ -156,6 +185,32 @@ export function payrollNetComposition(slips: CapturedPayslip[], month: string) {
     specialCents: special.length ? sum(special) : 0,
     totalCents: inMonth.length ? sum(inMonth) : null,
     specialSlipIds: special.map((p) => p.id),
+    containsSpecial: special.length > 0 || specialGross.length > 0,
+    specialGrossCents: specialGross.length ? specialGross.reduce((n, v) => n + v, 0) : null,
+    openMappingSlipIds: regular.filter((p) => facts.get(p.id)?.openMappingTask).map((p) => p.id),
+  };
+}
+
+/**
+ * Average of the running net pay over the recorded months without a special payment. Months with
+ * `containsSpecial` are excluded and counted, so a label can say so (never a doubled running pay).
+ */
+export function runningNetAverage(
+  rows: readonly Pick<
+    ReturnType<typeof payrollNetComposition>,
+    'recorded' | 'runningCents' | 'containsSpecial'
+  >[],
+) {
+  const used = rows.filter((r) => r.recorded && r.runningCents !== null && !r.containsSpecial);
+  return {
+    averageCents: used.length
+      ? roundDivCents(
+          used.reduce((n, r) => n + (r.runningCents ?? 0), 0),
+          used.length,
+        )
+      : null,
+    months: used.length,
+    excludedMonths: rows.filter((r) => r.recorded && r.containsSpecial).length,
   };
 }
 
@@ -164,6 +219,7 @@ export function payrollReport(
   slips: CapturedPayslip[],
   month: string,
   sourceSpecialGross: ReadonlyMap<string, number | null> = new Map(),
+  compositionFacts: ReadonlyMap<string, PayslipCompositionFact> = new Map(),
 ) {
   const selected = slips.filter((p) => p.month === month);
   const year = month.slice(0, 4);
@@ -246,7 +302,7 @@ export function payrollReport(
       const totals = payrollTotals(inMonth);
       return {
         month: m,
-        composition: payrollNetComposition(slips, m),
+        composition: payrollNetComposition(slips, m, compositionFacts),
         ...totals,
         payGrossCents: totals.grossCents + allowanceCents,
         payNetCents: totals.salaryNetCents + allowanceCents,

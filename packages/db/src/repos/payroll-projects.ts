@@ -2,6 +2,7 @@ import {
   isCalendarRange,
   payrollReport,
   payrollSource,
+  payrollCompositionFacts,
   payrollPayoutDifference,
   payslipInput,
   payrollTotals,
@@ -152,7 +153,8 @@ export function deletePayslip(db: Executor, id: string, ctx: AuditContext) {
 export function readPayroll(db: Executor, month: string, today: string) {
   const slips = listPayslips(db);
   const rules = wageComponentRules(db);
-  const sources = listSalaryPayslips(db).map((p) => payrollSource(p, rules));
+  const salarySlips = listSalaryPayslips(db);
+  const sources = salarySlips.map((p) => payrollSource(p, rules));
   const bankParts = db.select().from(bookingSplit).all();
   const salarySplits = db
     .select()
@@ -247,7 +249,7 @@ export function readPayroll(db: Executor, month: string, today: string) {
       .map((s) => [s.id, s.issues.length > 0 ? null : s.paid.special] as const),
   );
   return {
-    ...payrollReport(slips, month, sourceSpecialGross),
+    ...payrollReport(slips, month, sourceSpecialGross, payrollCompositionFacts(salarySlips, rules)),
     sources,
     captured: slips,
     links,

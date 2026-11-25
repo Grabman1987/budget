@@ -3,10 +3,13 @@ import { classifyWageLabel } from './payslip-text';
 import {
   payrollNetComposition,
   payrollReport,
+  runningNetAverage,
   payrollTotals,
   payslipPayNetCents,
   type CapturedPayslip,
 } from './payroll-projects';
+import { payrollCompositionFacts } from './payroll-source';
+import type { SalaryPayslip, WageComponentRule } from '../salary/types';
 import { isSalaryAllowanceLabel } from './wage-label-rules';
 
 const slip = (
@@ -115,5 +118,96 @@ describe('payroll net composition', () => {
     });
     expect(row.payGrossCents - row.svCents - row.taxCents).toBe(row.payNetCents);
     expect(row.composition.totalCents).toBe(row.payNetCents);
+  });
+});
+
+describe('combined slip marked as containing a special payment (#1321)', () => {
+  // Synthetic: gross 13.970,00 = 6.985,00 running + 6.985,00 special, net 8.000,00, never split.
+  const line = (code: string, label: string, amountCents: number) => ({
+    code,
+    label,
+    section: 'earning' as const,
+    referenceMonth: null,
+    amountCents,
+  });
+  const salarySlip = (
+    id: string,
+    month: string,
+    gross: number,
+    net: number,
+    lines = [line('100', 'Synthetic base', gross)],
+  ): SalaryPayslip => ({
+    ...slip(id, month, 'regular', {
+      grossCents: gross,
+      svCents: gross - net,
+      taxCents: 0,
+      netCents: net,
+    }),
+    employerContactId: 'emp',
+    wage: { lineCheck: 'ok', split: null, lines },
+  });
+  const earlier = ['2026-03', '2026-04', '2026-05'].map((m, i) =>
+    salarySlip(`e${i}`, m, 698500, 400000),
+  );
+  const combinedSlip = salarySlip('c', '2026-06', 1397000, 800000, [
+    line('100', 'Synthetic base', 698500),
+    line('200', 'Synthetic bonus', 698500),
+  ]);
+  const mapped: WageComponentRule[] = [
+    { employerContactId: null, wageCode: '100', labelNorm: null, component: 'base' },
+    { employerContactId: null, wageCode: '200', labelNorm: null, component: 'special' },
+  ];
+
+  it('mapped special line: containsSpecial, special gross, unsplit running net', () => {
+    const slips = [...earlier, combinedSlip];
+    const facts = payrollCompositionFacts(slips, mapped);
+    const row = payrollNetComposition(slips, '2026-06', facts);
+    expect(row).toMatchObject({
+      runningCents: 800000,
+      specialCents: 0,
+      totalCents: 800000,
+      containsSpecial: true,
+      specialGrossCents: 698500,
+      openMappingSlipIds: [],
+    });
+  });
+
+  it('unmapped line: not special, open mapping task, nothing guessed', () => {
+    const slips = [...earlier, combinedSlip];
+    const facts = payrollCompositionFacts(slips, mapped.slice(0, 1));
+    const row = payrollNetComposition(slips, '2026-06', facts);
+    expect(row).toMatchObject({
+      runningCents: 800000,
+      containsSpecial: false,
+      specialGrossCents: null,
+      openMappingSlipIds: ['c'],
+    });
+    // Without an earlier slip there is no baseline: nothing is flagged.
+    expect(payrollCompositionFacts([combinedSlip], mapped.slice(0, 1)).get('c')).toEqual({
+      specialGrossCents: 0,
+      openMappingTask: false,
+    });
+  });
+
+  it('a separate special slip counts as containing a special payment', () => {
+    const s = slip('s', '2026-06', 'special', { specialType: 'salary13' });
+    expect(payrollNetComposition([s], '2026-06')).toMatchObject({
+      containsSpecial: true,
+      specialGrossCents: 300000,
+    });
+    expect(payrollNetComposition([slip('r', '2026-06', 'regular')], '2026-06')).toMatchObject({
+      containsSpecial: false,
+      specialGrossCents: null,
+    });
+  });
+
+  it('running-pay average excludes the combined month and counts the exclusion', () => {
+    const slips = [...earlier, combinedSlip];
+    const facts = payrollCompositionFacts(slips, mapped);
+    const rows = ['2026-03', '2026-04', '2026-05', '2026-06'].map((m) =>
+      payrollNetComposition(slips, m, facts),
+    );
+    expect(runningNetAverage(rows)).toEqual({ averageCents: 400000, months: 3, excludedMonths: 1 });
+    expect(runningNetAverage([])).toEqual({ averageCents: null, months: 0, excludedMonths: 0 });
   });
 });
