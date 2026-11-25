@@ -35,14 +35,12 @@ export function prefetchStartPage(search: {
   const month = search.monat ?? currentMonth();
   const period = effectivePeriod(month, currentMonth(), search.period, storedMonthChoice());
   const planMonth = todayInVienna().slice(0, 7);
-  for (const options of [
-    heuteQuery(month, period),
-    accountsQuery(),
-    portfolioPositionsQuery(),
-    budgetQuery(month),
-    goalsQuery(planMonth),
-    goalsQuery(shiftMonth(planMonth, -1)),
-    inboxCountQuery(),
-  ])
-    void queryClient.prefetchQuery(options as Parameters<typeof queryClient.prefetchQuery>[0]);
+  const client = queryClient;
+  void client.prefetchQuery(heuteQuery(month, period));
+  void client.prefetchQuery(accountsQuery());
+  void client.prefetchQuery(portfolioPositionsQuery());
+  void client.prefetchQuery(budgetQuery(month));
+  void client.prefetchQuery(goalsQuery(planMonth));
+  void client.prefetchQuery(goalsQuery(shiftMonth(planMonth, -1)));
+  void client.prefetchQuery(inboxCountQuery());
 }
