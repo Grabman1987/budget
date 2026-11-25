@@ -125,7 +125,11 @@ test('Today and Plan explain a real booking-month shift beside October expected 
   await planLink.click();
   await expect(page).toHaveURL(/\/plan\/monat\/einnahmen\?monat=2026-10$/);
   await expect(page.getByRole('heading', { name: 'Oktober 2026', exact: true })).toBeVisible();
-  await expect(page.getByRole('navigation', { name: 'Brotkrumen' })).toContainText('Monat');
+  await expect(
+    page
+      .getByRole('navigation', { name: 'Brotkrumen' })
+      .getByRole('link', { name: 'Zurück zum Monat' }),
+  ).toBeVisible();
   const planDetail = page.locator('.plan-detail');
   await expect(planDetail.getByTestId('income-received')).toHaveText('0,00 €');
   await expect(planDetail).toContainText('Eingegangen');

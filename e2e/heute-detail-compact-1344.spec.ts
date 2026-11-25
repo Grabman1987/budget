@@ -16,7 +16,7 @@ test('Fällig · alle Zahlungen is one table card without stacked fields and fit
     'Deckung',
   ]);
   await expect(card.getByRole('row')).not.toHaveCount(1);
-  await expect(card.locator('.heute-note')).toHaveCount(0);
+  await expect(card.locator('p.heute-note')).toHaveCount(0);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   expect((await new AxeBuilder({ page }).include('main').analyze()).violations).toEqual([]);
 });

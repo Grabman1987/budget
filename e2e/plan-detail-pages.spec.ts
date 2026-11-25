@@ -26,7 +26,11 @@ test('envelope details have a URL; browser back restores the scrolled list', asy
   await history.click();
   await expect(page).toHaveURL(/\/plan\/monat\/envelope\/[^?]+\?monat=2026-09/);
   const detailUrl = page.url();
-  await expect(page.getByRole('navigation', { name: 'Brotkrumen' })).toContainText('Monat');
+  await expect(
+    page
+      .getByRole('navigation', { name: 'Brotkrumen' })
+      .getByRole('link', { name: 'Zurück zum Monat' }),
+  ).toBeVisible();
   await expect(page.getByRole('dialog')).toHaveCount(0);
   expect((await new AxeBuilder({ page }).include('main').analyze()).violations).toEqual([]);
   await page.screenshot({ path: info.outputPath('envelope-detail.png'), fullPage: true });

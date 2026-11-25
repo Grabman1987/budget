@@ -194,13 +194,10 @@ for (const colorScheme of ['light', 'dark'] as const) {
       fullPage: true,
     });
     await page.locator('.hv-due').getByRole('link').click();
-    const due = page.getByRole('region', { name: 'Fällig 14 Tage' });
-    await expect(due.locator('li')).toHaveCount(4);
-    const expand = due.getByRole('button', { name: /Weitere .* Fälligkeiten/ });
-    await expand.focus();
-    await page.keyboard.press('Space');
-    await expect(due.locator('li')).toHaveCount(8);
-    await due.getByRole('button', { name: 'Weniger Fälligkeiten' }).click();
+    // The detail page is one table of all payments; there is nothing left to unfold.
+    const due = page.getByRole('region', { name: 'Fällige Zahlungen' });
+    await expect(due.locator('tbody tr')).toHaveCount(8);
+    await expect(due.getByRole('button', { name: /Weitere .* Fälligkeiten/ })).toHaveCount(0);
     await page.getByRole('link', { name: 'Zurück zu Heute', exact: true }).click();
     await page.getByRole('link', { name: 'Mehr zum Monat', exact: true }).click();
     const fold = page.getByRole('button', { name: 'Mehr zum Monat', exact: true });

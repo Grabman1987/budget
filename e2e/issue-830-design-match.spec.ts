@@ -75,10 +75,12 @@ test('Heute matches the numbered compact overview and preserves expanded drilldo
       const work = (await page.locator('.hv-tasks').boundingBox())!;
       expect(work.x).toBeGreaterThan(pace.x + pace.width);
       expect(pace.width / work.width).toBeGreaterThan(1.8);
+      // The pace chart is 240 px tall since the 25.11 review (was 160 px) and the period switch sits in
+      // the lead tile at 44 px: the forecast card ends lower than the old 900 px fold.
       expect(
         (await page.locator('.hv-forecast').boundingBox())!.y +
           (await page.locator('.hv-forecast').boundingBox())!.height,
-      ).toBeLessThanOrEqual(900);
+      ).toBeLessThanOrEqual(980);
     } else {
       for (const action of [
         page.locator('.hv-revisions a').nth(0),
@@ -119,7 +121,14 @@ test('Heute matches the numbered compact overview and preserves expanded drilldo
   ]) {
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto('/?monat=2026-09&period=payday');
-    await page.locator(`.heute-screen a[href^="/heute/details/${kind}?"]`).first().click();
+    if (kind === 'forecast') {
+      // The overview's "Details" now leads straight to Plan > Prognose; the Heute drilldown stays
+      // reachable by its URL (and from "Mehr zum Monat").
+      await expect(
+        page.getByRole('link', { name: 'Details zur Kontoprognose für 35 Tage' }),
+      ).toHaveAttribute('href', /^\/plan\/prognose\?/);
+      await page.goto(`/heute/details/forecast?monat=2026-09&period=payday`);
+    } else await page.locator(`.heute-screen a[href^="/heute/details/${kind}?"]`).first().click();
     await expect(page).toHaveURL(
       (url) =>
         url.pathname === `/heute/details/${kind}` &&
