@@ -469,17 +469,11 @@ it('ON orders the five compact cards and moves full monthly capabilities into re
   ]);
   expect(document.querySelector('.heute-upcoming')).toBeNull();
   expect(document.querySelector('.heute-composition')).toBeNull();
-  for (const kind of [
-    'pace',
-    'forecast',
-    'tasks',
-    'due',
-    'bookings',
-    'wealth',
-    'month',
-    'metrics',
-    'pinned',
-  ]) {
+  // The forecast card links straight to Plan › Prognose and returns to the overview.
+  const prognose = document.querySelector<HTMLAnchorElement>('a[href^="/plan/prognose?"]');
+  expect(prognose).not.toBeNull();
+  expect(new URL(prognose!.href).searchParams.get('von')).toBe('/?monat=2026-09&period=month');
+  for (const kind of ['pace', 'tasks', 'due', 'bookings', 'wealth', 'month', 'metrics', 'pinned']) {
     const link = document.querySelector<HTMLAnchorElement>(`a[href^="/heute/details/${kind}?"]`);
     expect(link).not.toBeNull();
     const target = new URL(link!.href);

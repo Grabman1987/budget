@@ -443,6 +443,12 @@ it('keeps context series off by default and toggles their drawing and legend tog
   expect(screen.getByRole('status').textContent).toContain('Ist');
   expect(screen.getByRole('status').textContent).toContain('Differenz');
 });
+it('draws the context series permanently without the toggle when asked to', () => {
+  const { container } = render(<HeutePaceChart data={data} alwaysContext />);
+  expect(screen.queryByRole('button', { name: /anzeigen/ })).toBeNull();
+  expect(container.querySelector('path.pace-income-line')?.getAttribute('d')).toContain('L');
+  expect(container.querySelector('.chart-legend')?.textContent).toContain('Dezember · Vormonat');
+});
 it.each([2999, 3000, 3001])('colours forecast by its endpoint %i against the cap', (end) => {
   const { container } = render(
     <HeutePaceChart

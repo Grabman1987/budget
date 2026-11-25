@@ -135,6 +135,14 @@ export interface Heute extends WithValuationNotes {
     fixedDays: number[];
     forecast: number[];
     previousMonth: string;
+    /** The bookings behind the Ist line, newest first; absent in older saved responses. */
+    bookings?: {
+      bookingId: string | null;
+      day: string;
+      name: string;
+      categoryName: string | null;
+      cents: number;
+    }[];
     figures: {
       spentCents: number;
       planToDateCents: number;

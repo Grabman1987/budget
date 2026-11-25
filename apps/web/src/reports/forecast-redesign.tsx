@@ -120,10 +120,7 @@ export function ForecastRedesign({
           </p>
         )}
       </div>
-      <p className="plan-v2-source">
-        Stand {longDay(view.asOf)} · Budget-Konten · Kontostand ist der jeweilige Tagesendstand,
-        einschließlich variabler Planung.
-      </p>
+      <p className="plan-v2-source">Stand {longDay(view.asOf)} · Budget-Konten · Tagesendstände</p>
       <details className="forecast-reference-basis">
         <summary>Grundlage und Szenarien</summary>
         {basis}
@@ -141,11 +138,7 @@ export function ForecastRedesign({
             </dd>
           </div>
         </dl>
-        <p>
-          Ein Überziehungsrahmen zählt nicht als Geld. Rücklagen auf Konten außerhalb des Budgets
-          bleiben draußen.
-        </p>
-        <p>Einzelkontovorschau · gleicher Zeitraum und gleiche Stellschrauben:</p>
+        <p>Einzelkonto:</p>
         <div className="kacct-actions">
           {view.budgetAccounts.map((account) => (
             <AppLink

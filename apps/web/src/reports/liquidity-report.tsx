@@ -587,8 +587,7 @@ function IncomePausesCard({ view }: { view: LiquidityReportView }) {
         <h2 id="liq-pauses">Einkommenspausen</h2>
       </div>
       <p className="vnote">
-        Eine Pause setzt passende wiederkehrende EUR-Einnahmen in der Cash-Prognose auf 0 €. Der
-        hinterlegte Zahlungsplan und der normale Einnahmenbericht bleiben unverändert.
+        Eine Pause setzt passende wiederkehrende EUR-Einnahmen in der Prognose auf 0 €.
       </p>
       {view.incomePauses.length === 0 ? (
         <p className="muted" role="status">
@@ -915,9 +914,8 @@ function EventsCard({ view }: { view: LiquidityReportView }) {
         )}
       </form>
       <p className="vnote">
-        Zusätzliche einmalige und wiederkehrende Ausgaben oder Einnahmen verändern die Prognose
-        sofort; „Zählt“ schaltet ein Ereignis aus, ohne es zu löschen. Kategorien, Wiederholungen
-        und Änderungen pflegst du in <AppLink to="/plan/jahr">Plan · Jahr</AppLink>.
+        „Zählt“ schaltet ein Ereignis aus, ohne es zu löschen. Mehr dazu in{' '}
+        <AppLink to="/plan/jahr">Plan · Jahr</AppLink>.
       </p>
     </section>
   );
@@ -1018,8 +1016,7 @@ function LeversCard({
         </ul>
       )}
       <p className="vnote">
-        Rechts: um so viel hebt die Stellschraube den Tiefpunkt der nächsten 6 Monate. Der
-        Notgroschen bleibt unangetastet (R02).
+        Rechts: so viel hebt die Stellschraube den Tiefpunkt der nächsten 6 Monate.
       </p>
     </section>
   );
@@ -1169,11 +1166,8 @@ function MovementsCard({ report }: { report: LiquidityReport }) {
         ))}
       </ReportTable>
       <p className="vnote">
-        Je Monat: Anfang, Bewegungen ab 250 € und geplante Ereignisse, der Rest als eine Zeile,
-        Ende. Streichen nimmt nur diese eine Zahlung aus der Prognose, die Regel bleibt; Rückgängig
-        stellt sie wieder her. Wiederkehrende Zahlungen kommen aus den gespeicherten Verträgen,
-        variable Kategorien nach Plan. Zahlungen von Konten außerhalb des Budgets stehen nicht
-        darin.
+        Je Monat: Bewegungen ab 250 € und geplante Ereignisse, der Rest als eine Zeile. Streichen
+        nimmt nur diese eine Zahlung aus der Prognose; Rückgängig stellt sie wieder her.
       </p>
     </section>
   );

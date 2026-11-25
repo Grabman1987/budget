@@ -48,7 +48,8 @@ Bereich: Startseite „Heute“ (Route `/`). Status und Verweise wie in `docs/US
   2. Ich lese die Zeile „Ausgegeben … · Prognose Monatsende … von … Deckel“.
   3. Ich betrachte das Diagramm: Ist durchgezogen, Hochrechnung gestrichelt, Plan bis heute als Punkt.
   4. Ich fahre über die Kurve (Tooltip) und sehe Ist, Hochrechnung, Deckel und linear Erwartet.
-  5. Mit „Mehr zum Monat“ öffne ich die Einzelwerte.
+  5. Mit „Pace →“ öffne ich die Detailseite (weiße Karte): Zahlen, Diagramm mit Einnahmen und Vormonat immer sichtbar (ohne „Mehr anzeigen“, ohne „Zwischenstand bis …“-Zeile und ohne Erklärzeile) und darunter die Buchungen, aus denen die Ist-Linie besteht, als kompakte Tabelle (Datum · Buchung · Kategorie · Betrag, neueste zuerst, Summe = „Ausgegeben“).
+  6. Mit „Mehr zum Monat“ öffne ich die Einzelwerte.
 - **Ergebnis:** Nur Anzeige. Keine Daten ändern sich.
 - **Abnahmekriterien:**
   1. Ist ist durchgezogen, die Hochrechnung gestrichelt; liegt sie über dem Deckel, ist sie rot.
@@ -63,8 +64,8 @@ Bereich: Startseite „Heute“ (Route `/`). Status und Verweise wie in `docs/US
 - **Ablauf:**
   1. Ich öffne „Heute“ und gehe zur Karte „Kontoprognose“.
   2. Ich wähle oben „Monat“ oder „Bis Gehalt“; die Kurve folgt dem Zeitraum.
-  3. Ich lese Tiefpunkt und Limit im Diagramm.
-  4. Ich tippe „Prognose →“ bzw. „Details“. Die App öffnet Plan › Prognose (`/plan/prognose`, 35 Tage).
+  3. Ich lese Tiefpunkt und Limit im Diagramm; der Tiefpunkt steht nur dort, nicht noch einmal als Text. Karte und Detailseite sind weiße Karten ohne doppelte Titel und Untertitel.
+  4. Ich tippe „Details“. Die App öffnet direkt Plan › Prognose (`/plan/prognose`, 35 Tage); „Zurück“ (links, wie überall) führt zu Heute.
 - **Ergebnis:** Nur Anzeige. Heute und Report R07 zeigen denselben Zeitraum.
 - **Abnahmekriterien:**
   1. 14 Tage Rückblick sind sichtbar.
