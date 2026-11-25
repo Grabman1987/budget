@@ -113,6 +113,11 @@ test('initial section placeholders keep above-fold geometry while independent re
     await held;
     await route.fulfill({ json: data });
   });
+  // The restored last state (IndexedDB query cache) would hide the cold-start placeholders of the
+  // second pass: every load starts without it.
+  await page.addInitScript(() => {
+    indexedDB.deleteDatabase('budget-query-cache');
+  });
   for (const colorScheme of ['light', 'dark'] as const) {
     held = new Promise<void>((resolve) => {
       release = resolve;
@@ -199,6 +204,10 @@ test('the independent forecast reserves its own initial pending plot before its 
     await held;
     await route.continue();
   });
+  // Every load starts without the restored last state (IndexedDB query cache).
+  await page.addInitScript(() => {
+    indexedDB.deleteDatabase('budget-query-cache');
+  });
   for (const colorScheme of ['light', 'dark'] as const) {
     held = new Promise<void>((resolve) => {
       release = resolve;
@@ -281,6 +290,10 @@ for (const read of ['heute', 'budget', 'liquidity', 'savings'] as const) {
           ? route.fulfill({ json: { proposals: [proposal] } })
           : route.fallback(),
     );
+    // Every load starts without the restored last state (IndexedDB query cache).
+    await page.addInitScript(() => {
+      indexedDB.deleteDatabase('budget-query-cache');
+    });
     for (const colorScheme of ['light', 'dark'] as const) {
       fail = true;
       forceAggregateFailure = false;

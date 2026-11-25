@@ -179,7 +179,12 @@ test('recent bookings show counterparties and mask them in privacy mode (#951)',
     await expect(page.locator('main')).not.toContainText('Musterzinsen');
     if (redesign) {
       await page.goto('/heute/details/bookings?monat=2026-09&period=payday');
-      await expect(page.locator('.heute-booking strong')).toHaveText(['•••', '•••', '•••', '•••']);
+      await expect(page.locator('.heute-booking .heute-row-open strong')).toHaveText([
+        '•••',
+        '•••',
+        '•••',
+        '•••',
+      ]);
       await expect(page.locator('main')).not.toContainText('Musterzinsen');
       await page.goto('/?monat=2026-09&period=payday');
     }

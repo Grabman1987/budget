@@ -69,6 +69,7 @@ export const budgetQuery = (month: string) =>
   queryOptions({
     queryKey: [...BUDGET_KEY, month],
     staleTime: HEAVY_READ_STALE_MS,
+    refetchOnWindowFocus: true,
     queryFn: () =>
       request<BudgetMonthView>('GET', `${path(month)}${REDESIGN_ENABLED ? '?previewBasis=1' : ''}`),
   });

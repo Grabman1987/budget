@@ -189,6 +189,7 @@ export function PlanMonthPage() {
             month={month}
             months={months}
             data={data}
+            fromLastSession={budget.dataUpdatedAt === 0 && budget.isFetching}
             views={views}
             onIncome={openIncome}
             monthIncome={receivedIncome.data}
@@ -246,6 +247,7 @@ function PlanBody({
   month,
   months,
   data,
+  fromLastSession = false,
   views,
   onIncome,
   monthIncome,
@@ -254,6 +256,8 @@ function PlanBody({
   /** The visible months, leftmost first (`month` is the first). */
   months: string[];
   data: BudgetMonthView;
+  /** The figures come from the last session and are being read again. */
+  fromLastSession?: boolean;
   /** All visible months once loaded. */
   views: BudgetMonthView[] | null;
   onIncome: () => void;
@@ -1138,6 +1142,9 @@ function PlanBody({
       />
     </div>
   );
+  // A figure restored from the last session (dataUpdatedAt 0) is read again first: the flow
+  // reconciles unfinished writes against the read model once, when it opens.
+  if (guided && fromLastSession) return <LoadingNote what="Monatswerte" />;
   if (guided)
     return (
       <DistributeFlow

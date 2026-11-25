@@ -58,6 +58,7 @@ export const liquidityQuery = (
     ],
     retry: false,
     staleTime: HEAVY_READ_STALE_MS,
+    refetchOnWindowFocus: true,
     queryFn: () =>
       request<LiquidityReportView>(
         'GET',

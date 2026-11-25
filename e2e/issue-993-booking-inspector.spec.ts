@@ -6,7 +6,7 @@ import { MIN_TARGET_PX } from './ledger-helpers';
 for (const scenario of ['light', 'dark', 'navigation'])
   test(`booking context (${scenario})`, async ({ page, isolatedLedger }, info) => {
     test.skip(
-      info.project.name === 'mobile',
+      info.project.name !== 'desktop',
       'Phone rows open the edit panel directly; the details button is desktop-only.',
     );
     const post = async (path: string, data: unknown) => {

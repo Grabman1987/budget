@@ -261,6 +261,7 @@ export const heuteQuery = (month: string, period: HeutePeriod) =>
   queryOptions({
     queryKey: [...HEUTE_KEY, month, period],
     staleTime: HEAVY_READ_STALE_MS,
+    refetchOnWindowFocus: true,
     queryFn: () =>
       request<Heute>('GET', `/api/heute?period=${period}&month=${encodeURIComponent(month)}`),
   });

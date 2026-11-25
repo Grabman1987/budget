@@ -180,7 +180,10 @@ test('pending and confirmed account rows remain distinct, readable and read-only
   await expect(upcoming).toHaveAttribute('aria-expanded', 'true');
   const planned = page.locator('.kupcoming [data-occurrence]');
   await expect(planned).toHaveCount(1);
-  await expect(planned.getByRole('img', { name: 'Nächste Wiederholung' })).toBeVisible();
+  // The phone row (#1328) is one compact link without the repetition icon.
+  if (page.viewportSize()!.width < 768)
+    await expect(planned.locator('.kschedule-m-main')).toBeVisible();
+  else await expect(planned.getByRole('img', { name: 'Nächste Wiederholung' })).toBeVisible();
   await expect(page.locator('.kupcoming [data-booking]')).toHaveCount(0);
   await assertRows();
   await upcoming.click();

@@ -70,8 +70,8 @@ test('no flag UI keeps stored flag values; status shortcuts compose with existin
     const navigation = (await page.locator('.tabbar').boundingBox())!;
     const controls = [];
     for (const [name, control] of [
+      // The phone row has no inline amount cell (#1328): the row itself is the one control.
       ['payee', first.getByRole('button', { name: /bearbeiten/ })],
-      ['amount', first.getByRole('button', { name: /Betrag ändern/ })],
     ] as const) {
       const box = (await control.boundingBox())!;
       expect(box.width).toBeGreaterThanOrEqual(44);
