@@ -480,7 +480,14 @@ function ownAccountRefs(db: Executor, currency: string): (OwnAccountRef & { name
   return db
     .select()
     .from(account)
-    .where(and(isNull(account.deletedAt), isNull(account.closedAt), eq(account.currency, currency)))
+    .where(
+      and(
+        isNull(account.deletedAt),
+        isNull(account.closedAt),
+        ne(account.type, 'credit_card'),
+        eq(account.currency, currency),
+      ),
+    )
     .all()
     .map((a) => {
       const texts = [a.name, ...labels.filter((l) => l.accountId === a.id).map((l) => l.label)];

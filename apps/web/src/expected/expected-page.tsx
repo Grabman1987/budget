@@ -318,7 +318,7 @@ export function ExpectedPage({
                 <PaymentsCalendar />
               ) : (
                 <>
-                  <RecurringSuggestions />
+                  {view === 'contracts' && <RecurringSuggestions />}
                   {refreshError && (
                     <ErrorNote
                       what="Fälligkeiten"

@@ -254,7 +254,7 @@ describe('learning refinements', () => {
 
 describe('own-account transfer proposal', () => {
   it('proposes a transfer when the line names another own account, nothing applied', () => {
-    const id = bankLine('Überweisung Sparen Monatsrate', '2026-10-05', -2500, {
+    const id = bankLine('Sparen', '2026-10-05', -2500, {
       status: 'pending',
     });
     const { suggestions } = readBookingAssignments(db, id);

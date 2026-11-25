@@ -37,7 +37,11 @@ it('lists a suggestion with cadence, amount and category and reports the two act
       onDismiss={onDismiss}
     />,
   );
-  expect(screen.getByRole('heading', { name: 'Erkannte wiederkehrende Zahlungen' })).toBeTruthy();
+  expect(screen.queryByRole('heading')).toBeNull();
+  const toggle = screen.getByRole('button', { name: 'Erkannte Zahlungen (1)' });
+  expect(toggle.getAttribute('aria-expanded')).toBe('false');
+  await act(async () => fireEvent.click(toggle));
+  expect(toggle.getAttribute('aria-expanded')).toBe('true');
   expect(screen.getByText('Streaming Beispiel')).toBeTruthy();
   expect(
     screen.getByText(/monatlich am 14\. · Abos · 4 Buchungen, zuletzt 14\.10\.2026/),
