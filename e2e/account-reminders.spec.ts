@@ -81,7 +81,8 @@ test('Today and inbox reminders open existing dialogs and include one-off plans 
     );
     const upcoming = page
       .locator('section')
-      .filter({ has: page.getByRole('heading', { name: 'Fällig 14 Tage', exact: true }) });
+      .filter({ has: page.getByRole('heading', { name: 'Fällig 14 Tage', exact: true }) })
+      .last();
     const expandDue = upcoming.getByRole('button', { name: /Weitere .* Fälligkeiten/ });
     if (await expandDue.count()) await expandDue.click();
     await expect(upcoming).toContainText(event.event.name);
