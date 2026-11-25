@@ -40,6 +40,8 @@ export interface ChecklistContribution {
   categoryId: string | null;
   categoryName: string | null;
   incomeTypeId: string | null;
+  /** False when the expected payment has neither category nor income type: shown, not tickable. */
+  selectable: boolean;
 }
 
 /**
@@ -69,6 +71,7 @@ export function listContactChecklist(
       occ: expectedOccurrence,
       payment: expectedPayment,
       categoryName: category.name,
+      categoryKind: category.kind,
     })
     .from(expectedOccurrence)
     .innerJoin(expectedPayment, eq(expectedPayment.id, expectedOccurrence.expectedPaymentId))
@@ -86,8 +89,12 @@ export function listContactChecklist(
     )
     .orderBy(asc(expectedOccurrence.dueDate), asc(expectedPayment.name), asc(expectedOccurrence.id))
     .all()
+    // Outlay pass-through and card payments are never a contribution target.
     .filter(
-      (r) => r.occ.expectedAmountCents > 0 && (r.payment.categoryId || r.payment.incomeTypeId),
+      (r) =>
+        r.occ.expectedAmountCents > 0 &&
+        r.categoryKind !== 'advance' &&
+        r.categoryKind !== 'card_payment',
     )
     .map((r) => ({
       occurrenceId: r.occ.id,
@@ -98,6 +105,7 @@ export function listContactChecklist(
       categoryId: r.payment.categoryId,
       categoryName: r.categoryName,
       incomeTypeId: r.payment.incomeTypeId,
+      selectable: Boolean(r.payment.categoryId || r.payment.incomeTypeId),
     }));
   return { outlays, contributions };
 }
@@ -151,10 +159,16 @@ export function settleContactChecklist(
       !['checking', 'savings', 'cash'].includes(cash.type)
     )
       throw new BookingInvariantError('Bitte ein offenes EUR-Budgetkonto wählen.');
+    // v1: one expected occurrence can be linked per booking, so one contribution per receipt.
+    if (input.occurrenceIds.length > 1)
+      throw new BookingInvariantError(
+        'Pro Zahlung kann nur ein erwarteter Beitrag gewählt werden.',
+      );
     const open = listContactChecklist(tx, contactId, input.date);
     const contributions = input.occurrenceIds.map((id) => {
       const row = open.contributions.find((c) => c.occurrenceId === id);
-      if (!row) throw new BookingInvariantError('Dieser erwartete Beitrag ist nicht mehr offen.');
+      if (!row?.selectable)
+        throw new BookingInvariantError('Dieser erwartete Beitrag ist nicht mehr offen.');
       return row;
     });
     const outlays = input.outlaySplitIds
@@ -191,6 +205,13 @@ export function settleContactChecklist(
     const allocations = outlays.flatMap((o) =>
       paid(o.splitId) ? [{ outlaySplitId: o.splitId, amountCents: paid(o.splitId) }] : [],
     );
+    if (
+      input.shortfall === 'waive' &&
+      outlays.some((o) => o.remainingCents > paid(o.splitId) && !o.categoryId)
+    )
+      throw new BookingInvariantError(
+        'Eine alte Auslage ohne Kategorie kann hier nicht geschenkt werden.',
+      );
     const contactCents = allocations.reduce((s, a) => s + a.amountCents, 0) + plan.surplusCents;
 
     let bookingId: string;
@@ -269,7 +290,14 @@ export function settleContactChecklist(
       for (const o of outlays) {
         const short = o.remainingCents - paid(o.splitId);
         if (short > 0)
-          waiveContactOutlay(tx, contactId, o.splitId, { amountCents: short }, grouped, today);
+          waiveContactOutlay(
+            tx,
+            contactId,
+            o.splitId,
+            { amountCents: short, date: input.date },
+            grouped,
+            today,
+          );
       }
     }
     assertLedgerInvariants(tx, [bookingId]);

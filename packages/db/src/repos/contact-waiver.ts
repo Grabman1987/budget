@@ -18,7 +18,7 @@ export function waiveContactOutlay(
   db: Executor,
   contactId: string,
   outlaySplitId: string,
-  input: { amountCents: number; categoryId?: string },
+  input: { amountCents: number; categoryId?: string; date?: string },
   ctx: AuditContext,
   today: string,
   options: ContactAllocationOptions = {},
@@ -65,7 +65,8 @@ export function waiveContactOutlay(
       tx,
       {
         accountId: source.accountId,
-        date: today,
+        // Default unchanged (today); an explicit date never precedes the outlay itself.
+        date: input.date ? (input.date < outlay.date ? outlay.date : input.date) : today,
         amountCents: 0,
         status: 'confirmed',
         memo: 'Geschenk an Kontakt',

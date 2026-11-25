@@ -60,3 +60,12 @@
   outline: 2px solid var(--line);
   outline-offset: -2px;
 }
+.cc-applied {
+  display: block;
+  font-size: var(--fs-meta);
+  color: var(--ink-2);
+  text-align: right;
+}
+.cc-row input:disabled + .cc-label {
+  color: var(--ink-2);
+}

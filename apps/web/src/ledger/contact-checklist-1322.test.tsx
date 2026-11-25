@@ -84,6 +84,7 @@ const checklist = {
       categoryId: 'miete',
       categoryName: 'Miete',
       incomeTypeId: null,
+      selectable: true,
     },
     {
       occurrenceId: 'c2',
@@ -94,6 +95,7 @@ const checklist = {
       categoryId: 'abo',
       categoryName: 'Abos',
       incomeTypeId: null,
+      selectable: true,
     },
   ],
 };
@@ -118,7 +120,8 @@ beforeEach(() => {
 });
 afterEach(() => vi.useRealTimers());
 
-async function open(amount: string) {
+async function open(amount: string, data: unknown = checklist) {
+  http.request.mockResolvedValue(data);
   const prefill: Partial<BookingDraft> = {
     kind: 'income',
     accountId: 'giro',
@@ -145,49 +148,102 @@ async function open(amount: string) {
   return userEvent.setup();
 }
 const rest = () => screen.getByTestId('checklist-rest').textContent ?? '';
+const applied = (id: string) => screen.getByTestId(`applied-${id}`).textContent ?? '';
 
-it('lists every open item, all ticked, and an exact payment leaves Rest 0,00 €', async () => {
-  await open('845,00');
+it('lists every open item; one contribution and all outlays are ticked, Rest 0,00 € when exact', async () => {
+  await open('825,01');
   expect(screen.getAllByRole('checkbox')).toHaveLength(3);
-  expect(screen.getByRole('checkbox', { name: /Mietanteil → Miete/ })).toBeTruthy();
-  expect(screen.getByRole('checkbox', { name: /Abo → Abos/ })).toBeTruthy();
-  expect(screen.getByRole('checkbox', { name: /Auslage 01\.09\. → Essen/ })).toBeTruthy();
+  const rent = screen.getByRole('checkbox', { name: /Mietanteil → Miete/ }) as HTMLInputElement;
+  const abo = screen.getByRole('checkbox', { name: /Abo → Abos/ }) as HTMLInputElement;
+  const outlay = screen.getByRole('checkbox', { name: /Auslage 01\.09\. → Essen/ });
+  expect(rent.checked).toBe(true);
+  expect(abo.checked).toBe(false);
+  expect((outlay as HTMLInputElement).checked).toBe(true);
   expect(rest()).toMatch(/^0,00\s€$/);
+  expect(applied('c1')).toMatch(/800,00\s€$/);
+  expect(applied('o1')).toMatch(/25,01\s€$/);
   expect(screen.queryByRole('radiogroup')).toBeNull();
 });
 
-it('offers open or gift when paid less, credit or gift when paid more', async () => {
-  const user = await open('830,00');
+it('contributions are single-select, outlays stay multi-select', async () => {
+  const user = await open('825,01');
+  const rent = screen.getByRole('checkbox', { name: /Mietanteil/ }) as HTMLInputElement;
+  const abo = screen.getByRole('checkbox', { name: /Abo/ }) as HTMLInputElement;
+  await user.click(abo);
+  expect(abo.checked).toBe(true);
+  expect(rent.checked).toBe(false);
+  expect(rest()).toMatch(/^780,01\s€$/);
+  await user.click(abo);
+  expect(abo.checked).toBe(false);
+});
+
+it('shows the applied amount live; paid less offers open or schenken', async () => {
+  const user = await open('810,01');
   expect(rest()).toMatch(/^[−-]15,00\s€$/);
-  const open_ = screen.getByLabelText('bleibt offen bis nächsten Monat') as HTMLInputElement;
-  expect(open_.checked).toBe(true);
+  expect(applied('c1')).toMatch(/800,00\s€$/);
+  expect(applied('o1')).toMatch(/10,01\s€$/);
+  expect(
+    (screen.getByLabelText('bleibt offen bis nächsten Monat') as HTMLInputElement).checked,
+  ).toBe(true);
   await user.click(screen.getByLabelText('schenken'));
   expect((screen.getByLabelText('schenken') as HTMLInputElement).checked).toBe(true);
-  // Unticking the subscription (19,99 €) turns the 15,00 € gap into a 4,99 € surplus.
-  await user.click(screen.getByRole('checkbox', { name: /Abo → Abos/ }));
-  await waitFor(() => expect(rest()).toMatch(/^4,99\s€$/));
+  // Unticking the outlay turns the gap into a 10,01 € surplus.
+  await user.click(screen.getByRole('checkbox', { name: /Auslage/ }));
+  await waitFor(() => expect(rest()).toMatch(/^10,01\s€$/));
   expect(screen.queryByLabelText('schenken')).toBeNull();
-  const credit = screen.getByLabelText(
-    'als Guthaben für nächsten Monat stehen lassen',
-  ) as HTMLInputElement;
-  expect(credit.checked).toBe(true);
+  expect(
+    (screen.getByLabelText('als Guthaben für nächsten Monat stehen lassen') as HTMLInputElement)
+      .checked,
+  ).toBe(true);
   expect(screen.getByLabelText('als Geschenk an mich buchen')).toBeTruthy();
 });
 
+it('hides schenken when the shortfall falls only on the contribution', async () => {
+  const user = await open('700,00');
+  await user.click(screen.getByRole('checkbox', { name: /Auslage/ }));
+  await waitFor(() => expect(rest()).toMatch(/^[−-]100,00\s€$/));
+  expect(screen.getByLabelText('bleibt offen bis nächsten Monat')).toBeTruthy();
+  expect(screen.queryByLabelText('schenken')).toBeNull();
+});
+
+it('hides schenken when a short outlay has no category', async () => {
+  await open('810,01', {
+    ...checklist,
+    outlays: [{ ...checklist.outlays[0]!, categoryId: null, categoryName: null }],
+  });
+  expect(rest()).toMatch(/^[−-]15,00\s€$/);
+  expect(screen.getByLabelText('bleibt offen bis nächsten Monat')).toBeTruthy();
+  expect(screen.queryByLabelText('schenken')).toBeNull();
+});
+
+it('shows a contribution without target disabled', async () => {
+  await open('825,01', {
+    ...checklist,
+    contributions: [
+      ...checklist.contributions,
+      { ...checklist.contributions[1]!, occurrenceId: 'c3', name: 'Ohne Ziel', selectable: false },
+    ],
+  });
+  expect((screen.getByRole('checkbox', { name: /Ohne Ziel/ }) as HTMLInputElement).disabled).toBe(
+    true,
+  );
+});
+
 it('is keyboard operable: Space toggles a row and Rest follows', async () => {
-  const user = await open('845,00');
+  const user = await open('825,01');
   const row = screen.getByRole('checkbox', { name: /Auslage/ }) as HTMLInputElement;
   row.focus();
   await user.keyboard(' ');
   expect(row.checked).toBe(false);
   expect(rest()).toMatch(/^25,01\s€$/);
   await user.keyboard(' ');
+  expect(row.checked).toBe(true);
   expect(rest()).toMatch(/^0,00\s€$/);
 });
 
 it('saves one checklist receipt with the ticked ids and the chosen rest handling', async () => {
   const user = await open('860,00');
-  expect(rest()).toMatch(/^15,00\s€$/);
+  expect(rest()).toMatch(/^34,99\s€$/);
   await user.click(screen.getByLabelText('als Geschenk an mich buchen'));
   await user.click(screen.getByRole('button', { name: 'Speichern' }));
   await waitFor(() => expect(checklistWrite).toHaveBeenCalledTimes(1));
@@ -199,7 +255,7 @@ it('saves one checklist receipt with the ticked ids and the chosen rest handling
       amountCents: 86000,
       memo: null,
       outlaySplitIds: ['o1'],
-      occurrenceIds: ['c1', 'c2'],
+      occurrenceIds: ['c1'],
       shortfall: 'open',
       surplus: 'gift',
     },

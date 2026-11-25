@@ -51,27 +51,34 @@ export function useContactChecklist({
   const live = enabled && contactId !== '' && date !== '' && receivedCents > 0;
   const query = useQuery({ ...checklistQuery(contactId, date), enabled: live });
   // The selection belongs to one contact: another contact starts from the defaults again.
-  const [choice_, setChoice] = useState({
+  const [state, setState] = useState({
     contactId,
     unticked: new Set<string>() as ReadonlySet<string>,
+    /** v1: one contribution per receipt. `undefined` = the first one, `null` = none. */
+    contribution: undefined as string | null | undefined,
     shortfall: 'open' as 'open' | 'waive',
     surplus: 'credit' as 'credit' | 'gift',
   });
   const current =
-    choice_.contactId === contactId
-      ? choice_
+    state.contactId === contactId
+      ? state
       : {
           contactId,
           unticked: new Set<string>(),
+          contribution: undefined,
           shortfall: 'open' as const,
           surplus: 'credit' as const,
         };
   const { unticked, shortfall, surplus } = current;
-  const setShortfall = (value: 'open' | 'waive') => setChoice({ ...current, shortfall: value });
-  const setSurplus = (value: 'credit' | 'gift') => setChoice({ ...current, surplus: value });
+  const setShortfall = (value: 'open' | 'waive') => setState({ ...current, shortfall: value });
+  const setSurplus = (value: 'credit' | 'gift') => setState({ ...current, surplus: value });
   const data = live ? query.data : undefined;
   const contributions = useMemo(() => data?.contributions ?? [], [data]);
   const outlays = useMemo(() => data?.outlays ?? [], [data]);
+  const picked =
+    current.contribution === undefined
+      ? contributions.find((c) => c.selectable)?.occurrenceId
+      : current.contribution;
   const rows = useMemo(
     () => [
       ...contributions.map((c) => ({
@@ -80,6 +87,8 @@ export function useContactChecklist({
         kind: 'contribution' as const,
         label: `${c.name}${c.categoryName ? ` → ${c.categoryName}` : ''}`,
         amountCents: c.amountCents,
+        selectable: c.selectable,
+        categoryId: c.categoryId,
       })),
       ...outlays.map((o) => ({
         key: `o:${o.splitId}`,
@@ -87,21 +96,32 @@ export function useContactChecklist({
         kind: 'outlay' as const,
         label: `Auslage ${day(o.date)}${o.categoryName ? ` → ${o.categoryName}` : ''}${o.memo ? ` · ${o.memo}` : ''}`,
         amountCents: o.remainingCents,
+        selectable: true,
+        categoryId: o.categoryId,
       })),
     ],
     [contributions, outlays],
   );
-  const ticked = rows.filter((r) => !unticked.has(r.key));
+  const isTicked = (row: (typeof rows)[number]) =>
+    row.kind === 'contribution' ? row.id === picked : !unticked.has(row.key);
+  const ticked = rows.filter(isTicked);
   const plan = planContactChecklist(ticked, receivedCents);
   const rest = plan.restCents;
+  const applied = (id: string) => plan.paid.find((p) => p.id === id)?.amountCents ?? 0;
+  // "schenken" only exists for an outlay that falls short and has a category to waive into.
+  const shortOutlays = ticked.filter((r) => r.kind === 'outlay' && applied(r.id) < r.amountCents);
+  const canWaive = shortOutlays.length > 0 && shortOutlays.every((r) => r.categoryId);
+  const effectiveShortfall = canWaive ? shortfall : 'open';
   const active = rows.length > 0;
   const outlayIds = ticked.filter((r) => r.kind === 'outlay').map((r) => r.id);
   const occurrenceIds = ticked.filter((r) => r.kind === 'contribution').map((r) => r.id);
   const heading = useId();
-  const toggle = (key: string) => {
+  const toggle = (row: (typeof rows)[number]) => {
+    if (row.kind === 'contribution')
+      return setState({ ...current, contribution: row.id === picked ? null : row.id });
     const next = new Set(unticked);
-    if (!next.delete(key)) next.add(key);
-    setChoice({ ...current, unticked: next });
+    if (!next.delete(row.key)) next.add(row.key);
+    setState({ ...current, unticked: next });
   };
   const choice = <V extends string>(
     name: string,
@@ -133,11 +153,19 @@ export function useContactChecklist({
         <label key={row.key} className="cc-row">
           <input
             type="checkbox"
-            checked={!unticked.has(row.key)}
-            onChange={() => toggle(row.key)}
+            checked={isTicked(row)}
+            disabled={!row.selectable}
+            onChange={() => toggle(row)}
           />
           <span className="cc-label">{row.label}</span>
-          <span className="cc-amount">{eur(row.amountCents)}</span>
+          <span className="cc-amount">
+            {eur(row.amountCents)}
+            {isTicked(row) && (
+              <span className="cc-applied" data-testid={`applied-${row.id}`}>
+                davon {eur(applied(row.id))}
+              </span>
+            )}
+          </span>
         </label>
       ))}
       <div className="cc-rest" role="status" aria-live="polite">
@@ -147,9 +175,9 @@ export function useContactChecklist({
         </span>
       </div>
       {rest < 0 &&
-        choice('Zahlung kleiner als Auswahl', shortfall, setShortfall, [
+        choice('Zahlung kleiner als Auswahl', effectiveShortfall, setShortfall, [
           ['open', 'bleibt offen bis nächsten Monat'],
-          ['waive', 'schenken'],
+          ...(canWaive ? ([['waive', 'schenken']] as const) : []),
         ] as const)}
       {rest > 0 &&
         choice('Zahlung größer als Auswahl', surplus, setSurplus, [
@@ -174,7 +202,7 @@ export function useContactChecklist({
             ...base,
             outlaySplitIds: outlayIds,
             occurrenceIds,
-            shortfall,
+            shortfall: effectiveShortfall,
             surplus,
           }
         : null,

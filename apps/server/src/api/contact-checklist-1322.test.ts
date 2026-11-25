@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- Inspect real JSON boundary results. */
 import { createTestDatabase, createExpectedPayment, schema, type OpenedDatabase } from '@budget/db';
-import { isNull } from 'drizzle-orm';
+import { eq, isNull } from 'drizzle-orm';
 import type { Hono } from 'hono';
 import { afterEach, beforeEach, expect, it } from 'vitest';
 import { seedBasics, testCtx } from '../../../../packages/db/src/repos/test-helpers';
@@ -89,4 +89,30 @@ it('rejects a future date and unknown fields', async () => {
     (await call('POST', '/contacts/k1/checklist-receipts', { ...base, date: today, extra: 1 }))
       .status,
   ).toBe(400);
+});
+
+it('refuses unknown ids, a closed account and several contributions', async () => {
+  seed();
+  const list = (await call('GET', '/contacts/k1/checklist?asOf=2026-09-10')).body;
+  const id = list.contributions[0].occurrenceId;
+  const base = { accountId: 'giro', date: '2026-09-10', amountCents: 80000 };
+  const post = (body: object) => call('POST', '/contacts/k1/checklist-receipts', body);
+  const before = cash();
+  expect((await post({ ...base, outlaySplitIds: ['foreign'], occurrenceIds: [] })).status).toBe(
+    422,
+  );
+  expect((await post({ ...base, outlaySplitIds: [], occurrenceIds: ['foreign'] })).status).toBe(
+    422,
+  );
+  expect((await post({ ...base, outlaySplitIds: [], occurrenceIds: [id, id] })).status).toBe(422);
+  expect(
+    (await post({ ...base, accountId: 'unknown', outlaySplitIds: [], occurrenceIds: [id] })).status,
+  ).toBe(422);
+  opened.db
+    .update(schema.account)
+    .set({ closedAt: '2026-09-01T00:00:00.000Z' })
+    .where(eq(schema.account.id, 'giro'))
+    .run();
+  expect((await post({ ...base, outlaySplitIds: [], occurrenceIds: [id] })).status).toBe(422);
+  expect(cash()).toBe(before);
 });
