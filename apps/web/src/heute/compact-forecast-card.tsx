@@ -130,10 +130,11 @@ export function CompactForecastCard({
 }
 
 /** Straight to Plan › Prognose; the back button leads to where the user came from. */
-function DetailsLink({ von }: { von?: string | undefined }) {
+function DetailsLink({ von, plain = false }: { von?: string | undefined; plain?: boolean }) {
   return (
     <AppLink
-      className="btn btn-ghost"
+      // On the overview the card head styles its link (44 px target like "Alle →"); a .btn is 36 px.
+      className={plain ? undefined : 'btn btn-ghost'}
       to="/plan/prognose"
       search={{ horizon: '35d', levers: '', ...(REDESIGN_ENABLED && von ? { von } : {}) }}
       aria-label="Details zur Kontoprognose für 35 Tage"
@@ -146,5 +147,5 @@ function DetailsLink({ von }: { von?: string | undefined }) {
 function OverviewDetailsLink() {
   const [month] = useMonth();
   const { period } = useBalancePeriod();
-  return <DetailsLink von={`/?monat=${month}&period=${period}`} />;
+  return <DetailsLink plain von={`/?monat=${month}&period=${period}`} />;
 }

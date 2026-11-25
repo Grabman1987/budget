@@ -59,15 +59,16 @@
 .hv-head-phone {
   display: none;
 }
-/* ON, desktop/tablet: compact 34px segments (outer 38px) keep the 64px header. */
+/* ON, desktop/tablet: compact 34px segments (outer 38px) keep the 64px header; the switch inside the
+   "Frei bis ..." tile keeps the full 44px target. */
 @media (min-width: 768px) {
-  :is(.hv-head, .hv-lead) .seg-slide {
+  .hv-head .seg-slide {
     --seg-pad: 1px;
   }
-  :is(.hv-head, .hv-lead) .seg.seg.seg-slide {
+  .hv-head .seg.seg.seg-slide {
     padding: var(--seg-pad);
   }
-  :is(.hv-head, .hv-lead) .seg-slide button {
+  .hv-head .seg-slide button {
     height: 34px;
     min-height: 34px;
     padding-inline: 12px;
@@ -429,7 +430,6 @@
 }
 .hv-booking-list {
   width: 100%;
-  table-layout: fixed;
   border-collapse: collapse;
   font-size: var(--fs-meta);
 }
@@ -442,13 +442,22 @@
   text-align: left;
   border-bottom: 1px solid var(--rule-strong);
 }
-.hv-booking-list th:first-child,
-.hv-booking-list td:first-child {
-  width: 52px;
+.hv-booking-list :is(th, td) {
+  padding: 0 8px 0 0;
 }
-.hv-booking-list th:last-child,
-.hv-booking-list td:last-child {
-  width: 96px;
+/* Date and amount take what their text needs (text resize, long amounts); only the description
+   column shrinks and ends in an ellipsis. */
+.hv-booking-list :is(th, td):first-child,
+.hv-booking-list :is(th, td):last-child {
+  width: 1%;
+  white-space: nowrap;
+}
+.hv-booking-list :is(th, td):nth-child(2) {
+  width: 100%;
+  max-width: 0;
+}
+.hv-booking-list :is(th, td):last-child {
+  padding-right: 0;
   text-align: right;
 }
 .hv-booking-list td {
@@ -1399,6 +1408,16 @@
   text-align: left;
   font-weight: 600;
 }
+:root:has([data-budget-redesign='1']) .hv-due-table tbody tr {
+  /* Anchor of the stretched row button (.heute-row-open::after) */
+  position: relative;
+}
+:root:has([data-budget-redesign='1']) .hv-due-table a,
+:root:has([data-budget-redesign='1']) .hv-due-table .btn {
+  /* Links and buttons stay above the stretched row button */
+  position: relative;
+  z-index: 1;
+}
 :root:has([data-budget-redesign='1']) .hv-tasks-table .hv-task-what {
   display: flex;
   align-items: center;
@@ -1447,7 +1466,9 @@
   }
   :root:has([data-budget-redesign='1']) .hv-due-table tbody tr {
     display: grid;
-    grid-template-columns: 52px minmax(0, 1fr) auto;
+    /* The last column may not grow past 42 %: "Diesen Monat streichen" wraps instead of squeezing
+       the payment name into a few letters per line. */
+    grid-template-columns: 52px minmax(0, 1fr) fit-content(42%);
     grid-template-areas:
       'date name amount'
       'date account cover';
@@ -1482,6 +1503,11 @@
   :root:has([data-budget-redesign='1']) .hv-due-table .hv-due-cover {
     grid-area: cover;
     font-size: var(--fs-meta);
+    white-space: normal;
+    text-align: right;
+  }
+  :root:has([data-budget-redesign='1']) .hv-due-table .hv-due-cover .btn {
+    height: auto;
     white-space: normal;
     text-align: right;
   }

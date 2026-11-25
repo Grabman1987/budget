@@ -271,6 +271,10 @@
   display: block;
   margin: 0 auto;
   font-size: var(--fs-meta);
+  /* The button may wrap: nowrap made the open-outlays table wider than a 390 px phone. */
+  max-width: 100%;
+  white-space: normal;
+  text-align: center;
 }
 .contact-source:hover {
   text-decoration-color: currentColor;

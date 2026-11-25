@@ -32,6 +32,8 @@
   height: 32px;
   min-height: 32px;
   margin-top: var(--space-lg);
+  /* Opaque like the cards: text straight on the drafting grid is an unmeasurable background. */
+  background-color: var(--ground);
   color: var(--ink-2);
   font-size: var(--fs-label);
   white-space: nowrap;
