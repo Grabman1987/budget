@@ -169,7 +169,9 @@ export async function verifyPhoneTextReflow(page: Page, origin: string, output: 
           }
         }
         for (const control of await page
-          .locator(':is(.titleblock-heute, .hv-head-phone, .hv-lead) .seg button:not(:disabled), .tabbar a')
+          .locator(
+            ':is(.titleblock-heute, .hv-head-phone, .hv-lead) .seg button:not(:disabled), .tabbar a',
+          )
           .all()) {
           await control.focus();
           await expect(control).toBeFocused();
