@@ -138,6 +138,13 @@ describe('payslip API and grouped audit', () => {
       amountCents: 400000,
     });
     expect(report.salaries[10]).toMatchObject({ netCents: 590000 });
+    // #1321: without a special mapping nothing is guessed; the net stays unsplit.
+    expect(report.timeline[0].composition).toMatchObject({
+      runningCents: 580000,
+      specialCents: 0,
+      containsSpecial: false,
+      specialGrossCents: null,
+    });
     expect(report.links[0]).toMatchObject({
       status: 'ok',
       differenceCents: 0,
@@ -159,6 +166,14 @@ describe('payslip API and grouped audit', () => {
       reimbursement: 10000,
     });
     expect(classified.years[0].specialGrossCents).toBe(400000);
+    expect(classified.timeline[0].composition).toMatchObject({
+      runningCents: 580000,
+      specialCents: 0,
+      totalCents: 580000,
+      containsSpecial: true,
+      specialGrossCents: 400000,
+      openMappingSlipIds: [],
+    });
     expect(classified.sources[0].unmapped).toEqual([]);
     expect(db.select().from(schema.booking).all()).toHaveLength(1);
     await call('PUT', `/payslips/${created.body.payslip.id}`, {

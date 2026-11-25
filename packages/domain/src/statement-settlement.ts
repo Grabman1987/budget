@@ -181,6 +181,8 @@ export type StatementActionReceipt = {
   bonusId?: string;
   bonusRevision?: string;
   transferId?: string;
+  /** create_transfer found and linked an exact existing payment instead of creating one. */
+  linkedExisting?: boolean;
   bookingId?: string;
 };
 

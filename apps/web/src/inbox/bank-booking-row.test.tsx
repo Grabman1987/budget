@@ -144,3 +144,52 @@ it('shows a single action directly and the menu only with 2+ actions', async () 
   renderRow(base);
   await waitFor(() => expect(screen.getByLabelText('Weitere Aktionen')).toBeTruthy());
 });
+
+it('proposes a card bill as a transfer to the card and applies it through the guarded apply route (#1319)', async () => {
+  const calls: { url: string; method: string; body: unknown }[] = [];
+  vi.stubGlobal('fetch', async (url: string, init?: RequestInit) => {
+    calls.push({
+      url: String(url),
+      method: init?.method ?? 'GET',
+      body: init?.body ? JSON.parse(String(init.body)) : undefined,
+    });
+    return new Response(
+      JSON.stringify({ merge: [], transfers: [], suggestions: [], groupId: 'g' }),
+      {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      },
+    );
+  });
+  const { onConfirmInline } = renderRow({
+    ...base,
+    amountCents: -123456,
+    suggestion: {
+      payeeId: null,
+      payeeName: null,
+      categoryId: null,
+      categoryName: null,
+      basis: null,
+      singleSplit: true,
+      transfer: {
+        ruleId: 'card-settlement:card1',
+        revision: 'r'.repeat(64),
+        accountId: 'card1',
+        label: 'Kartenabrechnung → Umbuchung auf Visa',
+      },
+    },
+  });
+  // No category pill is offered for a card bill.
+  expect(screen.queryByRole('button', { name: 'Kategorie wählen' })).toBeNull();
+  const pill = screen.getByTestId('card-settlement-suggestion');
+  expect(pill.textContent).toBe('Kartenabrechnung → Umbuchung auf Visa');
+  expect(pill.getAttribute('title')).toContain('1.234,56');
+  fireEvent.click(pill);
+  await waitFor(() =>
+    expect(calls.find((c) => c.method === 'POST')).toMatchObject({
+      url: '/api/assignment-rules/bookings/b1/apply',
+      body: { ruleId: 'card-settlement:card1', revision: 'r'.repeat(64) },
+    }),
+  );
+  expect(onConfirmInline).not.toHaveBeenCalled();
+});
