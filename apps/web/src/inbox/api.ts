@@ -50,6 +50,8 @@ export interface InboxBooking {
     categoryName: string | null;
     basis: string | null;
     ruleId?: string;
+    /** A card bill: transfer to the card instead of a category (#1319). */
+    transfer?: { ruleId: string; revision: string; accountId: string; label: string };
     singleSplit: boolean;
   };
 }

@@ -2,7 +2,9 @@ import { Button, Select, useAmountPrivacy, useIsPhone } from '@budget/ui';
 import { useQuery } from '@tanstack/react-query';
 import { Check, CircleHelp, MoreHorizontal, Pencil } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from 'react';
+import { request } from '../api/http';
 import { bookingAssignmentQuery } from '../assignment/api';
+import { useBudgetWrite } from '../budget/use-category-writes';
 import { BookingAssignmentReview } from '../assignment/review';
 import { CategoryCombobox } from '../ledger/category-picker';
 import { pickableCategories } from '../ledger/capture-model';
@@ -66,6 +68,9 @@ export function BankBookingRow({
   const [merge, setMerge] = useState<PreparedBankSuggestion>();
   const [rule, setRule] = useState<PreparedBankSuggestion>();
   const suggestion = item.suggestion;
+  const write = useBudgetWrite();
+  const [transferBusy, setTransferBusy] = useState(false);
+  const transfer = suggestion?.transfer;
   // Lookups are fetched only once somebody edits the row.
   const lookups = useQuery({ ...lookupsQuery(), enabled: active, subscribed: active });
   const payees = useQuery({ ...payeesQuery(), enabled: active, subscribed: active });
@@ -162,6 +167,20 @@ export function BankBookingRow({
         splits,
       });
     else onConfirmInline(item.bookingId, { ...(payeeId ? { payeeId } : {}), splits });
+  };
+  // #1319: the card bill becomes ONE transfer to the card (guarded by the proposal's revision).
+  const applyTransfer = () => {
+    if (!transfer || locked || transferBusy) return;
+    setTransferBusy(true);
+    void write(
+      () =>
+        request<{ groupId: string }>(
+          'POST',
+          '/api/assignment-rules/bookings/' + encodeURIComponent(item.bookingId) + '/apply',
+          { ruleId: transfer.ruleId, revision: transfer.revision },
+        ),
+      () => 'Kartenabrechnung als Umbuchung gebucht.',
+    ).finally(() => setTransferBusy(false));
   };
   const keys = (event: KeyboardEvent<HTMLTableRowElement>) => {
     if (event.key === 'Escape' && editing) {
@@ -275,6 +294,31 @@ export function BankBookingRow({
                 row.current?.focus();
               }}
             />
+          </div>
+        ) : transfer && draft.categoryId === undefined ? (
+          <div className="bank-suggestion-actions">
+            <button
+              type="button"
+              className="bank-suggestion-pill is-safe bank-suggestion-confirm"
+              data-testid="card-settlement-suggestion"
+              aria-label={`Vorschlag bestätigen: ${transfer.label}, ${nativeCurrency(item.amountCents, item.currency)}`}
+              title={`${transfer.label} · ${nativeCurrency(item.amountCents, item.currency)}`}
+              disabled={locked || transferBusy}
+              onClick={applyTransfer}
+            >
+              <Check size={14} aria-hidden="true" />
+              {transfer.label}
+            </button>
+            <button
+              type="button"
+              className="bank-row-full-form"
+              aria-label="Stattdessen Kategorie wählen"
+              title="Stattdessen Kategorie wählen"
+              disabled={locked}
+              onClick={() => openEditor('category')}
+            >
+              <Pencil size={16} aria-hidden="true" />
+            </button>
           </div>
         ) : categoryId ? (
           <div className="bank-suggestion-actions">

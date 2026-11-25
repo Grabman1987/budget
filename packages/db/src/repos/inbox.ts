@@ -55,7 +55,11 @@ import { savingsExecutionProposals, type SavingsExecutionProposal } from './savi
 import { candidateMatches } from './bank-followups';
 import { LINK_PROPOSAL_REF, parseLinkProposalId } from './expected-auto-link';
 import { payslipDocumentMetadata } from './payslip-intake';
-import { readAssignmentCandidate, readBookingAssignments } from './assignment-rules';
+import {
+  CARD_SETTLEMENT_RULE_PREFIX,
+  readAssignmentCandidate,
+  readBookingAssignments,
+} from './assignment-rules';
 import { suggestedBookingCategory } from './booking-category-suggestion';
 import { bookedBalance } from './reconciliation';
 import { heldSecurityIds } from './quote-source-decision';
@@ -93,6 +97,8 @@ export interface InboxBookingSuggestion {
   categoryName: string | null;
   basis: string | null;
   ruleId?: string;
+  /** #1319: the debit is a card bill; proposed as a transfer to the card, never as a category. */
+  transfer?: { ruleId: string; revision: string; accountId: string; label: string };
   /** The booking has exactly one split, so one category can be assigned in the row. */
   singleSplit: boolean;
 }
@@ -221,7 +227,13 @@ function withBookingSuggestion(db: Executor, entry: InboxBooking): InboxBooking 
     let categoryName: string | null = null;
     let basis: string | null = null;
     let ruleId: string | undefined;
-    const withCategory = suggestions.filter((r) => !r.unavailable && r.actions.categoryId);
+    // #1319: a card bill is proposed as a transfer to the card and never gets a category.
+    const cardRule = suggestions.find(
+      (r) => !r.unavailable && r.id.startsWith(CARD_SETTLEMENT_RULE_PREFIX),
+    );
+    const withCategory = cardRule
+      ? []
+      : suggestions.filter((r) => !r.unavailable && r.actions.categoryId);
     if (withCategory.length === 1) {
       const rule = withCategory[0]!;
       const c = db.select().from(category).where(eq(category.id, rule.actions.categoryId!)).get();
@@ -232,7 +244,7 @@ function withBookingSuggestion(db: Executor, entry: InboxBooking): InboxBooking 
         ruleId = rule.id;
       }
     }
-    if (!categoryId && payeeId && row.splits.length === 1) {
+    if (!cardRule && !categoryId && payeeId && row.splits.length === 1) {
       const found = suggestedBookingCategory(db, payeeId, entry.amountCents);
       if (found) ({ categoryId, categoryName, basis } = found);
     }
@@ -246,6 +258,16 @@ function withBookingSuggestion(db: Executor, entry: InboxBooking): InboxBooking 
         basis,
         singleSplit: row.splits.length === 1,
         ...(ruleId ? { ruleId } : {}),
+        ...(cardRule
+          ? {
+              transfer: {
+                ruleId: cardRule.id,
+                revision: cardRule.revision,
+                accountId: cardRule.actions.transferAccountId!,
+                label: cardRule.name,
+              },
+            }
+          : {}),
       },
     };
   } catch {

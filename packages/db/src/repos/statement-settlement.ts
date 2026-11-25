@@ -10,6 +10,7 @@ import {
   type StatementBonusEvidence,
 } from '@budget/domain';
 import {
+  booking,
   bookingSplit,
   expectedOccurrence,
   INCOME_TYPES,
@@ -422,6 +423,66 @@ function reassessRepresentedBonus(
     bookingId: r.bookingId,
   };
 }
+/**
+ * #1319: an exact payment of this bill already exists as an independent transfer (for example the
+ * bank debit that was accepted as a card-bill transfer in Prüfen before the statement arrived):
+ * same accounts, debit date and amount, two live legs, not yet consumed by another settlement.
+ * Creating the settlement's own transfer would pay the bill twice, so it is linked instead. More
+ * than one candidate is ambiguous and refused. A different amount never matches and is never
+ * corrected.
+ */
+function existingExactPair(db: Executor, r: Settlement) {
+  const legs = db
+    .select()
+    .from(booking)
+    .where(
+      and(
+        eq(booking.date, r.debitDate),
+        eq(booking.currency, r.currency),
+        isNull(booking.deletedAt),
+      ),
+    )
+    .all()
+    .filter((b) => b.transferId !== null);
+  const consumed = new Set(
+    db
+      .select()
+      .from(statementSettlement)
+      .all()
+      .filter((s) => statementActive(s.state, s.deletedAt) && s.transferId)
+      .map((s) => s.transferId),
+  );
+  const found: { transferId: string; fromBookingId: string; toBookingId: string }[] = [];
+  for (const from of legs.filter(
+    (b) => b.accountId === r.fundingAccountId && b.amountCents === -r.payableCents,
+  )) {
+    if (consumed.has(from.transferId)) continue;
+    const siblings = db
+      .select()
+      .from(booking)
+      .where(and(eq(booking.transferId, from.transferId!), isNull(booking.deletedAt)))
+      .all();
+    const to = siblings.filter(
+      (b) => b.accountId === r.cardAccountId && b.amountCents === r.payableCents,
+    );
+    const partial = db
+      .select()
+      .from(bookingSplit)
+      .where(eq(bookingSplit.transferId, from.transferId!))
+      .all().length;
+    if (siblings.length === 2 && to.length === 1 && !partial)
+      found.push({
+        transferId: from.transferId!,
+        fromBookingId: from.id,
+        toBookingId: to[0]!.id,
+      });
+  }
+  if (found.length > 1)
+    throw new ConflictError(
+      'Mehrere passende Umbuchungen gefunden. Bitte die Abrechnung ausdrücklich verknüpfen.',
+    );
+  return found[0];
+}
 function execute(
   db: Executor,
   input: StatementSettlementAction,
@@ -505,7 +566,11 @@ function execute(
     const cfg = config(db, r.cardAccountId, input.configRevision);
     if (cfg.fundingAccountId !== r.fundingAccountId) throw conflict();
     let representation: { transferId: string; fromBookingId: string; toBookingId: string };
-    if (input.operation === 'create_transfer')
+    const existing = input.operation === 'create_transfer' ? existingExactPair(db, r) : undefined;
+    if (existing) {
+      noLegacyConsumption(db, [existing.fromBookingId, existing.toBookingId], r);
+      representation = existing;
+    } else if (input.operation === 'create_transfer')
       representation = createTransfer(
         db,
         {
@@ -534,7 +599,8 @@ function execute(
       {
         ...representation,
         state: 'represented',
-        representationKind: input.operation === 'create_transfer' ? 'created' : 'linked',
+        representationKind:
+          input.operation === 'create_transfer' && !existing ? 'created' : 'linked',
         actionGroupId: group.groupId,
       },
       group,

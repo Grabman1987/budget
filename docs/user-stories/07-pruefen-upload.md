@@ -45,7 +45,9 @@ Bildschirm Prüfen: `/konten/pruefen` (Konten › Prüfen). Zähler: „Umsätze
   4. „Bearbeiten“ überschreibt nie vorhandene Werte der Buchung.
   5. Löschen/Ablehnen einer schon gebuchten Bankzeile gibt es hier nicht (unverändert).
   6. Sammelauswahl und Sammelbestätigung verhalten sich unverändert.
-- **Status:** umgesetzt zur Durchsicht — **Verweis:** #1187
+  7. Kartenabrechnung ohne Auszug (#1319): Eine gebuchte Abbuchung vom Zahlungskonto einer eingeschalteten Abrechnungs-Konfiguration, deren Empfänger (oder bereinigter Banktext) schon eine frühere Abrechnung dieser Karte bezahlt hat, zeigt als Vorschlag „Kartenabrechnung → Umbuchung auf <Karte>“ statt einer Kategorie; eine Kategorie (auch eine gelernte oder die Jahresgebühr) wird für diese Zeile nie vorgeschlagen. Ein Klick bucht genau eine Umbuchung auf die Karte (Zahlungskonto-Saldo unverändert, Kartensaldo steigt um den Betrag, „Zu verteilen“ folgt der Kartenzahlung); „Rückgängig“ stellt die offene Buchung exakt wieder her. Ohne eingeschaltete Konfiguration, ohne frühere Abrechnung dieses Empfängers oder bei mehreren möglichen Karten gibt es keinen Vorschlag.
+  8. Wird später der Auszug derselben Periode angenommen und „Zahlung anlegen“ gewählt, erkennt die App die bestehende Umbuchung (gleiche Konten, Datum und Betrag) und verknüpft sie, statt eine zweite anzulegen; ein abweichender Betrag wird nie automatisch korrigiert.
+- **Status:** umgesetzt zur Durchsicht — **Verweis:** #1187, #1319
 
 ### I-01c – Review one list per account (#1191)
 
