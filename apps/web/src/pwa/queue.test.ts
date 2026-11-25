@@ -8,7 +8,12 @@ import { discardRejectedChange, queueReason, sendQueue, submitCapture } from './
 const memory = vi.hoisted(() => ({ rows: [] as QueuedBooking[], failWrite: false }));
 const post = vi.hoisted(() => vi.fn());
 const check = vi.hoisted(() => vi.fn());
-vi.mock('../ledger/api', () => ({ createBooking: post, readBookingDelivery: check }));
+const patch = vi.hoisted(() => vi.fn());
+vi.mock('../ledger/api', () => ({
+  createBooking: post,
+  patchBooking: patch,
+  readBookingDelivery: check,
+}));
 vi.mock('./queue-store', () => ({
   listQueue: async () => structuredClone(memory.rows),
   putQueued: async (row: QueuedBooking) => {
@@ -43,6 +48,7 @@ beforeEach(() => {
   memory.rows = [];
   memory.failWrite = false;
   post.mockReset();
+  patch.mockReset();
   check.mockReset().mockResolvedValue({ result: null });
   online(true);
 });
@@ -150,6 +156,37 @@ describe('durable booking delivery', () => {
     await sendQueue(vi.fn());
     expect(post.mock.calls.slice(1).map((x) => x[1])).toEqual(ids);
     expect(memory.rows).toEqual([]);
+  });
+  it('drops a queued confirmation whose booking is no longer pending', async () => {
+    const confirm: QueuedBooking = {
+      id: 'confirm',
+      createdAt: 1,
+      input: { type: 'change', bookingId: 'b1' },
+      draft,
+      uncertain: false,
+      change: { bookingId: 'b1', patch: { status: 'confirmed', acceptInReview: true } },
+    };
+    memory.rows = [confirm];
+    patch.mockRejectedValue(new ApiError(409, 'booking_not_pending', 'Nicht mehr vorgemerkt.'));
+    const sent = vi.fn();
+    expect(await sendQueue(sent)).toBe(1);
+    expect(memory.rows).toEqual([]);
+    expect(sent).not.toHaveBeenCalled();
+  });
+  it('keeps other refusals of a queued confirmation as rejected', async () => {
+    memory.rows = [
+      {
+        id: 'confirm',
+        createdAt: 1,
+        input: { type: 'change', bookingId: 'b1' },
+        draft,
+        uncertain: false,
+        change: { bookingId: 'b1', patch: { status: 'confirmed', acceptInReview: true } },
+      },
+    ];
+    patch.mockRejectedValue(new ApiError(409, 'invalid_review_acceptance', 'Abgelehnt.'));
+    expect(await sendQueue(vi.fn())).toBe(0);
+    expect(memory.rows[0]).toMatchObject({ rejected: true });
   });
   it.each(['account_closed', 'category_deleted', 'month_locked'])(
     'parks %s as rejected and continues with later items',

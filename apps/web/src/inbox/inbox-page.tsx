@@ -2002,7 +2002,7 @@ function BankAccountHeader({
           ? 'nichts offen'
           : meta?.result
             ? `${meta.result.fetched} abgerufen · ${meta.result.linked} verknüpft · ${meta.result.new} neu vorgemerkt`
-            : 'Offene Umsätze'}
+            : null}
       </span>
     </>
   );

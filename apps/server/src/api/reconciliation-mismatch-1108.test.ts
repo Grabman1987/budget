@@ -91,6 +91,10 @@ it('protects a booking explicitly accepted in Prüfen and allows one audited cor
     reconciled: false,
     reviewedOn: ['2026-09-17'],
   });
+  // A queued confirmation arriving after the row was settled elsewhere gets a stable code.
+  expect(
+    await request(path, 'PATCH', { status: 'confirmed', acceptInReview: true }, 409),
+  ).toMatchObject({ error: 'booking_not_pending' });
   const before = snapshot();
   expect(await request(path, 'PATCH', { amountCents: -1201 }, 409)).toMatchObject({
     error: 'reconciled_locked',

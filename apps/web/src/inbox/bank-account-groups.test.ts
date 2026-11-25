@@ -102,3 +102,28 @@ it('prunes collapsed selections and selects only expanded rows on the loaded pag
     bankSelectionIds(Array.from({ length: 101 }, (_, i) => candidate(String(i), 'account-a'))).size,
   ).toBe(100);
 });
+it('groups open items of an account without bank sync under its own account name', () => {
+  const wallet: InboxEntry = {
+    type: 'booking',
+    id: 'row-wallet',
+    bookingId: 'row-wallet',
+    kind: 'uncategorized',
+    urgent: false,
+    date: '2026-09-17',
+    accountId: 'wallet',
+    accountName: 'Synthetic wallet',
+    payeeName: null,
+    memo: null,
+    amountCents: -500,
+    currency: 'EUR',
+    status: 'pending',
+    source: 'manual',
+    missingSplits: 1,
+  };
+  const groups = bankAccountGroups([wallet, candidate('row-a', 'account-a')], []);
+  expect(groups.map((group) => [group.id, group.name])).toEqual([
+    ['wallet', 'Synthetic wallet'],
+    ['account-a', 'Synthetic account'],
+  ]);
+  expect(groups[0]?.recap).toBeUndefined();
+});

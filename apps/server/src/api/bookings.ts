@@ -428,6 +428,13 @@ export function bookingRoutes(db: Db, today = () => todayInVienna()): Hono {
       };
       const previous = getBooking(tx, id);
       if (!previous) throw new ApiError(404, 'not_found', 'Die Buchung wurde nicht gefunden.');
+      // Stable signal for the offline queue: the booking was settled elsewhere meanwhile.
+      if (acceptInReview && previous.status !== 'pending' && patch.status === 'confirmed')
+        throw new ApiError(
+          409,
+          'booking_not_pending',
+          'Nur eine vorgemerkte Buchung kann hier bestätigt werden.',
+        );
       if (
         acceptInReview &&
         (previous.status !== 'pending' ||

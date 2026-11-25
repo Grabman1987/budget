@@ -896,6 +896,16 @@
 }
 .inbox-overspent {
   margin-block: 24px;
+  padding: 12px 0 0;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+}
+.inbox-overspent > :first-child {
+  padding-inline: 12px;
+}
+.inbox-overspent li:last-child {
+  border-block-end: 0;
 }
 .inbox-overspent ul {
   list-style: none;
