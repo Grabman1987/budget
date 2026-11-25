@@ -15,7 +15,13 @@ import {
   useIsPhone,
   useToast,
 } from '@budget/ui';
-import { manualTransferStatus, todayInVienna, type ManualBankStatus } from '@budget/domain';
+import {
+  manualTransferStatus,
+  parseAmount,
+  todayInVienna,
+  type ManualBankStatus,
+} from '@budget/domain';
+import { useContactChecklist } from './contact-checklist';
 import { useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   CalendarDays,
@@ -477,6 +483,23 @@ export function CaptureForm({
       ?.filter((c) => !c.targetOutlaySplitId && c.onBudget === from?.onBudget)
       .map((c) => ({ remainingCents: c.remainingCents, categoryId: c.categoryId }));
   };
+  // #1322: a payment from one contact lists the contact's open items as a checklist.
+  const checklistLines = captureLines(draft, singleMetadata);
+  const received = parseAmount(draft.amount);
+  const checklist = useContactChecklist({
+    contactId:
+      !editing &&
+      !queued &&
+      draft.kind === 'income' &&
+      checklistLines.length === 1 &&
+      checklistLines[0]?.type === 'contact' &&
+      checklistLines[0].shares.length === 0
+        ? (checklistLines[0].contactId ?? '')
+        : '',
+    date: parsedDate && parsedDate <= today ? parsedDate : '',
+    receivedCents: received.ok ? received.cents : 0,
+    enabled: true,
+  });
   const budget = useQuery(budgetQuery(month));
   const all = useMemo(
     () =>
@@ -831,9 +854,23 @@ export function CaptureForm({
         await linkAttached(undefined);
         return onDone();
       }
-      const result = await writes.create.mutateAsync({ input, draft: filled });
-      if (result) learnPayeeDefault();
-      await linkAttached(result?.bookings[0]?.id);
+      const checklistBody = checklist.payload({
+        accountId,
+        date: filled.date,
+        amountCents: received.ok ? received.cents : 0,
+        memo: draft.memo.trim() === '' ? null : draft.memo,
+      });
+      const contactId = checklistLines[0]?.contactId ?? '';
+      let createdId: string | undefined;
+      if (checklistBody && contactId) {
+        createdId = (await writes.checklist.mutateAsync({ contactId, body: checklistBody }))
+          .bookingId;
+      } else {
+        const result = await writes.create.mutateAsync({ input, draft: filled });
+        if (result) learnPayeeDefault();
+        createdId = result?.bookings[0]?.id;
+      }
+      await linkAttached(createdId);
       remember(accountId, draft.categoryId || null);
       if (!andNew) return onDone();
       // Only the register account, date and booking mode belong to the next form.
@@ -1448,7 +1485,12 @@ export function CaptureForm({
                 />
               </div>
             )}
-            {mobileRedesign && !isTransfer && <div className="bk-col-lines">{lineEditor}</div>}
+            {mobileRedesign && !isTransfer && (
+              <div className="bk-col-lines">
+                {lineEditor}
+                {checklist.view}
+              </div>
+            )}
             <div className="bk-context">
               <div className="bk-context-fields">
                 {REDESIGN_ENABLED && !mobileRedesign && !isTransfer && dateAndRepeat}
@@ -1564,6 +1606,7 @@ export function CaptureForm({
                 />
               )}
               {!isTransfer && !mobileRedesign && lineEditor}
+              {!isTransfer && !mobileRedesign && checklist.view}
             </div>
           )}
           <div className="bk-col-memo">

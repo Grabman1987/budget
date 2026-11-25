@@ -1,6 +1,6 @@
 # User-Stories – Budget
 
-Dieser Katalog beschreibt, was der Nutzer in der App tun können soll, wozu, in welchen Schritten, und woran er es prüft. Stand: 15.11.2026. 172 Stories in elf Bereichen.
+Dieser Katalog beschreibt, was der Nutzer in der App tun können soll, wozu, in welchen Schritten, und woran er es prüft. Stand: 15.11.2026. 173 Stories in elf Bereichen.
 
 ## Aufbau jeder Story
 
@@ -20,7 +20,7 @@ Die Status stammen aus `docs/FEATURES.md`, `docs/STATUS.md`, dem Code und dem Is
 | [Heute](user-stories/01-heute.md) | 6 | 5 | 0 | 1 | 0 | 0 |
 | [Plan (Budget)](user-stories/02-plan.md) | 13 | 9 | 2 | 2 | 0 | 0 |
 | [Konten und Buchungen](user-stories/03-konten-buchungen.md) | 17 | 12 | 2 | 2 | 1 | 0 |
-| [Kontakte](user-stories/04-kontakte.md) | 6 | 2 | 4 | 0 | 0 | 0 |
+| [Kontakte](user-stories/04-kontakte.md) | 7 | 2 | 5 | 0 | 0 | 0 |
 | [Vermögen und Portfolio](user-stories/05-vermoegen-portfolio.md) | 20 | 3 | 12 | 2 | 3 | 0 |
 | [Reports](user-stories/06-reports.md) | 37 | 35 | 0 | 2 | 0 | 0 |
 | [Prüfen und Dokument-Upload](user-stories/07-pruefen-upload.md) | 12 | 6 | 1 | 5 | 0 | 0 |

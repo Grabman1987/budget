@@ -18,6 +18,8 @@ import {
   listContactStatements,
   schema,
   settleContact,
+  settleContactChecklist,
+  listContactChecklist,
   writeOffContact,
   updateEntity,
   type Db,
@@ -91,6 +93,35 @@ export function contactRoutes(db: Db, today: () => string): Hono {
   app.get('/:id/credit-availability', (c) => {
     const { asOf } = readQuery(c, z.object({ asOf: day }));
     return c.json(getContactCreditAvailability(db, c.req.param('id'), asOf));
+  });
+  app.get('/:id/checklist', (c) => {
+    const { asOf } = readQuery(c, z.object({ asOf: day }));
+    return c.json(listContactChecklist(db, c.req.param('id'), asOf));
+  });
+  app.post('/:id/checklist-receipts', async (c) => {
+    const id = z.string().min(1).max(100);
+    const input = await readBody(
+      c,
+      z
+        .object({
+          accountId: id,
+          date: day,
+          amountCents: z.number().int().positive().max(Number.MAX_SAFE_INTEGER),
+          memo: z.string().max(2000).nullable().optional(),
+          outlaySplitIds: z.array(id).max(1000),
+          occurrenceIds: z.array(id).max(1000),
+          creditReceiptSplitIds: z.array(id).max(1000).optional(),
+          shortfall: z.enum(['open', 'waive']).optional(),
+          surplus: z.enum(['credit', 'gift']).optional(),
+        })
+        .strict(),
+    );
+    if (input.date > today())
+      throw new ApiError(422, 'future_receipt', 'A contact receipt must be an actual payment');
+    return c.json(
+      settleContactChecklist(db, c.req.param('id'), defined(input), audit(), today()),
+      201,
+    );
   });
   app.patch('/:id', async (c) => {
     const input = await readBody(

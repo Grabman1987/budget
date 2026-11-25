@@ -32,6 +32,7 @@ import {
 import { getEntity } from './entities';
 import { ConflictError, EntityNotFoundError } from './errors';
 import { listExpectedVersions, schedulePayment, scheduleVersion } from './expected';
+import { mixedReceiptShareCents } from './expected-links';
 import { runInTransaction, type Executor } from './types';
 import {
   readPaymentLifecycles,
@@ -325,11 +326,12 @@ function readPaymentDetailInSnapshot(db: Executor, paymentId: string, asOf: stri
 
   const storedRow = ({ occurrence: row, linked }: (typeof past)[number]): PaymentDetailRow => {
     const currency = currencies.get(row.id) ?? null;
+    const share = linked?.id ? mixedReceiptShareCents(db, linked.id, payment) : null;
     const actual =
       linked === null || currency === null
         ? null
         : linked.currency === currency
-          ? linked.amountCents
+          ? (share ?? linked.amountCents)
           : linked.originalCurrency === currency
             ? linked.originalAmountCents
             : null;

@@ -1,0 +1,71 @@
+.cc {
+  display: grid;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-top: 1px solid var(--rule);
+  min-width: 0;
+}
+.cc-head,
+.cc-rest {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  min-height: var(--touch, 44px);
+  padding: 0;
+  font-family: var(--font-tech);
+  font-size: var(--fs-label);
+  color: var(--ink-2);
+}
+.cc-head {
+  float: none;
+  width: 100%;
+}
+.cc-rest {
+  border-top: 1px solid var(--rule);
+  color: var(--ink);
+}
+.cc-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: var(--touch, 44px);
+  min-width: 0;
+  font-size: var(--fs-table);
+  border-bottom: 1px solid var(--rule);
+}
+.cc-row input {
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  margin: 0;
+}
+.cc-label {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.cc-amount {
+  flex: 0 0 auto;
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.cc-choice {
+  display: grid;
+}
+.cc-row:focus-within {
+  outline: 2px solid var(--line);
+  outline-offset: -2px;
+}
+.cc-applied {
+  display: block;
+  font-size: var(--fs-meta);
+  color: var(--ink-2);
+  text-align: right;
+}
+.cc-row input:disabled + .cc-label {
+  color: var(--ink-2);
+}
