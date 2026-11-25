@@ -102,14 +102,14 @@ Bildschirm Prüfen: `/konten/pruefen` (Konten › Prüfen). Zähler: „Umsätze
 - **Ablauf:**
   1. Ich bestätige einen Umsatz (Empfänger plus Kategorie, Split-Vorlage, Einnahmeart oder Umbuchung auf ein eigenes Konto).
   2. Gab es davor schon einen bestätigten Umsatz derselben Gegenpartei, Richtung und desselben Kontos mit gleicher Zuordnung, legt die App eine Regel als Vorschlag an (nicht automatisch bestätigend), benannt nach der Gegenpartei.
-  3. Nennt der Banktext die IBAN oder den Namen genau eines anderen eigenen Kontos, schlägt die App die Umbuchung auf dieses Konto vor; ich bestätige oder ändere.
+  3. Nennt der Banktext die IBAN genau eines anderen eigenen Kontos oder besteht er nur aus dessen Namen (Kreditkarten ausgenommen), schlägt die App die Umbuchung auf dieses Konto vor; ich bestätige oder ändere.
 - **Ergebnis:** Folgeumsätze zeigen den Vorschlag; die Regel steht unter „Einstellungen › Zuordnungsregeln“ und lässt sich bearbeiten, deaktivieren oder löschen.
 - **Abnahmekriterien:**
   1. Keine doppelte Regel für Gegenpartei, Richtung und Konto; eine bearbeitete, deaktivierte oder gelöschte Regel wird nie verändert, aktiviert oder neu angelegt.
   2. „Rückgängig“ der Bestätigung entfernt Regel und Umbuchung gemeinsam.
   3. Prozessor-Vorsätze und wechselnde Ziffern ändern die Gegenpartei nicht.
   4. Mehrdeutige oder fehlende Kontoübereinstimmung ergibt keinen Vorschlag; nichts wird ohne Bestätigung angewendet.
-- **Status:** offen; Draft-PR, Prüfung und Live-Abnahme stehen aus. Keine Migration. IBANs sind nicht gespeichert: Treffer entstehen über IBAN im Kontonamen oder in der Bezeichnung der Bankanbindung (vollständig oder letzte vier Stellen) sowie über den Kontonamen.
+- **Status:** offen; Draft-PR, Prüfung und Live-Abnahme stehen aus. Keine Migration. IBANs sind nicht gespeichert: Treffer entstehen über IBAN im Kontonamen oder in der Bezeichnung der Bankanbindung (vollständig oder letzte vier Stellen) sowie der Kontoname als ganzer Text.
 
 ### I-02 – Prüfen geführt durchgehen
 - **Story:** Als Nutzer möchte ich die offenen Umsätze der Reihe nach mit Fortschrittsanzeige durchgehen, damit ich in einer Sitzung fertig werde und sehe, wie viel noch fehlt.

@@ -73,11 +73,11 @@ describe('ownAccountTransferTarget', () => {
   it('matches an IBAN by its known tail', () => {
     expect(ownAccountTransferTarget('an AT611904300234579911', 'self', accounts)).toBe('spar');
   });
-  it('matches the account name as whole text or whole words', () => {
+  it('matches the account name only as the whole text', () => {
     expect(ownAccountTransferTarget('beispiel depot', 'self', accounts)).toBe('depot');
     expect(
       ownAccountTransferTarget('Umbuchung Sparkonto Alpha Dauerauftrag', 'self', accounts),
-    ).toBe('spar');
+    ).toBeNull();
     expect(ownAccountTransferTarget('Beispiel Depotbank AG', 'self', accounts)).toBeNull();
   });
   it('never proposes the own account and refuses ambiguity', () => {

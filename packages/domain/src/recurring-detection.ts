@@ -62,7 +62,7 @@ const compactIban = (s: string) => s.toUpperCase().replace(/[\s.-]/gu, '');
 
 /**
  * Own-account transfer proposal for a bank line: the counterparty text contains the IBAN of
- * exactly one other own account, or equals (or contains as whole words) that account's name.
+ * exactly one other own account, or equals that account's name.
  * Ambiguity gives no proposal. Never applies anything.
  */
 export function ownAccountTransferTarget(
@@ -95,7 +95,7 @@ export function ownAccountTransferTarget(
       .replace(/[^\p{L}\p{N}]+/gu, ' ')
       .trim();
     if (!name) return false;
-    return padded.trim() === name || (name.length >= 6 && padded.includes(` ${name} `));
+    return padded.trim() === name;
   });
   return byName.length === 1 ? byName[0]!.id : null;
 }
