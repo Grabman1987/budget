@@ -31,6 +31,12 @@ test('1144 parks the middle 500, delivers its neighbours in order, then safely c
   });
   await page.goto(`/konten/${account.id}?panel=buchung`);
   await expect(page.getByRole('dialog', { name: 'Buchung erfassen', exact: true })).toBeVisible();
+  // The capture form is its own chunk; it must be loaded before the connection drops.
+  await expect(
+    page
+      .getByRole('dialog', { name: 'Buchung erfassen', exact: true })
+      .getByLabel('Bezahlt von', { exact: true }),
+  ).toBeVisible();
   const attempts: { memo: string; key: string }[] = [];
   const delivered: string[] = [];
   const checks: string[] = [];

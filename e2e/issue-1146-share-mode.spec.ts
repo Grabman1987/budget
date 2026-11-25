@@ -78,6 +78,7 @@ for (const theme of ['light', 'dark'] as const) {
     await (await contactShareControl(dialog)).click();
     await dialog.getByRole('button', { name: '+ Weiterer Kontakt' }).click();
     const after = await footerY();
-    expect(after).toEqual(before);
+    // Sub-pixel layout may round a 0.5 px difference either way; anything more is a real shift.
+    after.forEach((y, index) => expect(Math.abs(y - before[index]!)).toBeLessThanOrEqual(1));
   });
 }
