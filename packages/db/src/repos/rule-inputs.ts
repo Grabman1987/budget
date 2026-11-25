@@ -646,6 +646,23 @@ export function forecastInputs(
     else pair.push({ ...leg, whole: leg.wholeId !== null });
     transferPairs.set(id, pair);
   }
+  // Lookups by booking, in `transferPairs` order, so `find`/`for` over all pairs stay O(1) per booking.
+  type TransferPair = NonNullable<ReturnType<typeof transferPairs.get>>;
+  const pairsByBooking = new Map<string, [string, TransferPair][]>();
+  const wholePairByBooking = new Map<string, TransferPair>();
+  for (const [id, pair] of transferPairs) {
+    const seen = new Set<string>();
+    for (const leg of pair) {
+      if (!seen.has(leg.bookingId)) {
+        seen.add(leg.bookingId);
+        const list = pairsByBooking.get(leg.bookingId) ?? [];
+        list.push([id, pair]);
+        pairsByBooking.set(leg.bookingId, list);
+      }
+      if (leg.whole && !wholePairByBooking.has(leg.bookingId))
+        wholePairByBooking.set(leg.bookingId, pair);
+    }
+  }
   const linkedTransferItems: SourcedForecastItem[] = [];
   const includedTransfers = new Set<string>();
   const transitDebitDay = (pair: NonNullable<ReturnType<typeof transferPairs.get>>) => {
@@ -668,8 +685,8 @@ export function forecastInputs(
       : null;
   };
   const addLinkedTransfers = (payment: PaymentRow, dueDate: string, bookingId: string) => {
-    for (const [id, pair] of transferPairs) {
-      if (includedTransfers.has(id) || !pair.some((leg) => leg.bookingId === bookingId)) continue;
+    for (const [id, pair] of pairsByBooking.get(bookingId) ?? []) {
+      if (includedTransfers.has(id)) continue;
       if (!pair.every((leg) => cashIds.has(leg.accountId))) continue;
       if (pair.length !== 2 || pair[0]!.cents !== -pair[1]!.cents)
         throw new RangeError('Ambiguous linked internal transfer');
@@ -698,9 +715,7 @@ export function forecastInputs(
     const mark = f.planMarks.get(key);
     if (typeof mark === 'object') {
       if (mark.bookingId) addLinkedTransfers(payment, o.dueDate, mark.bookingId);
-      const wholePair = [...transferPairs.values()].find((pair) =>
-        pair.some((leg) => leg.whole && leg.bookingId === mark.bookingId),
-      );
+      const wholePair = mark.bookingId ? wholePairByBooking.get(mark.bookingId) : undefined;
       const cashDay = (wholePair && transitDebitDay(wholePair)) ?? mark.settledOn;
       if (cashDay <= asOf || cashDay > to) return [];
       if (mark.accountId === null || !cashIds.has(mark.accountId) || mark.cents === null) return [];
@@ -797,9 +812,7 @@ export function forecastInputs(
     .all()
     .flatMap((row): SourcedForecastItem[] => {
       if (!cashIds.has(row.accountId) || representedBookingIds.has(row.id)) return [];
-      const pair = [...transferPairs.values()].find((legs) =>
-        legs.some((leg) => leg.bookingId === row.id),
-      );
+      const pair = pairsByBooking.get(row.id)?.[0]?.[1];
       const day = (pair && transitDebitDay(pair)) ?? row.date;
       if (day <= asOf || day > to || row.amountCents === 0) return [];
       return [
