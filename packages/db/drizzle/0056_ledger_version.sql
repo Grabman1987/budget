@@ -1,5 +1,5 @@
 -- Ledger version (perf): cache validity follows ledger changes only. One counter row is bumped by triggers
--- on every table a read model can read; auth/session, audit_log and market run logs are left out.
+-- on every table a read model can read; auth/session and market run logs are left out.
 -- Idempotent, no data change. `migrateDatabase` re-checks the triggers after every migration.
 CREATE TABLE IF NOT EXISTS `ledger_version` (`id` integer PRIMARY KEY NOT NULL CHECK (`id` = 1), `version` integer NOT NULL);
 --> statement-breakpoint
@@ -46,6 +46,12 @@ CREATE TRIGGER IF NOT EXISTS `ledger_version_assignment_rule_ai` AFTER INSERT ON
 CREATE TRIGGER IF NOT EXISTS `ledger_version_assignment_rule_au` AFTER UPDATE ON `assignment_rule` BEGIN UPDATE `ledger_version` SET `version` = `version` + 1 WHERE `id` = 1; END;
 --> statement-breakpoint
 CREATE TRIGGER IF NOT EXISTS `ledger_version_assignment_rule_ad` AFTER DELETE ON `assignment_rule` BEGIN UPDATE `ledger_version` SET `version` = `version` + 1 WHERE `id` = 1; END;
+--> statement-breakpoint
+CREATE TRIGGER IF NOT EXISTS `ledger_version_audit_log_ai` AFTER INSERT ON `audit_log` BEGIN UPDATE `ledger_version` SET `version` = `version` + 1 WHERE `id` = 1; END;
+--> statement-breakpoint
+CREATE TRIGGER IF NOT EXISTS `ledger_version_audit_log_au` AFTER UPDATE ON `audit_log` BEGIN UPDATE `ledger_version` SET `version` = `version` + 1 WHERE `id` = 1; END;
+--> statement-breakpoint
+CREATE TRIGGER IF NOT EXISTS `ledger_version_audit_log_ad` AFTER DELETE ON `audit_log` BEGIN UPDATE `ledger_version` SET `version` = `version` + 1 WHERE `id` = 1; END;
 --> statement-breakpoint
 CREATE TRIGGER IF NOT EXISTS `ledger_version_bank_connection_ai` AFTER INSERT ON `bank_connection` BEGIN UPDATE `ledger_version` SET `version` = `version` + 1 WHERE `id` = 1; END;
 --> statement-breakpoint

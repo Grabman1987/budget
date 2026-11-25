@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { createTestDatabase, sqliteOf } from './client';
-import { ensureLedgerVersionTriggers, ledgerVersion } from './repos/ledger-version';
+import {
+  UPDATE_ONLY_WHEN_CHANGED,
+  ensureLedgerVersionTriggers,
+  ledgerVersion,
+} from './repos/ledger-version';
 
 const open = () => {
   const { db } = createTestDatabase();
@@ -17,7 +21,7 @@ const triggers = (sqlite: ReturnType<typeof sqliteOf>) =>
   ).n;
 
 describe('ledger version', () => {
-  it('moves on ledger writes and ignores challenges, market logs and the audit log', () => {
+  it('moves on ledger writes and ignores challenges and market logs', () => {
     const { db, sqlite } = open();
     const start = Number(ledgerVersion(db));
     sqlite
@@ -28,11 +32,6 @@ describe('ledger version', () => {
     sqlite
       .prepare(
         "insert into market_run (id, trigger, started_at, finished_at, as_of, status) values ('r', 'nightly', 'a', 'b', '2026-03-17', 'ok')",
-      )
-      .run();
-    sqlite
-      .prepare(
-        "insert into audit_log (id, action, entity_type, entity_id) values ('a', 'create', 'x', 'i')",
       )
       .run();
     expect(Number(ledgerVersion(db))).toBe(start);
@@ -93,9 +92,49 @@ describe('ledger version', () => {
     });
     const excluded = sqlite
       .prepare(
-        "select count(*) as n from sqlite_master where type = 'trigger' and (name like 'ledger_version_audit_log%' or name like 'ledger_version_auth_%' or name like 'ledger_version_market_run%')",
+        "select count(*) as n from sqlite_master where type = 'trigger' and (name like 'ledger_version_auth_%' or name like 'ledger_version_market_run%')",
       )
       .get() as { n: number };
     expect(excluded.n).toBe(0);
+  });
+
+  it('counts audit rows too (the account list replays the audit log)', () => {
+    const { db, sqlite } = open();
+    const start = Number(ledgerVersion(db));
+    sqlite
+      .prepare(
+        "insert into audit_log (id, action, entity_type, entity_id) values ('a', 'create', 'x', 'i')",
+      )
+      .run();
+    expect(Number(ledgerVersion(db))).toBe(start + 1);
+  });
+
+  it('lists every content column of rule_result in its change trigger', () => {
+    const { sqlite } = open();
+    const columns = (
+      sqlite.prepare("select name from pragma_table_info('rule_result')").all() as {
+        name: string;
+      }[]
+    )
+      .map((c) => c.name)
+      .filter((name) => name !== 'id');
+    expect([...(UPDATE_ONLY_WHEN_CHANGED['rule_result'] ?? [])].sort()).toEqual(columns.sort());
+  });
+
+  it('re-creates a trigger whose stored definition differs', () => {
+    const { db, sqlite } = open();
+    sqlite.exec('drop trigger ledger_version_booking_ai');
+    sqlite.exec(
+      'create trigger ledger_version_booking_ai after insert on booking begin select 1; end',
+    );
+    const start = ledgerVersion(db);
+    ensureLedgerVersionTriggers(sqlite);
+    const stored = (
+      sqlite
+        .prepare("select sql from sqlite_master where name = 'ledger_version_booking_ai'")
+        .get() as { sql: string }
+    ).sql;
+    expect(stored).toContain('UPDATE `ledger_version`');
+    expect(ledgerVersion(db)).toBe(start);
   });
 });

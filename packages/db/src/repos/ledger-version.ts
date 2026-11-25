@@ -1,5 +1,6 @@
 import type Database from 'better-sqlite3';
 import { sql } from 'drizzle-orm';
+import { databaseStamp } from './request-memo';
 import type { Executor } from './types';
 
 /**
@@ -21,8 +22,6 @@ export const NON_LEDGER_TABLES: ReadonlySet<string> = new Set([
   'auth_event',
   'passkey',
   'recovery_code',
-  // Change log: every audited write adds rows, and the audited table already bumped the version.
-  'audit_log',
   // Market refresh bookkeeping; the prices it stores are in `price` / `fx_rate` (versioned).
   'market_run',
   'market_attempt',
@@ -43,7 +42,7 @@ const EVENTS = [
  * Tables whose UPDATE only counts when a listed column really changes: the overview page
  * re-evaluates the rules on every visit and upserts identical `rule_result` rows.
  */
-const UPDATE_ONLY_WHEN_CHANGED: Readonly<Record<string, readonly string[]>> = {
+export const UPDATE_ONLY_WHEN_CHANGED: Readonly<Record<string, readonly string[]>> = {
   rule_result: ['rule_id', 'as_of', 'status', 'value_text', 'detail_json', 'action_needed'],
 };
 
@@ -75,29 +74,44 @@ const ledgerTables = (sqlite: Database.Database): string[] =>
     .map((row) => row.name)
     .filter((name) => !NON_LEDGER_TABLES.has(name));
 
-/** Adds the counter row and any missing trigger. Safe to run repeatedly; changes no data. */
+/** What SQLite keeps of a trigger statement: the text without `IF NOT EXISTS`, whitespace folded. */
+const normalized = (statement: string): string =>
+  statement.replace(' IF NOT EXISTS', '').replace(/\s+/g, ' ').trim();
+
+/**
+ * Adds the counter row, any missing trigger and re-creates a trigger whose stored SQL differs from
+ * the expected one (a stale definition would silently stop invalidating). Safe to run repeatedly;
+ * changes no data. The check-and-create runs in one immediate transaction, so two starting
+ * processes cannot interleave.
+ */
 export function ensureLedgerVersionTriggers(sqlite: Database.Database): void {
-  const existing = new Set(
+  const stored = new Map(
     (
       sqlite
         .prepare(
-          `SELECT name FROM sqlite_master WHERE type = 'trigger' AND name LIKE 'ledger_version_%'`,
+          `SELECT name, sql FROM sqlite_master WHERE type = 'trigger' AND name LIKE 'ledger_version_%'`,
         )
-        .all() as { name: string }[]
-    ).map((row) => row.name),
+        .all() as { name: string; sql: string }[]
+    ).map((row) => [row.name, normalized(row.sql)]),
   );
-  const missing = ledgerTables(sqlite).flatMap((table) =>
-    ledgerTriggerStatements(table).filter(
-      (_statement, index) => !existing.has(`ledger_version_${table}_${EVENTS[index]![0]}`),
-    ),
-  );
+  const todo: string[] = [];
+  for (const table of ledgerTables(sqlite))
+    ledgerTriggerStatements(table).forEach((statement, index) => {
+      const name = `ledger_version_${table}_${EVENTS[index]![0]}`;
+      const current = stored.get(name);
+      if (current === normalized(statement)) return;
+      if (current !== undefined) todo.push(`DROP TRIGGER \`${name}\``);
+      todo.push(statement);
+    });
   const hasTable = sqlite
     .prepare(`SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'ledger_version'`)
     .get();
-  if (hasTable && missing.length === 0) return;
-  sqlite.transaction(() => {
-    for (const statement of [...LEDGER_VERSION_TABLE_SQL, ...missing]) sqlite.exec(statement);
-  })();
+  if (hasTable && todo.length === 0) return;
+  sqlite
+    .transaction(() => {
+      for (const statement of [...LEDGER_VERSION_TABLE_SQL, ...todo]) sqlite.exec(statement);
+    })
+    .immediate();
 }
 
 /**
@@ -105,7 +119,15 @@ export function ensureLedgerVersionTriggers(sqlite: Database.Database): void {
  * bumped), so it is cheap and needs no per-connection bookkeeping.
  */
 export function ledgerVersion(db: Executor): string {
-  return String(
-    db.get<{ version: number }>(sql`SELECT version FROM ledger_version WHERE id = 1`).version,
-  );
+  let row: { version: number } | undefined;
+  try {
+    row = db.get<{ version: number } | undefined>(
+      sql`SELECT version FROM ledger_version WHERE id = 1`,
+    );
+  } catch {
+    row = undefined;
+  }
+  // A database built without the migrations (test fixtures, an old restored copy) has no counter:
+  // fall back to the conservative whole-database stamp, which invalidates on any write.
+  return row ? String(row.version) : `db:${databaseStamp(db)}`;
 }
