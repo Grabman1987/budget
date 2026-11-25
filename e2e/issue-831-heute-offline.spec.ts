@@ -19,7 +19,7 @@ test('Heute explanation follows existing offline permissions and resumes the sam
     await expect(page.getByTestId('heute-lead-value')).toBeVisible();
     await page.locator('a.hv-lead-value').click();
     await expect(
-      page.getByRole('heading', { name: 'Frei bis Gehalt · Herleitung', exact: true }),
+      page.getByRole('heading', { name: /^Frei bis (Gehalt|Monatsende) · Herleitung$/ }),
     ).toBeVisible();
   }
   const href = page.url();
@@ -40,7 +40,7 @@ test('Heute explanation follows existing offline permissions and resumes the sam
   expect(page.url()).toBe(href);
   if (redesign)
     await expect(
-      page.getByRole('heading', { name: 'Frei bis Gehalt · Herleitung', exact: true }),
+      page.getByRole('heading', { name: /^Frei bis (Gehalt|Monatsende) · Herleitung$/ }),
     ).toBeVisible();
   expect(writes).toEqual([]);
 });

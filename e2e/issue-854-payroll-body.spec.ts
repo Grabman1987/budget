@@ -93,7 +93,7 @@ test('1207 salary: literal paid-month totals, whole combined slip, gaps and shar
     await expect(table.locator('tbody tr')).toHaveText([
       'Mai 20262.100,00 €—2.100,00 €',
       'Mär 20263.400,00 €—3.400,00 €',
-      'Feb 20262.130,00 €1.500,00 €3.630,00 €',
+      'Feb 20262.130,00 € inkl. Sonderzahlung (brutto 2.000,00 €)1.500,00 €3.630,00 €',
       'Jän 20262.100,00 €—2.100,00 €',
     ]);
     await expect(table.getByRole('columnheader')).toHaveText([

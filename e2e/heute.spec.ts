@@ -320,7 +320,9 @@ test('Heute uses live API data and period, expands the lead chain, and links to 
   const response = await page.request.get('/api/heute?period=month&month=2026-09');
   expect(response.ok()).toBe(true);
   const initial: Heute = await response.json();
-  expect(initial.lead.freeCents).toBe(-154_921);
+  // Period "Monat" leads with Frei bis Monatsende (#1332).
+  expect(initial.leadBoundary?.kind).toBe('monthEnd');
+  expect(initial.lead.freeCents).toBe(71_211);
   const badRules =
     'unavailable' in initial.financeCheck
       ? []
