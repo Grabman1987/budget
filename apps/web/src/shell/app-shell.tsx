@@ -107,7 +107,11 @@ export function AppShell() {
                   !kontenPageHeading &&
                   !reportPageHeading
                 }
-                controls={heuteControls ? <HeuteShellHead showStand={false} /> : undefined}
+                controls={
+                  heuteControls ? (
+                    <HeuteShellHead showStand={false} showPeriod={pathname !== '/'} />
+                  ) : undefined
+                }
                 onControlsPlacement={(place) => setControlsInBody(place === 'body')}
                 collapsed={collapsed}
                 onToggle={() => setCollapsed(!collapsed)}
@@ -136,7 +140,7 @@ export function AppShell() {
             <main className="sheet" id="main" tabIndex={-1} ref={main}>
               {REDESIGN_ENABLED && heuteControls && controlsInBody && !phone && (
                 <div className="page-controls-row" ref={controlsRow}>
-                  <HeuteShellHead />
+                  <HeuteShellHead showPeriod={pathname !== '/'} />
                 </div>
               )}
               {(page?.area === 'heute' || page?.area === 'konten') && <QueueList />}

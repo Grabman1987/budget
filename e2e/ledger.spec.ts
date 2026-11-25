@@ -101,7 +101,7 @@ test('accounts, bookings, split, transfer, undo and redo', async ({ page }, test
   await panel.getByLabel('Nach Konto').selectOption({ label: spar });
   await panel.getByLabel('Betrag', { exact: true }).fill('100,00');
   await captureSaveControl(panel).click();
-  await expect(page.getByRole('row', { name: /Umbuchung nach/ })).toBeVisible();
+  await expect(page.getByRole('row', { name: /Umbuchung auf/ })).toBeVisible();
   await expect(balance(page)).toHaveText('857,50 €');
   await openAccount(page, spar);
   await expect(balance(page)).toHaveText('100,00 €');

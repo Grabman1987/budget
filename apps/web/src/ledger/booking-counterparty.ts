@@ -11,7 +11,7 @@ export function bookingCounterparty(booking: BookingCounterparty): string {
   if (booking.payeeName?.trim()) return booking.payeeName;
   if (booking.transferId) {
     return booking.transferAccountName?.trim()
-      ? `Umbuchung ${booking.amountCents < 0 ? 'nach' : 'von'} ${booking.transferAccountName}`
+      ? `Umbuchung ${booking.amountCents < 0 ? 'auf' : 'von'} ${booking.transferAccountName}`
       : 'Umbuchung';
   }
   return booking.memo?.trim() || 'Ohne Empfänger';

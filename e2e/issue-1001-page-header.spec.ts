@@ -147,7 +147,7 @@ test('Heute page controls are never clipped or hidden at desktop and tablet widt
     const container = page.locator('.hv-head:not(.hv-head-phone)').first();
     const outer = await box(container);
     const controls = container.locator('.month-switch button, .seg button');
-    expect(await controls.count()).toBeGreaterThanOrEqual(4);
+    expect(await controls.count()).toBeGreaterThanOrEqual(2);
     for (const control of await controls.all()) {
       await expect(control).toBeVisible();
       const target = await box(control);

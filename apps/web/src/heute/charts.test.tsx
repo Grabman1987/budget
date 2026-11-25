@@ -585,3 +585,17 @@ it('shows under-plan actuals beside the over-cap forecast from the same Septembe
   tooltip = screen.getByRole('status');
   expect(tooltip.textContent).toContain('Hochrechnung110,00 €');
 });
+
+it('keeps the Heute card tooltip to Ist, Plan and Vormonat and draws a taller chart', () => {
+  const { container } = render(<HeutePaceChart data={data} compact />);
+  const group = screen.getByRole('group', { name: /Pace 2026-01/ });
+  fireEvent.focus(group);
+  const tooltip = screen.getByRole('status');
+  for (const gone of ['Einnahmen', 'Differenz', 'Deckel', 'Hochrechnung'])
+    expect(tooltip.textContent).not.toContain(gone);
+  expect(tooltip.textContent).toContain('Ist');
+  expect(tooltip.textContent).toContain('Vormonat');
+  expect(Number(container.querySelector('svg')?.getAttribute('height'))).toBeGreaterThanOrEqual(
+    240,
+  );
+});

@@ -203,7 +203,7 @@ describe('import fidelity (synthetic)', () => {
     ).toEqual([
       ['Vermieter', 'outflow', 80000, 'monthly', 1, null, '2026-03-01', null, 'note_monthly'],
       ['Zahnarzt', 'outflow', 30000, 'monthly', 5, null, '2026-03-05', '2026-03-05', 'once'],
-      ['Umbuchung an P2P', 'outflow', 10000, 'monthly', 7, null, '2026-03-07', null, 'recurring'],
+      ['Umbuchung auf P2P', 'outflow', 10000, 'monthly', 7, null, '2026-03-07', null, 'recurring'],
       ['Versicherung', 'outflow', 12000, 'yearly', 15, 1, '2027-01-15', null, 'note_yearly'],
       ['Gehalt', 'inflow', 290000, 'monthly', 15, null, '2026-03-01', null, 'mapping'],
     ]);
