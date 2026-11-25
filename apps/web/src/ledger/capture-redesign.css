@@ -280,7 +280,7 @@
   background: var(--quiet-soft);
   color: var(--ink-2);
 }
-.bkform-redesign .bk-foot > .bk-cancel,
+.bkform-redesign .bk-foot > .bk-cancel:not(:has(+ .bk-foot-extra)),
 .bkform-redesign .bk-foot > .bk-foot-extra {
   margin-inline-end: auto;
 }
@@ -589,14 +589,11 @@
     min-height: 68px;
     padding: 8px 16px calc(8px + env(safe-area-inset-bottom));
   }
-  .bkform-redesign .bk-foot > .bk-cancel {
-    display: none;
-  }
   .bkform-redesign .bk-foot .btn {
     min-height: 52px;
   }
   .bkform-redesign .bk-foot > button[type='submit'] {
-    flex: 1;
+    min-width: 160px;
   }
 }
 @media (prefers-reduced-motion: reduce) {
@@ -1160,8 +1157,9 @@
   .bkform-redesign .bk-form-actions .btn {
     min-height: 44px;
   }
-  .bkform-redesign .bk-form-actions > button[type='submit'] {
-    order: -1;
+  .bkform-redesign .bk-form-actions > .bk-cancel:not(:has(+ .bk-foot-extra)),
+  .bkform-redesign .bk-form-actions > .bk-foot-extra {
+    margin-inline-end: auto;
   }
   .bkform-redesign .bk-form-actions > .bk-save-new {
     border: 0;

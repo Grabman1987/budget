@@ -2,6 +2,7 @@ import { infiniteQueryOptions, queryOptions } from '@tanstack/react-query';
 import { addDays, todayInVienna } from '@budget/domain';
 import type { getContactCreditAvailability } from '@budget/db';
 import { request } from '../api/http';
+import { HEAVY_READ_STALE_MS } from '../api/stale-times';
 import {
   fetchAccounts,
   fetchBookings,
@@ -16,7 +17,12 @@ import type { BookingFilter } from './types';
 export const LEDGER_KEY = ['ledger'] as const;
 
 export const accountsQuery = () =>
-  queryOptions({ queryKey: [...LEDGER_KEY, 'accounts'], queryFn: () => fetchAccounts() });
+  queryOptions({
+    queryKey: [...LEDGER_KEY, 'accounts'],
+    staleTime: HEAVY_READ_STALE_MS,
+    refetchOnWindowFocus: true,
+    queryFn: () => fetchAccounts(),
+  });
 
 export const contactCreditQuery = (id: string, date: string) =>
   queryOptions({
@@ -35,6 +41,8 @@ export const seriesQuery = (accountId: string, days: number) => {
   const from = addDays(to, -days);
   return queryOptions({
     queryKey: [...LEDGER_KEY, 'series', accountId, days, to],
+    staleTime: HEAVY_READ_STALE_MS,
+    refetchOnWindowFocus: true,
     queryFn: () => fetchSeries(accountId, from, to),
   });
 };
@@ -51,6 +59,8 @@ export const seriesBatchQuery = (days: number, options?: { asOf?: string; qualit
       to,
       ...(options?.quality ? ['quality-v1'] : []),
     ],
+    staleTime: HEAVY_READ_STALE_MS,
+    refetchOnWindowFocus: true,
     queryFn: () => fetchSeriesBatch(from, to, options?.quality ? { quality: true } : undefined),
   });
 };

@@ -1,10 +1,5 @@
 import { minimumControlHeight } from './control-geometry';
-import {
-  captureCloseControl,
-  captureSaveControl,
-  categoryLineControl,
-  redesignLoaded,
-} from './ledger-helpers';
+import { captureSaveControl, categoryLineControl, redesignLoaded } from './ledger-helpers';
 import AxeBuilder from '@axe-core/playwright';
 import { readFileSync } from 'node:fs';
 
@@ -169,10 +164,7 @@ test('desktop card stays bounded and phone save is reachable in a keyboard-sized
     await saveWithin(dialog, top!, height!);
     expect((await dialog.boundingBox())!.y).toBe(top);
     expect((await dialog.boundingBox())!.height).toBe(height);
-    await captureCloseControl(dialog).click();
-    await expect(dialog.getByRole('alertdialog')).toBeVisible();
     await saveWithin(dialog, top!, height!);
-    await dialog.getByRole('button', { name: 'Weiter bearbeiten', exact: true }).click();
     await expect(dialog.getByLabel('Betrag', { exact: true })).toHaveValue('120,00');
   }
   if (await redesignLoaded(page)) {

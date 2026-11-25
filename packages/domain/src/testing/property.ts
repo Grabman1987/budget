@@ -94,7 +94,8 @@ export function canonicalDump(
     .all() as Array<{ name: string }>;
   const dump: Record<string, string[]> = {};
   for (const { name } of tables) {
-    if (skipTables.includes(name)) continue;
+    // ledger_version is a monotone cache-invalidation counter bumped by every write, undo included.
+    if (name === 'ledger_version' || skipTables.includes(name)) continue;
     const rows = (source.prepare(`SELECT * FROM "${name}"`).all() as Array<Record<string, unknown>>)
       .filter((row) => !(liveOnly && row['deleted_at'] != null))
       .filter((row) => keepRow?.(name, row) ?? true);

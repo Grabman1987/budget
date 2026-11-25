@@ -513,3 +513,73 @@
     opacity: 1;
   }
 }
+
+/* Phone: "Geplant" sum as one line, planned items as compact two-line rows like bookings. */
+@media (max-width: 767px) {
+  .ktx.ktx-redesign tr.kupcoming-sum {
+    display: block;
+  }
+  .ktx.ktx-redesign tr.kupcoming-sum > td {
+    display: block;
+    padding: 10px 12px;
+    font-size: var(--fs-meta);
+    color: var(--ink-2);
+    white-space: normal;
+    border-bottom: 1px solid var(--rule);
+  }
+  .ktx.ktx-redesign tr.kschedule-phone {
+    display: block;
+    padding: 0;
+    border-bottom: 1px solid var(--rule);
+  }
+  .ktx.ktx-redesign tr.kschedule-phone > td {
+    display: block;
+    height: auto;
+    padding: 0;
+    border: 0;
+  }
+  .kschedule-m {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 44px;
+    align-items: center;
+    min-height: 48px;
+    padding-inline-start: 12px;
+  }
+  .kschedule-m-main {
+    display: grid;
+    gap: 2px;
+    min-width: 0;
+    min-height: 44px;
+    align-content: center;
+    padding-block: 6px;
+    color: inherit;
+    text-decoration: none;
+  }
+  .kschedule-m-line {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
+    min-width: 0;
+  }
+  .kschedule-m-name,
+  .kschedule-m-meta {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .kschedule-m-amount {
+    flex: none;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+  }
+  .kschedule-m-meta {
+    font-size: var(--fs-meta);
+    color: var(--ink-2);
+  }
+  .kschedule-m .kschedule-actions {
+    grid-column: 1 / -1;
+    padding: 0 12px 8px 0;
+  }
+}

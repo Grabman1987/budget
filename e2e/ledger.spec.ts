@@ -1,4 +1,4 @@
-import { captureSaveControl, redesignLoaded } from './ledger-helpers';
+import { captureSaveControl, fillBookingSearch, redesignLoaded } from './ledger-helpers';
 import {
   openAccountCapture,
   historyChart,
@@ -209,10 +209,10 @@ isolatedTest(
     await applyLedgerFilters(page);
 
     // Search narrows the list and lands in the URL.
-    await page.getByLabel('In Buchungen suchen').fill('Bio-Laden');
+    await fillBookingSearch(page, 'Bio-Laden');
     await expect(page).toHaveURL(/q=Bio-Laden/);
     await expect(page.getByText('1 Buchung ·')).toBeVisible();
-    await page.getByLabel('In Buchungen suchen').fill('');
+    await fillBookingSearch(page, '');
     await expect(page.getByText('3 Buchungen ·')).toBeVisible();
 
     // Select all, set a category for all, undo it.
@@ -281,11 +281,14 @@ test('Kontostand prüfen: doppelt, Ausgleich, geprüft sperrt, undo', async ({ p
       .getByLabel('geprüft', { exact: true }),
   ).toBeVisible();
 
-  // The amount cell delegates checked bookings to the dialog's explicit release.
-  await page
-    .getByRole('row', { name: new RegExp(`Laden ${tag}`) })
-    .getByRole('button', { name: /Betrag ändern/ })
-    .click();
+  // The amount cell delegates checked bookings to the dialog's explicit release. The phone row has
+  // no amount cell (#1328): its tap opens the same release question.
+  const checkedRow = page.getByRole('row', { name: new RegExp(`Laden ${tag}`) });
+  const amountTrigger =
+    (await redesignLoaded(page)) && page.viewportSize()!.width < 768
+      ? checkedRow.getByRole('button', { name: /bearbeiten/ })
+      : checkedRow.getByRole('button', { name: /Betrag ändern/ });
+  await amountTrigger.click();
   const edit = page.getByRole('dialog', { name: 'Buchung bearbeiten' });
   if (await redesignLoaded(page)) {
     const release = page.getByRole('alertdialog', {
@@ -299,9 +302,7 @@ test('Kontostand prüfen: doppelt, Ausgleich, geprüft sperrt, undo', async ({ p
     await expect(release).toBeHidden();
     await expect(edit).toBeHidden();
     await expect(balance(page)).toHaveText('475,00 €');
-    const trigger = page
-      .getByRole('row', { name: new RegExp(`Laden ${tag}`) })
-      .getByRole('button', { name: /Betrag ändern/ });
+    const trigger = amountTrigger;
     await expect(trigger).toBeFocused();
     await trigger.press('Enter');
     await expect(release).toBeVisible();

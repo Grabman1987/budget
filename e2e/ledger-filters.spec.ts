@@ -9,13 +9,9 @@ test('phone search and filter sheet immediately update, retain, remove and reset
   await page.goto('/konten/buchungen');
   const trigger = page.getByRole('button', { name: /^Filter \(/ });
   await expect(page.getByRole('button', { name: 'Filter (0)', exact: true })).toBeVisible();
-  const search = page.getByLabel('In Buchungen suchen');
-  await expect(search).toBeVisible();
+  // The text search is not a standalone row any more: it is the first field of the sheet.
+  await expect(page.getByLabel('In Buchungen suchen')).toBeHidden();
   await expect(page.getByLabel('Status', { exact: true })).toBeHidden();
-  const searchBox = await search.boundingBox();
-  const triggerBox = await trigger.boundingBox();
-  expect(triggerBox!.x).toBeGreaterThan(searchBox!.x);
-  expect(Math.abs(triggerBox!.y - searchBox!.y)).toBeLessThan(2);
   await expect(page.locator('[data-booking]').first()).toBeInViewport();
 
   await trigger.click();
@@ -42,24 +38,26 @@ test('phone search and filter sheet immediately update, retain, remove and reset
   await expect(page).toHaveURL(/status=pending/);
   await expect(page.getByRole('button', { name: 'Filter (2)', exact: true })).toBeVisible();
   await page.reload();
-  await page.getByRole('button', { name: 'Status: vorgemerkt entfernen', exact: true }).click();
-  await expect(page).not.toHaveURL(/status=/);
+  await page.getByRole('button', { name: 'Von: 01.09.2026 entfernen', exact: true }).click();
+  await expect(page).not.toHaveURL(/von=/);
   await expect(page.getByRole('button', { name: 'Filter (1)', exact: true })).toBeVisible();
-  await search.fill('Muster');
+  await trigger.click();
+  await sheet.getByLabel('In Buchungen suchen').fill('Muster');
   await expect(page).toHaveURL(/q=Muster/);
-  await page.getByRole('button', { name: 'Filter (1)', exact: true }).click();
+  await sheet.getByRole('button', { name: 'Fertig', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Suche: Muster entfernen' })).toBeVisible();
+  await page.getByRole('button', { name: 'Filter (2)', exact: true }).click();
   await sheet.getByRole('button', { name: 'Zurücksetzen', exact: true }).click();
   await expect(page).not.toHaveURL(/markierung=|von=/);
   await sheet.getByRole('button', { name: 'Fertig', exact: true }).click();
   await expect(trigger).toBeVisible();
-  await expect(page).toHaveURL(/q=Muster/);
-  await expect(page).not.toHaveURL(/markierung=|von=/);
+  // Reset clears the text search too: it is part of the sheet now.
+  await expect(page).not.toHaveURL(/q=|markierung=|von=/);
 
   for (const theme of ['light', 'dark']) {
     await page.evaluate((value) => {
       document.documentElement.dataset['theme'] = value;
     }, theme);
-    await search.fill('');
     await expect(page.locator('[data-booking]').first()).toBeVisible();
     await page.screenshot({ path: info.outputPath(`ledger-${theme}.png`) });
     await trigger.click();

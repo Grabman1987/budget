@@ -9,6 +9,10 @@ test('inline payee and category retain cents, undo, locks and selection in both 
   request,
   baseURL,
 }, info) => {
+  test.skip(
+    info.project.name !== 'desktop',
+    'Phone rows have no inline payee pencil: a tap opens the edit panel (#1328).',
+  );
   const post = async (path: string, data: unknown) => {
     const response = await request.post(`/api${path}`, { headers: { origin: baseURL! }, data });
     expect(response.ok(), await response.text()).toBe(true);
@@ -127,7 +131,8 @@ test('split and transfer payees explain the dialog-only editing path', async ({
   page,
   request,
   baseURL,
-}) => {
+}, info) => {
+  test.skip(info.project.name !== 'desktop', 'Phone rows have no inline payee pencil (#1328).');
   const post = async (path: string, data: unknown) => {
     const response = await request.post(`/api${path}`, { headers: { origin: baseURL! }, data });
     expect(response.ok(), await response.text()).toBe(true);

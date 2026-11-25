@@ -153,9 +153,19 @@ function cachedEvents(db: Executor): AuditEvent[] | null {
   }
   const known: EventCache = cache ?? { events: [], lastRowid: 0, lastId: null, total: 0 };
   // Everything below is bounded by one `max(rowid)` so the cache never skips a concurrent commit.
-  const edge = db.get<{ m: number | null; n: number }>(
-    sql`SELECT max(rowid) AS m, count(*) AS n FROM audit_log WHERE rowid > ${known.lastRowid}`,
-  );
+  // Warm cache: the few rows after `lastRowid` are found by a rowid seek, which is instant. Cold
+  // (first read of a connection, e.g. after the worker restarted): counting every row on the wide
+  // table walked 130 MB (up to seconds); `audit_ts_idx` is a narrow covering index that holds every
+  // rowid, so the count scans that instead. Both are bounded by one `max(rowid)`.
+  const edge =
+    known.lastRowid === 0
+      ? db.get<{ m: number | null; n: number }>(
+          sql`SELECT m, CASE WHEN m IS NULL THEN 0 ELSE (SELECT count(*) FROM audit_log INDEXED BY audit_ts_idx WHERE rowid <= m) END AS n
+            FROM (SELECT max(rowid) AS m FROM audit_log)`,
+        )
+      : db.get<{ m: number | null; n: number }>(
+          sql`SELECT max(rowid) AS m, count(*) AS n FROM audit_log WHERE rowid > ${known.lastRowid}`,
+        );
   if (edge?.m != null) {
     const fresh = db.all<AuditEvent>(
       db

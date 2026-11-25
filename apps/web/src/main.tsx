@@ -7,6 +7,7 @@ import { queryClient } from './auth/status-query';
 import { router } from './router';
 import './styles.css';
 import { PwaShell } from './pwa/pwa';
+import { startQueryPersistence } from './pwa/query-persist';
 import { ToastProvider } from '@budget/ui';
 import { QueueProvider } from './pwa/queue-ui';
 import './preview.css';
@@ -15,6 +16,9 @@ initAmountPrivacy();
 
 const container = document.getElementById('root');
 if (!container) throw new Error('Missing #root');
+
+// Last known answers first (bounded wait), so the pages render at once and refresh behind them.
+await startQueryPersistence(queryClient).catch(() => undefined);
 
 createRoot(container).render(
   <StrictMode>

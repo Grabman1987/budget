@@ -64,7 +64,6 @@ import {
 import type { BookingPanelState } from './booking-panel';
 import {
   accountFromPayee,
-  captureDirty,
   captureDate,
   categoriesFor,
   categoryFromPayee,
@@ -144,7 +143,7 @@ export interface DiscardAsk {
 /**
  * The capture form (Buchung erfassen / bearbeiten): keyboard first. Enter saves valid inputs and otherwise moves on,
  * Ctrl+Enter saves, Ctrl+Umschalt+Enter saves and starts the next booking with account, date and
- * payee kept. Esc is handled by the dialog around it (with a discard question when dirty).
+ * payee kept. Esc is handled by the dialog around it (closes at once; only a refused queued edit asks).
  */
 export function CaptureForm({
   state,
@@ -560,20 +559,13 @@ export function CaptureForm({
   const showLineProblem = blocked && saveAttempted;
   const splitError = errors.splits === REMAINDER_SAVE_ERROR && !blocked ? undefined : errors.splits;
 
-  const draftDirty = queued
-    ? JSON.stringify(strip(draft)) !== JSON.stringify(strip(queued.draft))
-    : editing
-      ? JSON.stringify(strip(draft)) !== JSON.stringify(strip(editDraft!))
-      : captureDirty(draft, '') ||
-        Boolean(draft.repeat || draft.lines?.some((line) => line.shares.length));
-  // A refused queued edit still needs an explicit discard, even after reverting its fields.
+  // Closing (x, Esc, Verwerfen) discards changed inputs at once. Only a refused queued edit still
+  // needs its explicit discard (discardRejectedChange), even after reverting its fields.
   const [refusedEdit, setRefusedEdit] = useState(false);
-  const dirty =
-    refusedEdit || draftDirty || JSON.stringify(bankIntent) !== JSON.stringify(queuedBankIntent);
 
   useEffect(() => {
-    dirtyRef.current = dirty;
-  }, [dirty, dirtyRef]);
+    dirtyRef.current = refusedEdit;
+  }, [refusedEdit, dirtyRef]);
 
   /** Applies a payee-suggested category to a draft, only where it is still allowed and valid. */
   const withPayeeCategory = (
@@ -602,6 +594,19 @@ export function CaptureForm({
         : {}),
     };
   };
+  const openRef = useRef(open);
+  useLayoutEffect(() => {
+    openRef.current = open;
+  });
+  const pendingAccount = useRef<{ version: number; id: string } | null>(null);
+  useEffect(() => {
+    const pending = pendingAccount.current;
+    if (!pending || !open.length) return;
+    pendingAccount.current = null;
+    if (pending.version !== accountRequest.current || accountChosen.current) return;
+    setAllowDefaultAccount(false);
+    set('accountId', open.some((account) => account.id === pending.id) ? pending.id : '');
+  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
   // A history answer that arrives before the categories are loaded waits for them.
   const pendingCategory = useRef<{ request: number; ids: string[] } | null>(null);
   useEffect(() => {
@@ -650,8 +655,14 @@ export function CaptureForm({
     const applyAccount = (last: string | undefined) => {
       if (!suggestAccount || accountVersion !== accountRequest.current || accountChosen.current)
         return;
+      // A history answer that arrives before the accounts are loaded waits for them.
+      if (last && !openRef.current.length) {
+        pendingAccount.current = { version: accountVersion, id: last };
+        return;
+      }
+      pendingAccount.current = null;
       setAllowDefaultAccount(false);
-      set('accountId', open.some((account) => account.id === last) ? last! : '');
+      set('accountId', openRef.current.some((account) => account.id === last) ? last! : '');
     };
     // Clear automatic values together while the changed payee's history is unresolved.
     applyAccount(undefined);
@@ -1248,12 +1259,9 @@ export function CaptureForm({
   );
   const formActions = (
     <div className={mobileRedesign ? 'bk-form-actions' : 'bk-foot'}>
-      {mobileRedesign && saveButton}
-      {REDESIGN_ENABLED && !isPhone && !editing && (
-        <Button variant="ghost" className="bk-cancel" onClick={requestClose}>
-          Abbrechen
-        </Button>
-      )}
+      <Button variant="ghost" className="bk-cancel" onClick={requestClose}>
+        Verwerfen
+      </Button>
       {editing && (
         <div className="bk-foot-extra">
           <Button variant="ghost" onClick={() => void remove()} disabled={busy}>
@@ -1277,12 +1285,7 @@ export function CaptureForm({
           </span>
         </Button>
       )}
-      {editing && !mobileRedesign && (
-        <Button variant="ghost" onClick={requestClose}>
-          Abbrechen
-        </Button>
-      )}
-      {!mobileRedesign && saveButton}
+      {saveButton}
     </div>
   );
 
@@ -1801,21 +1804,4 @@ function DateField({
       </Field>
     </div>
   );
-}
-
-/** A draft without the generated split keys: two drafts are the same when nothing was typed. */
-function strip(draft: BookingDraft) {
-  return {
-    ...draft,
-    splits: draft.splits.map((s) => ({ ...s, key: '' })),
-    ...(draft.lines
-      ? {
-          lines: draft.lines.map((line) => ({
-            ...line,
-            key: '',
-            shares: line.shares.map((share) => ({ ...share, key: '' })),
-          })),
-        }
-      : {}),
-  };
 }

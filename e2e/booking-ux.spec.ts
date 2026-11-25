@@ -1,6 +1,12 @@
 import { captureSaveControl } from './ledger-helpers';
 import { captureCloseControl } from './ledger-helpers';
-import { historyChart, redesignLoaded, categoryLineControl, pickCategory } from './ledger-helpers';
+import {
+  historyChart,
+  redesignLoaded,
+  categoryLineControl,
+  pickCategory,
+  changeRowAmount,
+} from './ledger-helpers';
 
 import AxeBuilder from '@axe-core/playwright';
 import { expect } from '@playwright/test';
@@ -58,11 +64,7 @@ test('booking cells, cash capture, repetition and account preview on desktop and
     await row.getByRole('button', { name: /bearbeiten/ }).click();
     await edit.getByLabel('Datum', { exact: true }).fill('02.10.2026');
     await captureCloseControl(edit).click();
-    // A changed field asks before the dialog closes.
-    await edit
-      .getByRole('alertdialog', { name: 'Eingaben verwerfen?' })
-      .getByRole('button', { name: 'Verwerfen', exact: true })
-      .click();
+    // × discards a changed field at once, without a question (#1324).
     await expect(edit).toBeHidden();
     expect((await (await request.get('/api/bookings/' + id)).json()).booking.date).toBe(
       '2026-10-01',
@@ -75,13 +77,15 @@ test('booking cells, cash capture, repetition and account preview on desktop and
   await expect
     .poll(async () => (await (await request.get('/api/bookings/' + id)).json()).booking.date)
     .toBe('2026-10-02');
-  await row.getByRole('button', { name: /Betrag ändern/ }).click();
-  await row.getByLabel('Betrag bearbeiten').fill('0');
-  await row.getByLabel('Betrag bearbeiten').press('Enter');
-  await expect(row.getByRole('alert')).toContainText('ungleich 0');
-  await row.getByLabel('Betrag bearbeiten').fill('-15,01');
-  await row.getByLabel('Betrag bearbeiten').press('Tab');
-  await expect(row.getByLabel('Betrag bearbeiten')).toHaveCount(0);
+  if (info.project.name === 'desktop') {
+    await row.getByRole('button', { name: /Betrag ändern/ }).click();
+    await row.getByLabel('Betrag bearbeiten').fill('0');
+    await row.getByLabel('Betrag bearbeiten').press('Enter');
+    await expect(row.getByRole('alert')).toContainText('ungleich 0');
+    await row.getByLabel('Betrag bearbeiten').fill('-15,01');
+    await row.getByLabel('Betrag bearbeiten').press('Tab');
+    await expect(row.getByLabel('Betrag bearbeiten')).toHaveCount(0);
+  } else await changeRowAmount(page, row, '-15,01'); // the phone row has no inline amount cell (#1328)
   expect((await (await request.get('/api/bookings/' + id)).json()).booking.amountCents).toBe(-1501);
   await row.getByRole('button', { name: 'bestätigt', exact: true }).click();
   await expect(row.getByRole('button', { name: 'vorgemerkt', exact: true })).toBeVisible();
@@ -224,8 +228,11 @@ test('booking cells, cash capture, repetition and account preview on desktop and
   await expect(page.getByTestId('balance-chart').first()).toBeVisible();
   await expect(page.locator('.l-forecast')).toHaveCount(0);
   await page.goto('/konten/buchungen');
+  // The phone row has no amount cell (#1328): its name button opens the booking.
   await expect(
-    page.locator(`[data-booking="${id}"]`).getByRole('button', { name: /Betrag ändern/ }),
+    page.locator(`[data-booking="${id}"]`).getByRole('button', {
+      name: info.project.name === 'desktop' ? /Betrag ändern/ : /bearbeiten/,
+    }),
   ).toBeVisible();
 });
 
@@ -344,7 +351,6 @@ test('single payee suggestion selects its recent account and keeps capture contr
     await page.screenshot({ path: info.outputPath(`booking-polish-${theme}.png`) });
   }
   await captureCloseControl(panel).click();
-  await panel.getByRole('button', { name: 'Verwerfen', exact: true }).click();
   await expect(panel).toBeHidden();
   const { id } = await post('/bookings', {
     type: 'booking',

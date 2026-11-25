@@ -15,6 +15,7 @@ export function ScheduledRegisterRow({
   blankCheck,
   balance,
   showBalance = true,
+  phone = false,
 }: {
   occurrence: Occurrence;
   today: string;
@@ -23,6 +24,8 @@ export function ScheduledRegisterRow({
   blankCheck?: boolean;
   balance: number | null;
   showBalance?: boolean;
+  /** Phone: one compact row like a booking row; the whole row opens the expected payment. */
+  phone?: boolean;
 }) {
   useAmountPrivacy();
   const write = useBudgetWrite();
@@ -42,6 +45,53 @@ export function ScheduledRegisterRow({
       setBusy(false);
     }
   };
+  if (phone) {
+    const category = s.categoryName ?? (s.kind === 'inflow' ? 'Zu verteilen' : 'ohne Kategorie');
+    return (
+      <tr className="is-upcoming kschedule-phone" data-occurrence={s.occurrenceId}>
+        <td colSpan={20}>
+          <div className={cx('kschedule-m', actionsOpen && 'is-open')}>
+            <AppLink
+              className="kschedule-m-main"
+              to={`/plan/erwartet/${encodeURIComponent(s.paymentId)}`}
+            >
+              <span className="kschedule-m-line">
+                <span className="kschedule-m-name">{s.name}</span>
+                <span
+                  className={cx(
+                    'kschedule-m-amount',
+                    s.amountCents < 0 ? 'kupcoming-negative' : 'kupcoming-positive',
+                  )}
+                >
+                  {nativeCurrency(s.amountCents, s.currency, true)}
+                </span>
+              </span>
+              <span className="kschedule-m-meta">
+                {category} · {s.accountName} · {upcomingDate(s.dueDate, today)}
+              </span>
+            </AppLink>
+            <button
+              type="button"
+              className="kschedule-more"
+              aria-label={`Aktionen: ${s.name}`}
+              aria-expanded={actionsOpen}
+              onClick={() => setActionsOpen((open) => !open)}
+            >
+              <Ellipsis size={16} strokeWidth={1.75} aria-hidden="true" />
+            </button>
+            <div className="kschedule-actions">
+              <Button size="xs" variant="ghost" disabled={busy} onClick={() => void action(true)}>
+                Jetzt buchen
+              </Button>
+              <Button size="xs" variant="ghost" disabled={busy} onClick={() => void action(false)}>
+                Überspringen
+              </Button>
+            </div>
+          </div>
+        </td>
+      </tr>
+    );
+  }
   return (
     <tr
       className="is-upcoming"

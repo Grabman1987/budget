@@ -248,7 +248,10 @@ it.each(['discard', 'save'] as const)(
     await user.click(await within(dialog).findByRole('option', { name: /Freund/ }));
     if (finish === 'discard') {
       fireEvent.click(within(dialog).getByRole('button', { name: 'Schließen' }));
-      fireEvent.click(within(dialog).getByRole('button', { name: 'Verwerfen' }));
+      // The footer has its own close-now Verwerfen (#1324); the refused edit asks in the alert dialog.
+      fireEvent.click(
+        within(within(dialog).getByRole('alertdialog')).getByRole('button', { name: 'Verwerfen' }),
+      );
     } else fireEvent.click(within(dialog).getByRole('button', { name: 'Speichern' }));
     await waitFor(() => expect(device.rows).toEqual([]));
     expect((await (await view.api.request(`/bookings/${view.older.id}`)).json()).booking).toEqual(

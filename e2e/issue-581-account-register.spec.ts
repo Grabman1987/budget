@@ -1,5 +1,5 @@
 import { captureCloseControl } from './ledger-helpers';
-import { redesignLoaded } from './ledger-helpers';
+import { redesignLoaded, changeRowAmount } from './ledger-helpers';
 import AxeBuilder from '@axe-core/playwright';
 import { expect, type APIRequestContext, type Page } from '@playwright/test';
 import { test } from './isolated-ledger';
@@ -178,14 +178,10 @@ test('inline writes keep exact cents, undo and reconciled locks', async ({
     });
     await expect(page.getByTestId('account-balance')).toHaveText('987,66 €');
   };
-  await change(
-    async () => {
-      await row.getByRole('button', { name: /^Betrag ändern/ }).click();
-      await row.getByLabel('Betrag bearbeiten').fill('-12,35');
-      await row.getByLabel('Betrag bearbeiten').press('Enter');
-    },
-    { amountCents: -1235, splits: [{ amountCents: -1235 }] },
-  );
+  await change(() => changeRowAmount(page, row, '-12,35'), {
+    amountCents: -1235,
+    splits: [{ amountCents: -1235 }],
+  });
   await change(() => row.getByRole('button', { name: 'bestätigt', exact: true }).click(), {
     status: 'pending',
   });
@@ -225,7 +221,12 @@ test('inline writes keep exact cents, undo and reconciled locks', async ({
   );
   await expect(row.getByRole('button', { name: /^Kategorie ändern/ })).toHaveCount(0);
   await expect(row.getByRole('img', { name: 'geprüft', exact: true })).toBeVisible();
-  await row.getByRole('button', { name: /^Betrag ändern/ }).click();
+  // The phone row has no amount cell (#1328): its name button opens the same release question.
+  await row
+    .getByRole('button', {
+      name: info.project.name === 'desktop' ? /^Betrag ändern/ : /bearbeiten/,
+    })
+    .click();
   if (await redesignLoaded(page))
     await page.getByRole('button', { name: 'Bearbeitung freigeben', exact: true }).click();
   await expect(page.getByRole('dialog', { name: 'Buchung bearbeiten' })).toBeVisible();

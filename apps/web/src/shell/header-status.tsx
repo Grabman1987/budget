@@ -22,10 +22,10 @@ export function MobileStatusLine() {
   return (
     <nav className="m-status" aria-label="Offene Aufgaben">
       {review && (
-        <InboxHeaderLink>
+        <InboxHeaderLink className={inbox.warning ? 'is-warning' : undefined}>
           {inbox.count === undefined
             ? 'Prüfen: Anzahl nicht verfügbar'
-            : `${inbox.count} zu prüfen`}
+            : `${inbox.count} zu prüfen${inbox.warning ? ` · ${inbox.warning}` : ''}`}
         </InboxHeaderLink>
       )}
       {review && plan && <span aria-hidden="true">·</span>}

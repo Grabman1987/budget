@@ -70,11 +70,6 @@ for (const width of [390, 1440]) {
         });
         expect((await save.boundingBox())!.y).toBeGreaterThan(before);
         await page.setViewportSize({ width, height: 900 });
-        await close.click();
-        await expect(
-          dialog.getByRole('alertdialog', { name: 'Eingaben verwerfen?' }),
-        ).toBeVisible();
-        await dialog.getByRole('button', { name: 'Weiter bearbeiten', exact: true }).click();
       }
       await amount.focus();
       await page.screenshot({ path: info.outputPath(`capture-${width}-${theme}.png`) });

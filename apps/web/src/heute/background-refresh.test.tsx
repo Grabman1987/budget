@@ -119,7 +119,7 @@ beforeEach(() => {
           stepUpValidUntil: null,
           viaRecovery: false,
         });
-      if (!read && !['/api/expected', '/api/goals'].includes(url.pathname)) {
+      if (!read && !['/api/expected', '/api/goals', '/api/inbox/count'].includes(url.pathname)) {
         unexpected.push(url.pathname);
         return Response.json({ error: 'unexpected_test_read' }, { status: 500 });
       }

@@ -1,4 +1,5 @@
 import { forwardRef, type ComponentPropsWithoutRef } from 'react';
+import { ScrollHint } from './scroll-hint';
 import './report-table.css';
 
 /** Shared register-style table. Callers keep semantic headers, figures and drilldowns. */
@@ -22,7 +23,7 @@ export const ReportTable = forwardRef<
       // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- Keyboard users scroll the complete table.
       tabIndex={0}
     >
-      <p className="table-scroll-hint">Seitlich wischen für weitere Spalten</p>
+      <ScrollHint />
       <table {...props} className={`report-table ${className}`}>
         <caption className="sr-only">{caption}</caption>
         {children}

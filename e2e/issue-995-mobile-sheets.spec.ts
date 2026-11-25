@@ -203,14 +203,8 @@ test('sheet swipes keep unsaved edits guarded and sideways drags open', async ({
   await swipe(page, grip, 70, 10);
   await expect(dialog).toBeVisible();
   await dialog.getByLabel('Notiz', { exact: true }).fill('Synthetic unsaved note');
+  // Swiping the sheet away discards the unsaved note at once (#1324).
   await swipe(page, grip, 0, 90);
-  await expect(
-    dialog.getByRole('button', { name: 'Weiter bearbeiten', exact: true }),
-  ).toBeVisible();
-  await dialog.getByRole('button', { name: 'Weiter bearbeiten', exact: true }).click();
-  await expect(dialog.getByLabel('Notiz', { exact: true })).toHaveValue('Synthetic unsaved note');
-  await captureCloseControl(dialog).click();
-  await dialog.getByRole('button', { name: 'Verwerfen', exact: true }).click();
   await expect(dialog).toBeHidden();
   expect(writes).toEqual([]);
 });

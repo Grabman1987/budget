@@ -12,8 +12,11 @@ import { test } from './isolated-ledger';
 const TODAY = todayInVienna();
 const MONTH = TODAY.slice(0, 7);
 const START = `${addMonths(MONTH, -2)}-01`;
-const PAST = `${addMonths(MONTH, -1)}-25`;
-const ASSIGNED = `${addMonths(MONTH, 1)}-25`;
+// Due day far from today, so no occurrence falls on the pause start (this spec used to fail on the 25th).
+const DUE_DAY = Number(TODAY.slice(8)) <= 14 ? 20 : 5;
+const DUE = String(DUE_DAY).padStart(2, '0');
+const PAST = `${addMonths(MONTH, -1)}-${DUE}`;
+const ASSIGNED = `${addMonths(MONTH, 1)}-${DUE}`;
 const THROUGH = `${addMonths(MONTH, 2)}-28`;
 const END_FROM = `${addMonths(MONTH, 1)}-01`;
 test.use({ ledgerToday: TODAY });
@@ -90,7 +93,7 @@ async function seed(page: Page, origin: string) {
       accountId,
       amountCents: 1234,
       rhythm: 'monthly',
-      dueDay: 25,
+      dueDay: DUE_DAY,
       dateShift: 'none',
       startDate: START,
       validFrom: START,

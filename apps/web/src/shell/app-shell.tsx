@@ -5,7 +5,7 @@ import { TITLE_ON_MOBILE_AREAS } from '../pages/area-head';
 import { MobileHeader, TabBar, phoneTitle } from './mobile-chrome';
 import { useActivePage } from './page-meta';
 import { useCaptureShortcut } from './capture-shortcut';
-import { PanelHost } from './panel-host';
+import { PanelHost, preloadPanels } from './panel-host';
 import { Sidebar } from './sidebar';
 import { Topbar } from './topbar';
 import { PageHeader } from './page-header';
@@ -63,6 +63,7 @@ export function AppShell() {
   }, [controlsInBody]);
   const title = page?.title ?? APP_NAME;
   useCaptureShortcut();
+  useEffect(() => preloadPanels(), []);
 
   useEffect(() => {
     document.title = title === APP_NAME ? APP_NAME : `${title} · ${APP_NAME}`;

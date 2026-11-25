@@ -214,7 +214,8 @@ it('offers a separator-capable date keyboard and preserves German date persisten
   expect((date as HTMLInputElement).value).toBe('29.02.2028');
   await user.click(screen.getByRole('button', { name: 'Einnahme' }));
   await user.type(screen.getByLabelText('Betrag', { exact: true }), '12,34');
-  expect(dirty.current).toBe(true);
+  // #1324: typed inputs no longer mark the dialog dirty (closing discards at once).
+  expect(dirty.current).toBe(false);
   await user.click(screen.getByRole('button', { name: 'Speichern' }));
   await waitFor(() => expect(writes.create).toHaveBeenCalledTimes(1));
   expect(writes.create.mock.calls[0]![0].input).toMatchObject({
@@ -239,7 +240,8 @@ it('rejects an impossible German date without submitting a booking', async () =>
 it('keeps a focusable native calendar without showPicker and updates the dirty draft', async () => {
   const { user, dirty } = await setup({ mode: 'create', accountId: 'context' });
   await user.type(screen.getByLabelText('Betrag', { exact: true }), '12,34');
-  expect(dirty.current).toBe(true);
+  // #1324: typed inputs no longer mark the dialog dirty (closing discards at once).
+  expect(dirty.current).toBe(false);
   const picker = screen.getByLabelText('Datum im Kalender') as HTMLInputElement;
   Object.defineProperty(picker, 'showPicker', { configurable: true, value: undefined });
   expect(picker.type).toBe('date');
@@ -251,6 +253,7 @@ it('keeps a focusable native calendar without showPicker and updates the dirty d
   expect((screen.getByLabelText('Datum', { exact: true }) as HTMLInputElement).value).toBe(
     '03.11.2026',
   );
-  expect(dirty.current).toBe(true);
+  // #1324: typed inputs no longer mark the dialog dirty (closing discards at once).
+  expect(dirty.current).toBe(false);
   expect(writes.create).not.toHaveBeenCalled();
 });

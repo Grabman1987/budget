@@ -281,12 +281,10 @@ test('keyboard reaches labelled controls, traps focus, cancels and returns to op
           ]),
       dialog.getByLabel('Notiz'),
       await contactShareControl(dialog),
-      ...((page.viewportSize()?.width ?? 1440) < 768
-        ? []
-        : [dialog.getByRole('button', { name: 'Abbrechen', exact: true })]),
-      ...(phone ? [captureSaveControl(dialog)] : []),
+      // Verwerfen leads the footer; Speichern is rightmost (#1324).
+      dialog.getByRole('button', { name: 'Verwerfen', exact: true }),
       dialog.getByRole('button', { name: 'Speichern und neu', exact: true }),
-      ...(!phone ? [captureSaveControl(dialog)] : []),
+      captureSaveControl(dialog),
       ...(phone ? [dialog.getByRole('button', { name: 'Blatt schließen', exact: true })] : []),
       dialog.getByRole('button', { name: 'Datei anhängen', exact: true }),
       ...(phone
@@ -318,8 +316,9 @@ test('keyboard reaches labelled controls, traps focus, cancels and returns to op
         dialog.getByRole('button', { name: 'Foto aufnehmen', exact: true }),
         dialog.getByRole('button', { name: 'Datei anhängen', exact: true }),
         dialog.getByRole('button', { name: 'Blatt schließen', exact: true }),
-        dialog.getByRole('button', { name: 'Speichern und neu', exact: true }),
         captureSaveControl(dialog),
+        dialog.getByRole('button', { name: 'Speichern und neu', exact: true }),
+        dialog.getByRole('button', { name: 'Verwerfen', exact: true }),
       ]) {
         await expect(target).toBeFocused();
         await page.keyboard.press('Shift+Tab');
@@ -357,6 +356,8 @@ test('keyboard reaches labelled controls, traps focus, cancels and returns to op
       await expect(dialog.locator('.kmore > summary')).toBeFocused();
     }
     await page.keyboard.press('Tab');
+    await expect(dialog.getByRole('button', { name: 'Verwerfen', exact: true })).toBeFocused();
+    await page.keyboard.press('Tab');
     await expect(dialog.getByRole('button', { name: 'Speichern und neu' })).toBeFocused();
     const save = captureSaveControl(dialog);
     await page.keyboard.press('Tab');
@@ -382,27 +383,10 @@ test('keyboard reaches labelled controls, traps focus, cancels and returns to op
       (el) => el.getAnimations({ subtree: true }).filter((a) => a.playState === 'running').length,
     ),
   ).toBe(0);
-  await amount.press('Escape');
-  const ask = dialog.getByRole('alertdialog', { name: 'Eingaben verwerfen?' });
-  await expect(ask).toBeVisible();
-  const keep = ask.getByRole('button', { name: 'Weiter bearbeiten' });
-  await expect(keep).toBeFocused();
-  await keep.press('Shift+Tab');
-  await expect(ask.getByRole('button', { name: 'Verwerfen', exact: true })).toBeFocused();
-  await page.keyboard.press('Tab');
-  await expect(keep).toBeFocused();
-  expect((await new AxeBuilder({ page }).include('dialog').analyze()).violations).toEqual([]);
+  // Esc discards at once (#1324); no question and nothing is saved.
   await evidence(page, info, 'booking-discard-focus', dialog);
-  await keep.press('Enter');
-  await expect(ask).toBeHidden();
-  await expect(amount).toBeFocused();
-  await expect(amount).toHaveValue('12,34');
   await amount.press('Escape');
-  await expect(keep).toBeFocused();
-  await keep.press('Tab');
-  const discard = ask.getByRole('button', { name: 'Verwerfen', exact: true });
-  await expect(discard).toBeFocused();
-  await discard.press('Enter');
+  await expect(dialog.getByRole('alertdialog')).toHaveCount(0);
   await expect(dialog).toBeHidden();
   await expect(opener).toBeFocused();
   expect((await (await request.get('/api/bookings')).json()).items).toEqual([]);

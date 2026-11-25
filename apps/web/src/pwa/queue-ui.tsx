@@ -10,7 +10,7 @@ import {
   type ReactNode,
 } from 'react';
 import { authStatusQuery } from '../auth/status-query';
-import { CaptureForm } from '../ledger/capture-form';
+import { CaptureForm } from '../ledger/capture-form-lazy';
 import { eur } from '../ledger/format';
 import { useLedgerWrites } from '../ledger/mutations';
 import { queueReason, sendQueue } from './queue';

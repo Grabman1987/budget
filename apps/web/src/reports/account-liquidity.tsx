@@ -3,7 +3,8 @@ import { Button, maskMoneyText, useAmountPrivacy } from '@budget/ui';
 import { Fragment, useState } from 'react';
 import { TriangleAlert } from 'lucide-react';
 import { ReportTable } from './report-table';
-import { BookingPanel, type BookingPanelState } from '../ledger/booking-panel';
+import type { BookingPanelState } from '../ledger/booking-panel';
+import { LazyBookingPanel } from '../ledger/booking-panel-lazy';
 import { eur, shortDay } from '../ledger/format';
 import { AppLink } from '../shell/app-link';
 import './account-liquidity.css';
@@ -80,7 +81,7 @@ export function AccountLiquidityAlerts({
           </div>
         );
       })}
-      <BookingPanel state={draft} onClose={() => setDraft(null)} />
+      <LazyBookingPanel state={draft} onClose={() => setDraft(null)} />
     </section>
   );
 }

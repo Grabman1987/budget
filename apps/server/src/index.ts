@@ -3,7 +3,7 @@ import { startBankWorker } from './bank-sync/worker-process';
 import { mkdirSync } from 'node:fs';
 import type { Server } from 'node:http';
 import { dirname, resolve } from 'node:path';
-import { databaseStamp, ensureDefaultRules, migrateDatabase, openDatabase } from '@budget/db';
+import { ensureDefaultRules, ledgerVersion, migrateDatabase, openDatabase } from '@budget/db';
 import { todayInVienna } from '@budget/domain';
 import { serve } from '@hono/node-server';
 import { createApp } from './app';
@@ -25,6 +25,7 @@ import { cryptoReadSource } from './sources/crypto-api';
 import { refreshReadSourceIfDue } from './sources/refresh';
 import { todayFromEnv } from './today';
 import { startPlanSnapshotTimer } from './plan-snapshots';
+import { warmPaths } from './api/index';
 import { readModelOffload, startReadModelRefresh } from './api/read-model-offload';
 
 const port = Number(process.env['PORT'] ?? 3000);
@@ -90,7 +91,12 @@ const app = createApp({
     onApi: (api) => {
       warmUp = api.warm;
       // Recompute what a visitor read recently once the database settles after a change.
-      if (offload) stopRefresh = startReadModelRefresh(api, () => databaseStamp(db), offload);
+      if (offload) {
+        const day = today ?? (() => todayInVienna());
+        stopRefresh = startReadModelRefresh(api, () => `${ledgerVersion(db)}|${day()}`, offload, {
+          always: () => warmPaths(day()),
+        });
+      }
     },
     offload,
     ...(today ? { today } : {}),

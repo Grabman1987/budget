@@ -467,3 +467,87 @@
     display: none !important;
   }
 }
+
+/* Category drill-down in the monthly summary table. */
+[data-budget-redesign='1'] .period-summary-table .period-drill-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+[data-budget-redesign='1'] .period-summary-table .period-drill-toggle:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+[data-budget-redesign='1'] .period-drill-chevron {
+  flex: none;
+  width: 1em;
+  color: var(--ink-3);
+}
+[data-budget-redesign='1'] .period-summary-table .period-drill-row[hidden] {
+  display: none;
+}
+[data-budget-redesign='1'] .period-summary-table .period-drill-row > td {
+  padding: 0 0 8px;
+  text-align: left;
+}
+[data-budget-redesign='1'] .period-drill ul {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+[data-budget-redesign='1'] .period-drill li {
+  display: grid;
+  grid-template-columns: 3.2em minmax(0, 1fr) auto;
+  gap: 8px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--rule);
+  font-size: var(--fs-meta);
+}
+[data-budget-redesign='1'] .period-drill-text {
+  overflow-wrap: anywhere;
+}
+[data-budget-redesign='1'] .period-drill-text small {
+  display: block;
+  color: var(--ink-3);
+}
+[data-budget-redesign='1'] .period-drill-amount,
+[data-budget-redesign='1'] .period-drill-total b {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+[data-budget-redesign='1'] .period-drill-total {
+  display: flex;
+  justify-content: space-between;
+  margin: 6px 0;
+  font-size: var(--fs-meta);
+  font-weight: 650;
+}
+[data-budget-redesign='1'] .period-drill > a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+}
+[data-budget-redesign='1'] .period-drill-note {
+  margin: 0;
+  padding: 8px 0;
+  color: var(--ink-2);
+  font-size: var(--fs-meta);
+}
+@media print {
+  [data-budget-redesign='1'] .period-drill-row {
+    display: none;
+  }
+  [data-budget-redesign='1'] .period-drill-chevron {
+    display: none;
+  }
+}

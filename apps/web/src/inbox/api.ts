@@ -196,10 +196,20 @@ export const inboxDetailQuery = (id: string) =>
     queryFn: () => request<{ entry: InboxStored }>('GET', `/api/inbox/${encodeURIComponent(id)}`),
   });
 const COUNT_KEY = [...INBOX_KEY, 'count'] as const;
+/** Count plus age and money of the open uncategorised bookings (the Prüfen warning). */
+export interface InboxCountData {
+  asOf: string;
+  count: number;
+  oldestOpenDate?: string | null;
+  overAgeCount?: number;
+  /** Integer cents, negative for money still to be spent. */
+  openUncategorizedCents?: number;
+  thresholds?: { ageDays: number; count: number };
+}
 export const inboxCountQuery = () =>
   queryOptions({
     queryKey: COUNT_KEY,
-    queryFn: () => request<{ asOf: string; count: number }>('GET', '/api/inbox/count'),
+    queryFn: () => request<InboxCountData>('GET', '/api/inbox/count'),
     refetchInterval: 60_000,
   });
 const isGlobalPagesKey = (key: readonly unknown[]) =>
@@ -247,6 +257,8 @@ export function syncInboxCount(client: QueryClient): void {
       const count = client.getQueryState(COUNT_KEY);
       if ((count?.dataUpdatedAt ?? 0) > (fetchStartedAt.get(query) ?? 0)) return;
       client.setQueryData(COUNT_KEY, {
+        // The warning facts survive a recount from the queue totals.
+        ...client.getQueryData<InboxCountData>(COUNT_KEY),
         asOf: first.asOf,
         count: first.segments.umsaetze + first.segments.aufgaben,
       });

@@ -1,4 +1,4 @@
-import { databaseStamp, type Db } from '@budget/db';
+import { ledgerVersion, type Db } from '@budget/db';
 import type { MiddlewareHandler } from 'hono';
 
 /**
@@ -13,7 +13,18 @@ const CACHEABLE =
  * The account list and inbox badge also qualify: both derive from the database and the day,
  * and can replay the audit log for account review tasks (#956).
  */
-const CACHEABLE_EXACT = /^\/(accounts|inbox\/count)$/;
+const CACHEABLE_EXACT =
+  /^\/(accounts|inbox\/count|goals|expected|expected\/(year-preview|occurrences|income|register-next))$/;
+
+/**
+ * Budget answers that carry a basis bound to the serving connection (`previewBasis`, the cursors of
+ * the uncategorized and activity lists: `databaseStamp` plus a per-process epoch) are not replayed: the basis
+ * moves with writes the ledger version ignores, so a replay could hand out a basis that no longer
+ * matches. The same set is never offloaded (`read-model-offload.ts`).
+ */
+export const connectionBound = (route: string, search: string): boolean =>
+  /^\/budget\/[^/]+\/(uncategorized|activity)(\/|$)/.test(route) ||
+  new URLSearchParams(search).get('previewBasis') === '1';
 
 const MAX_ENTRY_BYTES = 4 * 1024 * 1024;
 const MAX_TOTAL_BYTES = 24 * 1024 * 1024;
@@ -31,9 +42,10 @@ interface Entry {
  * Answers a repeated GET of an expensive read model from memory while nothing was written.
  *
  * The first request computes and stores the answer; the next ones are served as long as the
- * database stamp (`databaseStamp`: rows written by this connection, commits of other connections)
- * and "today" are the same. Any write, also one of the import worker or the bank-sync process,
- * moves the stamp, so a stale answer can never be served after a change. An answer is only stored
+ * ledger version (`ledgerVersion`: a counter that triggers bump on every write to a table a read
+ * model can read) and "today" are the same. Any ledger write, also one of the import worker or the
+ * bank-sync process, moves it, so a stale answer can never be served after a change; writes to
+ * sessions, the audit log or market run logs do not. An answer is only stored
  * when the handler itself wrote nothing. The Map's insertion order is the LRU order.
  *
  * Requests for the same key and stamp that arrive while the first one still computes (the Heute
@@ -60,8 +72,9 @@ export function readModelCache(
       return next();
     // Path and query only: the in-process warm-up (`api/warm.ts`) asks without host and `/api`.
     const url = new URL(c.req.url);
+    if (connectionBound(route, url.search)) return next();
     const key = `${today()}|${url.pathname.replace(/^\/api(?=\/)/, '')}${url.search}`;
-    let stamp = databaseStamp(db);
+    let stamp = ledgerVersion(db);
     // A replayed body is still a private API response: never let a browser or proxy store it.
     const replay = (entry: Entry) =>
       new Response(entry.body, {
@@ -78,9 +91,9 @@ export function readModelCache(
     if (running?.stamp === stamp) {
       const shared = await running.done;
       // Only an answer stored for this very stamp; otherwise compute as if alone.
-      if (shared && shared.stamp === stamp && databaseStamp(db) === stamp) return replay(shared);
+      if (shared && shared.stamp === stamp && ledgerVersion(db) === stamp) return replay(shared);
       // Something was written meanwhile: compute for the state as it is now.
-      stamp = databaseStamp(db);
+      stamp = ledgerVersion(db);
     }
     drop(key);
     let finish!: (entry: Entry | undefined) => void;
@@ -92,7 +105,7 @@ export function readModelCache(
       const type = c.res.headers.get('content-type') ?? '';
       if (c.res.status !== 200 || !type.includes('application/json')) return;
       const body = await c.res.clone().text();
-      if (body.length > MAX_ENTRY_BYTES || databaseStamp(db) !== stamp) return;
+      if (body.length > MAX_ENTRY_BYTES || ledgerVersion(db) !== stamp) return;
       stored = { body, contentType: type, stamp, storedAt: now() };
       entries.set(key, stored);
       total += body.length;

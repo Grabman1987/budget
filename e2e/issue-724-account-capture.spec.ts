@@ -1,5 +1,4 @@
 import { captureSaveControl } from './ledger-helpers';
-import { captureCloseControl } from './ledger-helpers';
 import { openAccountCapture, redesignLoaded } from './ledger-helpers';
 import AxeBuilder from '@axe-core/playwright';
 import { expect, type APIRequestContext } from '@playwright/test';
@@ -237,9 +236,6 @@ for (const profile of ['configured', 'desktop1440'] as const) {
         expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
         await dialog.screenshot({ path: info.outputPath(`capture-date-${theme}.png`) });
       }
-      await captureCloseControl(dialog).click();
-      await expect(dialog.getByRole('alertdialog')).toBeVisible();
-      await dialog.getByRole('button', { name: 'Weiter bearbeiten', exact: true }).click();
       await expect(date).toHaveValue('03.11.2026');
       await picker.fill('2026-10-03');
       await expect(date).toHaveValue('03.10.2026');

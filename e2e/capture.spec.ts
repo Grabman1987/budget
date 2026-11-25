@@ -171,17 +171,12 @@ test('discard question, save-and-new keeps only register and date, selecting a p
   await createAccount(page, account, 'Bargeld', '100');
   await openAccount(page, account);
 
-  // Esc with input asks first; "Weiter bearbeiten" keeps everything.
+  // Esc with input closes at once and discards, without a question (#1324).
   let panel = await openCapture(page, testInfo);
   await panel.getByLabel('Betrag', { exact: true }).fill('5,00');
   await page.keyboard.press('Escape');
-  await expect(panel.getByText('Eingaben verwerfen?')).toBeVisible();
-  await panel.getByRole('button', { name: 'Weiter bearbeiten' }).click();
-  await expect(panel.getByText('Eingaben verwerfen?')).toBeHidden();
-  await expect(panel.getByLabel('Betrag', { exact: true })).toHaveValue('5,00');
-  await page.keyboard.press('Escape');
-  await panel.getByRole('button', { name: 'Verwerfen' }).click();
   await expect(page.getByRole('dialog', { name: 'Buchung erfassen' })).toBeHidden();
+  await expect(page.getByText('Eingaben verwerfen?')).toHaveCount(0);
 
   // Speichern und neu (Ctrl+Umschalt+Enter): only register context and date survive.
   panel = await openCapture(page, testInfo);
@@ -245,7 +240,7 @@ test('discard question, save-and-new keeps only register and date, selecting a p
     await expect(panel.getByRole('listbox')).toBeHidden();
   }
   await page.keyboard.press('Escape');
-  await panel.getByRole('button', { name: 'Verwerfen' }).click();
+  await expect(page.getByRole('dialog', { name: 'Buchung erfassen' })).toBeHidden();
 });
 
 test('the capture panel is axe clean in both themes and never scrolls sideways', async ({
@@ -298,9 +293,8 @@ test('the capture panel is axe clean in both themes and never scrolls sideways',
       ),
       `${scheme} scrolls sideways`,
     ).toBe(true);
-    // There is input in the panel: Esc asks before it goes away.
+    // Esc closes the dialog at once and discards the input (#1324).
     await page.keyboard.press('Escape');
-    await panel.getByRole('button', { name: 'Verwerfen' }).click();
     await expect(page.getByRole('dialog', { name: 'Buchung erfassen' })).toBeHidden();
   }
 });
@@ -422,20 +416,20 @@ test('Ctrl+Enter held or pressed twice sends the booking once', async ({ page },
   expect(posts).toBe(1);
 });
 
-test('a second Esc without any interaction still asks before discarding', async ({
+test('Esc and Verwerfen close a dialog with input at once, without a question (#1324)', async ({
   page,
 }, testInfo) => {
   await visit(page, '/');
-  const panel = await openCapture(page, testInfo);
+  let panel = await openCapture(page, testInfo);
   await panel.getByLabel('Betrag', { exact: true }).fill('5,00');
-  // Chrome lets a repeated Esc close a dialog without a cancel event unless it is handled.
   await page.keyboard.press('Escape');
-  await expect(panel.getByText('Eingaben verwerfen?')).toBeVisible();
-  await page.keyboard.press('Escape');
-  await expect(panel).toBeVisible();
-  await expect(panel.getByText('Eingaben verwerfen?')).toBeVisible();
-  // The question now takes focus (#314), so the amount field blurs and shows its canonical form.
-  await expect(panel.getByLabel('Betrag', { exact: true })).toHaveValue('5,00');
+  await expect(panel).toBeHidden();
+  await expect(page.getByText('Eingaben verwerfen?')).toHaveCount(0);
+  panel = await openCapture(page, testInfo);
+  await expect(panel.getByLabel('Betrag', { exact: true })).toHaveValue('');
+  await panel.getByLabel('Betrag', { exact: true }).fill('5,00');
+  await panel.getByRole('button', { name: 'Verwerfen', exact: true }).click();
+  await expect(panel).toBeHidden();
 });
 
 test('the dialog is a centred card on the desktop and a sheet on the phone with a direct date input', async ({

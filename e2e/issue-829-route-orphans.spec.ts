@@ -42,7 +42,12 @@ async function flag(p: Page) {
   return on;
 }
 async function journal(p: Page) {
-  await expect(p.getByLabel('In Buchungen suchen', { exact: true })).toBeVisible();
+  await expect(
+    p
+      .getByLabel('In Buchungen suchen', { exact: true })
+      .or(p.getByRole('button', { name: /^Filter \(/ }))
+      .first(),
+  ).toBeVisible();
   await expect(
     p
       .getByRole('table', { name: 'Alle Buchungen nach Tag', exact: true })

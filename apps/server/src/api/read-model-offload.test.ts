@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
-import { startReadModelRefresh, type ReadModelOffload } from './read-model-offload';
+import { startReadModelRefresh, workerIdleMs, type ReadModelOffload } from './read-model-offload';
 
 beforeEach(() => vi.useFakeTimers());
 afterEach(() => vi.useRealTimers());
@@ -36,4 +36,25 @@ it('does nothing without a recent visitor', async () => {
   await vi.advanceTimersByTimeAsync(5_000);
   expect(asked).toEqual([]);
   stop();
+});
+
+it('also recomputes the always-warm pages, one at a time, without repeating a recent one', async () => {
+  let stamp = '1';
+  const asked: string[] = [];
+  const api = { request: (path: string) => (asked.push(path), new Response('{}')) };
+  const offload = { recent: () => ['/accounts'] } as unknown as ReadModelOffload;
+  const stop = startReadModelRefresh(api, () => stamp, offload, {
+    everyMs: 1_000,
+    always: () => ['/accounts', '/budget/2026-03'],
+  });
+  stamp = '2';
+  await vi.advanceTimersByTimeAsync(3_000);
+  expect(asked).toEqual(['/accounts', '/budget/2026-03']);
+  stop();
+});
+
+it('keeps the worker for 45 minutes unless configured', () => {
+  expect(workerIdleMs({})).toBe(45 * 60_000);
+  expect(workerIdleMs({ BUDGET_READ_WORKER_IDLE_MIN: '10' })).toBe(10 * 60_000);
+  expect(workerIdleMs({ BUDGET_READ_WORKER_IDLE_MIN: 'x' })).toBe(45 * 60_000);
 });

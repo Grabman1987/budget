@@ -61,7 +61,7 @@ export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
  * Whoever caches reads (the query client) hears about every successful write, so that no cached
  * page outlives a change, whatever the caller remembers to invalidate by name.
  */
-const writeListeners = new Set<() => void>();
+const writeListeners = new Set<(path?: string) => void>();
 let expiryCleanupStarted = false;
 const PRE_AUTH_PATHS = new Set([
   '/api/auth/register/options',
@@ -79,12 +79,13 @@ function endKnownSession(fromStatus = false): void {
   if (typeof window !== 'undefined')
     window.dispatchEvent(new CustomEvent('budget-session-expired', { detail: { fromStatus } }));
 }
-export function onApiWrite(listener: () => void): () => void {
+export function onApiWrite(listener: (path?: string) => void): () => void {
   writeListeners.add(listener);
   return () => writeListeners.delete(listener);
 }
-export function notifyApiWrite(): void {
-  for (const listener of writeListeners) listener();
+/** `path` (when known) lets the listener invalidate only the families the write can change. */
+export function notifyApiWrite(path?: string): void {
+  for (const listener of writeListeners) listener(path);
 }
 
 /** JSON request against the same origin; every failure becomes an `ApiError`. */
@@ -197,7 +198,7 @@ export async function request<T>(
   }
   // File delivery notifies only after a validated acknowledgement and epoch-checked device cleanup.
   if (method !== 'GET' && !queuedReceipt && !path.startsWith('/api/bookings/delivery/'))
-    notifyApiWrite();
+    notifyApiWrite(path);
   if (
     authGeneration !== null &&
     snapshotGeneration() === authGeneration &&

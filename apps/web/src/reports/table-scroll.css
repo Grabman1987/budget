@@ -13,3 +13,6 @@
     color: var(--ink-2);
   }
 }
+.table-scroll-hint[hidden] {
+  display: none;
+}

@@ -7,6 +7,7 @@ import type {
 } from '@budget/domain';
 import { infiniteQueryOptions, queryOptions } from '@tanstack/react-query';
 import { request } from '../api/http';
+import { HEAVY_READ_STALE_MS } from '../api/stale-times';
 import type { ListedBooking, WriteResult } from '../ledger/types';
 import type { CategoryRow, GroupRow, TargetRow } from './api';
 import { BUDGET_KEY } from './use-category-writes';
@@ -67,6 +68,8 @@ const path = (month: string) => `/api/budget/${month}`;
 export const budgetQuery = (month: string) =>
   queryOptions({
     queryKey: [...BUDGET_KEY, month],
+    staleTime: HEAVY_READ_STALE_MS,
+    refetchOnWindowFocus: true,
     queryFn: () =>
       request<BudgetMonthView>('GET', `${path(month)}${REDESIGN_ENABLED ? '?previewBasis=1' : ''}`),
   });

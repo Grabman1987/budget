@@ -23,9 +23,26 @@ export async function openAccountCapture(page: Page) {
 
 /** Phone filters live in a sheet; desktop keeps the inline controls. */
 export async function openLedgerFilters(page: Page) {
-  await page.getByLabel('In Buchungen suchen').waitFor({ state: 'visible' });
   const trigger = page.getByRole('button', { name: /^Filter \(/ });
+  await trigger.or(page.getByLabel('In Buchungen suchen')).first().waitFor({ state: 'visible' });
   if (await trigger.isVisible()) await trigger.click();
+}
+
+/** The text search: inline on desktop, first field of the filter sheet on the phone. */
+export async function bookingSearch(page: Page): Promise<Locator> {
+  const input = page.getByLabel('In Buchungen suchen');
+  // Decide by viewport, not by what is rendered yet: while the page still loads neither the
+  // inline field nor the sheet exists, and opening the sheet on desktop would swallow the input.
+  const phone = await page.evaluate(() => matchMedia('(max-width: 767px)').matches);
+  if (phone && !(await input.isVisible())) await openLedgerFilters(page);
+  await input.waitFor({ state: 'visible' });
+  return input;
+}
+
+/** Types a search and, on the phone, closes the sheet again. */
+export async function fillBookingSearch(page: Page, text: string) {
+  await (await bookingSearch(page)).fill(text);
+  await applyLedgerFilters(page);
 }
 
 export async function applyLedgerFilters(page: Page) {
@@ -228,4 +245,27 @@ export async function accountDocuments(scope: Locator | Page) {
     if ((await documents.getAttribute('open')) === null)
       await documents.locator(':scope > summary').click();
   }
+}
+
+/** Phone rows (below 768 px) have no inline amount cell: a tap opens the booking dialog (#1328). */
+export const isPhoneViewport = (page: Page) => (page.viewportSize()?.width ?? 1280) < 768;
+
+/**
+ * Changes the amount of a register row: through the inline amount cell on desktop, through the
+ * booking dialog on the phone (expense amounts are passed with their minus either way). Both end
+ * with the saved write.
+ */
+export async function changeRowAmount(page: Page, row: Locator, text: string) {
+  if (isPhoneViewport(page)) {
+    await row.getByRole('button', { name: /bearbeiten/ }).click();
+    const dialog = page.getByRole('dialog', { name: 'Buchung bearbeiten' });
+    // The dialog field is unsigned: the booking's kind (expense) carries the minus.
+    await dialog.getByLabel('Betrag', { exact: true }).fill(text.replace(/^-/, ''));
+    await captureSaveControl(dialog).click();
+    await expect(dialog).toBeHidden();
+    return;
+  }
+  await row.getByRole('button', { name: /^Betrag ändern/ }).click();
+  await row.getByLabel('Betrag bearbeiten').fill(text);
+  await row.getByLabel('Betrag bearbeiten').press('Enter');
 }

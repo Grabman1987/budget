@@ -1,6 +1,7 @@
 import {
   accountReminderDays,
   appSetting,
+  inboxWarnThresholds,
   createEntity,
   getEntity,
   updateEntity,
@@ -9,6 +10,8 @@ import {
 import {
   ACCOUNT_REMINDER_SETTING,
   DEFAULT_FUTURE_PREVIEW_DAYS,
+  INBOX_WARN_AGE_SETTING,
+  INBOX_WARN_COUNT_SETTING,
   validFuturePreviewDays,
 } from '@budget/domain';
 import { randomUUID } from 'node:crypto';
@@ -21,6 +24,8 @@ const bodySchema = z
   .strictObject({
     futurePreviewDays: z.int().min(0).max(365).optional(),
     accountReminderDays: z.int().min(1).max(365).optional(),
+    inboxWarnAgeDays: z.int().min(1).max(365).optional(),
+    inboxWarnCount: z.int().min(1).max(9999).optional(),
   })
   .refine((body) => Object.keys(body).length > 0);
 export function displaySettingsRoutes(db: Db): Hono {
@@ -30,6 +35,8 @@ export function displaySettingsRoutes(db: Db): Hono {
     const days = stored === undefined ? DEFAULT_FUTURE_PREVIEW_DAYS : Number(stored);
     return c.json({
       accountReminderDays: accountReminderDays(db),
+      inboxWarnAgeDays: inboxWarnThresholds(db).ageDays,
+      inboxWarnCount: inboxWarnThresholds(db).count,
       futurePreviewDays: validFuturePreviewDays(days) ? days : DEFAULT_FUTURE_PREVIEW_DAYS,
     });
   });
@@ -40,6 +47,8 @@ export function displaySettingsRoutes(db: Db): Hono {
       for (const [key, days] of [
         [KEY, body.futurePreviewDays],
         [ACCOUNT_REMINDER_SETTING, body.accountReminderDays],
+        [INBOX_WARN_AGE_SETTING, body.inboxWarnAgeDays],
+        [INBOX_WARN_COUNT_SETTING, body.inboxWarnCount],
       ] as const) {
         if (days === undefined) continue;
         const current = getEntity(tx, appSetting, key);

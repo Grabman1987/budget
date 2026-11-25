@@ -1,4 +1,4 @@
-import { captureSaveControl } from './ledger-helpers';
+import { captureSaveControl, fillBookingSearch } from './ledger-helpers';
 import { redesignLoaded, pickCategory } from './ledger-helpers';
 import { openHeuteReview } from './heute-visual-fixture';
 import Database from 'better-sqlite3';
@@ -101,7 +101,7 @@ test('scrolls account and all bookings through six months, with complete search 
       path: info.outputPath(url.endsWith('/buchungen') ? 'all-history.png' : 'account-history.png'),
     });
   }
-  await page.getByLabel('In Buchungen suchen').fill('Oldest needle');
+  await fillBookingSearch(page, 'Oldest needle');
   await expect(page.locator('[data-booking]')).toHaveCount(1);
   await expect(page.locator('[data-booking]')).toHaveAttribute('data-booking', 'history-000');
   for (const theme of ['light', 'dark']) {

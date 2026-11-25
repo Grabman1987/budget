@@ -1,6 +1,7 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
 import type Database from 'better-sqlite3';
 import { sql } from 'drizzle-orm';
+import { installStatementCache, type StatementCacheStats } from './snapshot-statements';
 import type { Executor } from './types';
 
 /**
@@ -32,6 +33,13 @@ interface Memo {
 const storage = new AsyncLocalStorage<Memo>();
 /** Connections inside `runInReadSnapshot`: their open transaction is a read-only snapshot. */
 const snapshots = new WeakSet<object>();
+/**
+ * Snapshots of a `query_only` connection: nothing can write inside them, so the database stamp
+ * cannot move and is read once (every memo lookup would otherwise run a stamp query).
+ */
+const frozenStamps = new WeakMap<object, string>();
+/** What the statement cache of the last finished snapshot did (tests, diagnostics). */
+export const snapshotStatementStats: StatementCacheStats = { executed: 0, reused: 0 };
 
 export function runWithRequestMemo<T>(fn: () => T): T {
   return storage.run({ byConnection: new WeakMap() }, fn);
@@ -49,9 +57,18 @@ export async function runInReadSnapshot<T>(db: Executor, fn: () => Promise<T>): 
   if (!connection || connection.inTransaction) return fn();
   connection.exec('BEGIN');
   snapshots.add(connection);
+  let release: (() => void) | undefined;
+  if (connection.pragma('query_only', { simple: true }) === 1) {
+    frozenStamps.set(connection, databaseStamp(db));
+    snapshotStatementStats.executed = 0;
+    snapshotStatementStats.reused = 0;
+    release = installStatementCache(connection, snapshotStatementStats);
+  }
   try {
     return await fn();
   } finally {
+    release?.();
+    frozenStamps.delete(connection);
     snapshots.delete(connection);
     if (connection.inTransaction) connection.exec('ROLLBACK');
   }
@@ -94,7 +111,7 @@ function memoizedEntry<T>(db: Executor, key: string, compute: () => T, clone: bo
     (!isTransaction(db) && connection.inTransaction && !snapshots.has(connection))
   )
     return compute();
-  const stamp = databaseStamp(db);
+  const stamp = frozenStamps.get(connection) ?? databaseStamp(db);
   const transaction = isTransaction(db);
   if (transaction) {
     const committed = memo.byConnection.get(connection);
@@ -116,6 +133,7 @@ function memoizedEntry<T>(db: Executor, key: string, compute: () => T, clone: bo
   }
   const value = compute();
   // `compute` only reads; if it wrote anyway the stamp has moved and nothing may be stored.
-  if (databaseStamp(db) === stamp) entries.values.set(key, clone ? structuredClone(value) : value);
+  if (frozenStamps.has(connection) || databaseStamp(db) === stamp)
+    entries.values.set(key, clone ? structuredClone(value) : value);
   return value;
 }

@@ -1,5 +1,12 @@
 import { registerPeriod, type RegisterMonth, type RegisterMonthsKind } from '@budget/domain';
-import { ChartSvg, Segmented, maskMoneyText, useAmountPrivacy, useIsPhone } from '@budget/ui';
+import {
+  BottomSheet,
+  ChartSvg,
+  Segmented,
+  maskMoneyText,
+  useAmountPrivacy,
+  useIsPhone,
+} from '@budget/ui';
 import { useId, useState } from 'react';
 import { eur } from './format';
 
@@ -30,15 +37,19 @@ export function RegisterSummary({
   kind,
   today,
   pending,
+  sheetOpen = false,
+  onSheetClose,
 }: {
   months: readonly RegisterMonth[] | undefined;
   kind?: RegisterMonthsKind | undefined;
   today: string;
   pending: boolean;
+  /** Phone: the evaluation opens as a sheet from the page menu instead of sitting in the list. */
+  sheetOpen?: boolean;
+  onSheetClose?: () => void;
 }) {
   const hidden = useAmountPrivacy();
   const phone = useIsPhone();
-  const [expanded, setExpanded] = useState(false);
   const [range, setRange] = useState<'3' | '6' | '12' | 'all'>('6');
   const id = useId();
   const period = registerPeriod(months ?? [], range, today);
@@ -50,7 +61,7 @@ export function RegisterSummary({
   const y = (value: number) => 20 + ((high - value) / (high - low || 1)) * 100;
   const step = 300 / (values.length || 1);
   const content = (
-    <div id={id} className="register-summary-content" hidden={phone && !expanded}>
+    <div id={id} className="register-summary-content">
       <Segmented
         label="Zeitraum der Auswertung"
         options={ranges}
@@ -169,21 +180,16 @@ export function RegisterSummary({
       )}
     </div>
   );
+  if (phone) {
+    return (
+      <BottomSheet open={sheetOpen} onClose={() => onSheetClose?.()} title="Auswertung des Filters">
+        <section aria-label="Auswertung des aktuellen Filters">{content}</section>
+      </BottomSheet>
+    );
+  }
   return (
     <section className="register-summary" aria-label="Auswertung des aktuellen Filters">
-      {phone ? (
-        <button
-          type="button"
-          className="register-summary-toggle"
-          aria-expanded={expanded}
-          aria-controls={id}
-          onClick={() => setExpanded(!expanded)}
-        >
-          Auswertung des Filters <span aria-hidden="true">{expanded ? '−' : '+'}</span>
-        </button>
-      ) : (
-        <h2>Auswertung des Filters</h2>
-      )}
+      <h2>Auswertung des Filters</h2>
       {content}
     </section>
   );

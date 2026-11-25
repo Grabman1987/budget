@@ -1,5 +1,5 @@
 import { captureSaveControl, redesignLoaded } from './ledger-helpers';
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 import {
   openAccountCapture,
   again,
@@ -9,6 +9,13 @@ import {
   pickCategory,
   toast,
 } from './ledger-helpers';
+
+/** Desktop edits through the amount cell; a phone row opens the editor with a tap (#1328). */
+async function openBookingRow(page: Page, payee: string) {
+  const row = page.getByRole('row', { name: new RegExp(payee) });
+  if (page.viewportSize()!.width < 768) await row.locator('.kname-btn').click();
+  else await row.getByRole('button', { name: /Betrag ändern/ }).click();
+}
 
 /**
  * Issue #672: a toast must never cover the primary action of the dialog it is shown over. The
@@ -45,10 +52,7 @@ test('a visible toast does not cover the Speichern button of an open dialog', as
   await expect(toast(page)).toContainText('Kontostand geprüft');
 
   // The toast is still open (6 s) when the edit dialog opens; it must stay on the page.
-  await page
-    .getByRole('row', { name: new RegExp(payee) })
-    .getByRole('button', { name: /Betrag ändern/ })
-    .click();
+  await openBookingRow(page, payee);
   const edit = page.getByRole('dialog', { name: 'Buchung bearbeiten' });
   const redesign = await redesignLoaded(page);
   if (redesign) {
@@ -83,10 +87,7 @@ test('a visible toast does not cover the Speichern button of an open dialog', as
     await save.click();
     await expect(edit).toBeHidden();
     await expect(balance(page)).toHaveText('480,00 €');
-    await page
-      .getByRole('row', { name: new RegExp(payee) })
-      .getByRole('button', { name: /Betrag ändern/ })
-      .click();
+    await openBookingRow(page, payee);
     await page.getByRole('button', { name: 'Bearbeitung freigeben', exact: true }).click();
     await expect(edit.getByLabel('Notiz', { exact: true })).toHaveValue(note);
   } else {

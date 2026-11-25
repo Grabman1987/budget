@@ -1,4 +1,6 @@
 // @vitest-environment jsdom
+// Lazy chunk resolved from the module cache, so the dialog opens within the test's wait.
+import '../ledger/booking-panel';
 import { act, cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -132,6 +134,7 @@ function mount(at = '/?monat=2026-09&period=month') {
     const plain = new Set([
       '/api/auth/status',
       '/api/expected',
+      '/api/inbox/count', // #1320: Prüfen warning facts are a plain read on Heute and Plan
       '/api/savings-plans/execution-proposals',
       '/api/budget/2026-08',
       '/api/budget/2026-09',

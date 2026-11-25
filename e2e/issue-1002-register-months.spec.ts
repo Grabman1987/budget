@@ -1,7 +1,8 @@
 import AxeBuilder from '@axe-core/playwright';
-import { expect, type APIRequestContext } from '@playwright/test';
+import { expect, type APIRequestContext, type Page } from '@playwright/test';
 import Database from 'better-sqlite3';
 import { test } from './isolated-ledger';
+import { fillBookingSearch } from './ledger-helpers';
 
 test.use({ ledgerToday: '2026-11-08' });
 
@@ -85,11 +86,7 @@ test('complete filtered month sums, pagination, range and privacy', async ({
   ).toHaveCount(0);
   const summary = page.getByRole('region', { name: 'Auswertung des aktuellen Filters' });
   const phone = info.project.name !== 'desktop';
-  if (phone) {
-    const toggle = summary.getByRole('button', { name: 'Auswertung des Filters' });
-    await expect(toggle).toHaveAttribute('aria-expanded', 'false');
-    await toggle.click();
-  }
+  if (phone) await openSummarySheet(page);
   await expect(summary.getByRole('button', { name: '6 M', exact: true })).toHaveAttribute(
     'aria-pressed',
     'true',
@@ -104,6 +101,7 @@ test('complete filtered month sums, pagination, range and privacy', async ({
   await summary.getByRole('button', { name: 'Alle', exact: true }).click();
   await expect(summary.locator('dl')).toContainText('−26,77 €');
   await summary.getByRole('button', { name: '6 M', exact: true }).click();
+  await closeSummarySheet(page, phone);
   await page.getByRole('button', { name: 'Weitere Buchungen laden' }).scrollIntoViewIfNeeded();
   await expect(page.locator('[data-booking]')).toHaveCount(52);
   await expect(page.locator('.kmonth-totals').last()).toContainText(
@@ -111,17 +109,21 @@ test('complete filtered month sums, pagination, range and privacy', async ({
   );
   await page.getByRole('button', { name: 'Status filtern: vorgemerkt', exact: true }).click();
   await expect(page.locator('[data-booking]')).toHaveCount(1);
+  if (phone) await openSummarySheet(page);
   await expect(summary.locator('dl')).toContainText('−2,03 €');
-  await page.getByLabel('In Buchungen suchen').fill('no-match');
+  await closeSummarySheet(page, phone);
+  await fillBookingSearch(page, 'no-match');
   await expect(page.locator('[data-booking]')).toHaveCount(0);
+  if (phone) await openSummarySheet(page);
   await expect(summary).toContainText('Keine Monatssummen für diese Filter.');
-  await page.getByLabel('In Buchungen suchen').fill('Synthetic');
+  await closeSummarySheet(page, phone);
+  await fillBookingSearch(page, 'Synthetic');
   await expect(page.locator('[data-booking]')).toHaveCount(1);
   await page.evaluate(() => {
     localStorage.setItem('budget-amounts-hidden', '1');
   });
   await page.reload();
-  if (phone) await summary.getByRole('button', { name: 'Auswertung des Filters' }).click();
+  if (phone) await openSummarySheet(page);
   await expect(summary.locator('dl')).toContainText('••• €');
   await expect(summary.getByRole('img')).toHaveCount(0);
   await expect(page.locator('.kmonth-sums')).toContainText('Monat gefiltert ••• €');
@@ -149,7 +151,7 @@ for (const theme of ['light', 'dark'])
       const path = info.outputPath(`register-collapsed-${theme}.png`);
       await page.screenshot({ path, animations: 'disabled' });
       await info.attach(`Register collapsed ${theme}`, { path, contentType: 'image/png' });
-      await summary.getByRole('button', { name: 'Auswertung des Filters' }).click();
+      await openSummarySheet(page);
     }
     await expect(summary.getByRole('img')).toBeVisible();
     {
@@ -164,3 +166,15 @@ for (const theme of ['light', 'dark'])
       ).toEqual([]);
     }
   });
+
+/** Phone: the evaluation is a sheet opened from the page's "⋯" menu, not a card in the list. */
+async function openSummarySheet(page: Page) {
+  await page.locator('.kregister-actions > summary').click();
+  await page.getByRole('button', { name: 'Auswertung des Filters', exact: true }).click();
+  await expect(page.getByRole('dialog', { name: 'Auswertung des Filters' })).toBeVisible();
+}
+async function closeSummarySheet(page: Page, phone: boolean) {
+  if (!phone) return;
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('dialog', { name: 'Auswertung des Filters' })).toBeHidden();
+}

@@ -1,6 +1,7 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect } from '@playwright/test';
 import { test } from './isolated-ledger';
+import { fillBookingSearch } from './ledger-helpers';
 
 test('named filter save lives in the existing actions menu and persists the exact tuple', async ({
   page,
@@ -220,8 +221,7 @@ for (const failure of ['conflict', 'lost response'] as const)
       await expect(dialog).toBeHidden();
       const actions = page.locator('.kregister-actions');
       if ((await actions.getAttribute('open')) !== null) await actions.locator('summary').click();
-      const input = page.getByLabel('In Buchungen suchen');
-      await input.fill('Still independent');
+      await fillBookingSearch(page, 'Still independent');
       await expect(page).toHaveURL((url) => url.searchParams.get('q') === 'Still independent');
     } finally {
       release();
