@@ -80,7 +80,7 @@ async function search(page: Page, phone: boolean) {
 export async function verifyPhoneTextReflow(page: Page, origin: string, output: string) {
   const returnUrl = page.url();
   await page.goto(`${origin}/?monat=2026-09&period=month`);
-  const period = page.locator(':is(.titleblock-heute, .hv-head-phone) .seg');
+  const period = page.locator(':is(.titleblock-heute, .hv-head-phone, .hv-lead) .seg');
   await expect(period).toBeVisible();
   await page.evaluate(() => document.fonts.ready);
   const original = await page.evaluate(() => {
@@ -121,7 +121,7 @@ export async function verifyPhoneTextReflow(page: Page, origin: string, output: 
         const geometry = await page.evaluate(() => {
           const controls = [
             ...document.querySelectorAll(
-              ':is(.titleblock-heute, .hv-head-phone) .seg button, .tabbar a',
+              ':is(.titleblock-heute, .hv-head-phone, .hv-lead) .seg button, .tabbar a',
             ),
           ].map((element) => {
             const bounds = element.getBoundingClientRect().toJSON();
@@ -143,7 +143,7 @@ export async function verifyPhoneTextReflow(page: Page, origin: string, output: 
           });
           return {
             period: document
-              .querySelector(':is(.titleblock-heute, .hv-head-phone) .seg')!
+              .querySelector(':is(.titleblock-heute, .hv-head-phone, .hv-lead) .seg')!
               .getBoundingClientRect()
               .toJSON(),
             tabs: document.querySelector('.tabbar')!.getBoundingClientRect().toJSON(),
@@ -169,7 +169,7 @@ export async function verifyPhoneTextReflow(page: Page, origin: string, output: 
           }
         }
         for (const control of await page
-          .locator(':is(.titleblock-heute, .hv-head-phone) .seg button:not(:disabled), .tabbar a')
+          .locator(':is(.titleblock-heute, .hv-head-phone, .hv-lead) .seg button:not(:disabled), .tabbar a')
           .all()) {
           await control.focus();
           await expect(control).toBeFocused();
