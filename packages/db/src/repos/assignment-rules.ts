@@ -1,5 +1,19 @@
 import { createHash, randomUUID } from 'node:crypto';
-import { and, asc, desc, eq, gt, inArray, isNotNull, isNull, lt, ne, lte } from 'drizzle-orm';
+import {
+  and,
+  asc,
+  desc,
+  eq,
+  gt,
+  gte,
+  inArray,
+  isNotNull,
+  isNull,
+  lt,
+  ne,
+  lte,
+  or,
+} from 'drizzle-orm';
 import {
   assignmentRuleSchema,
   assignmentMatchSchema,
@@ -7,9 +21,11 @@ import {
   assignmentSplits,
   learnAssignmentSplits,
   bankAliasKey,
+  addDays,
   bankAssignmentText,
   cleanBankPayee,
   counterpartyKey,
+  looseKeyUsable,
   DEFAULT_PAYEE_CLEANUP,
   matchesAssignment,
   matchPayeeAlias,
@@ -351,7 +367,11 @@ function prefixPayee<T extends { name: string }>(payees: T[], cleanedKey: string
 
 export function assignmentSuggestions(db: Executor, row: AssignmentRow) {
   return listAssignmentRules(db)
-    .filter((r) => r.enabled && matchesAssignment(r.match, row))
+    .filter(
+      (r) =>
+        r.enabled &&
+        matchesAssignment(r.match, row, !r.automatic && !r.id.startsWith('inbox-learn:')),
+    )
     .map((rule) => {
       let unavailable: string | null = null;
       try {
@@ -841,7 +861,7 @@ export function previewAssignmentRule(db: Executor, input: AssignmentRuleInput) 
       counterparty: cleanup.cleaned,
     });
   }
-  const matched = rows.filter((row) => matchesAssignment(input.match, row));
+  const matched = rows.filter((row) => matchesAssignment(input.match, row, !input.automatic));
   return {
     count: matched.length,
     examples: matched
@@ -882,9 +902,22 @@ const ruleFingerprint = (v: {
   payeeId: string | null;
   categoryId: string | null;
   enabled: boolean;
+  automatic: boolean;
+  priority: number;
 }) =>
   createHash('sha256')
-    .update(JSON.stringify([v.name, v.matchJson, v.actionJson, v.payeeId, v.categoryId, v.enabled]))
+    .update(
+      JSON.stringify([
+        v.name,
+        v.matchJson,
+        v.actionJson,
+        v.payeeId,
+        v.categoryId,
+        v.enabled,
+        v.automatic,
+        v.priority,
+      ]),
+    )
     .digest('hex');
 
 /** Remember what the app wrote, so a later owner edit of the rule is recognisable and kept. */
@@ -958,11 +991,13 @@ function learnInboxRule(db: Executor, id: string, ctx: AuditContext) {
     accountId: row.accountId,
   };
   const direction = row.amountCents < 0 ? 'outflow' : 'inflow';
-  // The id follows the noise-tolerant key; rules learned before it existed keep their old id.
-  const learnId = (key: string) =>
+  // Exact alias key as before: inbox-learn rules never match loosely.
+  const alias = bankAliasKey(counterparty);
+  const looseKey = counterpartyKey(counterparty);
+  const ruleId =
     'inbox-learn:' +
     createHash('sha256')
-      .update(JSON.stringify([key, direction]))
+      .update(JSON.stringify([alias, direction]))
       .digest('hex');
   const input: AssignmentRuleInput = {
     name: counterparty.slice(0, 120),
@@ -971,7 +1006,7 @@ function learnInboxRule(db: Executor, id: string, ctx: AuditContext) {
     match: {
       mode: 'all',
       conditions: [
-        { type: 'counterparty', text: counterpartyKey(counterparty) },
+        { type: 'counterparty', text: alias },
         { type: 'direction', direction },
       ],
     },
@@ -980,9 +1015,27 @@ function learnInboxRule(db: Executor, id: string, ctx: AuditContext) {
   const rules = listAssignmentRules(db);
   const stored = (id: string) =>
     db.select().from(assignmentRule).where(eq(assignmentRule.id, id)).get();
-  const existing =
-    stored(learnId(counterpartyKey(counterparty))) ?? stored(learnId(bankAliasKey(counterparty)));
-  const ruleId = existing?.id ?? learnId(counterpartyKey(counterparty));
+  let existing = stored(ruleId);
+  if (!existing && looseKeyUsable(looseKey)) {
+    // The same merchant under changed reference digits ("shop 1234" / "shop 5678"): reuse that
+    // rule instead of adding a twin. Rules the owner made or the auto-learner wrote stay as they are.
+    const sameMerchant = rules.find((r) => {
+      const counter = r.match.conditions.find((c) => c.type === 'counterparty');
+      const dir = r.match.conditions.find((c) => c.type === 'direction');
+      const acc = r.match.conditions.find((c) => c.type === 'account');
+      return (
+        counter?.type === 'counterparty' &&
+        counterpartyKey(counter.text) === looseKey &&
+        dir?.type === 'direction' &&
+        dir.direction === direction &&
+        !acc
+      );
+    });
+    if (sameMerchant) {
+      if (!sameMerchant.id.startsWith('inbox-learn:')) return;
+      existing = stored(sameMerchant.id);
+    }
+  }
   if (existing && ownerOwnsRule(db, existing)) return;
   // The existing rule limit bounds storage without preventing an owner from confirming a booking.
   if (!existing && rules.length >= 100) return;
@@ -995,7 +1048,7 @@ function learnInboxRule(db: Executor, id: string, ctx: AuditContext) {
   const { payeeId, categoryId, ...other } = actions;
   const values = {
     name: existing?.name ?? input.name,
-    matchJson: JSON.stringify(input.match),
+    matchJson: existing?.matchJson ?? JSON.stringify(input.match),
     actionJson: JSON.stringify({
       ...other,
       ...(categoryId === null ? { categoryId: null } : {}),
@@ -1007,15 +1060,10 @@ function learnInboxRule(db: Executor, id: string, ctx: AuditContext) {
     automatic: false,
     deletedAt: null,
   };
-  if (existing) updateTracked(db, assignmentRule, [ruleId], values, ctx);
-  else
-    insertTracked(
-      db,
-      assignmentRule,
-      { id: ruleId, ...values, priority: Math.max(-1, ...rules.map((r) => r.priority)) + 1 },
-      ctx,
-    );
-  rememberRuleFingerprint(db, ruleId, values, ctx);
+  const priority = existing?.priority ?? Math.max(-1, ...rules.map((r) => r.priority)) + 1;
+  if (existing) updateTracked(db, assignmentRule, [existing.id], values, ctx);
+  else insertTracked(db, assignmentRule, { id: ruleId, ...values, priority }, ctx);
+  rememberRuleFingerprint(db, existing?.id ?? ruleId, { ...values, priority }, ctx);
 }
 
 type ClassifiedBooking = NonNullable<ReturnType<typeof getBooking>>;
@@ -1081,7 +1129,7 @@ function bookingClassification(
 }
 
 /** Earlier confirmed bank lines of the account that are compared when learning. */
-const AUTO_LEARN_HISTORY = 500;
+const AUTO_LEARN_HISTORY = 200;
 
 /**
  * Automatic rule learning: when the owner confirms a bank line and at least one earlier confirmed
@@ -1103,7 +1151,7 @@ export function learnAutoRule(db: Executor, id: string, ctx: AuditContext) {
     return;
   const counterparty = bookingCounterparty(db, row);
   const key = counterpartyKey(counterparty);
-  if (!key) return;
+  if (!looseKeyUsable(key)) return;
   const mine = bookingClassification(db, row);
   if (!mine) return;
   const direction = row.amountCents < 0 ? 'outflow' : 'inflow';
@@ -1127,8 +1175,10 @@ export function learnAutoRule(db: Executor, id: string, ctx: AuditContext) {
     );
   });
   if (covered || rules.length >= 100) return;
+  // SQL prefilter: same account and direction, confirmed bank lines with raw text or payee, last
+  // 18 months, newest 200; only the key-matching ones are read in full.
   const history = db
-    .select({ id: booking.id })
+    .select()
     .from(booking)
     .where(
       and(
@@ -1137,7 +1187,8 @@ export function learnAutoRule(db: Executor, id: string, ctx: AuditContext) {
         ne(booking.id, row.id),
         inArray(booking.status, ['confirmed', 'reconciled']),
         row.amountCents < 0 ? lt(booking.amountCents, 0) : gt(booking.amountCents, 0),
-        isNotNull(booking.bankRawText),
+        or(isNotNull(booking.bankRawText), isNotNull(booking.bankRawPayee)),
+        gte(booking.date, addDays(row.date, -548)),
         isNull(booking.deletedAt),
       ),
     )
@@ -1145,12 +1196,9 @@ export function learnAutoRule(db: Executor, id: string, ctx: AuditContext) {
     .limit(AUTO_LEARN_HISTORY)
     .all();
   const proven = history.some((h) => {
+    if (counterpartyKey(bookingCounterparty(db, h)) !== key) return false;
     const earlier = getBooking(db, h.id);
-    return (
-      !!earlier &&
-      counterpartyKey(bookingCounterparty(db, earlier)) === key &&
-      bookingClassification(db, earlier)?.sig === mine.sig
-    );
+    return !!earlier && bookingClassification(db, earlier)?.sig === mine.sig;
   });
   if (!proven) return;
   const input: AssignmentRuleInput = {
@@ -1187,13 +1235,9 @@ export function learnAutoRule(db: Executor, id: string, ctx: AuditContext) {
     enabled: true,
     automatic: false,
   };
-  insertTracked(
-    db,
-    assignmentRule,
-    { id: ruleId, ...values, priority: Math.max(-1, ...rules.map((r) => r.priority)) + 1 },
-    ctx,
-  );
-  rememberRuleFingerprint(db, ruleId, values, ctx);
+  const priority = Math.max(-1, ...rules.map((r) => r.priority)) + 1;
+  insertTracked(db, assignmentRule, { id: ruleId, ...values, priority }, ctx);
+  rememberRuleFingerprint(db, ruleId, { ...values, priority }, ctx);
 }
 
 export function assignmentFromBooking(db: Executor, id: string): AssignmentRuleInput {

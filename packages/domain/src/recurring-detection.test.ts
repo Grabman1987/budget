@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   counterpartyKey,
   detectRecurrence,
+  looseKeyUsable,
   matchesAssignment,
   ownAccountTransferTarget,
 } from './index';
@@ -20,7 +21,7 @@ describe('counterpartyKey', () => {
     expect(counterpartyKey('123456')).toBe('123456');
     expect(counterpartyKey('PayPal')).toBe('paypal');
   });
-  it('lets a counterparty condition match across such noise', () => {
+  it('matches across such noise only when loose matching is requested', () => {
     const match = {
       mode: 'all' as const,
       conditions: [{ type: 'counterparty' as const, text: 'kino beispiel' }],
@@ -32,8 +33,28 @@ describe('counterpartyKey', () => {
       rawText: counterparty,
       counterparty,
     });
-    expect(matchesAssignment(match, row('PAYPAL *KINO BEISPIEL 5551234'))).toBe(true);
-    expect(matchesAssignment(match, row('Kino Anders'))).toBe(false);
+    expect(matchesAssignment(match, row('PAYPAL *KINO BEISPIEL 5551234'))).toBe(false);
+    expect(matchesAssignment(match, row('PAYPAL *KINO BEISPIEL 5551234'), true)).toBe(true);
+    expect(matchesAssignment(match, row('  Kino   Beispiel '))).toBe(true);
+    expect(matchesAssignment(match, row('Kino Anders'), true)).toBe(false);
+  });
+  it('never matches loosely on short or generic keys', () => {
+    expect(looseKeyUsable('abc')).toBe(false);
+    expect(looseKeyUsable('dauerauftrag')).toBe(false);
+    expect(looseKeyUsable('sepa überweisung')).toBe(false);
+    expect(looseKeyUsable('miete wohnung')).toBe(true);
+    const match = {
+      mode: 'all' as const,
+      conditions: [{ type: 'counterparty' as const, text: 'dauerauftrag 1234567' }],
+    };
+    const row = {
+      accountId: 'a',
+      amountCents: -900,
+      payeeId: null,
+      rawText: 'x',
+      counterparty: 'Dauerauftrag 7654321',
+    };
+    expect(matchesAssignment(match, row, true)).toBe(false);
   });
 });
 
@@ -111,6 +132,50 @@ describe('detectRecurrence', () => {
     expect(
       detectRecurrence(ev(['2026-09-17', '2026-10-01', '2026-10-15'], 2500), '2026-10-17'),
     ).toMatchObject({ rhythm: 'weekly', intervalWeeks: 2 });
+  });
+  it('tolerates one skipped occurrence (a gap of twice the cadence), once only', () => {
+    expect(
+      detectRecurrence(
+        ev(['2026-05-05', '2026-06-05', '2026-08-05', '2026-09-05'], -999),
+        '2026-09-20',
+      ),
+    ).toMatchObject({ rhythm: 'monthly', count: 4 });
+    expect(
+      detectRecurrence(
+        ev(['2026-02-05', '2026-04-05', '2026-06-05', '2026-08-05', '2026-09-05'], -999),
+        '2026-09-20',
+      ),
+    ).toBeNull();
+  });
+  it('tolerates late or early bookings by a few days', () => {
+    expect(
+      detectRecurrence(
+        ev(['2026-07-01', '2026-08-05', '2026-09-02', '2026-10-06'], -999),
+        '2026-10-20',
+      ),
+    ).toMatchObject({ rhythm: 'monthly' });
+    expect(
+      detectRecurrence(ev(['2026-10-01', '2026-10-09', '2026-10-15'], 500), '2026-10-17'),
+    ).toMatchObject({ rhythm: 'weekly', intervalWeeks: 1 });
+    expect(
+      detectRecurrence(ev(['2026-07-01', '2026-08-09', '2026-09-20'], -999), '2026-10-01'),
+    ).toBeNull();
+  });
+  it('judges the cadence on the median gap', () => {
+    expect(
+      detectRecurrence(
+        ev(['2026-04-05', '2026-05-05', '2026-06-04', '2026-07-05', '2026-08-04'], -999),
+        '2026-08-20',
+      )?.rhythm,
+    ).toBe('monthly');
+  });
+  it('accepts a single price change when the last three amounts are steady', () => {
+    const dates = ['2026-05-05', '2026-06-05', '2026-07-05', '2026-08-05', '2026-09-05'];
+    const r = detectRecurrence(ev(dates, [-1000, -1000, -1500, -1500, -1500]), '2026-09-20');
+    expect(r).toMatchObject({ amountCents: 1500, toleranceCents: 0 });
+    expect(
+      detectRecurrence(ev(dates, [-1000, -1500, -1000, -1500, -1000]), '2026-09-20'),
+    ).toBeNull();
   });
   it('rejects irregular gaps and stale series', () => {
     expect(

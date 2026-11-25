@@ -25,6 +25,30 @@ export function counterpartyKey(raw: string): string {
   return text || plain;
 }
 
+/** Words that alone say nothing about a counterparty: never a basis for loose matching. */
+const GENERIC_WORDS = new Set([
+  'dauerauftrag',
+  'überweisung',
+  'ueberweisung',
+  'lastschrift',
+  'gutschrift',
+  'miete',
+  'zahlung',
+  'sepa',
+  'einzahlung',
+  'auszahlung',
+  'abbuchung',
+  'umbuchung',
+  'rechnung',
+  'gehalt',
+]);
+
+/** A loose key is usable when it has at least four characters and a non-generic word. */
+export function looseKeyUsable(key: string): boolean {
+  if (key.length < 4) return false;
+  return key.split(/[^\p{L}\p{N}]+/u).some((w) => w !== '' && !GENERIC_WORDS.has(w));
+}
+
 export interface OwnAccountRef {
   id: string;
   name: string;
@@ -97,14 +121,14 @@ export interface DetectedRecurrence {
   lastDate: string;
 }
 
-/** Plausible day gaps per cadence (calendar-month length and weekend shifts included). */
+/** Nominal day gap per cadence and how far a single gap may be early or late. */
 const CADENCES = [
-  { rhythm: 'weekly', intervalWeeks: 1, min: 6, max: 8 },
-  { rhythm: 'weekly', intervalWeeks: 2, min: 13, max: 15 },
-  { rhythm: 'monthly', intervalWeeks: null, min: 26, max: 35 },
-  { rhythm: 'quarterly', intervalWeeks: null, min: 84, max: 98 },
-  { rhythm: 'semiannual', intervalWeeks: null, min: 175, max: 190 },
-  { rhythm: 'yearly', intervalWeeks: null, min: 355, max: 375 },
+  { rhythm: 'weekly', intervalWeeks: 1, days: 7, tol: 2 },
+  { rhythm: 'weekly', intervalWeeks: 2, days: 14, tol: 2 },
+  { rhythm: 'monthly', intervalWeeks: null, days: 30, tol: 5 },
+  { rhythm: 'quarterly', intervalWeeks: null, days: 91, tol: 7 },
+  { rhythm: 'semiannual', intervalWeeks: null, days: 183, tol: 10 },
+  { rhythm: 'yearly', intervalWeeks: null, days: 365, tol: 10 },
 ] as const;
 const STEP_MONTHS = { quarterly: 3, semiannual: 6 } as const;
 /** Amount tolerance for variable amounts (utilities, usage-based) in basis points. */
@@ -117,11 +141,23 @@ const median = (values: number[]) => {
   return s.length % 2 ? s[mid]! : Math.floor((s[mid - 1]! + s[mid]!) / 2);
 };
 
+const within = (values: number[], middle: number) =>
+  Math.max(...values.map((v) => Math.abs(v - middle)));
+const steady = (values: number[]) => {
+  const m = median(values);
+  const dev = within(values, m);
+  return m > 0 && dev * 10_000 <= m * RECURRENCE_AMOUNT_TOLERANCE_BP
+    ? { amount: m, tolerance: dev }
+    : null;
+};
+
 /**
- * Recurrence of one counterparty on one account and direction: at least three occurrences with
- * roughly regular gaps (weekly, fortnightly, monthly, quarterly, half-yearly, yearly), an amount
- * within ±10 % of the median (exact for fixed amounts) and a last occurrence not older than 1.5
- * cycles. Pure; `null` when anything fails.
+ * Recurrence of one counterparty on one account and direction: at least three occurrences, the
+ * cadence taken from the median gap (weekly, fortnightly, monthly, quarterly, half-yearly,
+ * yearly), each gap early or late by the cadence's tolerance, one gap of twice the cadence allowed
+ * (a skipped occurrence). The amount stays within ±10 % of the median; a single price change
+ * is accepted when the last three amounts are steady. The last occurrence must be at most 1.5
+ * cycles old. Pure; `null` when anything fails.
  */
 export function detectRecurrence(
   events: readonly RecurrenceEvent[],
@@ -130,15 +166,20 @@ export function detectRecurrence(
   if (events.length < RECURRENCE_MIN_OCCURRENCES) return null;
   const sorted = [...events].sort((a, b) => a.date.localeCompare(b.date));
   const gaps = sorted.slice(1).map((e, i) => daysBetween(sorted[i]!.date, e.date));
-  const cadence = CADENCES.find((c) => gaps.every((g) => g >= c.min && g <= c.max));
+  const mid = median(gaps);
+  const cadence = CADENCES.find((c) => Math.abs(mid - c.days) <= c.tol);
   if (!cadence) return null;
+  let skipped = 0;
+  for (const g of gaps) {
+    if (Math.abs(g - cadence.days) <= cadence.tol) continue;
+    if (Math.abs(g - 2 * cadence.days) <= 2 * cadence.tol && ++skipped <= 1) continue;
+    return null;
+  }
   const amounts = sorted.map((e) => Math.abs(e.amountCents));
-  const amount = median(amounts);
-  if (amount <= 0) return null;
-  const tolerance = Math.max(...amounts.map((a) => Math.abs(a - amount)));
-  if (tolerance * 10_000 > amount * RECURRENCE_AMOUNT_TOLERANCE_BP) return null;
+  const fit = steady(amounts) ?? steady(amounts.slice(-3));
+  if (!fit) return null;
   const last = sorted[sorted.length - 1]!.date;
-  if (daysBetween(last, today) > Math.floor((cadence.max * 3) / 2)) return null;
+  if (daysBetween(last, today) > Math.floor(((cadence.days + cadence.tol) * 3) / 2)) return null;
   const days = sorted.map((e) => Number(e.date.slice(8, 10)));
   const lastMonth = Number(last.slice(5, 7));
   const step = STEP_MONTHS[cadence.rhythm as keyof typeof STEP_MONTHS];
@@ -148,8 +189,8 @@ export function detectRecurrence(
     dueDay: cadence.rhythm === 'weekly' ? 1 : median(days),
     dueMonth: cadence.rhythm === 'yearly' ? lastMonth : step ? ((lastMonth - 1) % step) + 1 : null,
     startDate: cadence.rhythm === 'weekly' ? last : null,
-    amountCents: amount,
-    toleranceCents: tolerance,
+    amountCents: fit.amount,
+    toleranceCents: fit.tolerance,
     count: sorted.length,
     lastDate: last,
   };

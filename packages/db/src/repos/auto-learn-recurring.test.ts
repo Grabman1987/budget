@@ -8,6 +8,7 @@ import {
   listAssignmentRules,
   readBookingAssignments,
   removeAssignmentRule,
+  reorderAssignmentRules,
   saveAssignmentRule,
 } from './assignment-rules';
 import { listExpectedPayments } from './expected';
@@ -165,6 +166,89 @@ describe('automatic rule learning', () => {
     expect(now).toHaveLength(1);
     expect(now[0]!.actions.categoryId).toBe('miete');
     expect(autoRules()).toHaveLength(0);
+  });
+});
+
+describe('learning refinements', () => {
+  const confirm = (text: string, date: string, categoryId: string) => {
+    const id = bankLine(text, date, -900, { status: 'pending', splits: [{ amountCents: -900 }] });
+    updateBooking(
+      db,
+      id,
+      { status: 'confirmed', splits: [{ amountCents: -900, categoryId }] },
+      owner,
+    );
+  };
+  const inboxRules = () => listAssignmentRules(db).filter((r) => r.id.startsWith('inbox-learn:'));
+
+  it('reuses the legacy rule for the same merchant under changed digits instead of a twin', () => {
+    confirm('Shop Beispiel 1234', '2026-08-01', 'reise');
+    const [legacy] = inboxRules();
+    confirm('Shop Beispiel 5678', '2026-09-01', 'essen');
+    const after = inboxRules();
+    expect(after).toHaveLength(1);
+    expect(after[0]!.id).toBe(legacy!.id);
+    expect(after[0]!.actions.categoryId).toBe('essen');
+    expect(after[0]!.match.conditions[0]).toEqual(legacy!.match.conditions[0]);
+  });
+
+  it('matches loosely only through suggestion rules, never automatic or inbox-learn rules', () => {
+    const rule = (automatic: boolean) => ({
+      name: 'Kino',
+      enabled: true,
+      automatic,
+      match: {
+        mode: 'all' as const,
+        conditions: [{ type: 'counterparty' as const, text: 'kino beispiel' }],
+      },
+      actions: { categoryId: 'reise' },
+    });
+    const saved = saveAssignmentRule(db, null, rule(false), owner);
+    const line = bankLine('PAYPAL *KINO BEISPIEL 5551234', '2026-10-05', -900, {
+      status: 'pending',
+    });
+    const ids = () => readBookingAssignments(db, line).suggestions.map((x) => x.id);
+    expect(ids()).toContain(saved.id);
+    saveAssignmentRule(db, saved.id, rule(true), owner);
+    expect(ids()).not.toContain(saved.id);
+  });
+
+  it('learns from payee-only lines and ignores generic counterparties', () => {
+    const only = (payee: string, date: string, extra = {}) =>
+      markBankBookingTransfer(
+        db,
+        bankLine('', date, -5000, { bankRawText: null, bankRawPayee: payee, ...extra }),
+        'spar',
+        null,
+        owner,
+      );
+    only('Sparplan Gamma 1111', '2026-08-01');
+    only('Sparplan Gamma 2222', '2026-09-01');
+    expect(autoRules()).toHaveLength(1);
+    only('Dauerauftrag 1111', '2026-08-02');
+    only('Dauerauftrag 2222', '2026-09-02');
+    expect(autoRules()).toHaveLength(1);
+  });
+
+  it('fingerprints priority: a reordered learned rule counts as owner-edited', () => {
+    confirm('Markt Beispiel', '2026-07-01', 'reise');
+    const [rule] = inboxRules();
+    saveAssignmentRule(
+      db,
+      null,
+      {
+        name: 'Anderes',
+        enabled: true,
+        automatic: false,
+        match: { mode: 'all', conditions: [{ type: 'contains', text: 'zzz' }] },
+        actions: { categoryId: 'essen' },
+      },
+      owner,
+    );
+    const other = listAssignmentRules(db).find((r) => r.id !== rule!.id)!;
+    reorderAssignmentRules(db, [other.id, rule!.id], owner);
+    confirm('Markt Beispiel', '2026-08-01', 'essen');
+    expect(inboxRules()[0]!.actions.categoryId).toBe('reise');
   });
 });
 
