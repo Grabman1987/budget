@@ -53,7 +53,12 @@ import { listReceipts } from './receipts';
 import { accountReminders } from './account-reminders';
 import { savingsExecutionProposals, type SavingsExecutionProposal } from './savings-plans';
 import { candidateMatches } from './bank-followups';
-import { LINK_PROPOSAL_REF, parseLinkProposalId } from './expected-auto-link';
+import {
+  LINK_PROPOSAL_REF,
+  linkProposalView,
+  parseLinkProposalId,
+  type LinkProposalView,
+} from './expected-auto-link';
 import { payslipDocumentMetadata } from './payslip-intake';
 import {
   CARD_SETTLEMENT_RULE_PREFIX,
@@ -116,7 +121,7 @@ export interface InboxStored {
   historical?: true;
   payslipDocument?: ReturnType<typeof payslipDocumentMetadata>;
   /** Open proposal to link a bank booking to an occurrence of a recurring payment (#1102). */
-  linkProposal?: { occurrenceId: string; bookingId: string };
+  linkProposal?: { occurrenceId: string; bookingId: string; view?: LinkProposalView };
   bankCandidate?:
     | {
         date: string;
@@ -628,7 +633,10 @@ export function readInbox(
         ...(row.refType === LINK_PROPOSAL_REF
           ? (() => {
               const linkProposal = parseLinkProposalId(row.id);
-              return linkProposal ? { linkProposal } : {};
+              const view = linkProposal && linkProposalView(tx, linkProposal, row.detail);
+              return linkProposal
+                ? { linkProposal: view ? { ...linkProposal, view } : linkProposal }
+                : {};
             })()
           : {}),
       }));

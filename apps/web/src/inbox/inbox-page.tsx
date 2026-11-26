@@ -1,5 +1,7 @@
 import { SpritmonitorReview } from '../pages/spritmonitor-source';
 import { TaskSourceSummary } from './task-source-summary';
+import { usePlanTaskState } from './plan-task-state';
+import { LinkProposalTable, hasLinkProposalView } from './link-proposal-table';
 import { Check, ChevronDown, CircleHelp, CircleCheck, Filter, MoreHorizontal } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import type { ReactNode } from 'react';
@@ -655,6 +657,7 @@ function PaginatedInboxBodyContent({
     if (accountAnchor && shown === 'aufgaben' && taskSource === 'accounts' && !fatalError)
       document.getElementById('account-reminder-title')?.scrollIntoView?.({ block: 'start' });
   }, [accountAnchor, shown, taskSource, fatalError, firstPage]);
+  const planState = usePlanTaskState(REDESIGN_ENABLED && !bankSource);
   const entrySourceSelected =
     taskSource === 'plan' || taskSource === 'payslips' || taskSource === 'other';
   const isPhone = useIsPhone();
@@ -830,6 +833,7 @@ function PaginatedInboxBodyContent({
                 counts={firstPage.taskSources}
                 selected={taskSource}
                 onSelect={setTaskSource}
+                planState={planState}
                 renderDetail={
                   REDESIGN_ENABLED
                     ? (source) =>
@@ -1314,9 +1318,32 @@ function InboxBodyContent({
                       )}
                     </th>
                   </tr>,
+                  ...(REDESIGN_ENABLED && kind === 'expected_payment' && !account && !bankLayout
+                    ? (() => {
+                        const proposals = items.filter(hasLinkProposalView);
+                        return proposals.length
+                          ? [
+                              <tr className="link-proposal-holder" key="link-proposals">
+                                <td className="rev-mark" />
+                                <td colSpan={2}>
+                                  <LinkProposalTable
+                                    items={proposals}
+                                    busyId={typeof busy === 'string' ? busy : null}
+                                    onOpenBooking={onEdit}
+                                    onReject={(entry) => void resolve(entry)}
+                                  />
+                                </td>
+                              </tr>,
+                            ]
+                          : [];
+                      })()
+                    : []),
                   ...(account && collapsed.has(account.id)
                     ? []
-                    : items.flatMap((item) => {
+                    : (kind === 'expected_payment' && REDESIGN_ENABLED && !bankLayout
+                        ? items.filter((entry) => !hasLinkProposalView(entry))
+                        : items
+                      ).flatMap((item) => {
                         const causeOf = (entry: InboxEntry) =>
                           groupByTitle && entry.type === 'stored' ? entry.title : inboxCause(entry);
                         const cause =
