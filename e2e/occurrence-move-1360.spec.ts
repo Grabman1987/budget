@@ -40,20 +40,22 @@ test('moves a single planned occurrence and undoes it', async ({ page, baseURL }
   await page.goto(`/plan/erwartet/${payment.id}`);
   await openPaymentManagement(page);
   const panel = page.locator('.xp-detail-body');
-  const october = panel.locator('.xp-occ > li').filter({ hasText: '20.10.2026' });
+  const row = (day: string) =>
+    panel.locator('.xp-occ > li').filter({ has: page.locator('.xp-occ-date', { hasText: day }) });
+  const october = row('20.10.2026');
   await october.getByRole('button', { name: 'Verschieben' }).click();
   await panel.getByLabel('Neues Datum').fill('2026-10-27');
   await panel.getByRole('button', { name: 'Speichern' }).click();
-  const moved = panel.locator('.xp-occ > li').filter({ hasText: '27.10.2026' });
+  const moved = row('27.10.2026');
   await expect(moved).toContainText('Verschoben vom 20.10.2026');
-  await expect(panel.locator('.xp-occ > li').filter({ hasText: '20.10.2026' })).toHaveCount(0);
+  await expect(row('20.10.2026')).toHaveCount(0);
   // The next month keeps the rule.
-  await expect(panel.locator('.xp-occ > li').filter({ hasText: '20.11.2026' })).toHaveCount(1);
+  await expect(row('20.11.2026')).toHaveCount(1);
   const next = await page.request.get('/api/expected/register-next');
   const occurrences = ((await next.json()) as { occurrences: { name: string; dueDate: string }[] })
     .occurrences;
   expect(occurrences.find((o) => o.name === name)?.dueDate).toBe('2026-10-27');
 
   await page.getByRole('button', { name: 'Rückgängig', exact: true }).click();
-  await expect(panel.locator('.xp-occ > li').filter({ hasText: '20.10.2026' })).toHaveCount(1);
+  await expect(row('20.10.2026')).toHaveCount(1);
 });
