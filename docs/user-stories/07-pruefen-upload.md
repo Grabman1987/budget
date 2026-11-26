@@ -109,7 +109,7 @@ Bildschirm Prüfen: `/konten/pruefen` (Konten › Prüfen). Zähler: „Umsätze
   2. „Rückgängig“ der Bestätigung entfernt Regel und Umbuchung gemeinsam.
   3. Prozessor-Vorsätze und wechselnde Ziffern ändern die Gegenpartei nicht.
   4. Mehrdeutige oder fehlende Kontoübereinstimmung ergibt keinen Vorschlag; nichts wird ohne Bestätigung angewendet.
-- **Status:** offen; Draft-PR, Prüfung und Live-Abnahme stehen aus. Keine Migration. IBANs sind nicht gespeichert: Treffer entstehen über IBAN im Kontonamen oder in der Bezeichnung der Bankanbindung (vollständig oder letzte vier Stellen) sowie der Kontoname als ganzer Text.
+- **Status:** live (Train 21, #1338; Stand 26.11.2026, Nutzerabnahme offen) — **Verweis:** #1338
 
 ### I-02 – Prüfen geführt durchgehen
 - **Story:** Als Nutzer möchte ich die offenen Umsätze der Reihe nach mit Fortschrittsanzeige durchgehen, damit ich in einer Sitzung fertig werde und sehe, wie viel noch fehlt.
