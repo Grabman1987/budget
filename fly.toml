@@ -16,6 +16,9 @@ kill_timeout = '30s'
   BUDGET_RP_ID = 'budget-fg.fly.dev'
   # Behind the Fly proxy the client address is in the Fly-Client-IP header (rate limiting).
   BUDGET_TRUST_PROXY = '1'
+  # #1349: the read-model worker thread (own V8 isolate + SQLite cache) exhausted the 512 MB machine
+  # (MemAvailable ~8 MB, hang ~35 s after start). Heute is computed on the server thread instead.
+  BUDGET_READ_WORKER = '0'
   # Backup is mandatory in production: with this set, a missing bucket makes the start fail loudly
   # instead of running without replication.
   BUDGET_REPLICATE = '1'
