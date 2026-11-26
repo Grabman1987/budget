@@ -383,4 +383,4 @@ Bereich: Konten (`/konten`, `/konten/$id`), Alle Buchungen (`/konten/buchungen`)
 - **Abnahmekriterien:**
   1. Die Verschiebung verdoppelt den Termin nicht und erzeugt keine Buchung.
   2. Die Bank-Zuordnung findet den Termin am neuen Datum.
-- **Status:** geplant — **Verweis:** #1360
+- **Status:** umgesetzt (Branch `feat/move-occurrence-1360`): Verschieben im Detail der erwarteten Zahlung (Plan › Erwartet), Abnahme offen — **Verweis:** #1360
