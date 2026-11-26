@@ -9,3 +9,7 @@ it('classifies only proven task sources and preserves every unfamiliar source', 
     expect(inboxTaskSource({ type: 'stored', refType })).toBe('other');
   expect(inboxTaskSource({ type: 'stored' })).toBe('other');
 });
+
+it('classifies recurring-payment link proposals as plan work', () => {
+  expect(inboxTaskSource({ type: 'stored', refType: 'expected_occurrence' })).toBe('plan');
+});

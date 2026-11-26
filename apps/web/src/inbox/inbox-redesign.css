@@ -1174,3 +1174,122 @@
   display: block;
   text-align: center;
 }
+
+/* Wiederkehrende Zahlungen: compact table, one row per occurrence (owner 26.11.2026). */
+.inbox-redesign .link-proposal-holder > td {
+  padding: 0;
+}
+.inbox-redesign .link-proposal-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.inbox-redesign .link-proposal-table thead th {
+  padding: 6px 10px;
+  text-align: left;
+  font-size: var(--fs-label);
+  font-weight: 500;
+  color: var(--ink-2);
+}
+.inbox-redesign .link-proposal-table tbody tr {
+  border-top: 1px solid var(--rule);
+}
+.inbox-redesign .link-proposal-table :is(td, tbody th) {
+  min-height: 48px;
+  padding: 6px 10px;
+  text-align: left;
+  vertical-align: middle;
+  font-size: var(--fs-body);
+}
+.inbox-redesign .link-proposal-table .lp-name {
+  font-family: inherit;
+  font-weight: 400;
+  letter-spacing: normal;
+  text-transform: none;
+}
+.inbox-redesign .link-proposal-table .lp-name strong {
+  display: block;
+  font-weight: 600;
+}
+.inbox-redesign .link-proposal-table .lp-name small {
+  display: block;
+  color: var(--ink-2);
+  font-size: var(--fs-meta);
+}
+.inbox-redesign .link-proposal-table :is(.lp-expected, .lp-booking) {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.inbox-redesign .link-proposal-table .lp-hint {
+  color: var(--ink-2);
+  font-size: var(--fs-meta);
+}
+.inbox-redesign .link-proposal-table .lp-differs {
+  color: var(--red);
+  font-weight: 600;
+}
+.inbox-redesign .link-proposal-table .lp-booking-link {
+  border: 0;
+  background: none;
+  padding: 0;
+  min-height: 44px;
+  color: var(--ink);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.inbox-redesign .link-proposal-table .lp-actions {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+}
+@media (max-width: 767px) {
+  .inbox-redesign .link-proposal-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+  }
+  .inbox-redesign .link-proposal-table :is(tbody, tr) {
+    display: block;
+  }
+  .inbox-redesign .link-proposal-table tbody tr {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 2px 10px;
+    padding: 8px 10px;
+  }
+  .inbox-redesign .link-proposal-table :is(td, tbody th) {
+    display: block;
+    padding: 0;
+    min-height: 0;
+  }
+  .inbox-redesign .link-proposal-table .lp-name {
+    grid-column: 1;
+    grid-row: 1;
+  }
+  .inbox-redesign .link-proposal-table .lp-expected {
+    grid-column: 2;
+    grid-row: 1;
+    text-align: right;
+  }
+  .inbox-redesign .link-proposal-table :is(.lp-due, .lp-booking, .lp-hint) {
+    grid-column: 1 / -1;
+    font-size: var(--fs-meta);
+    color: var(--ink-2);
+  }
+  .inbox-redesign .link-proposal-table .lp-due::before {
+    content: 'fällig ';
+  }
+  .inbox-redesign .link-proposal-table .lp-hint:empty {
+    display: none;
+  }
+  .inbox-redesign .link-proposal-table .lp-actions {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+    margin-top: 4px;
+  }
+}

@@ -1,6 +1,7 @@
 import { cents, formatEuro } from '@budget/domain';
 import { and, eq, inArray, isNotNull, isNull, like, or, sql } from 'drizzle-orm';
 import {
+  account,
   auditLog,
   bankSyncCandidate,
   booking,
@@ -338,4 +339,49 @@ export function closeStaleLinkProposals(
   }
   for (const id of stale)
     updateTracked(tx, inboxItem, [id], { resolvedAt: nowIso(), resolution: RESOLUTION_STALE }, ctx);
+}
+
+/** Structured facts of a proposal for the task table; the stored detail text stays as it was. */
+export interface LinkProposalView {
+  paymentName: string;
+  /** Payee of the payment when it differs from the name. */
+  payeeName: string | null;
+  dueDate: string;
+  expectedAmountCents: number;
+  bookingDate: string;
+  bookingAmountCents: number;
+  currency: string;
+  /** Why the owner decides (last part of the stored detail). */
+  reason: string;
+}
+
+export function linkProposalView(
+  tx: Executor,
+  pair: { occurrenceId: string; bookingId: string },
+  detail: string | null,
+): LinkProposalView | undefined {
+  const row = tx
+    .select({
+      paymentName: expectedPayment.name,
+      payeeName: payee.name,
+      dueDate: expectedOccurrence.dueDate,
+      expectedAmountCents: expectedOccurrence.expectedAmountCents,
+      bookingDate: booking.date,
+      bookingAmountCents: booking.amountCents,
+      currency: account.currency,
+    })
+    .from(expectedOccurrence)
+    .innerJoin(expectedPayment, eq(expectedPayment.id, expectedOccurrence.expectedPaymentId))
+    .leftJoin(payee, eq(payee.id, expectedPayment.payeeId))
+    .innerJoin(booking, eq(booking.id, pair.bookingId))
+    .innerJoin(account, eq(account.id, booking.accountId))
+    .where(eq(expectedOccurrence.id, pair.occurrenceId))
+    .get();
+  if (!row) return undefined;
+  const reason = detail?.split(' · ').pop()?.trim() || 'bitte bestätigen';
+  return {
+    ...row,
+    payeeName: row.payeeName && row.payeeName !== row.paymentName ? row.payeeName : null,
+    reason,
+  };
 }

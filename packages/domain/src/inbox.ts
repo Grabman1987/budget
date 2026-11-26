@@ -58,6 +58,8 @@ export type InboxTaskSource = 'accounts' | 'plan' | 'receipts' | 'payslips' | 'o
 export function inboxTaskSource(item: { type: string; refType?: string | null }): InboxTaskSource {
   if (item.type === 'savings' || (item.type === 'stored' && item.refType === 'savings_plan'))
     return 'plan';
+  // Recurring-payment proposals (link a debit to an occurrence) are plan work.
+  if (item.type === 'stored' && item.refType === 'expected_occurrence') return 'plan';
   if (item.type === 'stored' && item.refType === 'payslip-intake') return 'payslips';
   return 'other';
 }
