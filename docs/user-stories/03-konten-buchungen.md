@@ -384,3 +384,12 @@ Bereich: Konten (`/konten`, `/konten/$id`), Alle Buchungen (`/konten/buchungen`)
   1. Die Verschiebung verdoppelt den Termin nicht und erzeugt keine Buchung.
   2. Die Bank-Zuordnung findet den Termin am neuen Datum.
 - **Status:** geplant — **Verweis:** #1360
+
+### K-19 – Buchungszeilen am Telefon lesbar (#1353)
+- **Story:** Als Nutzer möchte ich in „Alle Buchungen“ und im Kontoverlauf am Telefon die Kategorie lesen können, Umbuchungen nur einmal sehen und im Konto den Saldo nach jeder Buchung kennen.
+- **Ablauf:**
+  1. Zweite Zeile in „Alle Buchungen“: Kategorie zuerst, dann Konto, zuletzt die Notiz; bei Platzmangel kürzt zuerst die Notiz, dann das Konto, die Kategorie behält ihre Breite.
+  2. Eine Umbuchung zeigt „Umbuchung von …“ nur als Titel, nicht nochmals in der zweiten Zeile.
+  3. Im Verlauf eines einzelnen Kontos steht rechts unter dem Betrag der Saldo nach der Buchung (wie in „Kommend“); „Alle Buchungen“ zeigt ihn nicht.
+  4. Eine Kategorie zeigt ein Symbol: das Emoji; das Klassenquadrat entfällt im Redesign (Register, Plan-Mehrmonatsansicht, Ziele).
+- **Status:** umgesetzt (Branch fix/phone-booking-rows-1353), Abnahme offen — **Verweis:** #1353

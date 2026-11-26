@@ -255,10 +255,24 @@
     flex-shrink: 0;
   }
   .ktx-redesign.ktx-all .kaccount-mobile-meta > .kcat,
-  .ktx-redesign.ktx-all .kaccount-mobile-meta .kx-mobile-note {
+  .ktx-redesign.ktx-all .kaccount-mobile-meta .kx-mobile-note,
+  .ktx-redesign.ktx-all .kaccount-mobile-meta > .kmeta-account {
     flex-shrink: 1;
     overflow: hidden;
     text-overflow: ellipsis;
+  }
+  /* #1353: the category reads first and keeps its width; account yields next, the note first. */
+  .ktx-redesign.ktx-all .kaccount-mobile-meta > .kcat {
+    flex-shrink: 0;
+    max-width: 70%;
+  }
+  .ktx-redesign.ktx-all .kaccount-mobile-meta > .kmeta-account {
+    flex-shrink: 2;
+    min-width: 0;
+  }
+  .ktx-redesign.ktx-all .kaccount-mobile-meta .kx-mobile-note {
+    flex-shrink: 8;
+    min-width: 0;
   }
   .ktx-redesign.ktx-all .kselect-all {
     min-height: 44px;
@@ -587,5 +601,23 @@
   }
   .kschedule-m-status {
     justify-self: center;
+  }
+}
+
+/* #1353: balance after the booking, right-aligned under the amount (phone account history). */
+.kx-phone-balance {
+  display: none;
+}
+@media (max-width: 767px) {
+  .ktx.ktx-redesign .kx-phone-balance {
+    display: block;
+    overflow: hidden;
+    text-align: right;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: var(--fs-meta);
+    line-height: var(--lh-meta);
+    font-variant-numeric: tabular-nums;
+    color: var(--ink-3);
   }
 }

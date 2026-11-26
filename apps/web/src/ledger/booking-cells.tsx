@@ -166,7 +166,8 @@ export function CategoryCell({
   const kind = classes.get(only.categoryId);
   return (
     <span className="kcat">
-      {showClass && kind && <ClassSwatch kind={kind} />}
+      {/* One symbol per category: the emoji replaces the class square in the redesign. */}
+      {showClass && kind && !REDESIGN_ENABLED && <ClassSwatch kind={kind} />}
       {REDESIGN_ENABLED && (
         <CategoryIcon
           icon={lookups.data?.categories.find((c) => c.id === only.categoryId)?.icon ?? null}
