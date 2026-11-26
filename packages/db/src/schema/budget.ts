@@ -262,6 +262,8 @@ export const expectedPayment = sqliteTable(
      * Kosten"), basis points: 10 000 = the whole amount becomes a receivable of the contact.
      */
     contactShareBp: integer('contact_share_bp').notNull().default(0),
+    /** Fixed share in cents instead of `contact_share_bp` (then 0 bp); capped at the amount. */
+    contactShareCents: integer('contact_share_cents'),
     amountToleranceCents: cents('amount_tolerance_cents').notNull().default(0),
     dateWindowDays: integer('date_window_days').notNull().default(3),
     rhythm: text('rhythm', { enum: RHYTHMS }).notNull().default('monthly'),

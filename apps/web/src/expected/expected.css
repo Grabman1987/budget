@@ -610,3 +610,15 @@ h4.xp-sub {
   gap: 4px;
   color: var(--ink-2);
 }
+
+/* Contact share: segmented % / € toggle above the matching input. */
+.xp-share {
+  display: grid;
+  gap: var(--space-sm);
+  min-width: 0;
+}
+@media (max-width: 767px) {
+  .xp-share .seg button {
+    min-height: var(--touch);
+  }
+}

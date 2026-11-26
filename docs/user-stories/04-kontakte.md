@@ -152,3 +152,16 @@ Bereich: „Konten › Kontakte“ (`/konten/kontakte`, Kontoblatt je Person unt
 - **Status:** live (Stand 26.11.2026: alle verknüpften Issues erledigt; Nutzerabnahme offen) — **Verweis:** #1322, #1336
 
 - **Ergänzung Kontaktliste (#1354):** live mit Train 23 (Nutzerabnahme offen). Keine Bank-Sync-Kachel und kein Hinweis zur EUR-Führung mehr; die Tabelle liegt auf einer weißen Karte, der Stift steht neben dem Namen und die Saldo-Spalte ist rechtsbündig.
+
+## Fester Euro-Anteil eines Kontakts an einer wiederkehrenden Zahlung
+
+Als Nutzer will ich bei einer wiederkehrenden Zahlung statt eines Prozentanteils einen festen Euro-Betrag als Anteil eines Kontakts eintragen, damit eine Auslage wie „der Kontakt trägt immer 800,00 €“ stimmt, auch wenn sich der Betrag der Zahlung ändert.
+
+- **Ablauf:** Im Formular der Zahlung steht neben dem Kontakt ein Umschalter „%“ / „€“. In „€“ gibt man einen Betrag ein (deutsches Format), gespeichert wird er in Cent; in „%“ gilt wie bisher der Prozentanteil. Eine bestehende Zahlung mit festem Betrag öffnet in „€“.
+- **Regeln:**
+  1. Ein fester Anteil braucht einen Kontakt und muss mindestens 0,01 € sein.
+  2. Ist er größer als der Betrag eines Termins, übernimmt der Kontakt höchstens den ganzen Betrag dieses Termins.
+  3. Fester Betrag und Prozentanteil schließen einander aus: wer einen festen Betrag speichert, hat 0 %; wer wieder Prozent speichert, verliert den festen Betrag.
+  4. Nach dem Speichern werden die künftigen offenen Termine neu geplant (Anteil je Termin); vergangene, zugeordnete oder gestrichene Termine bleiben unverändert.
+  5. Die Zahlungsansicht zeigt „Anteil <Kontakt>: 800,00 €“ bzw. „… 44 %“.
+- **Status:** umgesetzt (Branch feat/contact-share-euro), Abnahme offen — **Verweis:** Review 26.11

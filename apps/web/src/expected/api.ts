@@ -22,6 +22,8 @@ export interface ExpectedPayment {
   categoryId: string | null;
   incomeTypeId: string | null;
   contactShareBp: number;
+  /** Fixed share in cents instead of `contactShareBp` (then 0 bp). */
+  contactShareCents?: number | null;
   amountToleranceCents: number;
   dateWindowDays: number;
   rhythm: Rhythm;
@@ -158,6 +160,8 @@ export interface PaymentFields {
   categoryId: string | null;
   incomeTypeId: string | null;
   contactShareBp: number;
+  /** Fixed euro share in cents; null = use the percentage. */
+  contactShareCents: number | null;
   amountToleranceCents: number;
   dateWindowDays: number;
   rhythm: Rhythm;

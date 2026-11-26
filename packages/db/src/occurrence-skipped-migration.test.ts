@@ -37,11 +37,15 @@ it('occurrence-skipped migration keeps stored occurrences, links and audit verba
     ).toThrow();
     migrateDatabase(opened.db);
     // Later migrations may add columns, empty for old rows (0043: expected_payment.interval_weeks,
-    // 0058: expected_occurrence.planned_due_date).
+    // 0058: expected_occurrence.planned_due_date, 0059: expected_payment.contact_share_cents).
     expect(rows()).toEqual(
       before.map((t, i) =>
         tables[i] === 'expected_payment'
-          ? (t as Record<string, unknown>[]).map((r) => ({ ...r, interval_weeks: null }))
+          ? (t as Record<string, unknown>[]).map((r) => ({
+              ...r,
+              interval_weeks: null,
+              contact_share_cents: null,
+            }))
           : tables[i] === 'expected_occurrence'
             ? (t as Record<string, unknown>[]).map((r) => ({ ...r, planned_due_date: null }))
             : t,

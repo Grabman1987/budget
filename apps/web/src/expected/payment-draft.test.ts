@@ -37,6 +37,22 @@ describe('readDraft', () => {
     });
     expect(read.version).toEqual({ amountCents: 10_500, amountMaxCents: null, currency: 'EUR' });
   });
+  it('reads a fixed euro share and loads it back in euro mode', () => {
+    const read = readDraft(
+      { ...base, contactId: 'k', shareMode: 'amount', shareAmount: '800,00', sharePercent: '50' },
+      true,
+    );
+    expect(read.errors).toEqual({});
+    expect(read.fields).toMatchObject({ contactShareBp: 0, contactShareCents: 80_000 });
+    const pct = readDraft({ ...base, contactId: 'k', sharePercent: '44' }, true).fields;
+    expect(pct).toMatchObject({ contactShareBp: 4_400, contactShareCents: null });
+    expect(
+      readDraft({ ...base, shareMode: 'amount', shareAmount: '5' }, true).errors,
+    ).toHaveProperty('contactId');
+    expect(
+      readDraft({ ...base, contactId: 'k', shareMode: 'amount', shareAmount: '0' }, true).errors,
+    ).toHaveProperty('shareAmount');
+  });
   it('names every problem', () => {
     const read = readDraft(
       { ...base, name: '', amount: '0', dueDay: '32', rhythm: 'yearly', sharePercent: '50' },
@@ -93,6 +109,7 @@ describe('interval in weeks', () => {
       categoryId: null,
       incomeTypeId: null,
       contactShareBp: 0,
+      contactShareCents: null,
       amountToleranceCents: 0,
       dateWindowDays: 3,
       dueDay: 25,
@@ -127,6 +144,7 @@ describe('changedFields', () => {
       categoryId: 'c',
       incomeTypeId: null,
       contactShareBp: 0,
+      contactShareCents: null,
       amountToleranceCents: 0,
       dateWindowDays: 3,
       rhythm: 'monthly',

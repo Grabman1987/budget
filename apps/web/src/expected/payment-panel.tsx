@@ -15,7 +15,7 @@ import { useState, type ReactNode } from 'react';
 import { useBudgetWrite } from '../budget/use-category-writes';
 import { eur, longDay, shortDay } from '../ledger/format';
 import { AppLink } from '../shell/app-link';
-import { bookingsQuery } from '../ledger/queries';
+import { bookingsQuery, lookupsQuery } from '../ledger/queries';
 import { ErrorNote, LoadingNote } from '../ledger/states';
 import {
   addVersion,
@@ -42,6 +42,7 @@ import {
   changedFields,
   draftFromPayment,
   emptyDraft,
+  percentText,
   readDraft,
   type DraftErrors,
   type DraftField,
@@ -159,6 +160,23 @@ function CreateBody({
   );
 }
 
+/** "Anteil <Kontakt>: 800,00 €" / "… 44 %"; renders (and loads the contact) only with a share. */
+function ContactShareLine({ payment: p }: { payment: ExpectedPayment }) {
+  const shareText = p.contactShareCents
+    ? eur(p.contactShareCents)
+    : p.contactShareBp
+      ? `${percentText(p.contactShareBp)} %`
+      : null;
+  if (!p.contactId || !shareText) return null;
+  return <ShareText payment={p} shareText={shareText} />;
+}
+
+function ShareText({ payment: p, shareText }: { payment: ExpectedPayment; shareText: string }) {
+  const contacts = useQuery(lookupsQuery()).data?.contacts;
+  const name = contacts?.find((c) => c.id === p.contactId)?.name ?? 'Kontakt';
+  return <p className="panel-sub">{`Anteil ${name}: ${shareText}`}</p>;
+}
+
 function ViewBody({ payment: p, onDone }: { payment: ExpectedPayment; onDone: () => void }) {
   useAmountPrivacy();
   const write = useBudgetWrite();
@@ -179,6 +197,7 @@ function ViewBody({ payment: p, onDone }: { payment: ExpectedPayment; onDone: ()
           {p.nextDueDate && ` · nächste Fälligkeit ${longDay(p.nextDueDate)}`}
           {!p.nextDueDate && ' · keine Fälligkeit im Vorschauzeitraum'}
         </p>
+        <ContactShareLine payment={p} />
       </div>
       {p.lifecycle?.pauses.map((pause) => (
         <p className="field-hint" key={pause.fromDate}>

@@ -130,6 +130,7 @@ export const schedulePayment = (p: Payment, lifecycle?: PaymentLifecycle): Sched
   endDate: p.endDate,
   intervalWeeks: p.intervalWeeks,
   contactShareBp: p.contactShareBp,
+  contactShareCents: p.contactShareCents,
   pauses: lifecycle?.pauses ?? [],
 });
 
@@ -399,6 +400,28 @@ function insertVersion(
   );
 }
 
+/**
+ * One source of truth for the contact's share: a fixed euro share (`contactShareCents`) stores
+ * 0 bp, a percentage clears the euro share. `current` is the stored payment when updating.
+ */
+function normalizeShare<
+  T extends { contactShareBp?: number | undefined; contactShareCents?: number | null | undefined },
+>(patch: T, contactId: string | null, current?: Payment): T {
+  const out = { ...patch };
+  if (out.contactShareCents != null) {
+    if (!Number.isInteger(out.contactShareCents) || out.contactShareCents < 1)
+      throw new ConflictError('Der feste Anteil muss ein ganzer Centbetrag über 0 sein.');
+    out.contactShareBp = 0;
+  } else if (out.contactShareCents === undefined && (out.contactShareBp ?? 0) > 0) {
+    out.contactShareCents = null;
+  }
+  const cents =
+    out.contactShareCents === undefined ? current?.contactShareCents : out.contactShareCents;
+  if (cents != null && contactId === null)
+    throw new ConflictError('Ein fester Anteil braucht einen Kontakt.');
+  return out;
+}
+
 /** Create a payment with its first version and plan its occurrences. */
 export function createExpectedPayment(
   db: Executor,
@@ -412,7 +435,10 @@ export function createExpectedPayment(
     const payment = createEntity(
       tx,
       expectedPayment,
-      { ...input, name: cleanName(input.name) },
+      {
+        ...normalizeShare(input, input.contactId ?? null),
+        name: cleanName(input.name),
+      },
       grouped,
     );
     if (payment.rhythm === 'weekly' && !payment.startDate)
@@ -463,7 +489,12 @@ export function updateExpectedPayment(
           'Bitte zuerst den Rhythmus speichern und den Endtermin danach separat ändern.',
         );
     }
-    const clean = patch.name === undefined ? patch : { ...patch, name: cleanName(patch.name) };
+    const shared = normalizeShare(
+      patch,
+      patch.contactId === undefined ? before.contactId : patch.contactId,
+      before,
+    );
+    const clean = shared.name === undefined ? shared : { ...shared, name: cleanName(shared.name) };
     const payment = updateEntity(tx, expectedPayment, id, clean, grouped);
     if (payment.rhythm === 'weekly' && !payment.startDate)
       throw new ConflictError('Wöchentliche Zahlungen brauchen ein Startdatum.');
