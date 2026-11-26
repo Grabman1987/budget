@@ -170,7 +170,7 @@ test('selected-month budget explanation keeps its canonical figure and category 
   const amount = await tile.locator('[data-kennzahl="verfuegbar"]').innerText();
   const redesign = (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
   await tile.getByRole('button', { name: 'Herleitung Verfügbar im Budget' }).click();
-  const source = tile.getByRole('link', { name: 'Alle Envelopes und Quellen' });
+  const source = tile.getByRole('link', { name: 'Alle Kategorien und Quellen' });
   if (!redesign) {
     await expect(source).toHaveCount(0);
     return;

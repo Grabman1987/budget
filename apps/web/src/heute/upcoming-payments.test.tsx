@@ -79,10 +79,10 @@ it('labels envelope reserves without implying account coverage', () => {
   expect(screen.getByText('Budgetrücklage reicht nicht')).toBeTruthy();
   expect(
     screen.getByText(
-      'Die Budgetrücklage vergleicht nur das Verfügbar im Envelope mit der Zahlung. Kontostand und Überziehungsrahmen werden nicht geprüft.',
+      'Die Budgetrücklage vergleicht nur das Verfügbar in der Kategorie mit der Zahlung. Kontostand und Überziehungsrahmen werden nicht geprüft.',
     ),
   ).toBeTruthy();
-  expect(screen.queryByText('nicht gedeckt')).toBeNull();
+  expect(screen.queryByText('ohne Deckung')).toBeNull();
   expect(screen.getAllByRole('link', { name: /Beispielkonto/ })[0]?.getAttribute('href')).toContain(
     '/konten/synthetic-overdrawn-account?',
   );

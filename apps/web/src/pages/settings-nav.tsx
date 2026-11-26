@@ -121,17 +121,7 @@ function SettingsGroupIndex() {
                 <Icon size={20} strokeWidth={1.5} aria-hidden="true" />
                 <span className="settings-item-label">
                   <strong>{item.label}</strong>
-                  <small>
-                    {item.items
-                      .map((entry) =>
-                        entry.id === 'warenkorb'
-                          ? 'Warenkorb'
-                          : entry.id === 'datenquellen'
-                            ? 'Verbindungen'
-                            : entry.label,
-                      )
-                      .join(' · ')}
-                  </small>
+                  <small>{groupSummary(item)}</small>
                 </span>
                 <ChevronRight size={16} aria-hidden="true" />
               </AppLink>
@@ -141,6 +131,20 @@ function SettingsGroupIndex() {
       </ul>
     </nav>
   );
+}
+
+/** Entry names under a group title; never repeats the title itself ("Verbindungen · Verbindungen"). */
+function groupSummary(group: (typeof SETTINGS_GROUPS)[number]): string {
+  const names = group.items.map((entry) =>
+    entry.id === 'warenkorb'
+      ? 'Warenkorb'
+      : entry.id === 'datenquellen'
+        ? 'Verbindungen'
+        : entry.label,
+  );
+  return names.length === 1 && names[0] === group.label
+    ? 'Banken und Datenquellen'
+    : names.join(' · ');
 }
 
 const GROUP_ICONS = {

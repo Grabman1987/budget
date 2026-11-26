@@ -38,6 +38,11 @@ test('one review pill on desktop; three phone header items and linked status bel
       ).toHaveCount(3);
     }
     await expect(header.locator('.count, .overspent-chip')).toHaveCount(0);
+    // #1354: the linked status line belongs to Heute and Plan only; Reports keeps just the badge.
+    if (redesign) {
+      await expect(page.getByRole('navigation', { name: 'Offene Aufgaben' })).toHaveCount(0);
+      await page.goto('/plan/monat?monat=2026-09');
+    }
     const status = page.getByRole('navigation', { name: 'Offene Aufgaben' });
     await expect(status).toHaveText(`4 zu prüfen·${count} überzogen`);
     await expect(status.getByRole('link', { name: '4 zu prüfen' })).toHaveAttribute(
@@ -91,7 +96,7 @@ test('zero open items has no number or phone status line', async ({ page, isMobi
   });
   const loaded = page.waitForResponse('**/api/inbox/count');
   const budget = page.waitForResponse(/\/api\/budget\/2026-09(?:\?|$)/);
-  await page.goto('/reports');
+  await page.goto('/plan/monat?monat=2026-09');
   await loaded;
   await budget;
   if (isMobile) await expect(page.locator('.m-status')).toHaveCount(0);
@@ -151,7 +156,7 @@ test('offline writes have a separate neutral chip and never inflate Prüfen', as
   page,
   isMobile,
 }) => {
-  await page.goto('/reports');
+  await page.goto('/plan/monat?monat=2026-09');
   await expect(page.locator(isMobile ? '.m-status' : '.review-pill')).toContainText(
     isMobile ? '4 zu prüfen' : 'Prüfen · 4',
   );

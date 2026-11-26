@@ -107,9 +107,9 @@ test('Heute labels envelope reserve separately from a negative account balance',
     'Budgetrücklage reicht nicht',
   );
   await expect(section).toContainText(
-    'Die Budgetrücklage vergleicht nur das Verfügbar im Envelope mit der Zahlung. Kontostand und Überziehungsrahmen werden nicht geprüft.',
+    'Die Budgetrücklage vergleicht nur das Verfügbar in der Kategorie mit der Zahlung. Kontostand und Überziehungsrahmen werden nicht geprüft.',
   );
-  await expect(section).not.toContainText('nicht gedeckt');
+  await expect(section).not.toContainText('ohne Deckung');
   await expect(
     paymentRows.nth(0).getByRole('link').filter({ hasText: '500,00 €' }),
   ).toHaveAttribute('href', /\/plan\/erwartet/);

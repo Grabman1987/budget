@@ -54,7 +54,7 @@ test('account history chart is collapsed by default, compact and remembered', as
   const control = page.getByRole('group', { name: 'Saldoverlauf Zeitraum' });
   await expect(control).toHaveCount(1);
   await expect(control.getByRole('button')).toHaveText(
-    redesign ? ['30T', '3M', '12M', 'Alles'] : ['3M', '12M', 'Alles'],
+    redesign ? ['30 Tage', '3M', '12M', 'Alles'] : ['3M', '12M', 'Alles'],
   );
   if (!redesign)
     await expect(page.getByTestId('account-chart-chip')).toHaveText(/^Prognose \d+ Tage$/);

@@ -376,7 +376,7 @@ function triageGroups(rows: PlanRow[]): PlanGroup[] {
     {
       key: 'xover',
       title: 'Überzogen',
-      sub: 'aus einem anderen Envelope decken',
+      sub: 'aus einer anderen Kategorie decken',
       rows: over,
       emptyText: 'nichts überzogen',
       emptyNote: 'Nichts ist überzogen.',
@@ -578,16 +578,26 @@ export function monthStatus(summary: MonthSummary, rows: PlanRow[]): StatusLine[
   if (over > 0)
     lines.push({
       tone: 'bad',
-      text: `${over} ${over === 1 ? 'Envelope' : 'Envelopes'} überzogen`,
+      text: `${over} ${over === 1 ? 'Kategorie' : 'Kategorien'} überzogen`,
     });
   if (!lines.length) lines.push({ tone: 'good', text: 'Nichts ist überzogen.' });
   return lines;
 }
 
 export type SplitState =
-  | { kind: 'shares'; need: number; want: number; future: number }
+  | {
+      kind: 'shares';
+      need: number;
+      want: number;
+      future: number;
+      /** Classes with money assigned that rounds to 0 %: shown as "< 1 %". */
+      tiny: Record<CategoryClass, boolean>;
+    }
   | { kind: 'empty' }
   | { kind: 'no-income' };
+
+/** "12 %", or "< 1 %" for a positive amount below one percent. */
+export const shareText = (percent: number, tiny: boolean) => (tiny ? '< 1 %' : `${percent} %`);
 
 /** Income shares stay visible above 100%; the shared bar marks overspending. */
 export function splitState(summary: MonthSummary, rows: PlanRow[]): SplitState {
@@ -602,7 +612,17 @@ export function splitState(summary: MonthSummary, rows: PlanRow[]): SplitState {
     futureCents: by.future,
     incomeCents: summary.incomeCents,
   });
-  return { kind: 'shares', need: shares.need, want: shares.want, future: shares.future };
+  return {
+    kind: 'shares',
+    need: shares.need,
+    want: shares.want,
+    future: shares.future,
+    tiny: {
+      need: by.need > 0 && shares.need === 0,
+      want: by.want > 0 && shares.want === 0,
+      future: by.future > 0 && shares.future === 0,
+    },
+  };
 }
 
 /** One envelope across the visible months: `cells[i]` is its row in month `i`, absent when hidden. */

@@ -23,7 +23,7 @@ test('Nettovermögen · Herleitung: four cards, and every "Ziele finanzieren" li
 
   const funding = cards.getByRole('region', { name: 'Ziele finanzieren', exact: true });
   const targets: Array<[string | RegExp, RegExp, () => Locator]> = [
-    [/Envelope-Ziele/, /\/plan\/monat/, () => page.getByRole('button', { name: 'Geld verteilen' })],
+    [/Kategorieziele/, /\/plan\/monat/, () => page.getByRole('button', { name: 'Geld verteilen' })],
     [
       '50/30/20 und Budgettreue erklären',
       /\/reports\/budgettreue/,

@@ -249,7 +249,7 @@ test('"Überzogene decken" covers from the named source and its undo restores th
   const cover = page
     .locator('.plan-menu-panel')
     .getByRole('button', { name: 'Überzogene decken', exact: true });
-  await expect(cover).toHaveAccessibleDescription('1 überzogen · aus verfügbaren Envelopes');
+  await expect(cover).toHaveAccessibleDescription('1 überzogen · aus verfügbaren Kategorien');
   await cover.click();
   const preview = page.getByRole('dialog', { name: 'Überzogene decken · Vorschau' });
   await expect(preview.getByRole('list')).toContainText('Zu verteilen → Testessen: 50,00 €');

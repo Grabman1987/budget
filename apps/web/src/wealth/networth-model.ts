@@ -96,9 +96,9 @@ export function portfolioIndexAxis(values: readonly number[]) {
 
 const whole = new Intl.NumberFormat('de-AT', { maximumFractionDigits: 0 });
 
-/** Axis label: thousands as "80 T". */
+/** Axis label: thousands as "80 Tsd.". */
 export const kfmt = (v: number): string =>
-  privateAmount(Math.abs(v) >= 1000 ? `${whole.format(v / 1000)} T` : whole.format(v));
+  privateAmount(Math.abs(v) >= 1000 ? `${whole.format(v / 1000)} Tsd.` : whole.format(v));
 
 /** Use one explicit euro unit for every tick of a chart, retaining distinct nice-number ticks. */
 export function euroAxis(ticks: readonly number[]): {

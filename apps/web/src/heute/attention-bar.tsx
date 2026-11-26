@@ -358,7 +358,7 @@ export function FundingNotes({
       {goals.length > 0 && (
         <p>
           <AppLink to="/plan/monat" search={{ monat: month, ansicht: 'triage' }}>
-            {goals.length} Envelope-Ziele noch nicht finanziert
+            {goals.length} Kategorieziele noch nicht finanziert
           </AppLink>
         </p>
       )}
@@ -371,7 +371,7 @@ export function FundingNotes({
       )}
       {budget.isError && !budget.isFetching && (
         <ErrorNote
-          what="Envelope-Ziele"
+          what="Kategorieziele"
           error={budget.error}
           onRetry={() => void budget.refetch()}
         />

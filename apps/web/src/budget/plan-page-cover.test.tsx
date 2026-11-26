@@ -235,7 +235,7 @@ it('shows no overspending chip in the head; the disclosure holds every cover act
   details.open = true;
   fireEvent(details, new Event('toggle'));
   await waitFor(() => expect(panel.hidden).toBe(false));
-  expect(panel.textContent).toContain('1 Envelopes überzogen · 15,00 € zu decken');
+  expect(panel.textContent).toContain('1 Kategorie überzogen · 15,00 € zu decken');
   expect(panel.querySelector('#cover-all-source')).not.toBeNull();
   expect(panel.textContent).toContain('Zu viel zugewiesen · 30,00 € fehlen');
   expect(container.querySelector('tr.prow.is-over')!.textContent).toContain('Essen');

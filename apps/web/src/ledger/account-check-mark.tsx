@@ -24,7 +24,10 @@ export function accountCheckPresentation(account: AccountRow) {
             : check.state === 'unsupported'
               ? 'Prüfung nicht unterstützt'
               : 'Prüfstatus nicht verfügbar';
-  const age = review?.checkedOn && review.days != null ? ` · vor ${review.days} T` : '';
+  const age =
+    review?.checkedOn && review.days != null
+      ? ` · vor ${review.days} ${review.days === 1 ? 'Tag' : 'Tagen'}`
+      : '';
   return { state: check.state, Icon, label, age };
 }
 

@@ -198,7 +198,9 @@ test('no overspending chip in the head; the cover actions open from the Zu verte
   await expect(page.locator('#cover-all-source')).toBeHidden();
   await page.locator('.plan-tba').click();
   await expect(page.getByRole('group', { name: 'Maßkette Zu verteilen' })).toBeVisible();
-  await expect(page.locator('.triage')).toContainText(`${count} Envelopes überzogen`);
+  await expect(page.locator('.triage')).toContainText(
+    `${count} ${count === 1 ? 'Kategorie' : 'Kategorien'} überzogen`,
+  );
   await expect(page.getByLabel('Quelle für alle Überziehungen')).toBeVisible();
   await expect(page.getByRole('button', { name: /^Alle aus .* decken$/ })).toBeVisible();
   await page.keyboard.press('Escape');

@@ -259,7 +259,7 @@ isolatedTest(
     await page.getByRole('button', { name: 'Alle aus Freizeit decken' }).click();
     await expect(value('Freizeit')).toHaveText('0,00 €');
     await openCover();
-    await page.getByRole('button', { name: 'Alle aus verfügbaren Envelopes decken' }).click();
+    await page.getByRole('button', { name: 'Alle aus verfügbaren Kategorien decken' }).click();
     await expect(page.locator('.toast.is-open')).toContainText(
       '2 gedeckt, 0 offen · 0,00 € fehlen',
     );

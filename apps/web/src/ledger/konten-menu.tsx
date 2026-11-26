@@ -52,7 +52,7 @@ export function KontenMenu({
   }, []);
   return (
     <details className={`konten-menu ${className}`} ref={details}>
-      <summary aria-label={label}>
+      <summary aria-label={label} title={iconOnly ? label : undefined}>
         {icon}
         {!iconOnly && <span>{label}</span>}
       </summary>
