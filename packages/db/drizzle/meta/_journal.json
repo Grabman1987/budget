@@ -407,6 +407,13 @@
       "when": 1795609241217,
       "tag": "0057_occurrence_booking_multi",
       "breakpoints": true
+    },
+    {
+      "idx": 58,
+      "version": "6",
+      "when": 1795670511356,
+      "tag": "0058_occurrence_moved",
+      "breakpoints": true
     }
   ]
 }

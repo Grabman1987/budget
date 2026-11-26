@@ -78,6 +78,8 @@ export interface PaymentDetailRow {
   deviationCents: number | null;
   unavailableReason:
     'missing_booking' | 'currency_mismatch' | 'missing_currency' | 'unsafe_difference' | null;
+  /** Only for a moved occurrence (#1360): the rule's own date. */
+  movedFrom?: string;
 }
 
 export interface PaymentDetail {
@@ -264,6 +266,9 @@ export const skipOccurrence = (paymentId: string, dueDate: string) =>
   request<{ occurrence: { id: string } } & WriteResult>('POST', url(`/${enc(paymentId)}/skip`), {
     dueDate,
   });
+/** Move one open occurrence to another day; the rule stays (#1360). */
+export const moveOccurrence = (id: string, date: string) =>
+  request<WriteResult>('POST', url(`/occurrences/${enc(id)}/move`), { date });
 /** Bring a struck occurrence back into the plan. */
 export const unskipOccurrence = (id: string) =>
   request<WriteResult>('POST', url(`/occurrences/${enc(id)}/unskip`), {});

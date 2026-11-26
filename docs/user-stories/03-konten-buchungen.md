@@ -383,7 +383,7 @@ Bereich: Konten (`/konten`, `/konten/$id`), Alle Buchungen (`/konten/buchungen`)
 - **Abnahmekriterien:**
   1. Die Verschiebung verdoppelt den Termin nicht und erzeugt keine Buchung.
   2. Die Bank-Zuordnung findet den Termin am neuen Datum.
-- **Status:** geplant — **Verweis:** #1360
+- **Status:** umgesetzt (Branch `feat/move-occurrence-1360`): Verschieben im Detail der erwarteten Zahlung (Plan › Erwartet), Abnahme offen — **Verweis:** #1360
 
 ### K-19 – Buchungszeilen am Telefon lesbar (#1353)
 - **Story:** Als Nutzer möchte ich in „Alle Buchungen“ und im Kontoverlauf am Telefon die Kategorie lesen können, Umbuchungen nur einmal sehen und im Konto den Saldo nach jeder Buchung kennen.

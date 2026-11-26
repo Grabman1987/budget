@@ -21,7 +21,7 @@ import {
 } from '@budget/domain';
 import { randomUUID } from 'node:crypto';
 import { assertStatementExpectedLink, statementOwnedBookingIds } from './statement-settlement-read';
-import { and, asc, eq, gte, inArray, isNotNull, isNull, lte, ne } from 'drizzle-orm';
+import { and, asc, eq, gte, inArray, isNotNull, isNull, lte, ne, or } from 'drizzle-orm';
 import {
   account,
   booking,
@@ -215,7 +215,8 @@ function replanPayment(
       .from(expectedOccurrence)
       .where(eq(expectedOccurrence.expectedPaymentId, payment.id))
       .all()
-      .map((row) => [row.dueDate, row]),
+      // A moved occurrence (#1360) is identified by its rule date, not by the chosen day.
+      .map((row) => [row.plannedDueDate ?? row.dueDate, row]),
   );
   const wanted = new Set<string>();
   for (const occ of desired) {
@@ -283,7 +284,9 @@ function replanPayment(
       row.status === 'expected' &&
       row.bookingId === null &&
       row.dueDate >= today &&
-      (lifecycleOnly ? paymentDateSuppressed(lifecycle, row.dueDate) : !wanted.has(row.dueDate))
+      (lifecycleOnly
+        ? paymentDateSuppressed(lifecycle, row.dueDate)
+        : !wanted.has(row.plannedDueDate ?? row.dueDate))
     ) {
       updateTracked(
         tx,
@@ -1117,29 +1120,50 @@ export function skipOccurrence(
     const payment = livePayment(tx, paymentId);
     const { from, to } = occurrenceHorizon(today);
     const lifecycle = readPaymentLifecycles(tx, [paymentId]).get(paymentId);
-    const planned =
-      /^\d{4}-\d{2}-\d{2}$/.test(dueDate) && dueDate >= from && dueDate <= to
-        ? occurrences(
-            schedulePayment(payment, lifecycle),
-            liveVersions(tx, paymentId).map(scheduleVersion),
-            dueDate,
-            dueDate,
-          )[0]
-        : undefined;
-    if (!planned)
-      throw new RangeError(
-        `${dueDate} is not a planned occurrence of this payment (${from}..${to})`,
-      );
-    const row = tx
+    // A moved occurrence (#1360) may be addressed by its chosen day; its rule date decides.
+    const moved = tx
       .select()
       .from(expectedOccurrence)
       .where(
         and(
           eq(expectedOccurrence.expectedPaymentId, paymentId),
           eq(expectedOccurrence.dueDate, dueDate),
+          isNotNull(expectedOccurrence.plannedDueDate),
         ),
       )
       .get();
+    const ruleDate = moved?.plannedDueDate ?? dueDate;
+    const planned =
+      /^\d{4}-\d{2}-\d{2}$/.test(ruleDate) && ruleDate >= from && ruleDate <= to
+        ? occurrences(
+            schedulePayment(payment, lifecycle),
+            liveVersions(tx, paymentId).map(scheduleVersion),
+            ruleDate,
+            ruleDate,
+          )[0]
+        : undefined;
+    if (!planned)
+      throw new RangeError(
+        `${dueDate} is not a planned occurrence of this payment (${from}..${to})`,
+      );
+    const row =
+      moved ??
+      tx
+        .select()
+        .from(expectedOccurrence)
+        .where(
+          and(
+            eq(expectedOccurrence.expectedPaymentId, paymentId),
+            or(
+              eq(expectedOccurrence.plannedDueDate, ruleDate),
+              and(
+                eq(expectedOccurrence.dueDate, ruleDate),
+                isNull(expectedOccurrence.plannedDueDate),
+              ),
+            ),
+          ),
+        )
+        .get();
     let id = row?.id;
     if (!row) {
       id = randomUUID();
@@ -1215,6 +1239,52 @@ export function unskipOccurrence(
       .where(eq(expectedOccurrence.id, occurrenceId))
       .get()!;
     return { occurrence: after, groupId: grouped.groupId };
+  });
+}
+
+/**
+ * Move one open occurrence to another day (#1360): `due_date` becomes the chosen day and the rule
+ * date is kept in `planned_due_date`, so re-planning neither recreates nor removes it; forecast,
+ * Heute and matching follow the new day. Moving back to the rule date clears the marker. Only an
+ * `expected`, unlinked occurrence can move, never into the past or onto a day that already holds
+ * another occurrence of the same payment (`ConflictError`).
+ */
+export function moveOccurrence(
+  db: Executor,
+  occurrenceId: string,
+  date: string,
+  ctx: AuditContext,
+  today: string,
+): { occurrence: OccurrenceRow; groupId: string } {
+  const grouped = withGroup(ctx);
+  return runInTransaction(db, (tx) => {
+    const { occ, payment } = liveOccurrence(tx, occurrenceId);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || date < today)
+      throw new RangeError('Wähle heute oder einen späteren Tag.');
+    if (occ.bookingId !== null || occ.status !== 'expected')
+      throw new ConflictError('Nur offene Termine ohne Buchung lassen sich verschieben.');
+    if (date === occ.dueDate) return { occurrence: occ, groupId: grouped.groupId };
+    const taken = tx
+      .select({ id: expectedOccurrence.id })
+      .from(expectedOccurrence)
+      .where(
+        and(
+          eq(expectedOccurrence.expectedPaymentId, payment.id),
+          ne(expectedOccurrence.id, occ.id),
+          or(eq(expectedOccurrence.dueDate, date), eq(expectedOccurrence.plannedDueDate, date)),
+        ),
+      )
+      .get();
+    if (taken) throw new ConflictError('An diesem Tag gibt es schon einen Termin dieser Zahlung.');
+    const ruleDate = occ.plannedDueDate ?? occ.dueDate;
+    updateTracked(
+      tx,
+      expectedOccurrence,
+      [occ.id],
+      { dueDate: date, plannedDueDate: date === ruleDate ? null : ruleDate },
+      grouped,
+    );
+    return { occurrence: liveOccurrence(tx, occ.id).occ, groupId: grouped.groupId };
   });
 }
 

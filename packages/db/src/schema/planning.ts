@@ -29,6 +29,11 @@ export const expectedOccurrence = sqliteTable(
       .notNull()
       .references(() => expectedPayment.id),
     dueDate: text('due_date').notNull(),
+    /**
+     * Set only when the owner moved this one occurrence (#1360): the rule's own date. `due_date`
+     * then holds the chosen day; re-planning matches the row by this date, so it is not recreated.
+     */
+    plannedDueDate: text('planned_due_date'),
     expectedAmountCents: cents('expected_amount_cents').notNull(),
     contactShareCents: cents('contact_share_cents').notNull().default(0),
     status: text('status', { enum: OCCURRENCE_STATUSES }).notNull().default('expected'),
