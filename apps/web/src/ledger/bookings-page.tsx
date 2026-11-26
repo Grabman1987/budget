@@ -272,7 +272,8 @@ export function BookingsPage() {
       )}
       <details className="kregister-actions">
         <summary
-          aria-label="Weitere Buchungsaktionen"
+          // The visible label names the menu on wide screens; the icon-only phone needs one.
+          aria-label={isPhone ? 'Weitere Buchungsaktionen' : undefined}
           title="Weitere Buchungsaktionen"
           style={{ gap: 'var(--space-sm)', paddingInline: isPhone ? undefined : 'var(--space-md)' }}
         >

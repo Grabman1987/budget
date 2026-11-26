@@ -249,7 +249,11 @@ export function BankBookingRow({
           <button
             type="button"
             className="bank-payee-btn"
-            aria-label={payeeName ? `Empfänger ändern: ${payeeName}` : 'Empfänger wählen'}
+            aria-label={
+              payeeName
+                ? `Empfänger ändern: ${payeeName}`
+                : `Empfänger wählen: ${item.memo || 'Bankbuchung'}`
+            }
             title={payeeName || 'Empfänger wählen'}
             disabled={locked}
             onClick={() => openEditor('payee')}

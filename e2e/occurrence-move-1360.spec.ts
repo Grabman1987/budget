@@ -31,7 +31,7 @@ test('moves a single planned occurrence and undoes it', async ({ page, baseURL }
       dueDay: 20,
       startDate: '2026-10-01',
       validFrom: '2026-10-01',
-      amountCents: -12_345,
+      amountCents: 12_345,
     },
   });
   expect(paymentResponse.status(), await paymentResponse.text()).toBe(201);
