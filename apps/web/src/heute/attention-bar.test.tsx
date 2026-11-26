@@ -54,7 +54,7 @@ it('hides funded goals and labels current-only funding work in other months', ()
   expect(screen.getByText('Stand heute · 17.09.2026')).toBeTruthy();
   expect(
     screen
-      .getByRole('link', { name: '1 Envelope-Ziele noch nicht finanziert' })
+      .getByRole('link', { name: '1 Kategorieziele noch nicht finanziert' })
       .getAttribute('data-search'),
   ).toBe(JSON.stringify({ monat: '2026-09', ansicht: 'triage' }));
 });

@@ -124,7 +124,8 @@ for (const theme of ['light', 'dark'] as const)
           expect(row.checkboxCenter).toBeCloseTo(row.blockCenter, 0);
           expect(row.statusPosition).toBe('static');
           expect(row.amounts).toEqual(
-            Array(3).fill({ width: 128, align: 'right', figures: 'tabular-nums' }),
+            // #1355: Zugewiesen/Aktivität 112px, Verfügbar 128px.
+            [112, 112, 128].map((width) => ({ width, align: 'right', figures: 'tabular-nums' })),
           );
           expect(row.underlines).toEqual(['none', 'none', 'none']);
           expect(row.arrows).toBe(1);

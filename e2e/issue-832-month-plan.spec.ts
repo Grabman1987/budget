@@ -353,7 +353,11 @@ for (const theme of ['light', 'dark'] as const) {
             Math.abs(nameBox.y + nameBox.height / 2 - hintBox.y - hintBox.height / 2),
           ).toBeLessThanOrEqual(0.5);
           for (const column of ['.col-assign', '.col-act', '.col-avail']) {
-            expect((await row.locator(column).boundingBox())!.width).toBeCloseTo(128, 0);
+            // #1355: Zugewiesen/Aktivität are 112px, Verfügbar keeps 128px.
+            expect((await row.locator(column).boundingBox())!.width).toBeCloseTo(
+              column === '.col-avail' ? 128 : 112,
+              0,
+            );
             expect(
               await row.locator(column).evaluate((node) => getComputedStyle(node).textAlign),
             ).toBe('right');

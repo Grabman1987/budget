@@ -58,7 +58,7 @@ export function MultiTable({
     <div className="pmulti-scroll">
       <table className={cx('ptable ptable-multi', `has-${months.length}`)}>
         <caption className="sr-only">
-          Envelopes mit Zugewiesen, Aktivität und Verfügbar für {months.length} Monate
+          Kategorien mit Zugewiesen, Aktivität und Verfügbar für {months.length} Monate
         </caption>
         <thead>
           <tr>
@@ -153,7 +153,7 @@ export function MultiTable({
                           data-category-id={r.id}
                           onClick={() => onOpen(r.id, months[0]!)}
                         >
-                          {r.cls ? <ClassSwatch kind={r.cls} /> : <ClassSwatch kind="bound" />}
+                          {!REDESIGN_ENABLED && <ClassSwatch kind={r.cls ?? 'bound'} />}
                           <CategoryIcon icon={r.icon} name={r.name} />
                           {r.name}
                         </button>

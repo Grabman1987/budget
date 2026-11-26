@@ -43,7 +43,7 @@ import { expectedQuery, incomeQuery, type MonthIncome } from '../expected/api';
 import { PLAN_MONAT } from '../nav/pages';
 import { PageFrame } from '../pages/placeholder-page';
 import { SettingsFormDialog } from '../pages/settings-form-dialog';
-import { eur } from '../ledger/format';
+import { eur, longDay } from '../ledger/format';
 import { accountsQuery } from '../ledger/queries';
 import { ErrorNote, LoadingNote } from '../ledger/states';
 import { monthLabel, shiftMonth } from '../nav/month';
@@ -94,6 +94,7 @@ import {
   planGroups,
   planMulti,
   planRows,
+  shareText,
   splitState,
   statusText,
   suggestions,
@@ -178,10 +179,10 @@ export function PlanMonthPage() {
         className={cx('plan plan-month', REDESIGN_ENABLED && 'plan-month-v2')}
         aria-busy={budget.isFetching}
       >
-        {budget.isPending && <LoadingNote what="Envelopes" />}
+        {budget.isPending && <LoadingNote what="Kategorien" />}
         {data && budget.isFetching && <LoadingNote what="Monatswerte" />}
         {budget.isError && (
-          <ErrorNote what="Envelopes" error={budget.error} onRetry={() => void budget.refetch()} />
+          <ErrorNote what="Kategorien" error={budget.error} onRetry={() => void budget.refetch()} />
         )}
         {data && (
           <PlanBody
@@ -224,7 +225,16 @@ function MonthFrame({
       period={<MonthSwitch heading={monthLabel(month)} />}
       actions={
         <>
-          <span className="month-reference-income">Einnahmen {income}</span>
+          <span
+            className="month-reference-income"
+            title={
+              REDESIGN_ENABLED
+                ? 'Alles, was im Monat auf Zu verteilen eingeht (Budget-Einnahmen). Die Karte „Geplante Einnahmen“ zählt nur erwartete Zahlungen.'
+                : undefined
+            }
+          >
+            {REDESIGN_ENABLED ? 'Einnahmen im Budget' : 'Einnahmen'} {income}
+          </span>
           <AppLink
             className="btn btn-ghost btn-sm plan-close"
             to={`/monatsabschluss/${month}`}
@@ -237,7 +247,7 @@ function MonthFrame({
     >
       {children}
       <p className="plan-v2-source">
-        Stand {todayInVienna()} · Monatszuweisung {monthLabel(month)}
+        Stand {longDay(todayInVienna())} · Monatszuweisung {monthLabel(month)}
       </p>
     </PlanPageFrame>
   );
@@ -355,8 +365,16 @@ function PlanBody({
         ...(expected && { expected: expectedDues(expected) }),
       }).map((group) => group.key),
     );
-    return new Set(restoredPlan?.collapsedKeys.filter((key) => keys.has(key)) ?? []);
+    // Restored navigation state wins; otherwise the owner's remembered folding (review 26.11, #1358).
+    return new Set(
+      (restoredPlan ? restoredPlan.collapsedKeys : readStoredCollapsed()).filter((key) =>
+        keys.has(key),
+      ),
+    );
   });
+  useEffect(() => {
+    if (REDESIGN_ENABLED) writeStoredCollapsed(collapsed);
+  }, [collapsed]);
   const groupFocusAfterToggle = useRef<string | null>(null);
   useLayoutEffect(() => {
     const key = groupFocusAfterToggle.current;
@@ -786,7 +804,7 @@ function PlanBody({
       : 'suggested';
   const coverLabel =
     source === 'suggested'
-      ? 'verfügbaren Envelopes'
+      ? 'verfügbaren Kategorien'
       : source === ''
         ? 'Zu verteilen'
         : byId.get(source)!.name;
@@ -833,12 +851,13 @@ function PlanBody({
     <section className="triage" aria-labelledby="triage-title">
       <div className="head">
         <h2 id="triage-title">
-          {urgent.length} Envelopes überzogen ·{' '}
+          {urgent.length} {urgent.length === 1 ? 'Kategorie' : 'Kategorien'} überzogen ·{' '}
           {eur(rows.reduce((sum, r) => sum + r.overspentCents, 0))} zu decken
         </h2>
       </div>
       <p className="panel-sub">
-        Decken verschiebt freies Geld zwischen Envelopes; die Summe auf deinen Konten bleibt gleich.
+        Decken verschiebt freies Geld zwischen Kategorien; die Summe auf deinen Konten bleibt
+        gleich.
       </p>
       {missing > 0 && (
         <div className="cover-missing" role="note">
@@ -1216,11 +1235,23 @@ function PlanBody({
         {!REDESIGN_ENABLED && topbar}
         <section className="ptable-wrap card" aria-labelledby="table-title">
           <h2 className="sr-only" id="table-title">
-            Envelopes im Monat
+            Kategorien im Monat
           </h2>
           {!REDESIGN_ENABLED && toolbar}
           {filter === 'overspent' && (
             <div className="plan-filter-cover">{coverControls || <p>Nichts ist überzogen.</p>}</div>
+          )}
+          {REDESIGN_ENABLED && phone && filter !== 'overspent' && counts.overspent > 0 && (
+            <button
+              type="button"
+              className="plan-overspent-jump"
+              onClick={() => changeFilter('overspent')}
+            >
+              <span>
+                {counts.overspent} {counts.overspent === 1 ? 'Kategorie' : 'Kategorien'} überzogen
+              </span>
+              <span aria-hidden="true">Anzeigen →</span>
+            </button>
           )}
           {REDESIGN_ENABLED && (
             <p className="sr-only" role="status" aria-live="polite">
@@ -1331,7 +1362,7 @@ function PlanBody({
             <div className="pmulti-scroll">
               <table className={cx('ptable ptable-zero', distribute && 'is-distributing')}>
                 <caption className="sr-only">
-                  Envelopes mit Zugewiesen, Aktivität und Verfügbar
+                  Kategorien mit Zugewiesen, Aktivität und Verfügbar
                 </caption>
                 <thead
                   className={cx(phoneRedesign && !phoneSelection && 'sr-only')}
@@ -2047,9 +2078,9 @@ function PlanTopBar({
               }
             />
             {monthIncome && (
-              <aside className="plan-reference-income" aria-label="Einnahmen im Planmonat">
+              <aside className="plan-reference-income" aria-label="Geplante Einnahmen im Planmonat">
                 <div>
-                  <strong>Einnahmen · {monthLabel(month)}</strong>
+                  <strong>Geplante Einnahmen · {monthLabel(month)}</strong>
                   <button type="button" onClick={onIncome}>
                     Details →
                   </button>
@@ -2057,6 +2088,10 @@ function PlanTopBar({
                 <p>
                   erhalten <strong>{eur(monthIncome.receivedCents)}</strong> von erwartet{' '}
                   {eur(monthIncome.expectedCents)}
+                  <span className="sr-only">
+                    {' '}
+                    Nur erwartete Zahlungen, ohne Kapitalerträge und Erstattungen.
+                  </span>
                 </p>
                 <progress
                   aria-label="Erhaltene Einnahmen"
@@ -2179,7 +2214,7 @@ export function SplitBand({ data, rows }: { data: BudgetMonthView; rows: PlanRow
             futureCents: shares.future * 100,
             restCents: (100 - shares.need - shares.want - shares.future) * 100,
           }}
-          label={`Zugewiesen: Bedarf ${shares.need} %, Wunsch ${shares.want} %, Zukunft ${shares.future} % der Einnahmen. Soll 50, 30, 20.`}
+          label={`Zugewiesen: Bedarf ${shareText(shares.need, shares.tiny.need)}, Wunsch ${shareText(shares.want, shares.tiny.want)}, Zukunft ${shareText(shares.future, shares.tiny.future)} der Einnahmen. Soll 50, 30, 20.`}
         />
       ) : (
         <p>{reason}</p>
@@ -2188,7 +2223,7 @@ export function SplitBand({ data, rows }: { data: BudgetMonthView; rows: PlanRow
         {(['need', 'want', 'future'] as const).map((k) => (
           <span key={k}>
             <ClassSwatch kind={k} />
-            {CLASS_TEXT[k]} <b>{shares ? `${shares[k]} %` : '–'}</b>
+            {CLASS_TEXT[k]} <b>{shares ? shareText(shares[k], shares.tiny[k]) : '–'}</b>
           </span>
         ))}
       </div>
@@ -2754,4 +2789,24 @@ function EnvelopeRow({
 function AvailableIcon({ row }: { row: PlanRow }) {
   const Icon = row.overspentCents > 0 ? CircleAlert : row.availableCents > 0 ? Check : Wallet;
   return <Icon size={16} strokeWidth={1.75} aria-hidden="true" />;
+}
+
+const COLLAPSED_KEY = 'budget-plan-collapsed-groups';
+
+/** Remembered folded category groups (per browser); storage may be blocked, then all stay open. */
+function readStoredCollapsed(): string[] {
+  try {
+    const parsed: unknown = JSON.parse(localStorage.getItem(COLLAPSED_KEY) ?? '[]');
+    return Array.isArray(parsed) ? parsed.filter((k): k is string => typeof k === 'string') : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeStoredCollapsed(collapsed: ReadonlySet<string>) {
+  try {
+    localStorage.setItem(COLLAPSED_KEY, JSON.stringify([...collapsed]));
+  } catch {
+    /* storage unavailable */
+  }
 }

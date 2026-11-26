@@ -324,6 +324,8 @@ button {
   padding: 0 6px;
   overflow-y: auto;
   overscroll-behavior: contain;
+  /* Room below the last account so it can scroll clear of the fade and the profile block. */
+  padding-bottom: 28px;
   mask-image: linear-gradient(#000 calc(100% - 18px), transparent);
 }
 .acct-tree .sheetlist-label {
@@ -471,6 +473,10 @@ button {
 }
 .acct-group-title {
   min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  hyphens: none;
   font-size: var(--fs-label);
   letter-spacing: 0.07em;
 }
@@ -485,7 +491,7 @@ button {
   align-items: center;
   gap: 6px;
   height: 32px;
-  padding: 0 10px 0 28px;
+  padding: 0 8px 0 24px;
   border-radius: var(--radius-sm);
   color: var(--ink-2);
   text-decoration: none;
@@ -551,4 +557,35 @@ button {
 }
 .app.is-collapsed .sidebar-foot {
   margin-top: auto;
+}
+
+/* Negative Budget/Investment amounts: red pill (DESIGN.md, Kontenhierarchie). Redesign only. */
+:root:has([data-budget-redesign='1']) .acct-amount.is-pill {
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--red-soft);
+  color: var(--red);
+}
+:root:has([data-budget-redesign='1']) .acct-group li a {
+  grid-template-columns: 16px minmax(0, 1fr) auto;
+}
+:root:has([data-budget-redesign='1']) .acct-name {
+  min-width: 0;
+}
+:root:has([data-budget-redesign='1']) .acct-group-bar {
+  padding-right: 6px;
+}
+:root:has([data-budget-redesign='1']) .acct-pencil-group {
+  width: 20px;
+  margin-left: -2px;
+}
+:root:has([data-budget-redesign='1']) .acct-group-head {
+  column-gap: 3px;
+  padding-left: 4px;
+}
+:root:has([data-budget-redesign='1']) .acct-group-title {
+  letter-spacing: 0.04em;
+}
+:root:has([data-budget-redesign='1']) .acct-group li a {
+  gap: 5px;
 }

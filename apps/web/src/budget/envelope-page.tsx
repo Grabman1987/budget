@@ -72,10 +72,10 @@ export function EnvelopePage() {
     <PageFrame meta={PLAN_MONAT}>
       <div className="plan plan-detail" aria-busy={budget.isFetching}>
         <PlanDetailBack month={month} />
-        {budget.isPending && <LoadingNote what="Envelope" />}
-        {budget.data && budget.isFetching && <LoadingNote what="Envelope-Werte" />}
+        {budget.isPending && <LoadingNote what="Kategorie" />}
+        {budget.data && budget.isFetching && <LoadingNote what="Kategoriewerte" />}
         {budget.isError && (
-          <ErrorNote what="Envelope" error={budget.error} onRetry={() => void budget.refetch()} />
+          <ErrorNote what="Kategorie" error={budget.error} onRetry={() => void budget.refetch()} />
         )}
         {budget.data && !row && <p role="status">Diese Kategorie ist nicht vorhanden.</p>}
         {row && (

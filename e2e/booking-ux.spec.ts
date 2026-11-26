@@ -130,7 +130,7 @@ test('booking cells, cash capture, repetition and account preview on desktop and
   await expect(
     page.getByRole('group', { name: 'Saldoverlauf Zeitraum' }).getByRole('button'),
   ).toHaveText(
-    (await redesignLoaded(page)) ? ['30T', '3M', '12M', 'Alles'] : ['3M', '12M', 'Alles'],
+    (await redesignLoaded(page)) ? ['30 Tage', '3M', '12M', 'Alles'] : ['3M', '12M', 'Alles'],
   );
   await expect(page.getByLabel('Zeitraum-Schnellauswahl')).toHaveCount(0);
   await expect(chart.locator('.l-forecast')).toBeVisible();

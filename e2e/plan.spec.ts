@@ -248,7 +248,7 @@ isolatedTest(
       useInnerText: true,
     });
     await page.locator('.plan-tba').click();
-    await expect(page.locator('.triage')).toContainText('2 Envelopes überzogen');
+    await expect(page.locator('.triage')).toContainText('2 Kategorien überzogen');
     await expect(page.locator('.triage')).not.toContainText(food);
     await page.locator('.plan-tba').click();
 

@@ -248,6 +248,7 @@ export function BookingsPage() {
           variant="ghost"
           disabled={pending}
           aria-pressed={selecting}
+          title={selecting ? 'Auswahl beenden' : 'Auswählen'}
           onClick={() => {
             setSelecting((value) => !value);
             setSelected(new Set());
@@ -270,8 +271,14 @@ export function BookingsPage() {
         </Button>
       )}
       <details className="kregister-actions">
-        <summary aria-label="Weitere Buchungsaktionen">
+        <summary
+          // The visible label names the menu on wide screens; the icon-only phone needs one.
+          aria-label={isPhone ? 'Weitere Buchungsaktionen' : undefined}
+          title="Weitere Buchungsaktionen"
+          style={{ gap: 'var(--space-sm)', paddingInline: isPhone ? undefined : 'var(--space-md)' }}
+        >
           <MoreHorizontal size={20} strokeWidth={1.5} aria-hidden="true" />
+          {!isPhone && <span>Aktionen</span>}
         </summary>
         <div className="kregister-menu">
           {REDESIGN_ENABLED && isPhone && (

@@ -65,10 +65,10 @@ describe('axis helpers', () => {
     expect(yTicks(61_000, 87_000)).toEqual([70_000, 80_000]);
     expect(yTicks(0, 100)).toEqual([0, 25, 50, 75, 100]);
   });
-  it('kfmt writes thousands as "80 T"', () => {
-    expect(kfmt(80_000)).toBe('80 T');
+  it('kfmt writes thousands as "80 Tsd."', () => {
+    expect(kfmt(80_000)).toBe('80 Tsd.');
     expect(kfmt(950)).toBe('950');
-    expect(kfmt(2_500)).toBe('3 T');
+    expect(kfmt(2_500)).toBe('3 Tsd.');
   });
   it('monthTicks marks month starts, thinned to fit the width', () => {
     const days = [

@@ -224,3 +224,5 @@ for inconsistent stored contact data. Physical-device acceptance remains open.
   4. Echte Geräteprüfungen sind getrennt als Nutzerergebnis dokumentiert.
 - **Status:** offen — **Verweis:** #872
   Fehlt noch: Alle abhängigen Bereiche der Neugestaltung sind abzuschließen, danach die Matrix; echte Geräteprüfung durch den Nutzer.
+
+- **Ergänzung Seitenkopf und Sprache (#1354, #1356):** live mit Train 23 (Nutzerabnahme offen). Die Statuszeile (zu prüfen · überzogen) erscheint nur auf Heute und Plan, steht in einer Zeile ohne verwaisten Trenner; sonst bleibt nur das Prüfen-Zeichen. Konten-Übersicht und Alle Buchungen beschriften ihr Aktionsmenü am Desktop sichtbar und am Telefon per Tooltip und Namen. Vermögen: „Investment“ ist am Telefon beschriftet, der schwebende Plus-Knopf bleibt die Buchung. Einstellungen nutzen denselben Seitenkopf wie die anderen Bereiche; die Gruppenzeile wiederholt den Titel nicht. Texte: „Tage/Tsd.“ statt „T“, „Kategorien“ statt „Envelopes“, „ohne Deckung auf dem Konto“, Datumsangaben als TT.MM. bzw. TT.MM.JJJJ, Anteile unter 1 % als „< 1 %“.

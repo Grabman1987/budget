@@ -1,5 +1,5 @@
 import { ClosedAccountDisclosure } from './closed-account-disclosure';
-import { Button, CircleNumber, cx, maskMoneyText, useAmountPrivacy } from '@budget/ui';
+import { Button, CircleNumber, cx, maskMoneyText, useAmountPrivacy, useIsPhone } from '@budget/ui';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 import {
@@ -98,6 +98,7 @@ export function overviewGroupValuationSources(
 /** Operational account figures; valuation/group producers and all write controllers stay shared. */
 export function OverviewPage() {
   useAmountPrivacy();
+  const phone = useIsPhone();
   const accounts = useQuery(accountsQuery());
   const [creating, setCreating] = useState(false);
   const [ordering, setOrdering] = useState(false);
@@ -157,10 +158,10 @@ export function OverviewPage() {
       >
         {REDESIGN_ENABLED && !ordering ? (
           <KontenMenu
-            className="overview-actions-menu"
+            className={cx('overview-actions-menu', !phone && 'has-label')}
             label="Kontenaktionen"
             icon={<MoreHorizontal size={20} aria-hidden="true" />}
-            iconOnly
+            iconOnly={phone}
           >
             {actions}
           </KontenMenu>
@@ -533,6 +534,7 @@ function OverviewAccount({
         aria-controls={detailId}
         aria-expanded={expanded}
         aria-label={`Details zu ${name}`}
+        title={`Details zu ${name}`}
         onClick={() => setExpanded(!expanded)}
       >
         {expanded ? (

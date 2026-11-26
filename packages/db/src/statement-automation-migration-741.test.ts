@@ -1,3 +1,4 @@
+import type * as PlanningSchema from './schema/planning';
 import type * as AccountSchema from './schema/accounts';
 import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -417,4 +418,15 @@ vi.mock('./schema/accounts', async (importOriginal) => {
   const account = Object.create(original.account);
   account[Symbol.for('drizzle:Columns')] = columns;
   return { ...original, account };
+});
+
+// Keep the ORM occurrence projection at the genuine historical schema level (before 0058).
+vi.mock('./schema/planning', async (importOriginal) => {
+  const original = await importOriginal<typeof PlanningSchema>();
+  const { getTableColumns } = await import('drizzle-orm');
+  const columns = { ...getTableColumns(original.expectedOccurrence) };
+  delete (columns as Partial<typeof columns>).plannedDueDate;
+  const expectedOccurrence = Object.create(original.expectedOccurrence);
+  expectedOccurrence[Symbol.for('drizzle:Columns')] = columns;
+  return { ...original, expectedOccurrence };
 });

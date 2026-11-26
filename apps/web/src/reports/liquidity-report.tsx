@@ -288,7 +288,7 @@ function ForecastCard({
         ? 'Prognose mit geplanten Ereignissen'
         : activeEvents.length > 0
           ? 'Grundplan im gewählten Prognosezeitraum'
-          : 'Grundplan ohne aktive geplante Ereignisse';
+          : 'Grundplan';
   const lowContext =
     chartPauseCount > 0
       ? report.eventMarks.length > 0

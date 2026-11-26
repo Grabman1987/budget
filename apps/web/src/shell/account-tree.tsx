@@ -186,6 +186,9 @@ function AccountGroupBlock({
   const reorder = useReorder(ids, onReorder, (id) => names.get(id) ?? '');
   const sum = { cents: view.sumCents, approx: view.sumApprox };
   const GroupIcon = GROUP_ICON[groupId];
+  // DESIGN.md (Kontenhierarchie): negative Budget/Investment amounts are a red pill; cards and
+  // loans keep plain ink with the minus.
+  const pillGroup = REDESIGN_ENABLED && (groupId === 'budget' || groupId === 'investments');
   return (
     <section className={cx('acct-group', folded && 'is-folded', editing && 'is-editing')}>
       <div className="acct-group-bar">
@@ -199,7 +202,9 @@ function AccountGroupBlock({
         >
           <ChevronDown className="chev" size={16} strokeWidth={1.75} aria-hidden="true" />
           <GroupIcon className="acct-group-icon" size={16} strokeWidth={1.75} aria-hidden="true" />
-          <span className="acct-group-title tech">{view.group.title}</span>
+          <span className="acct-group-title tech" title={view.group.title}>
+            {view.group.title}
+          </span>
         </button>
         {!editing && (
           <PencilButton
@@ -208,7 +213,13 @@ function AccountGroupBlock({
             onClick={onEdit}
           />
         )}
-        <span className={cx('acct-amount', sum.cents !== null && sum.cents < 0 && 'is-neg')}>
+        <span
+          className={cx(
+            'acct-amount',
+            sum.cents !== null && sum.cents < 0 && 'is-neg',
+            pillGroup && sum.cents !== null && sum.cents < 0 && 'is-pill',
+          )}
+        >
           {short(sum)}
         </span>
       </div>
@@ -237,11 +248,14 @@ function AccountGroupBlock({
                       strokeWidth={1.75}
                       aria-hidden="true"
                     />
-                    <span className="acct-name">{a.name}</span>
+                    <span className="acct-name" title={a.name}>
+                      {a.name}
+                    </span>
                     <span
                       className={cx(
                         'acct-amount',
                         value.cents !== null && value.cents < 0 && 'is-neg',
+                        pillGroup && value.cents !== null && value.cents < 0 && 'is-pill',
                       )}
                     >
                       {short(value)}

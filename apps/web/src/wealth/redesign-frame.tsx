@@ -185,10 +185,7 @@ function WealthToolbar({
         <details className="area-page-menu wealth-investment" ref={menu}>
           <summary>
             <Plus size={16} aria-hidden="true" />
-            <span className="wealth-investment-label" aria-hidden="true">
-              Investment
-            </span>
-            <span className="sr-only">Investment</span>
+            <span className="wealth-investment-label">Investment</span>
           </summary>
           <nav aria-label="Investment hinzufügen">
             {choice('Wertpapier anlegen', '/vermoegen/portfolio/positionen', {

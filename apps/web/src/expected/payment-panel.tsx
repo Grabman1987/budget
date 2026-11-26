@@ -26,6 +26,7 @@ import {
   expectedQuery,
   linkOccurrence,
   markMissed,
+  moveOccurrence,
   paymentDetailQuery,
   patchPayment,
   skipOccurrence,
@@ -530,6 +531,7 @@ function OccurrencesSection({ payment: p }: { payment: ExpectedPayment }) {
   const detail = useQuery(paymentDetailQuery(p.id, today));
   const [more, setMore] = useState(false);
   const [linking, setLinking] = useState<string | null>(null);
+  const [moving, setMoving] = useState<{ id: string; date: string } | null>(null);
   const write = useBudgetWrite();
   const data = detail.data;
   const allRows = [...(data?.history ?? []), ...(data?.future ?? [])];
@@ -573,6 +575,7 @@ function OccurrencesSection({ payment: p }: { payment: ExpectedPayment }) {
           {row.unavailableReason === 'unsafe_difference' &&
             ' Abweichung außerhalb des darstellbaren Centbereichs.'}
           {row.source === 'preview' && ' Vorschau aus aktueller Regel · nicht gespeichert.'}
+          {row.movedFrom && ` Verschoben vom ${longDay(row.movedFrom)}.`}
         </span>
         {id !== null && (
           <span className="xp-occ-act">
@@ -611,6 +614,16 @@ function OccurrencesSection({ payment: p }: { payment: ExpectedPayment }) {
                 >
                   Verknüpfen
                 </Button>
+                {row.dueDate >= today && row.status === 'expected' && (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    aria-expanded={moving?.id === id}
+                    onClick={() => setMoving(moving?.id === id ? null : { id, date: row.dueDate })}
+                  >
+                    Verschieben
+                  </Button>
+                )}
                 {row.dueDate >= today && (
                   <Button
                     size="sm"
@@ -642,6 +655,37 @@ function OccurrencesSection({ payment: p }: { payment: ExpectedPayment }) {
               </>
             )}
           </span>
+        )}
+        {id !== null && moving?.id === id && (
+          <form
+            className="xp-occ-move"
+            onSubmit={(event) => {
+              event.preventDefault();
+              const date = moving.date;
+              void write(
+                () => moveOccurrence(id, date),
+                () => `${name}: Termin auf ${longDay(date)} verschoben`,
+              ).then(() => setMoving(null));
+            }}
+          >
+            <label>
+              Neues Datum
+              <input
+                className="input"
+                type="date"
+                min={today}
+                required
+                value={moving.date}
+                onChange={(event) => setMoving({ id, date: event.target.value })}
+              />
+            </label>
+            <Button size="sm" type="submit" disabled={moving.date === row.dueDate}>
+              Speichern
+            </Button>
+            <Button size="sm" variant="ghost" type="button" onClick={() => setMoving(null)}>
+              Abbrechen
+            </Button>
+          </form>
         )}
       </li>
     );

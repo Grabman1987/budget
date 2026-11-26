@@ -1528,3 +1528,33 @@
     grid-area: action;
   }
 }
+
+/* Review 26.11 (#1355): net-worth amount never wraps apart, fixed Fällig date column. */
+:root:has([data-budget-redesign='1']) .hv-net .hv-card-head {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+:root:has([data-budget-redesign='1']) .hv-net .hv-card-head h2 {
+  margin-right: auto;
+}
+:root:has([data-budget-redesign='1']) .hv-net-value,
+:root:has([data-budget-redesign='1']) .hv-net-value strong {
+  flex: none;
+  white-space: nowrap;
+}
+:root:has([data-budget-redesign='1']) .hv-due-list li {
+  grid-template-columns: 16px minmax(0, 1fr) 4.25em auto;
+}
+:root:has([data-budget-redesign='1']) .hv-due-list time {
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+:root:has([data-budget-redesign='1']) .hv-due-table .hv-due-date {
+  min-width: 4.5em;
+  font-variant-numeric: tabular-nums;
+}
+:root:has([data-budget-redesign='1']) .hv-due-table .hv-due-date time {
+  display: block;
+  text-align: right;
+}

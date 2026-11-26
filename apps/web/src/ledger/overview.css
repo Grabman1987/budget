@@ -574,6 +574,16 @@
   border: 0;
   padding: 0;
 }
+.account-overview-redesign .overview-actions-menu.has-label > summary {
+  display: inline-flex;
+  gap: 8px;
+  width: auto;
+  padding-inline: 12px;
+  border: 1px solid var(--rule-strong);
+}
+.account-overview-redesign:has(.overview-actions-menu.has-label) .overview-lead {
+  padding-inline-end: 176px;
+}
 .account-overview-redesign .overview-actions-menu a,
 .account-overview-redesign .overview-actions-menu .btn {
   min-height: 44px;

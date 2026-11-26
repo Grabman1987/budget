@@ -16,6 +16,7 @@ import {
   planMulti,
   planRows,
   readAssign,
+  shareText,
   splitState,
   suggestions,
   unassignPlan,
@@ -322,7 +323,7 @@ describe('Plan › Monat view model', () => {
     expect(lines.map((l) => l.text)).toEqual([
       'Zu viel zugewiesen: 30,00 € fehlen',
       'Ungedeckt aus dem Vormonat: 5.121,68 €',
-      '2 Envelopes überzogen',
+      '2 Kategorien überzogen',
     ]);
     expect(lines.map((l) => l.tone)).toEqual(['bad', 'bad', 'bad']);
     expect(monthStatus(summary({ uncoveredCents: 100 }), calm)[0]?.tone).toBe('bad');
@@ -340,6 +341,11 @@ describe('Plan › Monat view model', () => {
       kind: 'shares',
       need: 5129,
     });
+    // Below one percent but above zero reads "< 1 %", never "0 %".
+    const tiny = splitState(income(100_000), assigned('essen', 300));
+    expect(tiny).toMatchObject({ kind: 'shares', need: 0, tiny: { need: true, want: false } });
+    expect(shareText(0, true)).toBe('< 1 %');
+    expect(shareText(12, false)).toBe('12 %');
     // A negative class sum counts as 0.
     expect(splitState(income(100_000), assigned('cafe', -86_100))).toEqual({ kind: 'empty' });
     const ok = splitState(income(100_000), [

@@ -584,6 +584,17 @@ function Row({
   const checked = selection?.selected.has(b.id) ?? false;
   const selectionMode = selection?.mode === true;
   const label = `${b.payeeName ?? 'Buchung'} am ${shortDay(b.date)}`;
+  // A transfer without payee already carries "Umbuchung von …" as its title; do not repeat it.
+  const transferTitleOnly =
+    !!b.transferId && !b.payeeName?.trim() && b.splits.length <= 1 && !b.splits[0]?.categoryId;
+  // Phone account history: balance after the booking, right-aligned under the amount.
+  const phoneBalance =
+    phone &&
+    variant === 'account' &&
+    runColumn &&
+    !upcomingToday &&
+    b.balanceAfterCents !== null &&
+    b.balanceAfterCents !== undefined;
   const amountContent = (
     <>
       {selectionMode || phone ? (
@@ -609,6 +620,11 @@ function Row({
       )}
       {b.categorySpendingCents !== undefined && (
         <small className="kmeta">{categoryNetLabel(false, b.categorySpendingCents)}</small>
+      )}
+      {phoneBalance && (
+        <small className={cx('kx-phone-balance', b.currency !== 'EUR' && 'kfx-money')}>
+          {valuedCurrency(b.balanceAfterCents!, b.currency, b.balanceValuation)}
+        </small>
       )}
     </>
   );
@@ -705,13 +721,13 @@ function Row({
               {' '}
               ·{' '}
             </span>
+            {!transferTitleOnly && <CategoryCell booking={b} classes={classes} showClass={false} />}
             {variant === 'all' && (
               <>
+                {!transferTitleOnly && <span aria-hidden="true"> · </span>}
                 <span className="kmeta-account">{b.accountName}</span>
-                <span aria-hidden="true"> · </span>
               </>
             )}
-            <CategoryCell booking={b} classes={classes} showClass={false} />
             {b.memo && (
               <>
                 <span aria-hidden="true"> · </span>

@@ -1,0 +1,1 @@
+ALTER TABLE `expected_occurrence` ADD `planned_due_date` text;

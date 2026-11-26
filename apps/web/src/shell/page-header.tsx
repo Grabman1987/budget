@@ -17,6 +17,7 @@ export function PageHeader({
   mobileTitle,
   showProfile = false,
   mobileHeading = false,
+  desktopHeading = false,
   controls,
   controlsOverflow = false,
   collapsed,
@@ -28,6 +29,8 @@ export function PageHeader({
   mobileTitle?: string | undefined;
   showProfile?: boolean;
   mobileHeading?: boolean;
+  /** The title is the page's only h1 on desktop (areas without their own page heading). */
+  desktopHeading?: boolean;
   controls?: ReactNode;
   /** The controls open a menu below themselves; the slot must not clip it. */
   controlsOverflow?: boolean;
@@ -102,7 +105,7 @@ export function PageHeader({
   useLayoutEffect(() => onControlsPlacement?.(placement), [placement, onControlsPlacement]);
   const inbox = useInboxCount();
   const detailTitle = phone && mobileTitle && mobileTitle !== title ? mobileTitle : undefined;
-  const Title = phone && mobileHeading && !detailTitle ? 'h1' : 'p';
+  const Title = (phone ? mobileHeading && !detailTitle : desktopHeading) ? 'h1' : 'p';
   const DetailTitle = mobileHeading ? 'h1' : 'p';
   return (
     <header className={`page-header ${phone ? 'm-head' : 'topbar'}`}>

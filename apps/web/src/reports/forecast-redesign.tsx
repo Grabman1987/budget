@@ -3,6 +3,7 @@ import { useAmountPrivacy } from '@budget/ui';
 import { ArrowDown, Info } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { eur, longDay } from '../ledger/format';
+import { useIsPhone } from '../budget/month-span';
 import { AppLink } from '../shell/app-link';
 import type { LiquidityReportView } from './liquidity-api';
 import { LiquidityChart } from './liquidity-chart';
@@ -28,6 +29,7 @@ export function ForecastRedesign({
   basis: ReactNode;
 }) {
   useAmountPrivacy();
+  const phone = useIsPhone();
   const rows = upcomingEvents(report, 10);
   const points = new Map(report.points.map((point) => [point.day, point]));
   const low = report.low;
@@ -40,11 +42,16 @@ export function ForecastRedesign({
       <div className="forecast-reference-lead">
         <div>
           <span>
-            Tiefpunkt <Info size={15} aria-label="Kleinster Kontostand im gewählten Zeitraum" />
+            Tiefpunkt{' '}
+            <Info
+              size={15}
+              aria-label="Kleinster Kontostand aller Budget-Konten im gewählten Zeitraum, inklusive erwarteter Eingänge"
+            />
           </span>
           <strong data-testid="liq-low">{low ? eur(low.cents) : 'nicht verfügbar'}</strong>
         </div>
         <span>{low ? 'am ' + longDay(low.day) : 'Keine Prognosepunkte verfügbar'}</span>
+        <small>Alle Budget-Konten, mit erwarteten Eingängen</small>
       </div>
       <section className="forecast-reference-chart" aria-labelledby="liq-title">
         <div className="forecast-reference-chart-head">
@@ -52,7 +59,6 @@ export function ForecastRedesign({
           <ul className="rf-legend" aria-label="Legende" data-testid="liq-legend">
             <li>{forecastLabel}</li>
             <li>10 % Puffer</li>
-            <li>ohne Ereignisse</li>
           </ul>
         </div>
         <LiquidityChart report={report} salaryDay={salaryDate} compact />
@@ -61,44 +67,19 @@ export function ForecastRedesign({
         <h3 id="liq-next" className="sr-only">
           Nächste Buchungsereignisse
         </h3>
-        <ReportTable
-          caption="Nächste Buchungsereignisse mit dem kanonischen Tagesendstand"
-          regionLabel="Zahlungen und Kontostände, seitlich scrollbar"
-          className="forecast-reference-table"
-        >
-          <thead>
-            <tr>
-              <th scope="col">Datum</th>
-              <th scope="col">Zahlung</th>
-              <th scope="col">Betrag</th>
-              <th scope="col" title="Tagesendstand einschließlich variabler Planung">
-                Kontostand
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>
-                <time dateTime={report.startDay}>{longDay(report.startDay)}</time>
-              </td>
-              <td>Heute</td>
-              <td>–</td>
-              <td data-testid="liq-start">{eur(report.startCents)}</td>
-            </tr>
+        {phone ? (
+          <ul className="forecast-reference-list" aria-label="Nächste Buchungsereignisse">
             {rows.map((row, index) => {
               const point = points.get(row.day);
               const atLow = low?.day === row.day;
               return (
-                <tr
+                <li
                   key={row.day + '-' + index}
                   className={atLow ? 'is-low' : undefined}
                   data-testid="liq-next-event"
                   data-cents={row.cents}
                 >
-                  <td>
-                    <time dateTime={row.day}>{longDay(row.day)}</time>
-                  </td>
-                  <td className="lq-what">
+                  <span className="forecast-reference-list-what">
                     {row.label}
                     {atLow && (
                       <span className="forecast-low-pill">
@@ -106,21 +87,86 @@ export function ForecastRedesign({
                         Tiefpunkt
                       </span>
                     )}
-                  </td>
-                  <td>{eur(row.cents)}</td>
-                  <td>{point ? eur(point.balanceCents) : '–'}</td>
-                </tr>
+                  </span>
+                  <strong data-testid="liq-event-amount">{eur(row.cents)}</strong>
+                  <small>
+                    <time dateTime={row.day}>{longDay(row.day)}</time>
+                    {point ? ` · Kontostand ${eur(point.balanceCents)}` : ''}
+                  </small>
+                </li>
               );
             })}
-          </tbody>
-        </ReportTable>
+          </ul>
+        ) : (
+          <ReportTable
+            caption="Nächste Buchungsereignisse mit dem kanonischen Tagesendstand"
+            regionLabel="Zahlungen und Kontostände, seitlich scrollbar"
+            className="forecast-reference-table"
+          >
+            <thead>
+              <tr>
+                <th scope="col">Datum</th>
+                <th scope="col">Zahlung</th>
+                <th scope="col">Betrag</th>
+                <th scope="col" title="Tagesendstand einschließlich variabler Planung">
+                  Kontostand
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>
+                  <time dateTime={report.startDay}>{longDay(report.startDay)}</time>
+                </td>
+                <td>Heute</td>
+                <td>–</td>
+                <td data-testid="liq-start">{eur(report.startCents)}</td>
+              </tr>
+              {rows.map((row, index) => {
+                const point = points.get(row.day);
+                const atLow = low?.day === row.day;
+                return (
+                  <tr
+                    key={row.day + '-' + index}
+                    className={atLow ? 'is-low' : undefined}
+                    data-testid="liq-next-event"
+                    data-cents={row.cents}
+                  >
+                    <td>
+                      <time dateTime={row.day}>{longDay(row.day)}</time>
+                    </td>
+                    <td className="lq-what">
+                      {row.label}
+                      {atLow && (
+                        <span className="forecast-low-pill">
+                          <ArrowDown size={13} aria-hidden="true" />
+                          Tiefpunkt
+                        </span>
+                      )}
+                    </td>
+                    <td data-testid="liq-event-amount">{eur(row.cents)}</td>
+                    <td>{point ? eur(point.balanceCents) : '–'}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </ReportTable>
+        )}
         {rows.length === 0 && (
           <p className="forecast-reference-empty">
             Im Prognosezeitraum stehen keine größeren Buchungen an.
           </p>
         )}
       </div>
-      <p className="plan-v2-source">Stand {longDay(view.asOf)} · Budget-Konten · Tagesendstände</p>
+      <p className="plan-v2-source">
+        Stand {longDay(view.asOf)} · Budget-Konten · Tagesendstände
+        {phone && (
+          <>
+            {' '}
+            · Start <span data-testid="liq-start">{eur(report.startCents)}</span>
+          </>
+        )}
+      </p>
       <details className="forecast-reference-basis">
         <summary>Grundlage und Szenarien</summary>
         {basis}

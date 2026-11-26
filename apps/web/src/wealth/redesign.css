@@ -1044,9 +1044,6 @@
   [data-budget-redesign='1'] .sheet:has(> .wealth-redesign) {
     padding: 12px 16px 128px;
   }
-  .wealth-redesign .wealth-investment-label {
-    display: none;
-  }
   .wealth-redesign .wealth-investment summary {
     min-width: 44px;
     justify-content: center;

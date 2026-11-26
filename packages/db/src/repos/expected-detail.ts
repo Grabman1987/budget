@@ -241,6 +241,8 @@ export interface PaymentDetailRow {
   deviationCents: number | null;
   unavailableReason:
     'missing_booking' | 'currency_mismatch' | 'missing_currency' | 'unsafe_difference' | null;
+  /** Only for a moved occurrence (#1360): the rule's own date. */
+  movedFrom?: string;
 }
 
 export interface PaymentDetail {
@@ -367,6 +369,7 @@ function readPaymentDetailInSnapshot(db: Executor, paymentId: string, asOf: stri
               : deviation === null
                 ? 'unsafe_difference'
                 : null,
+      ...(row.plannedDueDate ? { movedFrom: row.plannedDueDate } : {}),
     };
   };
 
@@ -436,7 +439,14 @@ function readPaymentDetailInSnapshot(db: Executor, paymentId: string, asOf: stri
         cursor = addDays(pause.throughDate, 1);
       }
       if (cursor) collect();
+      // A moved occurrence (#1360) already stands for its rule date.
+      const movedFrom = new Set(
+        storedFuture.flatMap((row) =>
+          row.occurrence.plannedDueDate ? [row.occurrence.plannedDueDate] : [],
+        ),
+      );
       for (const row of projected) {
+        if (movedFrom.has(row.dueDate)) continue;
         // Stored received/deviating/skipped/missed states remain authoritative, even outside
         // the current rule's dates. Only absent identities are labelled nonpersistent previews.
         if (future.has(row.dueDate)) continue;

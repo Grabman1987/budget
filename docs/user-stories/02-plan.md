@@ -216,7 +216,7 @@ Bereich: Plan (`/plan/monat`, `/plan/jahr`, `/plan/erwartet`, `/plan/sparziele`,
   2. Prozessor-Vorsätze („PayPal *“) und wechselnde Ziffern im Bankumsatz trennen eine Gegenpartei nicht in mehrere Gruppen.
   3. Gruppen mit bestehender wiederkehrender Zahlung (gleicher Empfänger oder Name) oder mit verknüpften Terminen erscheinen nicht.
   4. Das reine Erkennen schreibt nichts.
-- **Status:** offen; Draft-PR, Prüfung und Live-Abnahme stehen aus. Keine Migration (Verwerfen liegt in `app_setting`).
+- **Status:** live (Train 21, #1338; Stand 26.11.2026, Nutzerabnahme offen) — **Verweis:** #1338
 
 ### P-10 – Sparziele und Rücklagen
 - **Story:** Als Nutzer möchte ich Sparziele und Rücklagen führen und Kategorieziele übernehmen, damit ich sehe, wie weit ich bin und wie viel ich monatlich zurücklegen muss.
@@ -290,3 +290,10 @@ Bereich: Plan (`/plan/monat`, `/plan/jahr`, `/plan/erwartet`, `/plan/sparziele`,
   3. Ich klappe „Tilgen oder investieren“ auf: ab 1024 px Breite stehen links die Eingaben, rechts das Ergebnis; schmaler untereinander.
 - **Ergebnis:** Nur Anzeige. Es wird nichts gebucht.
 - **Status:** live (Stand 26.11.2026: alle verknüpften Issues erledigt; Nutzerabnahme offen) — **Verweis:** #1343
+
+- **Prognose am Telefon (#1357):** „Liquidität je Konto“ zeigt je Konto einen kompakten Block ohne innere Scrollbox; für Kreditkarten (kein Zahlungskonto) wird kein „Engpass ab“ gemeldet. Die Zahlungstabelle ist am Telefon eine zweizeilige Liste (Name + Betrag, darunter Datum und Kontostand) ohne seitliches Wischen und ohne Zeile „Heute“; am Desktop bleibt die Tabelle. Status: live mit Train 23 (Nutzerabnahme offen).
+- **Kennzahlen widerspruchsfrei (#1352):** Im Plan heißt die Kopfzeilen-Zahl „Einnahmen im Budget“ (alles, was auf Zu verteilen eingeht), die Karte „Geplante Einnahmen: erhalten … von erwartet …“ (nur erwartete Zahlungen). Auf Prognose steht der Tiefpunkt der Grafik für alle Budget-Konten mit erwarteten Eingängen, „Tiefster Stand ohne erwartete Eingänge“ in „Liquidität je Konto“ gilt bis Gehalt + 30 Tage; der Untertitel ist auf „Grundplan · 10 % Puffer“ gekürzt. — **Status:** live mit Train 23 (Nutzerabnahme offen) — **Verweis:** #1352
+### P-xx – Plan: Namen und Hilfstext bei 1280/1440 px, Plan am Telefon (#1355, #1358)
+- **Story:** Als Nutzer möchte ich im Plan Kategorienamen vollständig lesen und am Telefon schnell zu überzogenen Kategorien kommen, damit ich nicht durch lange Seiten scrollen muss.
+- **Abnahmekriterien:** Desktop (bis 1500 px) zeigt den Hilfstext („Überzogen …“, „Nichts ausgegeben“) unter dem Namen statt in einer eigenen Spalte; Suchfeld-Platzhalter „Kategorie suchen“ ist nie abgeschnitten; Telefon: auf-/zugeklappter Zustand je Kategoriegruppe wird im Browser gemerkt (bei gesperrtem Speicher bleibt alles offen); bei überzogenen Kategorien erscheint über der Liste die Zeile „n Kategorien überzogen · Anzeigen →“, die den Filter „Überzogen“ setzt; lange Gruppennamen umbrechen auf höchstens zwei Zeilen, Griff, Pfeil und „+“ behalten eigenen Platz; der Satz „Enthält … ohne Kategorie · Prüfen“ steht als eine fließende Zeile.
+- **Status:** live mit Train 23 (Nutzerabnahme offen) — **Verweis:** #1355, #1358

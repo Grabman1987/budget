@@ -367,7 +367,7 @@ export function YearOverview({
   const name = (id: string) => metadata.get(id)?.name ?? 'Kategorie nicht mehr verfügbar';
   const label = metrics.find(([key]) => key === metric)![1];
   const totals = (
-    <dl className="year-totals" aria-label="Jahreswerte aller Envelopes">
+    <dl className="year-totals" aria-label="Jahreswerte aller Kategorien">
       {metrics.map(([key, text]) => (
         <div key={key}>
           <dt>{key === 'availableCents' ? 'Verfügbar · Dezember' : `${text} · Jahr`}</dt>
@@ -417,7 +417,7 @@ export function YearOverview({
       {!REDESIGN_ENABLED && instructions}
       {shown.length === 0 ? (
         <p className="year-empty">
-          Noch keine Envelopes vorhanden. Kategorien legst du unter Einstellungen an.
+          Noch keine Kategorien vorhanden. Kategorien legst du unter Einstellungen an.
         </p>
       ) : (
         <>
@@ -516,7 +516,7 @@ export function YearOverview({
               ))}
               <tfoot>
                 <tr>
-                  <th scope="row">Alle Envelopes</th>
+                  <th scope="row">Alle Kategorien</th>
                   <YearCells row={total} metric={metric} />
                 </tr>
                 {REDESIGN_ENABLED && scenario && (
@@ -593,7 +593,7 @@ export function YearOverview({
               </section>
             ))}
             <div className="year-phone-total">
-              <strong>Alle Envelopes</strong>
+              <strong>Alle Kategorien</strong>
               <Amount amount={total.months[monthIndex]!} metric={metric} />
             </div>
             <details className="year-phone-annual">
@@ -614,7 +614,7 @@ export function YearOverview({
           </div>
           {REDESIGN_ENABLED ? (
             <details className="year-desktop-totals">
-              <summary>Jahreswerte aller Envelopes</summary>
+              <summary>Jahreswerte aller Kategorien</summary>
               {totals}
             </details>
           ) : (

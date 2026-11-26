@@ -596,3 +596,17 @@ h4.xp-sub {
     grid-column: 1 / -1;
   }
 }
+
+/* #1360: move one occurrence – inline date form under its row. */
+.xp-occ-move {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 8px;
+}
+.xp-occ-move label {
+  display: grid;
+  gap: 4px;
+  color: var(--ink-2);
+}

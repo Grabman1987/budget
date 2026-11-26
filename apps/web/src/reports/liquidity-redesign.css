@@ -59,7 +59,8 @@
   line-height: 1.08;
   font-weight: 640;
 }
-.forecast-reference-lead > span {
+.forecast-reference-lead > span,
+.forecast-reference-lead > small {
   padding-bottom: var(--space-xs);
   color: var(--ink-2);
   font-size: var(--fs-table);
@@ -183,8 +184,35 @@
   .forecast-reference-chart {
     padding-inline: var(--space-sm);
   }
-  .forecast-reference-table {
-    min-width: 620px;
+  .forecast-reference-list {
+    display: grid;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .forecast-reference-list li {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 0 var(--space-sm);
+    padding: var(--space-sm) var(--space-md);
+    border-bottom: var(--stroke-hairline) solid var(--rule);
+    font-size: var(--fs-table);
+  }
+  .forecast-reference-list li:last-child {
+    border-bottom: 0;
+  }
+  .forecast-reference-list li.is-low {
+    background: var(--tint);
+  }
+  .forecast-reference-list strong {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+  .forecast-reference-list small {
+    grid-column: 1 / -1;
+    color: var(--ink-2);
+    font-size: var(--fs-label);
   }
   .forecast-reference-page .forecast-reference-scope {
     display: none;

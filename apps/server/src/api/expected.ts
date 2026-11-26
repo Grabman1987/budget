@@ -28,6 +28,7 @@ import {
   skipOccurrence,
   unlinkOccurrence,
   unskipOccurrence,
+  moveOccurrence,
   unbookedAccountOccurrences,
   occurrenceHorizon,
   updateExpectedPayment,
@@ -45,6 +46,7 @@ import { ACTOR, ApiError, defined, readBody, readQuery } from './http';
 import {
   expectedCreate,
   expectedBookBody,
+  expectedMoveBody,
   expectedIncomeQuery,
   expectedLinkBody,
   expectedListQuery,
@@ -242,6 +244,11 @@ export function expectedRoutes(db: Db, today: () => string): Hono {
   app.post('/occurrences/:id/unskip', (c) =>
     c.json(unskipOccurrence(db, c.req.param('id'), audit(), today())),
   );
+  // Move one open occurrence to another day; the rule stays (#1360).
+  app.post('/occurrences/:id/move', async (c) => {
+    const body = await readBody(c, expectedMoveBody);
+    return c.json(moveOccurrence(db, c.req.param('id'), body.date, audit(), today()));
+  });
 
   app.get('/income', (c) =>
     c.json(monthIncomeBooked(db, today(), readQuery(c, expectedIncomeQuery).month)),

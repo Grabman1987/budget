@@ -339,7 +339,7 @@ Bereich: Konten (`/konten`, `/konten/$id`), Alle Buchungen (`/konten/buchungen`)
   3. Retrying the same idempotency key replays the result; changing either side's intent conflicts without writes. Invalid dates, reconciled status, incomplete side intent, non-bank accounts, a debit before the recipient account opens and competing `bankStatus` are rejected. The existing five-day date window remains enforced.
   4. Requests without `bankLegs` preserve their canonical idempotency representation and the separate cash/bank status policy. Equal-date transfers move both legs together on date edits. For independently dated bank pairs only the edited leg moves; a debit after receipt or before either account opens is refused with a typed German error. The existing reconciled-pair lock and five-day window remain enforced. Other transfer kinds retain paired-date editing.
   5. All household net-worth totals (Heute, Vermögen and reports) and their daily histories use the shared `bankTransferTransitCents` domain function through the central portfolio valuation. They count each whole same-currency bank transfer exactly once across its two dates, including existing independently dated pairs. Account balances stay bank-true per leg date. Between debit and receipt, the amount sits in the recipient's pending-inclusive valuation, not its confirmed balance; no booking or balance correction is created. After the receipt date, the ordinary pending booking replaces that valuation correction. Account previews include the pending receipt once on its date; household forecasts retain its value once in the starting valuation.
-- **Status:** Partial, prepared for review; API creation, confirmation, guarded date edits and cross-view valuation/preview regression coverage. No migration or UI change. The account entry point, German “unterwegs” presentation, combined transfer/fees/purchase/quantity preview and preferred linking of existing bookings remain open. Unknown receipt dates remain follow-up work. No live acceptance claimed.
+- **Status:** teilweise live (Geld unterwegs #1135/#1195 erledigt; Stand 26.11.2026) — **Verweis:** #1195
 
 ### K-16 – Depotseite: Entwicklung, Registerkarten und Verrechnungskonto (#1346)
 - **Story:** Als Nutzer möchte ich auf der Seite eines Depots dessen Entwicklung als Grafik sehen und zwischen Bestände, Trades und Verrechnung wechseln, damit ich Wert und Rendite auf einen Blick erfasse und das Verrechnungskonto sofort neben dem Depotwert finde.
@@ -383,4 +383,13 @@ Bereich: Konten (`/konten`, `/konten/$id`), Alle Buchungen (`/konten/buchungen`)
 - **Abnahmekriterien:**
   1. Die Verschiebung verdoppelt den Termin nicht und erzeugt keine Buchung.
   2. Die Bank-Zuordnung findet den Termin am neuen Datum.
-- **Status:** geplant — **Verweis:** #1360
+- **Status:** live mit Train 23 (Nutzerabnahme offen) — **Verweis:** #1360
+
+### K-19 – Buchungszeilen am Telefon lesbar (#1353)
+- **Story:** Als Nutzer möchte ich in „Alle Buchungen“ und im Kontoverlauf am Telefon die Kategorie lesen können, Umbuchungen nur einmal sehen und im Konto den Saldo nach jeder Buchung kennen.
+- **Ablauf:**
+  1. Zweite Zeile in „Alle Buchungen“: Kategorie zuerst, dann Konto, zuletzt die Notiz; bei Platzmangel kürzt zuerst die Notiz, dann das Konto, die Kategorie behält ihre Breite.
+  2. Eine Umbuchung zeigt „Umbuchung von …“ nur als Titel, nicht nochmals in der zweiten Zeile.
+  3. Im Verlauf eines einzelnen Kontos steht rechts unter dem Betrag der Saldo nach der Buchung (wie in „Kommend“); „Alle Buchungen“ zeigt ihn nicht.
+  4. Eine Kategorie zeigt ein Symbol: das Emoji; das Klassenquadrat entfällt im Redesign (Register, Plan-Mehrmonatsansicht, Ziele).
+- **Status:** live mit Train 23 (Nutzerabnahme offen) — **Verweis:** #1353

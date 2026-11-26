@@ -1359,3 +1359,76 @@ dialog.plan-assign-sheet::backdrop {
     text-overflow: ellipsis;
   }
 }
+
+/* Review 26.11 (#1355, #1358). */
+@media (min-width: 768px) {
+  /* Names get the room; the helper text ("Überzogen …") takes only what it needs, at most a third. */
+  .plan-month-frame .plan-month-v2 .ptable-zero .psingle:not(.is-empty) .col-name {
+    grid-template-columns: var(--touch) var(--touch) minmax(0, 1fr) var(--touch) fit-content(26%);
+  }
+  .plan-month-frame .plan-month-v2 .ptable-zero .col-num {
+    width: 112px;
+    padding-inline: var(--space-sm);
+  }
+  /* The "Verfügbar" pill with its cover action needs 128px, else it overflows the cell. */
+  .plan-month-frame .plan-month-v2 .ptable-zero thead th.col-num:last-child,
+  .plan-month-frame .plan-month-v2 .ptable-zero .col-num.col-avail {
+    width: 128px;
+  }
+  .plan-month-frame .plan-month-v2 .ptable-zero .prow:not(.is-empty):not(.psingle) .col-name {
+    grid-template-columns: var(--touch) minmax(var(--touch), 1fr) fit-content(26%);
+  }
+  .plan-month-frame .plan-calm-toolbar .plan-category-search {
+    flex: 1 1 150px;
+    min-width: 150px;
+    max-width: 200px;
+  }
+}
+/* Open/overspent shortcut and hint lines on the phone. */
+.plan-month-v2 .plan-overspent-jump {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  width: 100%;
+  min-height: var(--touch);
+  padding: 0 var(--space-md);
+  border: 0;
+  border-bottom: 1px solid var(--rule);
+  background: var(--red-soft);
+  color: var(--red);
+  font-weight: 600;
+  text-align: left;
+}
+.plan-month-frame .plan-lead-controls > .plan-uncategorized-hint {
+  grid-column: 1 / -1;
+  flex-basis: 100%;
+  text-align: center;
+  text-wrap: balance;
+}
+.plan-month-frame .plan-lead-controls > .plan-uncategorized-hint a {
+  display: inline;
+  min-height: 0;
+}
+@media (max-width: 767px) {
+  /* Long group names wrap to at most two lines; grip, chevron and "+" keep their own tracks. */
+  .plan-month-v2 .ptable-zero .pgroup:not(.prow) .grp-title {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    overflow: hidden;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+  .plan-month-v2 .ptable-zero .pgroup:not(.prow) .group-heading {
+    flex-wrap: nowrap;
+    gap: var(--space-xs);
+    align-items: center;
+  }
+  .plan-month-v2 .ptable-zero .pgroup:not(.prow) .group-heading > :is(.plan-group-sort, .plan-add) {
+    flex: none;
+  }
+  .plan-month-v2 .ptable-zero .pgroup:not(.prow) .grp-toggle {
+    gap: var(--space-xs);
+  }
+}

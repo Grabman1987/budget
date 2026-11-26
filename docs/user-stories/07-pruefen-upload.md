@@ -109,7 +109,7 @@ Bildschirm Prüfen: `/konten/pruefen` (Konten › Prüfen). Zähler: „Umsätze
   2. „Rückgängig“ der Bestätigung entfernt Regel und Umbuchung gemeinsam.
   3. Prozessor-Vorsätze und wechselnde Ziffern ändern die Gegenpartei nicht.
   4. Mehrdeutige oder fehlende Kontoübereinstimmung ergibt keinen Vorschlag; nichts wird ohne Bestätigung angewendet.
-- **Status:** offen; Draft-PR, Prüfung und Live-Abnahme stehen aus. Keine Migration. IBANs sind nicht gespeichert: Treffer entstehen über IBAN im Kontonamen oder in der Bezeichnung der Bankanbindung (vollständig oder letzte vier Stellen) sowie der Kontoname als ganzer Text.
+- **Status:** live (Train 21, #1338; Stand 26.11.2026, Nutzerabnahme offen) — **Verweis:** #1338
 
 ### I-02 – Prüfen geführt durchgehen
 - **Story:** Als Nutzer möchte ich die offenen Umsätze der Reihe nach mit Fortschrittsanzeige durchgehen, damit ich in einer Sitzung fertig werde und sehe, wie viel noch fehlt.
@@ -365,3 +365,5 @@ A one-cent difference is a failure. Encrypted documents report a skip and are ex
 The check leaves source files and bookings untouched.
 The public synthetic suite exercises the command in CI. Held-out evaluation takes place locally
 using the [acceptance procedure](../acceptance-tolerances.md#5-document-recognition-check-1310).
+
+- **Telefon kompakt (#1357):** Am Telefon zeigt eine Bankzeilen-Karte als Titel den Bankzeilen-Text (gekürzt), wenn noch kein Empfänger gewählt ist; die Empfänger-Wahl bleibt als Feld in der Karte. Die Karte hat Titel mit Betrag, eine Meta-Zeile und eine Aktionszeile; „Bearbeiten“ ist ein Ghost-Knopf. „Dokument hochladen“ und „Prüfen durchgehen“ stehen als zwei kleine Knöpfe in einer Zeile. Status: live mit Train 23 (Nutzerabnahme offen).

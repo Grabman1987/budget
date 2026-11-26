@@ -488,17 +488,17 @@ export const BankCandidateRow = memo(function BankCandidateRow({
           <button
             type="button"
             className="bank-payee-btn"
-            aria-label={payee ? `Empfänger ändern: ${payee.name}` : 'Empfänger wählen'}
+            aria-label={payee ? `Empfänger ändern: ${payee.name}` : `Empfänger wählen: ${rawName}`}
             title={missing?.cell === 'payee' ? missing.reason : (payee?.name ?? 'Empfänger wählen')}
             disabled={locked}
             onClick={() => openEditor('payee')}
           >
-            <strong>{payee?.name ?? 'Empfänger wählen'}</strong>
+            <strong>{payee?.name ?? rawName}</strong>
           </button>
         )}
         <div className="bank-v1-meta">
           <span>{item.bankCandidate ? shortDay(item.bankCandidate.date) : ''}</span>
-          {!transferring && rawName !== payee?.name && (
+          {!transferring && (payee ? rawName !== payee.name : editing === 'payee') && (
             <small className="bank-v1-raw" title={rawName}>
               {rawName}
             </small>

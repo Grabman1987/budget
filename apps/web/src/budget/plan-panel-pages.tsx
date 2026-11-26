@@ -4,6 +4,7 @@ import { useLocation, useParams, useRouter, useSearch } from '@tanstack/react-ro
 import { useEffect, useRef, useState } from 'react';
 import { ErrorNote, LoadingNote } from '../ledger/states';
 import { eur } from '../ledger/format';
+import { monthLabel } from '../nav/month';
 import { EINSTELLUNGEN_KATEGORIEN, PLAN_SPARZIELE } from '../nav/pages';
 import { PageFrame } from '../pages/placeholder-page';
 import { GoalDetail, GoalHistory, goalsProgressReportQuery } from '../pages/goals-progress-report';
@@ -201,7 +202,7 @@ export function GoalDetailPage() {
               {row.name}
             </h2>
             <GoalDetail row={row} month={month} showPlanLink={false} />
-            <h3>Historie · Stand {ready.report.month}</h3>
+            <h3>Historie · Stand {monthLabel(ready.report.month)}</h3>
             <GoalHistory
               points={ready.report.history.find((h) => h.id === id)?.points ?? []}
               name={row.name}

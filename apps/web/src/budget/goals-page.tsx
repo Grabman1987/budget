@@ -392,7 +392,7 @@ function GoalRow({
       <td className="col-cat" data-label="Kategorie">
         {category ? (
           <span className="goal-cat">
-            <ClassSwatch kind={cls ?? 'bound'} />
+            {!REDESIGN_ENABLED && <ClassSwatch kind={cls ?? 'bound'} />}
             <span>
               <CategoryIcon icon={category.icon} name={category.name} />
               {category.name}

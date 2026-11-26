@@ -35,10 +35,7 @@ export function TasksDetail({
         rows.push({
           id: task.id,
           what: over.length === 1 ? '1 Kategorie überzogen' : `${over.length} Kategorien überzogen`,
-          when: eur(
-            over.reduce((sum, item) => sum + item.cents, 0),
-            { cents: false },
-          ),
+          when: eur(-over.reduce((sum, item) => sum + item.cents, 0), { cents: false }),
           urgent: true,
           action: {
             label: 'Decken',

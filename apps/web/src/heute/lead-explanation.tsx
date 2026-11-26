@@ -161,7 +161,7 @@ export function BudgetExplanation({ month, period }: { month: string; period: He
   return (
     <div className="heute-breakdown">
       <p>
-        EUR · Alle Envelopes im Planmonat {monthLabel(month)}. Zugewiesenes Geld und Aktivität,
+        EUR · Alle Kategorien im Planmonat {monthLabel(month)}. Zugewiesenes Geld und Aktivität,
         einschließlich Übertrag. Dies ist kein Kontoguthaben.
       </p>
       {query.isPending || (query.isFetching && !data) ? (
@@ -187,7 +187,7 @@ export function BudgetExplanation({ month, period }: { month: string; period: He
                 </li>
               ))}
             </ul>
-            {!rows.length && <EmptyNote>Keine Envelopes in diesem Monat.</EmptyNote>}
+            {!rows.length && <EmptyNote>Keine Kategorien in diesem Monat.</EmptyNote>}
           </>
         )
       )}
