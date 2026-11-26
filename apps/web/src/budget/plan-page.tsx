@@ -43,7 +43,7 @@ import { expectedQuery, incomeQuery, type MonthIncome } from '../expected/api';
 import { PLAN_MONAT } from '../nav/pages';
 import { PageFrame } from '../pages/placeholder-page';
 import { SettingsFormDialog } from '../pages/settings-form-dialog';
-import { eur } from '../ledger/format';
+import { eur, longDay } from '../ledger/format';
 import { accountsQuery } from '../ledger/queries';
 import { ErrorNote, LoadingNote } from '../ledger/states';
 import { monthLabel, shiftMonth } from '../nav/month';
@@ -94,6 +94,7 @@ import {
   planGroups,
   planMulti,
   planRows,
+  shareText,
   splitState,
   statusText,
   suggestions,
@@ -178,10 +179,10 @@ export function PlanMonthPage() {
         className={cx('plan plan-month', REDESIGN_ENABLED && 'plan-month-v2')}
         aria-busy={budget.isFetching}
       >
-        {budget.isPending && <LoadingNote what="Envelopes" />}
+        {budget.isPending && <LoadingNote what="Kategorien" />}
         {data && budget.isFetching && <LoadingNote what="Monatswerte" />}
         {budget.isError && (
-          <ErrorNote what="Envelopes" error={budget.error} onRetry={() => void budget.refetch()} />
+          <ErrorNote what="Kategorien" error={budget.error} onRetry={() => void budget.refetch()} />
         )}
         {data && (
           <PlanBody
@@ -237,7 +238,7 @@ function MonthFrame({
     >
       {children}
       <p className="plan-v2-source">
-        Stand {todayInVienna()} · Monatszuweisung {monthLabel(month)}
+        Stand {longDay(todayInVienna())} · Monatszuweisung {monthLabel(month)}
       </p>
     </PlanPageFrame>
   );
@@ -786,7 +787,7 @@ function PlanBody({
       : 'suggested';
   const coverLabel =
     source === 'suggested'
-      ? 'verfügbaren Envelopes'
+      ? 'verfügbaren Kategorien'
       : source === ''
         ? 'Zu verteilen'
         : byId.get(source)!.name;
@@ -833,12 +834,13 @@ function PlanBody({
     <section className="triage" aria-labelledby="triage-title">
       <div className="head">
         <h2 id="triage-title">
-          {urgent.length} Envelopes überzogen ·{' '}
+          {urgent.length} {urgent.length === 1 ? 'Kategorie' : 'Kategorien'} überzogen ·{' '}
           {eur(rows.reduce((sum, r) => sum + r.overspentCents, 0))} zu decken
         </h2>
       </div>
       <p className="panel-sub">
-        Decken verschiebt freies Geld zwischen Envelopes; die Summe auf deinen Konten bleibt gleich.
+        Decken verschiebt freies Geld zwischen Kategorien; die Summe auf deinen Konten bleibt
+        gleich.
       </p>
       {missing > 0 && (
         <div className="cover-missing" role="note">
@@ -1216,7 +1218,7 @@ function PlanBody({
         {!REDESIGN_ENABLED && topbar}
         <section className="ptable-wrap card" aria-labelledby="table-title">
           <h2 className="sr-only" id="table-title">
-            Envelopes im Monat
+            Kategorien im Monat
           </h2>
           {!REDESIGN_ENABLED && toolbar}
           {filter === 'overspent' && (
@@ -1331,7 +1333,7 @@ function PlanBody({
             <div className="pmulti-scroll">
               <table className={cx('ptable ptable-zero', distribute && 'is-distributing')}>
                 <caption className="sr-only">
-                  Envelopes mit Zugewiesen, Aktivität und Verfügbar
+                  Kategorien mit Zugewiesen, Aktivität und Verfügbar
                 </caption>
                 <thead
                   className={cx(phoneRedesign && !phoneSelection && 'sr-only')}
@@ -2179,7 +2181,7 @@ export function SplitBand({ data, rows }: { data: BudgetMonthView; rows: PlanRow
             futureCents: shares.future * 100,
             restCents: (100 - shares.need - shares.want - shares.future) * 100,
           }}
-          label={`Zugewiesen: Bedarf ${shares.need} %, Wunsch ${shares.want} %, Zukunft ${shares.future} % der Einnahmen. Soll 50, 30, 20.`}
+          label={`Zugewiesen: Bedarf ${shareText(shares.need, shares.tiny.need)}, Wunsch ${shareText(shares.want, shares.tiny.want)}, Zukunft ${shareText(shares.future, shares.tiny.future)} der Einnahmen. Soll 50, 30, 20.`}
         />
       ) : (
         <p>{reason}</p>
@@ -2188,7 +2190,7 @@ export function SplitBand({ data, rows }: { data: BudgetMonthView; rows: PlanRow
         {(['need', 'want', 'future'] as const).map((k) => (
           <span key={k}>
             <ClassSwatch kind={k} />
-            {CLASS_TEXT[k]} <b>{shares ? `${shares[k]} %` : '–'}</b>
+            {CLASS_TEXT[k]} <b>{shares ? shareText(shares[k], shares.tiny[k]) : '–'}</b>
           </span>
         ))}
       </div>

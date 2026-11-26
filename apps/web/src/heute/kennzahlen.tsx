@@ -115,7 +115,7 @@ export function Kennzahlen({
           note={
             (summary && (
               <>
-                {`Geld, das noch keinem Envelope zugewiesen ist: Übertrag ${eur(summary.carryInCents)} + Einnahmen ${eur(summary.incomeCents)} − Ungedeckt ${eur(summary.uncoveredCents)} − Zugewiesen ${eur(summary.assignedCents)} − Gehalten ${eur(summary.heldCents)}. Dieselbe Zahl wie im Plan. `}
+                {`Geld, das noch keiner Kategorie zugewiesen ist: Übertrag ${eur(summary.carryInCents)} + Einnahmen ${eur(summary.incomeCents)} − Ungedeckt ${eur(summary.uncoveredCents)} − Zugewiesen ${eur(summary.assignedCents)} − Gehalten ${eur(summary.heldCents)}. Dieselbe Zahl wie im Plan. `}
                 {data &&
                   householdMonth &&
                   `Haushaltseinnahmen ${eur(data.monthResult.earnedCents)} im ${monthLabel(householdMonth)} nach Buchungsdatum. Mit „Für nächsten Monat“ zählt der Zufluss im Plan erst im Folgemonat. `}
@@ -202,7 +202,7 @@ export function Kennzahlen({
             note={
               month ? (
                 <>
-                  Summe „Verfügbar“ aller Envelopes im Monat, wie im Plan-Inspektor.
+                  Summe „Verfügbar“ aller Kategorien im Monat, wie im Plan-Inspektor.
                   {REDESIGN_ENABLED && (
                     <>
                       {' '}
@@ -214,7 +214,7 @@ export function Kennzahlen({
                           von: `/?monat=${scope.month}&period=${scope.period}`,
                         }}
                       >
-                        Alle Envelopes und Quellen
+                        Alle Kategorien und Quellen
                       </AppLink>
                     </>
                   )}

@@ -140,7 +140,7 @@ export function AreaHead({
       heading = 'Konten';
       fields =
         accountFields ??
-        (meta.register === 'pruefen'
+        (meta.register === 'pruefen' || meta.register === 'kontakte'
           ? [stand]
           : [stand, { label: 'Bank-Sync', value: 'nicht eingerichtet', labelOnMobile: true }]);
       break;

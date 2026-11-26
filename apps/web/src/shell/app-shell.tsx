@@ -104,18 +104,20 @@ export function AppShell() {
             collapsed={collapsed}
           />
           <div className="main">
-            {REDESIGN_ENABLED && page && page.area !== 'einstellungen' ? (
+            {REDESIGN_ENABLED && page ? (
               <PageHeader
                 title={searching ? 'Suchen' : areaById(page.area).label}
                 mobileTitle={
                   searching ? 'Suchen' : kontenPageHeading ? undefined : phoneTitle(page, title)
                 }
+                desktopHeading={page.area === 'einstellungen'}
                 showProfile={pathname === '/'}
                 mobileHeading={
-                  !TITLE_ON_MOBILE_AREAS.has(page.area) &&
-                  !wealthPageHeading &&
-                  !kontenPageHeading &&
-                  !reportPageHeading
+                  page.area === 'einstellungen' ||
+                  (!TITLE_ON_MOBILE_AREAS.has(page.area) &&
+                    !wealthPageHeading &&
+                    !kontenPageHeading &&
+                    !reportPageHeading)
                 }
                 controls={headerControls}
                 controlsOverflow={!!reportHeaderId}
@@ -140,7 +142,7 @@ export function AppShell() {
             )}
             {REDESIGN_ENABLED &&
               page &&
-              page.area !== 'einstellungen' &&
+              (page.area === 'heute' || page.area === 'plan') &&
               pathname !== '/' &&
               !kontenPageHeading && <MobileStatusLine />}
             <OfflineStatus />

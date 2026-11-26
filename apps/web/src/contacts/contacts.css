@@ -415,3 +415,27 @@
   background: var(--red-soft);
   font-weight: 600;
 }
+
+/* Tables never sit directly on the grid (DESIGN.md): white card, name and pencil side by side. */
+.contacts-card {
+  overflow-x: auto;
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-sm);
+}
+.contacts-card .contacts-table tr:last-child > td {
+  border-bottom: 0;
+}
+.contacts-table th.num {
+  text-align: right;
+}
+.contact-name-cell {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 4px;
+}
+.contact-name-cell .contact-review-hint {
+  order: 3;
+  flex-basis: 100%;
+}

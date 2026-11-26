@@ -667,9 +667,10 @@ a.btn {
 @media (max-width: 767px) {
   .m-status {
     display: flex;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     align-items: center;
     gap: 0 8px;
+    overflow: hidden;
     min-width: 0;
     padding-inline: 16px;
     font-size: var(--fs-meta);
@@ -681,7 +682,9 @@ a.btn {
     min-height: 44px;
     min-width: 44px;
     max-width: 100%;
-    overflow-wrap: anywhere;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
     color: inherit;
   }
   .shell-status {

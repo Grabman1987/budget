@@ -104,7 +104,7 @@ test('phone status or Heute action opens real triage cover and undo on an isolat
   await expect(targetRow).toHaveClass(/is-over/);
   const coverControls = page.locator('.plan-filter-cover');
   await expect(coverControls).toBeVisible();
-  await expect(coverControls.locator('.triage')).toContainText('1 Envelopes überzogen');
+  await expect(coverControls.locator('.triage')).toContainText('1 Kategorie überzogen');
   await expect(page.getByRole('dialog')).toHaveCount(0);
   const sourceSelect = coverControls.getByLabel('Quelle für alle Überziehungen');
   await sourceSelect.selectOption(source.id);

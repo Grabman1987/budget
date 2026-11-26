@@ -532,7 +532,7 @@ export function HeuteOverview({
               <DetailLink kind="due" className={uncovered ? 'hv-uncovered' : undefined}>
                 {data ? (
                   <BudgetStateMark state={uncovered ? 'open' : 'met'}>
-                    {uncovered} von {outflows.length} nicht gedeckt
+                    {uncovered} von {outflows.length} ohne Deckung auf dem Konto
                   </BudgetStateMark>
                 ) : (
                   'Alle →'

@@ -313,7 +313,7 @@ function AccountBody({ account, bankReview }: { account: AccountRow; bankReview?
           value={period}
           onChange={setPeriod}
           options={[
-            ...(REDESIGN_ENABLED ? [{ value: '1M' as const, label: '30T' }] : []),
+            ...(REDESIGN_ENABLED ? [{ value: '1M' as const, label: '30 Tage' }] : []),
             { value: '3M', label: '3M' },
             { value: '1J', label: '12M' },
             { value: 'Alles', label: 'Alles' },

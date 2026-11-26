@@ -4,7 +4,7 @@ import { useLocation, useSearch } from '@tanstack/react-router';
 import { useEffect, useRef, useState } from 'react';
 import { request } from '../api/http';
 import { errorText } from '../ledger/labels';
-import { eur } from '../ledger/format';
+import { eur, longDay } from '../ledger/format';
 import { LoadingNote, ErrorNote } from '../ledger/states';
 import { PAGES } from '../nav/pages';
 import { AppLink } from '../shell/app-link';
@@ -380,8 +380,10 @@ function InlineTargets() {
       )}
       {query.data && (
         <p className="settings-source-stamp">
-          Stand {query.data.allocation.asOf} · Sollversion{' '}
-          {query.data.allocation.policy.targetValidFrom ?? 'nicht vorhanden'}
+          Stand {longDay(query.data.allocation.asOf)} · Sollversion{' '}
+          {query.data.allocation.policy.targetValidFrom
+            ? longDay(query.data.allocation.policy.targetValidFrom)
+            : 'nicht vorhanden'}
         </p>
       )}
       <Button

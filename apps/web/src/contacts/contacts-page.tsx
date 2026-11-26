@@ -162,7 +162,6 @@ export function ContactsPage() {
   return (
     <PageFrame meta={META}>
       <div className="contacts-page">
-        <p>Kontoblätter und Rückzahlungen werden derzeit in EUR geführt.</p>
         <div className="ptoolbar">
           <Segmented
             label="Kontakte anzeigen"
@@ -210,66 +209,72 @@ export function ContactsPage() {
               erhalten.
             </EmptyNote>
           ) : (
-            <table className="contacts-table">
-              <caption className="sr-only">Kontaktübersicht</caption>
-              <thead>
-                <tr>
-                  <th scope="col">Kontakt</th>
-                  <th scope="col">Saldo</th>
-                  <th scope="col">
-                    <span className="sr-only">Aktionen</span>
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {contacts.data.contacts.map((c, index, all) => {
-                  const balance = contactBalanceWords(c.balanceCents);
-                  const firstReview =
-                    !!c.allocationNeedsReview &&
-                    all.findIndex((other) => other.allocationNeedsReview) === index;
-                  return (
-                    <tr key={c.id} id={firstReview ? 'contact-review-first' : undefined}>
-                      <td>
-                        <AppLink
-                          className="btn btn-ghost"
-                          to={`/konten/kontakte/${encodeURIComponent(c.id)}`}
-                          search={history ? { verlauf: 1 } : {}}
-                        >
-                          {c.name}
-                        </AppLink>
-                        {c.allocationNeedsReview && (
+            <div className="contacts-card">
+              <table className="contacts-table">
+                <caption className="sr-only">Kontaktübersicht</caption>
+                <thead>
+                  <tr>
+                    <th scope="col">Kontakt</th>
+                    <th scope="col" className="num">
+                      Saldo
+                    </th>
+                    <th scope="col">
+                      <span className="sr-only">Aktionen</span>
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {contacts.data.contacts.map((c, index, all) => {
+                    const balance = contactBalanceWords(c.balanceCents);
+                    const firstReview =
+                      !!c.allocationNeedsReview &&
+                      all.findIndex((other) => other.allocationNeedsReview) === index;
+                    return (
+                      <tr key={c.id} id={firstReview ? 'contact-review-first' : undefined}>
+                        <td>
+                          <div className="contact-name-cell">
+                            <AppLink
+                              className="btn btn-ghost"
+                              to={`/konten/kontakte/${encodeURIComponent(c.id)}`}
+                              search={history ? { verlauf: 1 } : {}}
+                            >
+                              {c.name}
+                            </AppLink>
+                            <ContactRename contact={c} onOpen={() => setRenaming(c)} />
+                            {c.allocationNeedsReview && (
+                              <AppLink
+                                className="contact-review-hint"
+                                to={`/konten/kontakte/${encodeURIComponent(c.id)}`}
+                                search={history ? { verlauf: 1 } : {}}
+                              >
+                                Verrechnung prüfen
+                              </AppLink>
+                            )}
+                          </div>
+                        </td>
+                        <td className="num">
                           <AppLink
-                            className="contact-review-hint"
+                            className={`contact-balance-link is-${balance.tone}`}
+                            aria-label={maskMoneyText(
+                              `${contactBalanceLine(c.balanceCents)}, Saldo ${c.name}`,
+                            )}
                             to={`/konten/kontakte/${encodeURIComponent(c.id)}`}
                             search={history ? { verlauf: 1 } : {}}
                           >
-                            Verrechnung prüfen
+                            {contactBalanceLine(c.balanceCents)}
                           </AppLink>
-                        )}
-                        <ContactRename contact={c} onOpen={() => setRenaming(c)} />
-                      </td>
-                      <td className="num">
-                        <AppLink
-                          className={`contact-balance-link is-${balance.tone}`}
-                          aria-label={maskMoneyText(
-                            `${contactBalanceLine(c.balanceCents)}, Saldo ${c.name}`,
+                        </td>
+                        <td className="contacts-actions-cell">
+                          {c.balanceCents !== 0 && (
+                            <ContactActionsMenu name={c.name} onSettle={() => setWriteOff(c)} />
                           )}
-                          to={`/konten/kontakte/${encodeURIComponent(c.id)}`}
-                          search={history ? { verlauf: 1 } : {}}
-                        >
-                          {contactBalanceLine(c.balanceCents)}
-                        </AppLink>
-                      </td>
-                      <td className="contacts-actions-cell">
-                        {c.balanceCents !== 0 && (
-                          <ContactActionsMenu name={c.name} onSettle={() => setWriteOff(c)} />
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           ))}
         <SettingsFormDialog
           open={creating}
