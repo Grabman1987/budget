@@ -394,7 +394,10 @@ export function HeuteOverview({
                 aria-label="Einnahmen minus Ausgaben gleich bisher übrig"
               >
                 <span>
-                  Einnahmen<strong>{eur(data.monthResult.earnedCents, { cents: false })}</strong>
+                  Haushaltseinnahmen
+                  <strong title="Ohne Kapitalerträge und Erstattungen">
+                    {eur(data.monthResult.earnedCents, { cents: false })}
+                  </strong>
                 </span>
                 <i aria-hidden="true">−</i>
                 <span>
@@ -671,10 +674,7 @@ function NextWork({
     tasks.push({
       id: 'cover',
       title: `${over.length} ${over.length === 1 ? 'Kategorie überzogen' : 'Kategorien überzogen'}`,
-      amount: eur(
-        over.reduce((sum, item) => sum + item.cents, 0),
-        { cents: false },
-      ),
+      amount: eur(-over.reduce((sum, item) => sum + item.cents, 0), { cents: false }),
       label: 'Decken',
       to: '/plan/monat',
       search: { monat: now, ansicht: 'triage' },
