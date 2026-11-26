@@ -1364,11 +1364,16 @@ dialog.plan-assign-sheet::backdrop {
 @media (min-width: 768px) {
   /* Names get the room; the helper text ("Überzogen …") takes only what it needs, at most a third. */
   .plan-month-frame .plan-month-v2 .ptable-zero .psingle:not(.is-empty) .col-name {
-    grid-template-columns: 32px 36px minmax(0, 1fr) 36px fit-content(26%);
+    grid-template-columns: var(--touch) var(--touch) minmax(0, 1fr) var(--touch) fit-content(26%);
   }
   .plan-month-frame .plan-month-v2 .ptable-zero .col-num {
     width: 112px;
     padding-inline: var(--space-sm);
+  }
+  /* The "Verfügbar" pill with its cover action needs 128px, else it overflows the cell. */
+  .plan-month-frame .plan-month-v2 .ptable-zero thead th.col-num:last-child,
+  .plan-month-frame .plan-month-v2 .ptable-zero .col-num.col-avail {
+    width: 128px;
   }
   .plan-month-frame .plan-month-v2 .ptable-zero .prow:not(.is-empty):not(.psingle) .col-name {
     grid-template-columns: var(--touch) minmax(var(--touch), 1fr) fit-content(26%);
