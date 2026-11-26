@@ -355,4 +355,4 @@ The project lead’s decision on 2026-11-23 uses the ordinary EUR booking workfl
 - **Status:** live, using the existing booking form. **Reference:** #519.
 
 
-- **Vermögen › „Als Nächstes · Vermögen“ (#1352):** Die Karte trägt ihren Umfang im Titel und meldet „Keine offenen Vermögens-Aufgaben“, damit sie nicht mit den offenen Punkten unter Prüfen verwechselt wird. — **Status:** umgesetzt (Branch fix/consistent-figures-1352), Abnahme offen — **Verweis:** #1352
+- **Vermögen › „Als Nächstes · Vermögen“ (#1352):** Die Karte trägt ihren Umfang im Titel und meldet „Keine offenen Vermögens-Aufgaben“, damit sie nicht mit den offenen Punkten unter Prüfen verwechselt wird. — **Status:** live mit Train 23 (Nutzerabnahme offen) — **Verweis:** #1352
