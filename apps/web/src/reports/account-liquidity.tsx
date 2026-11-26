@@ -117,7 +117,7 @@ export function AccountLiquidityTable({
           <tr>
             <th>Konto</th>
             <th>Stand heute</th>
-            <th>Tiefster Stand</th>
+            <th>Tiefster Stand ohne erwartete Eingänge</th>
             <th>Tiefpunkt am</th>
             <th>Engpass ab</th>
           </tr>
@@ -143,7 +143,9 @@ export function AccountLiquidityTable({
                     </button>
                   </td>
                   <td data-label="Stand heute">{eur(account.balanceTodayCents)}</td>
-                  <td data-label="Tiefster Stand">{eur(account.low.cents)}</td>
+                  <td data-label="Tiefster Stand ohne erwartete Eingänge">
+                    {eur(account.low.cents)}
+                  </td>
                   <td data-label="Tiefpunkt am">{shortDay(account.low.day)}</td>
                   <td data-label="Engpass ab">
                     {account.firstBelowZero ? shortDay(account.firstBelowZero.day) : '–'}

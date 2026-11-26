@@ -290,3 +290,5 @@ Bereich: Plan (`/plan/monat`, `/plan/jahr`, `/plan/erwartet`, `/plan/sparziele`,
   3. Ich klappe „Tilgen oder investieren“ auf: ab 1024 px Breite stehen links die Eingaben, rechts das Ergebnis; schmaler untereinander.
 - **Ergebnis:** Nur Anzeige. Es wird nichts gebucht.
 - **Status:** live (Stand 26.11.2026: alle verknüpften Issues erledigt; Nutzerabnahme offen) — **Verweis:** #1343
+
+- **Kennzahlen widerspruchsfrei (#1352):** Im Plan heißt die Kopfzeilen-Zahl „Einnahmen im Budget“ (alles, was auf Zu verteilen eingeht), die Karte „Geplante Einnahmen: erhalten … von erwartet …“ (nur erwartete Zahlungen). Auf Prognose steht der Tiefpunkt der Grafik für alle Budget-Konten mit erwarteten Eingängen, „Tiefster Stand ohne erwartete Eingänge“ in „Liquidität je Konto“ gilt bis Gehalt + 30 Tage; der Untertitel ist auf „Grundplan · 10 % Puffer“ gekürzt. — **Status:** umgesetzt (Branch fix/consistent-figures-1352), Abnahme offen — **Verweis:** #1352

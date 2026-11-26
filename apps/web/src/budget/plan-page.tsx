@@ -224,7 +224,16 @@ function MonthFrame({
       period={<MonthSwitch heading={monthLabel(month)} />}
       actions={
         <>
-          <span className="month-reference-income">Einnahmen {income}</span>
+          <span
+            className="month-reference-income"
+            title={
+              REDESIGN_ENABLED
+                ? 'Alles, was im Monat auf Zu verteilen eingeht (Budget-Einnahmen). Die Karte „Geplante Einnahmen“ zählt nur erwartete Zahlungen.'
+                : undefined
+            }
+          >
+            {REDESIGN_ENABLED ? 'Einnahmen im Budget' : 'Einnahmen'} {income}
+          </span>
           <AppLink
             className="btn btn-ghost btn-sm plan-close"
             to={`/monatsabschluss/${month}`}
@@ -2047,9 +2056,9 @@ function PlanTopBar({
               }
             />
             {monthIncome && (
-              <aside className="plan-reference-income" aria-label="Einnahmen im Planmonat">
+              <aside className="plan-reference-income" aria-label="Geplante Einnahmen im Planmonat">
                 <div>
-                  <strong>Einnahmen · {monthLabel(month)}</strong>
+                  <strong>Geplante Einnahmen · {monthLabel(month)}</strong>
                   <button type="button" onClick={onIncome}>
                     Details →
                   </button>
@@ -2057,6 +2066,10 @@ function PlanTopBar({
                 <p>
                   erhalten <strong>{eur(monthIncome.receivedCents)}</strong> von erwartet{' '}
                   {eur(monthIncome.expectedCents)}
+                  <span className="sr-only">
+                    {' '}
+                    Nur erwartete Zahlungen, ohne Kapitalerträge und Erstattungen.
+                  </span>
                 </p>
                 <progress
                   aria-label="Erhaltene Einnahmen"

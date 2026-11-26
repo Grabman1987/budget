@@ -40,11 +40,16 @@ export function ForecastRedesign({
       <div className="forecast-reference-lead">
         <div>
           <span>
-            Tiefpunkt <Info size={15} aria-label="Kleinster Kontostand im gewählten Zeitraum" />
+            Tiefpunkt{' '}
+            <Info
+              size={15}
+              aria-label="Kleinster Kontostand aller Budget-Konten im gewählten Zeitraum, inklusive erwarteter Eingänge"
+            />
           </span>
           <strong data-testid="liq-low">{low ? eur(low.cents) : 'nicht verfügbar'}</strong>
         </div>
         <span>{low ? 'am ' + longDay(low.day) : 'Keine Prognosepunkte verfügbar'}</span>
+        <small>Alle Budget-Konten, mit erwarteten Eingängen</small>
       </div>
       <section className="forecast-reference-chart" aria-labelledby="liq-title">
         <div className="forecast-reference-chart-head">
@@ -52,7 +57,6 @@ export function ForecastRedesign({
           <ul className="rf-legend" aria-label="Legende" data-testid="liq-legend">
             <li>{forecastLabel}</li>
             <li>10 % Puffer</li>
-            <li>ohne Ereignisse</li>
           </ul>
         </div>
         <LiquidityChart report={report} salaryDay={salaryDate} compact />

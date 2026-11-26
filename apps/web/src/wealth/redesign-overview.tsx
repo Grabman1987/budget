@@ -204,7 +204,7 @@ export function WealthOverview() {
         <div className="wealth-overview-work">
           <section className="wealth-sheet wealth-next" aria-labelledby="wealth-next-title">
             <div className="wealth-section-head">
-              <h2 id="wealth-next-title">Als Nächstes</h2>
+              <h2 id="wealth-next-title">Als Nächstes · Vermögen</h2>
               <span className="vnote">
                 {proposals.isSuccess && allocation.isSuccess
                   ? `${actions.length} offen`
@@ -238,7 +238,7 @@ export function WealthOverview() {
             {!actions.length && proposals.isSuccess && allocation.isSuccess && (
               <p className="wealth-all-done">
                 <CircleCheck size={18} />
-                Alles erledigt
+                Keine offenen Vermögens-Aufgaben
               </p>
             )}
             {actions.length > 4 && (

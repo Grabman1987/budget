@@ -134,3 +134,5 @@ Bereich: Startseite „Heute“ (Route `/`). Status und Verweise wie in `docs/US
 - **Abnahmekriterien:** Warnung genau ab Schwelle + 1 Tag bzw. + 1 Eintrag; Schwellen in Einstellungen änderbar und gespeichert; im Plan erscheint „Enthält … ohne Kategorie“ nur bei Summe ≠ 0.
 - **Status:** live (Stand 26.11.2026: alle verknüpften Issues erledigt; Nutzerabnahme offen) — **Verweis:** #1320
 
+
+- **Kennzahlen widerspruchsfrei (#1352):** Heute nennt die Monatszeile „Haushaltseinnahmen“ (ohne Kapitalerträge und Erstattungen); „N Kategorien überzogen“ in „Als Nächstes“ zeigt den Betrag mit Minus wie „zu viel zugewiesen“. — **Status:** umgesetzt (Branch fix/consistent-figures-1352), Abnahme offen — **Verweis:** #1352

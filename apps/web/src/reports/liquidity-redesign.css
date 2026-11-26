@@ -59,7 +59,8 @@
   line-height: 1.08;
   font-weight: 640;
 }
-.forecast-reference-lead > span {
+.forecast-reference-lead > span,
+.forecast-reference-lead > small {
   padding-bottom: var(--space-xs);
   color: var(--ink-2);
   font-size: var(--fs-table);
