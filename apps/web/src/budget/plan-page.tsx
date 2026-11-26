@@ -365,8 +365,16 @@ function PlanBody({
         ...(expected && { expected: expectedDues(expected) }),
       }).map((group) => group.key),
     );
-    return new Set(restoredPlan?.collapsedKeys.filter((key) => keys.has(key)) ?? []);
+    // Restored navigation state wins; otherwise the owner's remembered folding (review 26.11, #1358).
+    return new Set(
+      (restoredPlan ? restoredPlan.collapsedKeys : readStoredCollapsed()).filter((key) =>
+        keys.has(key),
+      ),
+    );
   });
+  useEffect(() => {
+    if (REDESIGN_ENABLED) writeStoredCollapsed(collapsed);
+  }, [collapsed]);
   const groupFocusAfterToggle = useRef<string | null>(null);
   useLayoutEffect(() => {
     const key = groupFocusAfterToggle.current;
@@ -1232,6 +1240,18 @@ function PlanBody({
           {!REDESIGN_ENABLED && toolbar}
           {filter === 'overspent' && (
             <div className="plan-filter-cover">{coverControls || <p>Nichts ist überzogen.</p>}</div>
+          )}
+          {REDESIGN_ENABLED && phone && filter !== 'overspent' && counts.overspent > 0 && (
+            <button
+              type="button"
+              className="plan-overspent-jump"
+              onClick={() => changeFilter('overspent')}
+            >
+              <span>
+                {counts.overspent} {counts.overspent === 1 ? 'Kategorie' : 'Kategorien'} überzogen
+              </span>
+              <span aria-hidden="true">Anzeigen →</span>
+            </button>
           )}
           {REDESIGN_ENABLED && (
             <p className="sr-only" role="status" aria-live="polite">
@@ -2769,4 +2789,24 @@ function EnvelopeRow({
 function AvailableIcon({ row }: { row: PlanRow }) {
   const Icon = row.overspentCents > 0 ? CircleAlert : row.availableCents > 0 ? Check : Wallet;
   return <Icon size={16} strokeWidth={1.75} aria-hidden="true" />;
+}
+
+const COLLAPSED_KEY = 'budget-plan-collapsed-groups';
+
+/** Remembered folded category groups (per browser); storage may be blocked, then all stay open. */
+function readStoredCollapsed(): string[] {
+  try {
+    const parsed: unknown = JSON.parse(localStorage.getItem(COLLAPSED_KEY) ?? '[]');
+    return Array.isArray(parsed) ? parsed.filter((k): k is string => typeof k === 'string') : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeStoredCollapsed(collapsed: ReadonlySet<string>) {
+  try {
+    localStorage.setItem(COLLAPSED_KEY, JSON.stringify([...collapsed]));
+  } catch {
+    /* storage unavailable */
+  }
 }

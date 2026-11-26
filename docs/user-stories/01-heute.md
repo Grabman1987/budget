@@ -136,3 +136,7 @@ Bereich: Startseite „Heute“ (Route `/`). Status und Verweise wie in `docs/US
 
 
 - **Kennzahlen widerspruchsfrei (#1352):** Heute nennt die Monatszeile „Haushaltseinnahmen“ (ohne Kapitalerträge und Erstattungen); „N Kategorien überzogen“ in „Als Nächstes“ zeigt den Betrag mit Minus wie „zu viel zugewiesen“. — **Status:** umgesetzt (Branch fix/consistent-figures-1352), Abnahme offen — **Verweis:** #1352
+### H-xx – Heute und Seitenleiste bei 1280/1440 px ohne abgeschnittene Beträge (#1355)
+- **Story:** Als Nutzer möchte ich auf Heute und in der Seitenleiste Beträge, Kontonamen und Fälligkeitsdaten vollständig und bündig lesen, damit nichts umbricht oder verdeckt wird.
+- **Abnahmekriterien:** Nettovermögen-Betrag und „€“ brechen nie auseinander (der Betrag rückt bei Platzmangel unter den Titel); „Fällig“ zeigt die Datumsspalte mit fester Breite, rechtsbündig, mit Tabellenziffern; „BUDGET-KONTEN“ wird nicht mit Trennstrich umbrochen; Kontonamen zeigen volle Namen als Tooltip; die Kontoliste scrollt in der Seitenleiste und lässt unten Luft vor dem Profilblock; negative Budget-/Investmentbeträge und -Summen als rote Pille, Kreditkarten und Kredite mit Minus in Tinte.
+- **Status:** umgesetzt (Branch fix/widths-plan-1355-1358), Abnahme offen — **Verweis:** #1355
