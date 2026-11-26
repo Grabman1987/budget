@@ -290,3 +290,5 @@ Bereich: Plan (`/plan/monat`, `/plan/jahr`, `/plan/erwartet`, `/plan/sparziele`,
   3. Ich klappe „Tilgen oder investieren“ auf: ab 1024 px Breite stehen links die Eingaben, rechts das Ergebnis; schmaler untereinander.
 - **Ergebnis:** Nur Anzeige. Es wird nichts gebucht.
 - **Status:** live (Stand 26.11.2026: alle verknüpften Issues erledigt; Nutzerabnahme offen) — **Verweis:** #1343
+
+- **Prognose am Telefon (#1357):** „Liquidität je Konto“ zeigt je Konto einen kompakten Block ohne innere Scrollbox; für Kreditkarten (kein Zahlungskonto) wird kein „Engpass ab“ gemeldet. Die Zahlungstabelle ist am Telefon eine zweizeilige Liste (Name + Betrag, darunter Datum und Kontostand) ohne seitliches Wischen und ohne Zeile „Heute“; am Desktop bleibt die Tabelle. Status: umgesetzt (Branch fix/pruefen-prognose-phone-1357), Abnahme offen.

@@ -94,8 +94,20 @@
   .account-liquidity {
     padding: 16px;
   }
-  .account-liquidity thead {
+  .account-liquidity thead,
+  .account-liquidity .account-liquidity-na {
     display: none;
+  }
+  /* One block per account: the page scrolls, not an inner box. */
+  .account-liquidity .report-table-scroll {
+    max-height: none;
+    overflow: visible;
+  }
+  .account-liquidity tr:not(.account-liquidity-detail) {
+    padding: 8px 12px;
+    margin-block-end: 8px;
+    border: var(--stroke-hairline) solid var(--rule);
+    border-radius: var(--radius-sm);
   }
   .account-liquidity tbody,
   .account-liquidity tr,

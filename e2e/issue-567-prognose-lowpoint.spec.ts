@@ -108,7 +108,7 @@ for (const theme of ['light', 'dark'] as const) {
         await expect(item).toContainText(longDay(row.day));
         // The redesign table shows plain signed amounts; the classic list keeps its "+" prefix.
         const redesign = await redesignEnabled(page);
-        const amount = redesign ? item.locator('td').nth(2) : item.locator('strong');
+        const amount = redesign ? item.getByTestId('liq-event-amount') : item.locator('strong');
         await expect(amount).toHaveText(eur(row.cents, { sign: !redesign }));
       }
       // Dates never run backwards, and every listed row is one of the plotted days.
