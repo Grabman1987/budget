@@ -126,6 +126,7 @@ for (const [value, text] of [
 }
 
 test('Vermögen shows exact cents at rounding, sign and grouping boundaries', async ({ page }) => {
+  test.setTimeout(120_000); // twelve full page loads
   let value = 0;
   await page.route(/\/api\/wealth\/networth\?/, async (route) => {
     const response = await route.fetch();
@@ -142,6 +143,7 @@ test('Vermögen shows exact cents at rounding, sign and grouping boundaries', as
 });
 
 test('Plan shows exact cents at rounding, sign and grouping boundaries', async ({ page }) => {
+  test.setTimeout(120_000); // twelve full page loads
   let value = 0;
   await page.route(/\/api\/budget\/\d{4}-\d{2}(?:\?.*)?$/, async (route) => {
     const response = await route.fetch();
