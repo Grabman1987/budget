@@ -87,7 +87,8 @@ test('one synthetic month has the same overspent count in Heute, Plan, inbox and
   await expect(page.getByRole('group', { name: 'Teil von Prüfen' })).toBeVisible();
   await expect(page.locator('.kgroup', { hasText: 'Überzogene Kategorien' })).toHaveCount(0);
   await expect(page.getByTestId('inbox-overspent-summary')).toHaveCount(0);
-  await expect(page.getByText('Kategorien überzogen')).toHaveCount(0);
+  // Owner 26.11.2026: the Plan source row names the plan problems with the same count as Heute.
+  await expect(page.getByText(`${count} Kategorien überzogen`)).toHaveCount(1);
   await expect(page.getByTestId('inbox-row').filter({ hasText: 'ist überzogen' })).toHaveCount(0);
   const redesign = (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
   await expect(
