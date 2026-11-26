@@ -134,3 +134,8 @@ Bereich: Startseite „Heute“ (Route `/`). Status und Verweise wie in `docs/US
 - **Abnahmekriterien:** Warnung genau ab Schwelle + 1 Tag bzw. + 1 Eintrag; Schwellen in Einstellungen änderbar und gespeichert; im Plan erscheint „Enthält … ohne Kategorie“ nur bei Summe ≠ 0.
 - **Status:** live (Stand 26.11.2026: alle verknüpften Issues erledigt; Nutzerabnahme offen) — **Verweis:** #1320
 
+
+### H-xx – Heute und Seitenleiste bei 1280/1440 px ohne abgeschnittene Beträge (#1355)
+- **Story:** Als Nutzer möchte ich auf Heute und in der Seitenleiste Beträge, Kontonamen und Fälligkeitsdaten vollständig und bündig lesen, damit nichts umbricht oder verdeckt wird.
+- **Abnahmekriterien:** Nettovermögen-Betrag und „€“ brechen nie auseinander (der Betrag rückt bei Platzmangel unter den Titel); „Fällig“ zeigt die Datumsspalte mit fester Breite, rechtsbündig, mit Tabellenziffern; „BUDGET-KONTEN“ wird nicht mit Trennstrich umbrochen; Kontonamen zeigen volle Namen als Tooltip; die Kontoliste scrollt in der Seitenleiste und lässt unten Luft vor dem Profilblock; negative Budget-/Investmentbeträge und -Summen als rote Pille, Kreditkarten und Kredite mit Minus in Tinte.
+- **Status:** umgesetzt (Branch fix/widths-plan-1355-1358), Abnahme offen — **Verweis:** #1355

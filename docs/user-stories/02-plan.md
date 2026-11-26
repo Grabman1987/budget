@@ -290,3 +290,8 @@ Bereich: Plan (`/plan/monat`, `/plan/jahr`, `/plan/erwartet`, `/plan/sparziele`,
   3. Ich klappe „Tilgen oder investieren“ auf: ab 1024 px Breite stehen links die Eingaben, rechts das Ergebnis; schmaler untereinander.
 - **Ergebnis:** Nur Anzeige. Es wird nichts gebucht.
 - **Status:** live (Stand 26.11.2026: alle verknüpften Issues erledigt; Nutzerabnahme offen) — **Verweis:** #1343
+
+### P-xx – Plan: Namen und Hilfstext bei 1280/1440 px, Plan am Telefon (#1355, #1358)
+- **Story:** Als Nutzer möchte ich im Plan Kategorienamen vollständig lesen und am Telefon schnell zu überzogenen Kategorien kommen, damit ich nicht durch lange Seiten scrollen muss.
+- **Abnahmekriterien:** Desktop (bis 1500 px) zeigt den Hilfstext („Überzogen …“, „Nichts ausgegeben“) unter dem Namen statt in einer eigenen Spalte; Suchfeld-Platzhalter „Kategorie suchen“ ist nie abgeschnitten; Telefon: auf-/zugeklappter Zustand je Kategoriegruppe wird im Browser gemerkt (bei gesperrtem Speicher bleibt alles offen); bei überzogenen Kategorien erscheint über der Liste die Zeile „n Kategorien überzogen · Anzeigen →“, die den Filter „Überzogen“ setzt; lange Gruppennamen umbrechen auf höchstens zwei Zeilen, Griff, Pfeil und „+“ behalten eigenen Platz; der Satz „Enthält … ohne Kategorie · Prüfen“ steht als eine fließende Zeile.
+- **Status:** umgesetzt (Branch fix/widths-plan-1355-1358), Abnahme offen — **Verweis:** #1355, #1358
