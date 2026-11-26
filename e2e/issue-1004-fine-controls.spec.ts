@@ -100,10 +100,16 @@ test('a page primary action makes the global capture action secondary', async ({
   await page.goto('/einstellungen/konten');
   const create = page.getByRole('button', { name: 'Konto anlegen', exact: true });
   await expect(create).toBeVisible();
-  await expect(page.locator('.topbar .btn-primary')).toHaveCSS(
-    'background-color',
-    'rgba(0, 0, 0, 0)',
-  );
+  if ((page.viewportSize()?.width ?? 1440) < 768) {
+    // Phone: the floating + is the only capture entry, so the page's action is the one primary.
+    await expect(page.locator('.page-header .btn-primary')).toHaveCount(0);
+    await expect(page.locator('.fab')).toHaveCount(1);
+  } else {
+    await expect(page.locator('.topbar .btn-primary')).toHaveCSS(
+      'background-color',
+      'rgba(0, 0, 0, 0)',
+    );
+  }
   await expect(create).toHaveCSS('background-color', 'rgb(23, 71, 166)');
 });
 
