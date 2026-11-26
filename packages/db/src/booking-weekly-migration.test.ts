@@ -45,7 +45,11 @@ it('weekly migration preserves stored schedules, versions, links, bookings and a
     expect(rows()).toEqual(
       before.map((t, i) =>
         tables[i] === 'expected_payment'
-          ? (t as Record<string, unknown>[]).map((r) => ({ ...r, interval_weeks: null }))
+          ? (t as Record<string, unknown>[]).map((r) => ({
+              ...r,
+              interval_weeks: null,
+              contact_share_cents: null,
+            }))
           : tables[i] === 'account'
             ? (t as Record<string, unknown>[]).map((r) => ({ ...r, purpose: null }))
             : tables[i] === 'expected_occurrence'

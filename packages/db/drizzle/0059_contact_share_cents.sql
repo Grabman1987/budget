@@ -1,0 +1,1 @@
+ALTER TABLE `expected_payment` ADD `contact_share_cents` integer;

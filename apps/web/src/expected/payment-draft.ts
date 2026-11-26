@@ -14,6 +14,10 @@ export interface PaymentDraft {
   incomeTypeId: string;
   /** Percent with up to two decimals (`50`, `33,33`). */
   sharePercent: string;
+  /** Which share is entered: percent of each amount or a fixed euro amount. */
+  shareMode: 'percent' | 'amount';
+  /** Fixed share in euros (German amount text), used in `amount` mode. */
+  shareAmount: string;
   tolerance: string;
   windowDays: string;
   rhythm: Rhythm;
@@ -41,6 +45,8 @@ export const emptyDraft = (today: string): PaymentDraft => ({
   categoryId: '',
   incomeTypeId: '',
   sharePercent: '',
+  shareMode: 'percent',
+  shareAmount: '',
   tolerance: '',
   windowDays: '3',
   rhythm: 'monthly',
@@ -84,6 +90,8 @@ export function draftFromPayment(p: ExpectedPayment): PaymentDraft {
     categoryId: p.categoryId ?? '',
     incomeTypeId: p.incomeTypeId ?? '',
     sharePercent: p.contactShareBp ? percentText(p.contactShareBp) : '',
+    shareMode: p.contactShareCents ? 'amount' : 'percent',
+    shareAmount: p.contactShareCents ? formatDecimal(toCents(p.contactShareCents)) : '',
     tolerance: p.amountToleranceCents ? formatDecimal(toCents(p.amountToleranceCents)) : '',
     windowDays: String(p.dateWindowDays),
     rhythm: p.rhythm,
@@ -194,9 +202,18 @@ export function readDraft(d: PaymentDraft, creating: boolean, original?: Payment
     if (!/^\d{1,2}$/.test(d.dueMonth) || dueMonth < 1 || dueMonth > 12)
       errors.dueMonth = 'Bitte einen Monat wählen.';
   }
-  const share = d.sharePercent.trim() === '' ? 0 : parsePercentBp(d.sharePercent);
+  const fixed = d.shareMode === 'amount';
+  const share = fixed || d.sharePercent.trim() === '' ? 0 : parsePercentBp(d.sharePercent);
   if (share === undefined) errors.sharePercent = 'Ein Anteil von 0 bis 100 %.';
-  if (share && !d.contactId) errors.contactId = 'Für einen Anteil braucht es einen Kontakt.';
+  let shareCents: number | null = null;
+  if (fixed && d.shareAmount.trim() !== '') {
+    const amount = parseAmount(d.shareAmount);
+    if (!amount.ok || amount.cents <= 0)
+      errors.shareAmount = 'Bitte einen Betrag über 0 eintragen.';
+    else shareCents = amount.cents;
+  }
+  if ((share || shareCents) && !d.contactId)
+    errors.contactId = 'Für einen Anteil braucht es einen Kontakt.';
   const tolerance = readCents(d.tolerance);
   if (tolerance === undefined || tolerance < 0)
     errors.tolerance = 'Das lässt sich nicht als Betrag lesen.';
@@ -250,6 +267,7 @@ export function readDraft(d: PaymentDraft, creating: boolean, original?: Payment
     categoryId: inflow ? null : d.categoryId || null,
     incomeTypeId: inflow ? d.incomeTypeId || null : null,
     contactShareBp: share ?? 0,
+    contactShareCents: shareCents,
     amountToleranceCents: tolerance ?? 0,
     dateWindowDays: windowDays,
     rhythm: d.rhythm,

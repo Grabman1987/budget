@@ -72,6 +72,38 @@ describe('occurrences', () => {
     expect(inflow[0]?.amountCents).toBe(5000);
   });
 
+  it('uses a fixed euro share, capped at the amount, instead of the percentage', () => {
+    const big = [{ validFrom: '2026-01-01', amountCents: 180961, amountMaxCents: null }];
+    const fixed = occurrences(
+      payment({ contactShareBp: 0, contactShareCents: 80000 }),
+      big,
+      '2026-02-01',
+      '2026-02-28',
+    );
+    expect(fixed[0]?.contactShareCents).toBe(-80000);
+    const capped = occurrences(
+      payment({ contactShareCents: 900000 }),
+      big,
+      '2026-02-01',
+      '2026-02-28',
+    );
+    expect(capped[0]?.contactShareCents).toBe(-180961);
+    const inflow = occurrences(
+      payment({ kind: 'inflow', contactShareCents: 80000 }),
+      big,
+      '2026-02-01',
+      '2026-02-28',
+    );
+    expect(inflow[0]?.contactShareCents).toBe(80000);
+    const none = occurrences(
+      payment({ contactShareBp: 5000, contactShareCents: null }),
+      versions,
+      '2026-02-01',
+      '2026-02-28',
+    );
+    expect(none[0]?.contactShareCents).toBe(-2000);
+  });
+
   it('skips dates before the first version and carries a range maximum', () => {
     const ranged = [{ validFrom: '2026-02-01', amountCents: 1000, amountMaxCents: 1500 }];
     const out = occurrences(payment(), ranged, '2026-01-01', '2026-02-28');

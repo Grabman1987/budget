@@ -414,6 +414,13 @@
       "when": 1795670511356,
       "tag": "0058_occurrence_moved",
       "breakpoints": true
+    },
+    {
+      "idx": 59,
+      "version": "6",
+      "when": 1795692446797,
+      "tag": "0059_contact_share_cents",
+      "breakpoints": true
     }
   ]
 }

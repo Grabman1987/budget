@@ -29,7 +29,9 @@ it('expected-interval-weeks migration only adds a nullable column and keeps stor
     const before = rows() as Record<string, unknown>[];
     migrateDatabase(opened.db);
     // Every old row is the same plus the new column, empty: weekly keeps meaning every week.
-    expect(rows()).toEqual(before.map((r) => ({ ...r, interval_weeks: null })));
+    expect(rows()).toEqual(
+      before.map((r) => ({ ...r, interval_weeks: null, contact_share_cents: null })),
+    );
     opened.sqlite.exec("UPDATE expected_payment SET interval_weeks=2 WHERE id='w'");
     expect(
       opened.sqlite.prepare("SELECT interval_weeks FROM expected_payment WHERE id='w'").get(),

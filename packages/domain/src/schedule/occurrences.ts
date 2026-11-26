@@ -14,6 +14,8 @@ export interface SchedulePayment extends ScheduleRule {
   kind: ExpectedKind;
   /** Basis points of each amount that is paid for the payment's contact (receivable). */
   contactShareBp: number;
+  /** Fixed share in positive cents (capped at the amount); wins over `contactShareBp`. */
+  contactShareCents?: number | null;
 }
 
 /** Amount of a payment from `validFrom` on (positive cents; the kind gives the sign). */
@@ -72,7 +74,10 @@ export function occurrences(
       dueDate,
       amountCents,
       amountMaxCents: v.amountMaxCents === null ? null : sign * v.amountMaxCents,
-      contactShareCents: shareOf(amountCents, payment.contactShareBp),
+      contactShareCents:
+        payment.contactShareCents != null
+          ? sign * Math.min(payment.contactShareCents, v.amountCents)
+          : shareOf(amountCents, payment.contactShareBp),
     });
   }
   return out;

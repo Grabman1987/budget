@@ -1,3 +1,4 @@
+import type * as BudgetSchema from './schema/budget';
 import type * as PlanningSchema from './schema/planning';
 import type * as AccountSchema from './schema/accounts';
 import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -429,4 +430,15 @@ vi.mock('./schema/planning', async (importOriginal) => {
   const expectedOccurrence = Object.create(original.expectedOccurrence);
   expectedOccurrence[Symbol.for('drizzle:Columns')] = columns;
   return { ...original, expectedOccurrence };
+});
+
+// Keep the ORM payment projection at the genuine historical schema level (before 0059).
+vi.mock('./schema/budget', async (importOriginal) => {
+  const original = await importOriginal<typeof BudgetSchema>();
+  const { getTableColumns } = await import('drizzle-orm');
+  const columns = { ...getTableColumns(original.expectedPayment) };
+  delete (columns as Partial<typeof columns>).contactShareCents;
+  const expectedPayment = Object.create(original.expectedPayment);
+  expectedPayment[Symbol.for('drizzle:Columns')] = columns;
+  return { ...original, expectedPayment };
 });

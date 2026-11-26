@@ -418,6 +418,8 @@ const expectedFields = {
   incomeTypeId: id.nullable(),
   /** Basis points of each amount paid for the contact (10 000 = all of it). */
   contactShareBp: z.int().min(0).max(10_000),
+  /** Fixed share in cents instead of a percentage (null clears it). */
+  contactShareCents: z.int().min(1).nullable(),
   amountToleranceCents: cents.min(0),
   dateWindowDays: z.int().min(0).max(31),
   rhythm: z.enum(RHYTHMS),

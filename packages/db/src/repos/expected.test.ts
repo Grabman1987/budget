@@ -131,6 +131,42 @@ describe('materialising occurrences', () => {
     ).payment;
     expect(occurrencesOf(p.id)[0]?.contactShareCents).toBe(0);
   });
+
+  it('a fixed euro share is capped, replans future rows and is replaced by a percentage', () => {
+    const p = rent({ contactId: 'k1', contactShareBp: 2_500 });
+    const next = () => occurrencesOf(p.id).find((o) => o.dueDate >= TODAY)!;
+    expect(next().contactShareCents).toBe(-10_000);
+    const upd = updateExpectedPayment(db, p.id, { contactShareCents: 15_000 }, ctx, TODAY);
+    expect(upd.payment.contactShareBp).toBe(0);
+    expect(upd.payment.contactShareCents).toBe(15_000);
+    expect(next().contactShareCents).toBe(-15_000);
+    updateExpectedPayment(db, p.id, { contactShareCents: 99_999 }, ctx, TODAY);
+    expect(next().contactShareCents).toBe(-40_000);
+    const back = updateExpectedPayment(db, p.id, { contactShareBp: 5_000 }, ctx, TODAY);
+    expect(back.payment.contactShareCents).toBeNull();
+    expect(next().contactShareCents).toBe(-20_000);
+    const cleared = updateExpectedPayment(
+      db,
+      p.id,
+      { contactShareBp: 0, contactShareCents: null },
+      ctx,
+      TODAY,
+    );
+    expect(cleared.payment.contactShareCents).toBeNull();
+    expect(next().contactShareCents).toBe(0);
+  });
+
+  it('refuses a fixed share without a contact or below one cent', () => {
+    expect(() => rent({ contactShareCents: 5_000 })).toThrow(ConflictError);
+    const p = rent({ contactId: 'k1' });
+    expect(() => updateExpectedPayment(db, p.id, { contactShareCents: 0 }, ctx, TODAY)).toThrow(
+      ConflictError,
+    );
+    updateExpectedPayment(db, p.id, { contactShareCents: 5_000 }, ctx, TODAY);
+    expect(() => updateExpectedPayment(db, p.id, { contactId: null }, ctx, TODAY)).toThrow(
+      ConflictError,
+    );
+  });
 });
 
 describe('versions', () => {
