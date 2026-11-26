@@ -393,3 +393,5 @@ Bereich: Konten (`/konten`, `/konten/$id`), Alle Buchungen (`/konten/buchungen`)
   3. Im Verlauf eines einzelnen Kontos steht rechts unter dem Betrag der Saldo nach der Buchung (wie in „Kommend“); „Alle Buchungen“ zeigt ihn nicht.
   4. Eine Kategorie zeigt ein Symbol: das Emoji; das Klassenquadrat entfällt im Redesign (Register, Plan-Mehrmonatsansicht, Ziele).
 - **Status:** live mit Train 23 (Nutzerabnahme offen) — **Verweis:** #1353
+
+- Kontaktanteile werden nur in Euro erfasst; Rechnen im Feld (z. B. 1809,61/2) ersetzt Prozente (Owner 26.11.2026).

@@ -249,9 +249,6 @@
   display: flex;
   gap: 8px;
 }
-.bkform-redesign .bk-contact-line .bk-share-value .seg {
-  flex-shrink: 0;
-}
 .bkform-redesign .bk-contact-line .bk-share-value .amount {
   min-width: 0;
 }

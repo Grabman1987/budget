@@ -559,11 +559,8 @@ for (const profile of ['configured', 'desktop1440'] as const) {
           await dialog.getByLabel('Betrag', { exact: true }).fill('10,00');
           await (await contactShareControl(dialog)).click();
           await dialog.getByLabel('Kontakt 1.1', { exact: true }).selectOption(contact.id);
-          await dialog
-            .getByRole('group', { name: 'Anteilart 1.1', exact: true })
-            .getByRole('button', { name: '%', exact: true })
-            .click();
-          await expect(dialog.getByLabel('Anteil 1.1 (%)')).toHaveValue('50');
+          // owner 26.11.2026: euro only.
+          await dialog.getByLabel('Anteil 1.1 (€)').fill('5');
           const saved = page.waitForResponse(
             (r) => r.request().method() === 'POST' && new URL(r.url()).pathname === '/api/bookings',
           );

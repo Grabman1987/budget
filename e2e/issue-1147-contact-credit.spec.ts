@@ -45,8 +45,8 @@ test('a shared purchase can retain contact credit and leave the share open', asy
   await (await contactShareControl(dialog)).click();
   const share = dialog.getByRole('group', { name: 'Kontaktanteil 1.1' });
   await share.getByLabel('Kontakt 1.1', { exact: true }).selectOption(contact.id);
-  await share.getByRole('button', { name: '%', exact: true }).click();
-  await share.getByLabel('Anteil 1.1 (%)').fill('50');
+  // owner 26.11.2026: euro only (50 % of 8,02 = 4,01).
+  await share.getByLabel('Anteil 1.1 (€)').fill('4,01');
   const choice = share.getByRole('checkbox', { name: 'Mit Guthaben verrechnen' });
   await expect(choice).toBeChecked();
   await expect(share).toContainText('1,00 € bleiben offen');

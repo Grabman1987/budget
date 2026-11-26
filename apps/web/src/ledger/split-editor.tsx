@@ -1,4 +1,4 @@
-﻿import { useAmountPrivacy, AmountInput, Button, Segmented, maskMoneyText } from '@budget/ui';
+﻿import { useAmountPrivacy, AmountInput, Button, maskMoneyText } from '@budget/ui';
 import { consumeContactCredit, parseAmount, type ContactCreditPool } from '@budget/domain';
 import { ChevronDown, Plus, X, Info, Tag } from 'lucide-react';
 import { createPortal } from 'react-dom';
@@ -18,17 +18,6 @@ import type { PickCategory } from './capture-model';
 import { ContactSelect } from './contact-select';
 import { eur } from './format';
 import type { AccountRow } from './types';
-
-const SHARE_MODE_KEY = 'budget-contact-share-mode';
-type ShareMode = BookingLineDraft['shares'][number]['mode'];
-
-function readShareMode(): ShareMode {
-  try {
-    return localStorage.getItem(SHARE_MODE_KEY) === 'percent' ? 'percent' : 'amount';
-  } catch {
-    return 'amount';
-  }
-}
 
 export interface SplitEditorProps {
   draft: BookingDraft;
@@ -108,10 +97,10 @@ export function SplitEditor({
   useAmountPrivacy();
   const editorRef = useRef<HTMLFieldSetElement>(null);
   const [creatingLine, setCreatingLine] = useState<string>();
-  const [shareMode, setShareMode] = useState(readShareMode);
+  // owner 26.11.2026: contact shares are always entered as euro amounts.
   const newShare = () => ({
-    ...newSplit({ type: 'contact', amount: shareMode === 'percent' ? '50' : '' }),
-    mode: shareMode,
+    ...newSplit({ type: 'contact', amount: '' }),
+    mode: 'amount' as const,
   });
   const lines = captureLines(draft, singleMetadata);
   const multiple = draft.splitOn && lines.length > 1;
@@ -309,31 +298,9 @@ export function SplitEditor({
                     }
                   />
                   <div className="bk-share-value">
-                    <Segmented
-                      label={`Anteilart ${label}`}
-                      options={[
-                        { value: 'percent', label: '%' },
-                        { value: 'amount', label: 'Betrag' },
-                      ]}
-                      value={share.mode}
-                      onChange={(mode) => {
-                        setShareMode(mode);
-                        try {
-                          localStorage.setItem(SHARE_MODE_KEY, mode);
-                        } catch {
-                          // Blocked device storage must not prevent editing the share.
-                        }
-                        const split = expanded.splits.find((s) => s.key === share.key);
-                        // Switching units keeps the current euro share; switching back starts at 50%.
-                        shareChange(share.key, {
-                          mode,
-                          amount: mode === 'amount' ? (split?.amount ?? '') : '50',
-                        });
-                      }}
-                    />
                     <AmountInput
-                      currency={share.mode === 'percent' ? '%' : 'EUR'}
-                      label={`Anteil ${label}${share.mode === 'percent' ? ' (%)' : ' (€)'}`}
+                      currency="EUR"
+                      label={`Anteil ${label} (€)`}
                       value={share.amount}
                       showOperators={false}
                       onChange={(amount) => shareChange(share.key, { amount })}

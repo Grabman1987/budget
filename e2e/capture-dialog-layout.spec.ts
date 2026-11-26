@@ -357,19 +357,9 @@ for (const scenario of ['category', 'outlay', 'percent', 'amount', 'several'] as
       await (await contactShareControl(dialog)).click();
       await expect(save).toBeDisabled();
       await dialog.getByLabel('Kontakt 1.1', { exact: true }).selectOption(contact.id);
-      await dialog
-        .getByRole('group', { name: 'Anteilart 1.1', exact: true })
-        .getByRole('button', { name: '%', exact: true })
-        .click();
-      await expect(dialog.getByLabel('Anteil 1.1 (%)')).toHaveValue('50');
-      if (scenario === 'percent') await dialog.getByLabel('Anteil 1.1 (%)').fill('33,33');
-      else {
-        await dialog
-          .getByRole('group', { name: 'Anteilart 1.1', exact: true })
-          .getByRole('button', { name: 'Betrag', exact: true })
-          .click();
-        await dialog.getByLabel('Anteil 1.1 (€)').fill('20');
-      }
+      await expect(dialog.getByLabel('Anteil 1.1 (€)')).toHaveValue('');
+      // owner 26.11.2026: euro only (scenario 'percent' = the euro equivalent of 33,33 %).
+      await dialog.getByLabel('Anteil 1.1 (€)').fill(scenario === 'percent' ? '33,33' : '20');
     }
     if (scenario === 'several') {
       await (await categoryLineControl(dialog)).click();
@@ -386,11 +376,7 @@ for (const scenario of ['category', 'outlay', 'percent', 'amount', 'several'] as
       await dialog.getByLabel('Betrag 2', { exact: true }).fill('20');
       await dialog.getByRole('button', { name: '+ Weiterer Kontakt', exact: true }).click();
       await dialog.getByLabel('Kontakt 1.2').selectOption(secondContact.id);
-      await dialog
-        .getByRole('group', { name: 'Anteilart 1.2', exact: true })
-        .getByRole('button', { name: '%', exact: true })
-        .click();
-      await dialog.getByLabel('Anteil 1.2 (%)').fill('10');
+      await dialog.getByLabel('Anteil 1.2 (€)').fill('10');
       await expect(dialog.getByText('Kategorie trägt 100,00 € bis zur Rückzahlung')).toBeVisible();
     }
     await expect(dialog.getByLabel('Bezahlt von')).toHaveValue(account.id);

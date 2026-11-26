@@ -18,10 +18,6 @@ const KINDS = [
   { value: 'outflow', label: 'Ausgabe' },
   { value: 'inflow', label: 'Einnahme' },
 ] as const;
-const SHARE_MODES = [
-  { value: 'percent', label: '%' },
-  { value: 'amount', label: '€' },
-] as const;
 const RHYTHMS: ReadonlyArray<{ value: Rhythm; label: string }> = [
   { value: 'weekly', label: 'wöchentlich' },
   { value: 'monthly', label: 'monatlich' },
@@ -192,27 +188,12 @@ export function PaymentForm({
               .map((c) => ({ value: c.id, label: c.name })),
             'Kein Kontakt',
           )}
-          <div className="xp-share">
-            <Segmented
-              label="Anteil Kontakt: Art"
-              options={SHARE_MODES}
-              value={draft.shareMode}
-              onChange={(mode: PaymentDraft['shareMode']) => onChange('shareMode', mode)}
-            />
-            {draft.shareMode === 'amount' ? (
-              <AmountInput
-                label="Anteil Kontakt in €"
-                value={draft.shareAmount}
-                onChange={(v) => onChange('shareAmount', v)}
-                error={errors.shareAmount}
-              />
-            ) : (
-              text('sharePercent', 'Anteil Kontakt in %', {
-                inputMode: 'decimal',
-                placeholder: '0',
-              })
-            )}
-          </div>
+          <AmountInput
+            label="Anteil Kontakt in €"
+            value={draft.shareAmount}
+            onChange={(v) => onChange('shareAmount', v)}
+            error={errors.shareAmount}
+          />
         </div>
       </fieldset>
       <fieldset className="kform-set xp-set">

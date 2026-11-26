@@ -1948,9 +1948,6 @@ button.kstatus-btn:focus-visible {
   gap: 4px;
   min-width: 0;
 }
-.bk-share-value .seg button {
-  padding-inline: 8px;
-}
 .bk-share > .btn {
   justify-self: start;
 }
@@ -1968,9 +1965,6 @@ button.kstatus-btn:focus-visible {
 @media (max-width: 767px) {
   .bk-line-fields.is-multiple > .amount {
     grid-column: 1 / -1;
-  }
-  .bk-share-value .seg {
-    flex-wrap: wrap;
   }
 }
 /* Contact shares and lock reasons remain visible on the phone. */
