@@ -1,4 +1,4 @@
-import { formatDecimal, cents as toCents, parseAmount } from '@budget/domain';
+import { formatDecimal, cents as toCents, parseAmount, shareOf } from '@budget/domain';
 import type { ListedBooking } from '../ledger/types';
 import type { DateShift, ExpectedKind, ExpectedPayment, PaymentFields, Rhythm } from './api';
 
@@ -12,11 +12,7 @@ export interface PaymentDraft {
   contactId: string;
   categoryId: string;
   incomeTypeId: string;
-  /** Percent with up to two decimals (`50`, `33,33`). */
-  sharePercent: string;
-  /** Which share is entered: percent of each amount or a fixed euro amount. */
-  shareMode: 'percent' | 'amount';
-  /** Fixed share in euros (German amount text), used in `amount` mode. */
+  /** Contact share in euros (German amount text; owner 26.11.2026: euro only, no percentages). */
   shareAmount: string;
   tolerance: string;
   windowDays: string;
@@ -44,8 +40,6 @@ export const emptyDraft = (today: string): PaymentDraft => ({
   contactId: '',
   categoryId: '',
   incomeTypeId: '',
-  sharePercent: '',
-  shareMode: 'percent',
   shareAmount: '',
   tolerance: '',
   windowDays: '3',
@@ -72,12 +66,12 @@ export function percentText(bp: number): string {
   return bp % 100 === 0 ? String(whole) : `${whole},${fraction}`;
 }
 
-/** `50`, `33,33` or `12.5` as basis points; undefined when it is not 0 to 100 with two decimals. */
-export function parsePercentBp(text: string): number | undefined {
-  const match = /^(\d{1,3})(?:[.,](\d{1,2}))?$/.exec(text.trim());
-  if (!match) return undefined;
-  const bp = Number(match[1]) * 100 + Number((match[2] ?? '').padEnd(2, '0') || '0');
-  return bp <= 10_000 ? bp : undefined;
+/** Euro share of the current version; a legacy percentage is shown as its euro equivalent. */
+function shareCentsOf(p: ExpectedPayment): number {
+  if (p.contactShareCents) return p.contactShareCents;
+  if (p.contactShareBp && p.amountCents !== null)
+    return Math.abs(shareOf(p.amountCents, p.contactShareBp));
+  return 0;
 }
 
 export function draftFromPayment(p: ExpectedPayment): PaymentDraft {
@@ -89,9 +83,7 @@ export function draftFromPayment(p: ExpectedPayment): PaymentDraft {
     contactId: p.contactId ?? '',
     categoryId: p.categoryId ?? '',
     incomeTypeId: p.incomeTypeId ?? '',
-    sharePercent: p.contactShareBp ? percentText(p.contactShareBp) : '',
-    shareMode: p.contactShareCents ? 'amount' : 'percent',
-    shareAmount: p.contactShareCents ? formatDecimal(toCents(p.contactShareCents)) : '',
+    shareAmount: shareCentsOf(p) ? formatDecimal(toCents(shareCentsOf(p))) : '',
     tolerance: p.amountToleranceCents ? formatDecimal(toCents(p.amountToleranceCents)) : '',
     windowDays: String(p.dateWindowDays),
     rhythm: p.rhythm,
@@ -202,18 +194,14 @@ export function readDraft(d: PaymentDraft, creating: boolean, original?: Payment
     if (!/^\d{1,2}$/.test(d.dueMonth) || dueMonth < 1 || dueMonth > 12)
       errors.dueMonth = 'Bitte einen Monat wählen.';
   }
-  const fixed = d.shareMode === 'amount';
-  const share = fixed || d.sharePercent.trim() === '' ? 0 : parsePercentBp(d.sharePercent);
-  if (share === undefined) errors.sharePercent = 'Ein Anteil von 0 bis 100 %.';
   let shareCents: number | null = null;
-  if (fixed && d.shareAmount.trim() !== '') {
+  if (d.shareAmount.trim() !== '') {
     const amount = parseAmount(d.shareAmount);
     if (!amount.ok || amount.cents <= 0)
       errors.shareAmount = 'Bitte einen Betrag über 0 eintragen.';
     else shareCents = amount.cents;
   }
-  if ((share || shareCents) && !d.contactId)
-    errors.contactId = 'Für einen Anteil braucht es einen Kontakt.';
+  if (shareCents && !d.contactId) errors.contactId = 'Für einen Anteil braucht es einen Kontakt.';
   const tolerance = readCents(d.tolerance);
   if (tolerance === undefined || tolerance < 0)
     errors.tolerance = 'Das lässt sich nicht als Betrag lesen.';
@@ -266,7 +254,7 @@ export function readDraft(d: PaymentDraft, creating: boolean, original?: Payment
     contactId: d.contactId || null,
     categoryId: inflow ? null : d.categoryId || null,
     incomeTypeId: inflow ? d.incomeTypeId || null : null,
-    contactShareBp: share ?? 0,
+    contactShareBp: 0,
     contactShareCents: shareCents,
     amountToleranceCents: tolerance ?? 0,
     dateWindowDays: windowDays,

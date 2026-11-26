@@ -164,4 +164,6 @@ Als Nutzer will ich bei einer wiederkehrenden Zahlung statt eines Prozentanteils
   3. Fester Betrag und Prozentanteil schließen einander aus: wer einen festen Betrag speichert, hat 0 %; wer wieder Prozent speichert, verliert den festen Betrag.
   4. Nach dem Speichern werden die künftigen offenen Termine neu geplant (Anteil je Termin); vergangene, zugeordnete oder gestrichene Termine bleiben unverändert.
   5. Die Zahlungsansicht zeigt „Anteil <Kontakt>: 800,00 €“ bzw. „… 44 %“.
-- **Status:** umgesetzt (Branch feat/contact-share-euro), Abnahme offen — **Verweis:** Review 26.11
+- **Status:** live mit Train 24 (Nutzerabnahme offen) — **Verweis:** Review 26.11
+
+- Kontaktanteile werden nur in Euro erfasst; Rechnen im Feld (z. B. 1809,61/2) ersetzt Prozente (Owner 26.11.2026). Eine ältere Zahlung mit Prozentanteil zeigt im Formular den Euro-Gegenwert der aktuellen Version; Speichern wandelt sie in Euro um.

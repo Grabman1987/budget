@@ -46,6 +46,7 @@ it('counts one due account and every retained source item before period, source 
     ['payroll', 'payslip-intake', 'revision', '2026-09-01T12:00:00Z'],
     ['unknown', 'unfamiliar-source', 'stale_value', '2026-09-01T12:00:00Z'],
     ['consent', null, 'consent', '2026-09-01T12:00:00Z'],
+    ['recurring', 'expected_occurrence', 'expected_payment', '2026-08-02T12:00:00Z'],
   ] as const)
     opened.db.insert(schema.inboxItem).values({ id, refType, kind, title: id, createdAt }).run();
   opened.db
@@ -62,17 +63,17 @@ it('counts one due account and every retained source item before period, source 
   const before = snapshot();
   const full = await get('?segment=aufgaben&limit=1');
   expect(full.accountReminders.map((r) => r.accountId)).toEqual(['giro']);
-  expect(full.taskSources).toEqual({ accounts: 1, plan: 1, receipts: 1, payslips: 1, other: 2 });
-  expect(full.segments).toEqual({ umsaetze: 1, aufgaben: 6 });
-  expect(Object.values(full.taskSources).reduce((sum, n) => sum + n, 0)).toBe(6);
+  expect(full.taskSources).toEqual({ accounts: 1, plan: 2, receipts: 1, payslips: 1, other: 2 });
+  expect(full.segments).toEqual({ umsaetze: 1, aufgaben: 7 });
+  expect(Object.values(full.taskSources).reduce((sum, n) => sum + n, 0)).toBe(7);
   const pill = await get('/count');
-  expect(pill.count).toBe(7);
+  expect(pill.count).toBe(8);
   const current = await get('?segment=aufgaben&taskSource=plan&period=current&limit=1');
   expect(current.taskSources).toEqual(full.taskSources);
   expect(current.entries).toEqual([]);
   expect(current.totalEntries).toBe(0);
-  const historical = await get('?segment=aufgaben&taskSource=plan&period=historical&limit=1');
-  expect(historical.entries.map((e) => e.id)).toEqual(['plan-old']);
+  const historical = await get('?segment=aufgaben&taskSource=plan&period=historical&limit=5');
+  expect(historical.entries.map((e) => e.id)).toEqual(['plan-old', 'recurring']);
   expect(historical.next).toBeNull();
   const other = await get('?segment=aufgaben&taskSource=other&limit=1&offset=1');
   expect(other.totalEntries).toBe(2);

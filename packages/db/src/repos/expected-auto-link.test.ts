@@ -165,7 +165,18 @@ describe('automatic link of recurring debits (#1102)', () => {
     expect(entry).toMatchObject({
       type: 'stored',
       refType: LINK_PROPOSAL_REF,
-      linkProposal: { occurrenceId: proposal!.refId, bookingId },
+      linkProposal: {
+        occurrenceId: proposal!.refId,
+        bookingId,
+        view: {
+          paymentName: expect.stringMatching(/^Abo [AB]$/),
+          dueDate: '2026-03-22',
+          expectedAmountCents: -2_800,
+          bookingDate: '2026-03-22',
+          bookingAmountCents: -2_800,
+          currency: 'EUR',
+        },
+      },
     });
 
     // "Nicht zuordnen": the owner's no is not asked again, the other occurrence may still be.

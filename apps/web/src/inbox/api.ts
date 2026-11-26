@@ -69,7 +69,21 @@ export interface InboxStored {
   /** Price-source warning of an instrument without a current holding. */
   historical?: true;
   /** Open proposal to link a bank booking to a recurring payment's occurrence (#1102). */
-  linkProposal?: { occurrenceId: string; bookingId: string };
+  linkProposal?: {
+    occurrenceId: string;
+    bookingId: string;
+    /** Facts for the table (older servers omit them; the detail text is the fallback). */
+    view?: {
+      paymentName: string;
+      payeeName: string | null;
+      dueDate: string;
+      expectedAmountCents: number;
+      bookingDate: string;
+      bookingAmountCents: number;
+      currency: string;
+      reason: string;
+    };
+  };
   bankCandidate?:
     | {
         date: string;

@@ -254,7 +254,9 @@ describe('F20 planned payment becomes a booking', () => {
       .find((o) => o.dueDate === '2026-03-25')!;
     expect(occurrence).toMatchObject({ status: 'expected', bookingId: null });
     expect(readInbox(db, AS_OF).entries).toContainEqual(
-      expect.objectContaining({ linkProposal: { occurrenceId: occurrence.id, bookingId } }),
+      expect.objectContaining({
+        linkProposal: expect.objectContaining({ occurrenceId: occurrence.id, bookingId }),
+      }),
     );
     // Without confirmation the forecast conservatively keeps the open occurrence (#1102).
     expect(itemsOn('2026-03-25')).toEqual([expect.objectContaining({ cents: -40_000 })]);

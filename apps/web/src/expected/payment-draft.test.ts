@@ -7,7 +7,6 @@ import {
   draftFromPayment,
   emptyDraft,
   matchingDatePreset,
-  parsePercentBp,
   percentText,
   readDraft,
 } from './payment-draft';
@@ -15,12 +14,7 @@ import {
 const base = { ...emptyDraft('2026-09-17'), name: ' Strom  ', amount: '105', dueDay: '25' };
 
 describe('percent', () => {
-  it('reads and writes basis points', () => {
-    expect(parsePercentBp('50')).toBe(5000);
-    expect(parsePercentBp('33,33')).toBe(3333);
-    expect(parsePercentBp('12.5')).toBe(1250);
-    expect(parsePercentBp('100,01')).toBeUndefined();
-    expect(parsePercentBp('abc')).toBeUndefined();
+  it('writes basis points as text', () => {
     expect([5000, 3333, 1250, 0].map(percentText)).toEqual(['50', '33,33', '12,5', '0']);
   });
 });
@@ -38,24 +32,22 @@ describe('readDraft', () => {
     expect(read.version).toEqual({ amountCents: 10_500, amountMaxCents: null, currency: 'EUR' });
   });
   it('reads a fixed euro share and loads it back in euro mode', () => {
-    const read = readDraft(
-      { ...base, contactId: 'k', shareMode: 'amount', shareAmount: '800,00', sharePercent: '50' },
-      true,
-    );
+    const read = readDraft({ ...base, contactId: 'k', shareAmount: '800,00' }, true);
     expect(read.errors).toEqual({});
     expect(read.fields).toMatchObject({ contactShareBp: 0, contactShareCents: 80_000 });
-    const pct = readDraft({ ...base, contactId: 'k', sharePercent: '44' }, true).fields;
-    expect(pct).toMatchObject({ contactShareBp: 4_400, contactShareCents: null });
-    expect(
-      readDraft({ ...base, shareMode: 'amount', shareAmount: '5' }, true).errors,
-    ).toHaveProperty('contactId');
-    expect(
-      readDraft({ ...base, contactId: 'k', shareMode: 'amount', shareAmount: '0' }, true).errors,
-    ).toHaveProperty('shareAmount');
+    expect(readDraft({ ...base, shareAmount: '5' }, true).errors).toHaveProperty('contactId');
+    expect(readDraft({ ...base, contactId: 'k', shareAmount: '0' }, true).errors).toHaveProperty(
+      'shareAmount',
+    );
+  });
+  it('shows a legacy percentage as its euro equivalent', () => {
+    const legacy = { contactShareBp: 3_333, contactShareCents: null, amountCents: -10_050 };
+    const draft = draftFromPayment({ ...legacy, name: 'x' } as unknown as ExpectedPayment);
+    expect(draft.shareAmount).toBe('33,50');
   });
   it('names every problem', () => {
     const read = readDraft(
-      { ...base, name: '', amount: '0', dueDay: '32', rhythm: 'yearly', sharePercent: '50' },
+      { ...base, name: '', amount: '0', dueDay: '32', rhythm: 'yearly', shareAmount: '5' },
       true,
     );
     expect(Object.keys(read.errors).sort()).toEqual([
