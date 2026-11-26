@@ -195,7 +195,9 @@ export function BankBookingRow({
     setActive(true);
     setEditing(cell);
   };
-  const rawText = item.memo && item.memo !== payeeName ? item.memo : null;
+  // Without a payee the bank text is already the card title.
+  const rawText =
+    item.memo && (payeeName ? item.memo !== payeeName : editing === 'payee') ? item.memo : null;
   const select = (
     <label className="bank-select">
       <input
@@ -252,7 +254,7 @@ export function BankBookingRow({
             disabled={locked}
             onClick={() => openEditor('payee')}
           >
-            <strong>{payeeName || 'Empfänger wählen'}</strong>
+            <strong>{payeeName || item.memo || 'Bankbuchung'}</strong>
           </button>
         )}
         <div className="bank-v1-meta">

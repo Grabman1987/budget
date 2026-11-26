@@ -1027,11 +1027,21 @@
     width: 100%;
     padding-block: var(--space-xs);
   }
+  .konten-inbox-actions-slot {
+    flex-wrap: nowrap;
+    gap: var(--space-xs);
+    padding-block: 0;
+  }
+  /* #1357: both actions share one compact row. */
   :root:has([data-budget-redesign='1']) .konten-inbox-actions-slot > .btn.btn-ghost {
-    flex: 1 1 max-content;
+    flex: 1 1 0;
+    min-width: 0;
+    padding-inline: var(--space-sm);
     border: var(--stroke-hairline) solid var(--field);
     background: var(--surface);
     justify-content: center;
+    font-size: var(--fs-meta);
+    white-space: nowrap;
   }
   .kinbox-v1 .bank-v1-table .bank-editable-row {
     display: flex;
@@ -1084,7 +1094,48 @@
   }
   .kinbox-v1 .bank-v1-table .bank-editable-row .bank-v1-action {
     order: 4;
-    flex: 1 0 calc(100% - var(--touch) - var(--space-sm));
+    flex: 0 0 auto;
+  }
+  /* #1357: compact card: title + amount, one meta line, one action row. */
+  .bank-editable-row :is(.bank-suggestion-actions, .bank-row-editor) {
+    flex: 1 1 0;
+  }
+  .bank-editable-row .bank-row-editor {
+    flex-basis: 100%;
+  }
+
+  .bank-editable-row .bank-payee-btn {
+    min-height: 32px;
+  }
+  .bank-editable-row .bank-payee-btn strong {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .kinbox-v1 .bank-v1-table .bank-editable-row .bank-v1-amount {
+    white-space: nowrap;
+  }
+  .bank-editable-row .bank-v1-meta {
+    flex-wrap: nowrap;
+    overflow: hidden;
+  }
+  .bank-editable-row .bank-v1-meta > span {
+    flex: none;
+  }
+  .bank-editable-row .bank-v1-meta > .bank-v1-raw {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+  .bank-editable-row .bank-v1-meta .bank-v1-phone-source {
+    flex: 0 1 auto;
+    min-width: 0;
+    max-width: 45%;
+    white-space: nowrap;
+  }
+  .kinbox-v1 .bank-v1-table .bank-editable-row .bank-v1-action .btn {
+    min-height: var(--touch);
+    border: var(--stroke-hairline) solid var(--field);
+    background: var(--surface);
   }
   .kinbox-v1 .bank-editable-row .inbox-row-actions {
     justify-content: flex-end;

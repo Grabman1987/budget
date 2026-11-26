@@ -145,9 +145,14 @@ export function AccountLiquidityTable({
                   <td data-label="Stand heute">{eur(account.balanceTodayCents)}</td>
                   <td data-label="Tiefster Stand">{eur(account.low.cents)}</td>
                   <td data-label="Tiefpunkt am">{shortDay(account.low.day)}</td>
-                  <td data-label="Engpass ab">
-                    {account.firstBelowZero ? shortDay(account.firstBelowZero.day) : '–'}
-                  </td>
+                  {account.paymentAccount ? (
+                    <td data-label="Engpass ab">
+                      {account.firstBelowZero ? shortDay(account.firstBelowZero.day) : '–'}
+                    </td>
+                  ) : (
+                    // A credit card is no payment account: no shortfall is reported for it.
+                    <td className="account-liquidity-na">–</td>
+                  )}
                 </tr>
                 <tr
                   id={`account-low-${account.accountId}`}
