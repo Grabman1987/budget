@@ -216,7 +216,7 @@ Bereich: Plan (`/plan/monat`, `/plan/jahr`, `/plan/erwartet`, `/plan/sparziele`,
   2. Prozessor-Vorsätze („PayPal *“) und wechselnde Ziffern im Bankumsatz trennen eine Gegenpartei nicht in mehrere Gruppen.
   3. Gruppen mit bestehender wiederkehrender Zahlung (gleicher Empfänger oder Name) oder mit verknüpften Terminen erscheinen nicht.
   4. Das reine Erkennen schreibt nichts.
-- **Status:** offen; Draft-PR, Prüfung und Live-Abnahme stehen aus. Keine Migration (Verwerfen liegt in `app_setting`).
+- **Status:** live (Train 21, #1338; Stand 26.11.2026, Nutzerabnahme offen) — **Verweis:** #1338
 
 ### P-10 – Sparziele und Rücklagen
 - **Story:** Als Nutzer möchte ich Sparziele und Rücklagen führen und Kategorieziele übernehmen, damit ich sehe, wie weit ich bin und wie viel ich monatlich zurücklegen muss.
