@@ -143,4 +143,4 @@ Bereich: Startseite „Heute“ (Route `/`). Status und Verweise wie in `docs/US
 ### H-xx – Heute-Unterseiten am Telefon (#1381)
 - **Story:** Als Nutzer möchte ich „Fällig · alle Zahlungen“, die Pace-Buchungen und „Letzte Buchungen“ am Telefon in kompakten Zeilen lesen, damit nichts seitlich wischt oder mehrzeilig umbricht.
 - **Abnahmekriterien:** Fällig: Zeile 1 Name + Betrag, Zeile 2 Datum · Konto · Status, „Diesen Monat streichen“ hinter einem ⋯-Menü; Pace-Buchungen zweizeilig (Empfänger + Betrag, Datum · Kategorie); Letzte Buchungen zeigen in der Metazeile nur Kategorie und Konto, rohe Banktexte nur im Buchungsdialog.
-- **Status:** umgesetzt (Branch fix/subpages-phone-1381), Abnahme offen — **Verweis:** #1381
+- **Status:** live mit Train 25 (Nutzerabnahme offen) — **Verweis:** #1381

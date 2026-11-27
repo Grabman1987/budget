@@ -133,9 +133,10 @@ export function InstrumentForm({
   const qc = useQueryClient();
   const toast = useToast();
   const [regionRows, setRows] = useState<RegionRow[]>(() => regionRowsOf(original.regionsJson));
-  const setRegionRows = (index: number, row: RegionRow | null) => {
+  // Editing one field keeps the other one of the row; null removes the row.
+  const setRegionRows = (index: number, row: Partial<RegionRow> | null) => {
     const next = regionRows.slice();
-    if (row) next[index] = row;
+    if (row) next[index] = { ...(next[index] ?? { name: '', pct: '' }), ...row };
     else next.splice(index, 1);
     setRows(next);
     update('regionsJson', regionRowsJson(next));
