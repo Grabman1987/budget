@@ -164,6 +164,7 @@ export function matchesAssignment(
       case 'counterparty':
         if (!row.counterparty) return false;
         if (bankAliasKey(row.counterparty) === bankAliasKey(condition.text)) return true;
+        if (sameStableCounterparty(row.counterparty, condition.text)) return true;
         return (
           looseCounterparty &&
           looseKeyUsable(counterpartyKey(condition.text)) &&
@@ -233,6 +234,37 @@ export type PayeeCleanup = z.infer<typeof payeeCleanupSchema>;
 export const DEFAULT_PAYEE_CLEANUP = payeeCleanupSchema.parse({});
 export const bankAliasKey = (raw: string) =>
   raw.normalize('NFKC').trim().replace(/\s+/gu, ' ').toLocaleLowerCase('de-AT');
+
+/**
+ * Alias key without the parts that change from one line of the same merchant to the next (#1379):
+ * "SPESEN: 3,44" tails, amounts, dates and times, long digit runs (card, terminal, mandate and
+ * reference numbers). Merchant words stay. Idempotent; equals the alias key when nothing varies.
+ */
+export function stableAliasKey(raw: string): string {
+  const alias = bankAliasKey(raw);
+  const text = alias
+    .replace(/\bspesen\b.*$/u, ' ')
+    .replace(/\b\d{4}-\d{2}-\d{2}(?:[ t]\d{2}:\d{2}(?::\d{2})?)?\b/gu, ' ')
+    .replace(/\b\d{1,2}[./]\d{1,2}[./]\d{2,4}\b/gu, ' ')
+    .replace(/\b\d{1,2}:\d{2}(?::\d{2})?\b/gu, ' ')
+    .replace(/(?<![0-9])[-+−]?\d{1,3}(?:[. ]\d{3})*,\d{1,2}\b(?:\s*(?:eur|€))?/gu, ' ')
+    .replace(/(?<![0-9])[-+−]?\d+[.,]\d{2}\b(?:\s*(?:eur|€))?/gu, ' ')
+    .replace(/\d{3,}/gu, ' ')
+    .replace(/[#:;,]+/gu, ' ')
+    .replace(/\s+/gu, ' ')
+    .trim();
+  return text === '' ? alias : text;
+}
+
+/** Both texts name the same merchant once their variable parts are removed (never for generic text). */
+export function sameStableCounterparty(a: string, b: string): boolean {
+  const key = stableAliasKey(a);
+  return (
+    key === stableAliasKey(b) &&
+    (key !== bankAliasKey(a) || key !== bankAliasKey(b)) &&
+    looseKeyUsable(key)
+  );
+}
 
 /** Raw bank text is retained separately. Cleanup affects only the proposed recipient label. */
 export function cleanBankPayee(

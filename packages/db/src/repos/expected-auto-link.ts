@@ -261,6 +261,21 @@ export function ensureLinkProposal(
   return { id, created: true };
 }
 
+/** True while an unresolved link proposal of this occurrence waits for the owner. */
+export function hasOpenLinkProposal(tx: Executor, occurrenceId: string): boolean {
+  return !!tx
+    .select({ id: inboxItem.id })
+    .from(inboxItem)
+    .where(
+      and(
+        eq(inboxItem.refType, LINK_PROPOSAL_REF),
+        eq(inboxItem.refId, occurrenceId),
+        isNull(inboxItem.resolvedAt),
+      ),
+    )
+    .get();
+}
+
 /** Close the open proposals of an occurrence and of a booking (the pairing was decided). */
 export function resolveLinkProposals(
   tx: Executor,

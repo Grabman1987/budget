@@ -21,6 +21,7 @@ import {
   assignmentSplits,
   learnAssignmentSplits,
   bankAliasKey,
+  stableAliasKey,
   addDays,
   bankAssignmentText,
   cleanBankPayee,
@@ -999,7 +1000,8 @@ function learnInboxRule(db: Executor, id: string, ctx: AuditContext) {
   };
   const direction = row.amountCents < 0 ? 'outflow' : 'inflow';
   // Exact alias key as before: inbox-learn rules never match loosely.
-  const alias = bankAliasKey(counterparty);
+  // Without amounts, dates, card/reference numbers and Spesen tails (#1379).
+  const alias = stableAliasKey(counterparty);
   const looseKey = counterpartyKey(counterparty);
   const ruleId =
     'inbox-learn:' +

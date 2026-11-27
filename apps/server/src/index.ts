@@ -24,6 +24,7 @@ import { createMarketSources, marketModeFromEnv, startDailyMarketTimer } from '.
 import { cryptoReadSource } from './sources/crypto-api';
 import { refreshReadSourceIfDue } from './sources/refresh';
 import { todayFromEnv } from './today';
+import { startExpectedMatchTimer } from './expected-match-timer';
 import { startPlanSnapshotTimer } from './plan-snapshots';
 import { warmPaths } from './api/index';
 import { readModelOffload, startReadModelRefresh } from './api/read-model-offload';
@@ -65,6 +66,9 @@ for (const timer of housekeeping) timer.unref();
 // BUDGET_TODAY pins the ledger's "today" (test aid, refused in production).
 const today = todayFromEnv();
 const stopPlanSnapshots = today ? () => {} : startPlanSnapshotTimer(db);
+// Periodic expected-payment matching (#1376); BUDGET_EXPECTED_MATCH=0 turns it off.
+const stopExpectedMatch =
+  today || process.env.BUDGET_EXPECTED_MATCH === '0' ? () => {} : startExpectedMatchTimer(db);
 
 // Heavy import tasks (YNAB dry run, commit, revert) run in a worker thread on its own connection.
 const importJobs = new ImportJobs(db);
@@ -199,6 +203,7 @@ httpServer.headersTimeout = 66_000;
 let stopping = false;
 function shutdown(signal: NodeJS.Signals): void {
   stopPlanSnapshots();
+  stopExpectedMatch();
   if (stopping) return;
   stopping = true;
   stopRefresh();
