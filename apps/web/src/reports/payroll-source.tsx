@@ -1,5 +1,6 @@
 import type { payrollSource } from '@budget/domain';
 import { eur } from '../ledger/format';
+import './payroll-source.css';
 
 export function PayrollSource({
   source,

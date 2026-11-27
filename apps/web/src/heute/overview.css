@@ -1466,11 +1466,10 @@
   }
   :root:has([data-budget-redesign='1']) .hv-due-table tbody tr {
     display: grid;
-    /* The last column may not grow past 42 %: "Diesen Monat streichen" wraps instead of squeezing
-       the payment name into a few letters per line. */
-    grid-template-columns: 52px minmax(0, 1fr) fit-content(42%);
+    /* #1381: like the Kommend rows: name + amount, then date · account · status (+ ⋯ menu). */
+    grid-template-columns: auto minmax(0, 1fr) auto;
     grid-template-areas:
-      'date name amount'
+      'name name amount'
       'date account cover';
     column-gap: 8px;
     align-items: center;
@@ -1491,6 +1490,58 @@
   }
   :root:has([data-budget-redesign='1']) .hv-due-table .hv-due-name {
     grid-area: name;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  :root:has([data-budget-redesign='1']) .hv-due-table .hv-due-name .heute-row-open {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  :root:has([data-budget-redesign='1']) .hv-due-table .hv-due-date {
+    min-width: 0;
+    font-size: var(--fs-meta);
+  }
+  :root:has([data-budget-redesign='1']) .hv-due-table .hv-due-date time {
+    text-align: left;
+  }
+  :root:has([data-budget-redesign='1']) .hv-due-table .hv-due-account {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  :root:has([data-budget-redesign='1']) .hv-due-menu {
+    position: relative;
+    display: inline-block;
+    vertical-align: middle;
+  }
+  :root:has([data-budget-redesign='1']) .hv-due-menu-btn {
+    min-width: var(--touch);
+    min-height: var(--touch);
+    margin-block: -10px;
+  }
+  :root:has([data-budget-redesign='1']) .hv-due-menu-list {
+    position: absolute;
+    z-index: 8;
+    top: calc(100% + 4px);
+    right: 0;
+    min-width: 200px;
+    display: grid;
+    padding: 4px;
+    background: var(--raised);
+    border: 1px solid var(--rule-strong);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow);
+  }
+  :root:has([data-budget-redesign='1']) .hv-due-menu-item {
+    min-height: var(--touch);
+    padding: 6px 10px;
+    text-align: left;
+    font-size: var(--fs-table);
+    color: var(--ink);
+    white-space: nowrap;
   }
   :root:has([data-budget-redesign='1']) .hv-due-table .hv-due-account {
     grid-area: account;
@@ -1503,7 +1554,7 @@
   :root:has([data-budget-redesign='1']) .hv-due-table .hv-due-cover {
     grid-area: cover;
     font-size: var(--fs-meta);
-    white-space: normal;
+    white-space: nowrap;
     text-align: right;
   }
   :root:has([data-budget-redesign='1']) .hv-due-table .hv-due-cover .btn {

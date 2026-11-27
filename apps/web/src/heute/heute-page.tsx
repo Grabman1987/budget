@@ -539,9 +539,8 @@ function HeuteBody({
                   </button>
                   <span>
                     {longDay(item.date)} ·{' '}
-                    {[item.categoryName, item.memo ? privateAmount(item.memo) : null]
-                      .filter(Boolean)
-                      .join(' · ') || 'Ohne Kategorie'}
+                    {/* #1381: no raw bank text (IBAN, creditor ID, mandate) here; it lives in the booking dialog. */}
+                    {item.categoryName || 'Ohne Kategorie'}
                   </span>
                 </div>
                 <div>
@@ -1262,10 +1261,10 @@ export function PaceBookings({ pace }: { pace: Heute['pace'] }) {
           <tbody>
             {rows.map((row, index) => (
               <tr key={`${row.bookingId ?? 'x'}-${index}`}>
-                <td>{shortDay(row.day)}</td>
-                <td>{row.name}</td>
-                <td>{row.categoryName ?? '–'}</td>
-                <td className="n">{eur(row.cents)}</td>
+                <td className="pb-date">{shortDay(row.day)}</td>
+                <td className="pb-name">{row.name}</td>
+                <td className="pb-cat">{row.categoryName ?? '–'}</td>
+                <td className="n pb-amount">{eur(row.cents)}</td>
               </tr>
             ))}
           </tbody>
@@ -1274,7 +1273,7 @@ export function PaceBookings({ pace }: { pace: Heute['pace'] }) {
               <th scope="row" colSpan={3}>
                 Ausgegeben
               </th>
-              <td className="n">{eur(pace.figures.spentCents)}</td>
+              <td className="n pb-amount">{eur(pace.figures.spentCents)}</td>
             </tr>
           </tfoot>
         </ReportTable>

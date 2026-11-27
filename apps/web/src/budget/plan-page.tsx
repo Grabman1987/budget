@@ -225,16 +225,15 @@ function MonthFrame({
       period={<MonthSwitch heading={monthLabel(month)} />}
       actions={
         <>
-          <span
-            className="month-reference-income"
-            title={
-              REDESIGN_ENABLED
-                ? 'Alles, was im Monat auf Zu verteilen eingeht (Budget-Einnahmen). Die Karte „Geplante Einnahmen“ zählt nur erwartete Zahlungen.'
-                : undefined
-            }
-          >
-            {REDESIGN_ENABLED ? 'Einnahmen im Budget' : 'Einnahmen'} {income}
-          </span>
+          {/* #1381: no empty "Einnahmen –" tile while the value is not known. */}
+          {income !== '–' && (
+            <span
+              className="month-reference-income"
+              title="Alles, was im Monat auf Zu verteilen eingeht (Budget-Einnahmen). Die Karte „Geplante Einnahmen“ zählt nur erwartete Zahlungen."
+            >
+              Einnahmen im Budget {income}
+            </span>
+          )}
           <AppLink
             className="btn btn-ghost btn-sm plan-close"
             to={`/monatsabschluss/${month}`}

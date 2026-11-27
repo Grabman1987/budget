@@ -1355,6 +1355,22 @@
   color: var(--primary);
   font-weight: 600;
 }
+/* #1381: header and cells share one alignment; numeric columns right, row cells on one baseline. */
+@media (min-width: 768px) {
+  .wealth-redesign .wealth-trades-compact :is(th, td) {
+    vertical-align: middle;
+  }
+  .wealth-redesign .wealth-trades-compact thead th:is(:nth-child(3), :nth-child(4)) {
+    text-align: right;
+  }
+  .wealth-redesign .wealth-trades-compact thead th:first-child,
+  .wealth-redesign .wealth-trades-compact tbody td:first-child {
+    white-space: nowrap;
+  }
+  .wealth-redesign .wealth-trades-compact tbody th[scope='row'] {
+    font-weight: 400;
+  }
+}
 .wealth-redesign .wealth-trade-costs {
   position: relative;
 }

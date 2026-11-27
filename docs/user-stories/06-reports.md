@@ -734,3 +734,7 @@ Status: implemented for review; CI and owner acceptance pending. Other reports i
 
 - Als Haushaltsmitglied sehe ich „Konsum“ in Kategorien, Vergleich und Ausgabenanalyse mit einer Definition: Bedarf plus Wunsch, ohne Zukunft, netto nach Erstattungen. Die Kategorien-Fußnote und die Vergleichssumme nennen diese Basis. Der Empfänger-Report heißt in der Kennzahl „Ausgaben bei Empfängern“ und erklärt, dass Erstattungen beim gebuchten Empfänger bleiben und die Summe deshalb leicht abweichen kann. Status: umgesetzt (Branch fix/report-terms-1378), Abnahme offen.
 - Eine erwartete Zahlung, die vollständig Kontoanteil ist (Kontakt zahlt zurück oder vor), zählt im Monatsbericht und in den erwarteten Einnahmen nicht als „erwartete Einnahme“, weil sie eine Kontaktverrechnung und keine Haushaltseinnahme ist. Status: umgesetzt (Branch fix/report-terms-1378), Abnahme offen.
+### R-xx – Report-Unterseiten am Telefon (#1381)
+- **Story:** Als Nutzer möchte ich Reports › Kontakte, Auswertung, Empfänger und Gehalt am Telefon lesbar sehen.
+- **Abnahmekriterien:** Kontakte ohne seitliche Tabelle, Namen brechen nie je Buchstabe; Auswertung zeigt standardmäßig den laufenden Monat; Empfängernamen über bis zu zwei Zeilen; Gehalt „Bestandteile laut Quelle“ mit linksbündigen, normalen Beschriftungen und rechtsbündigen Beträgen.
+- **Status:** umgesetzt (Branch fix/subpages-phone-1381), Abnahme offen — **Verweis:** #1381

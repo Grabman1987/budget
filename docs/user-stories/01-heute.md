@@ -140,3 +140,7 @@ Bereich: Startseite „Heute“ (Route `/`). Status und Verweise wie in `docs/US
 - **Story:** Als Nutzer möchte ich auf Heute und in der Seitenleiste Beträge, Kontonamen und Fälligkeitsdaten vollständig und bündig lesen, damit nichts umbricht oder verdeckt wird.
 - **Abnahmekriterien:** Nettovermögen-Betrag und „€“ brechen nie auseinander (der Betrag rückt bei Platzmangel unter den Titel); „Fällig“ zeigt die Datumsspalte mit fester Breite, rechtsbündig, mit Tabellenziffern; „BUDGET-KONTEN“ wird nicht mit Trennstrich umbrochen; Kontonamen zeigen volle Namen als Tooltip; die Kontoliste scrollt in der Seitenleiste und lässt unten Luft vor dem Profilblock; negative Budget-/Investmentbeträge und -Summen als rote Pille, Kreditkarten und Kredite mit Minus in Tinte.
 - **Status:** live mit Train 23 (Nutzerabnahme offen) — **Verweis:** #1355
+### H-xx – Heute-Unterseiten am Telefon (#1381)
+- **Story:** Als Nutzer möchte ich „Fällig · alle Zahlungen“, die Pace-Buchungen und „Letzte Buchungen“ am Telefon in kompakten Zeilen lesen, damit nichts seitlich wischt oder mehrzeilig umbricht.
+- **Abnahmekriterien:** Fällig: Zeile 1 Name + Betrag, Zeile 2 Datum · Konto · Status, „Diesen Monat streichen“ hinter einem ⋯-Menü; Pace-Buchungen zweizeilig (Empfänger + Betrag, Datum · Kategorie); Letzte Buchungen zeigen in der Metazeile nur Kategorie und Konto, rohe Banktexte nur im Buchungsdialog.
+- **Status:** umgesetzt (Branch fix/subpages-phone-1381), Abnahme offen — **Verweis:** #1381

@@ -6,6 +6,7 @@ import type { ExplorerChartModel } from './explorer-chart-model-626';
 import { explorerChartValue626 } from './explorer-table-inspector-626';
 import { REDESIGN_ENABLED } from '../shell/redesign-flag';
 import { AppLink } from '../shell/app-link';
+import { currentMonth } from '../shell/use-month';
 import './explorer-redesign.css';
 
 export function explorerHeadline(result: ExplorerResult): VerdictMetric {
@@ -130,7 +131,14 @@ export function ExplorerPhoneRows({
   const unitFor = new Map(
     data.cohorts.flatMap((cohort) => cohort.rows.map((row) => [row.key, cohort.unit] as const)),
   );
-  const column = data.columns.at(-1);
+  // #1381: the default column is the current period, never a future (all "–") one.
+  const now = currentMonth();
+  const currentIndex = data.columns.reduce(
+    (found, candidate, index) => ((candidate.months[0] ?? '') <= now ? index : found),
+    -1,
+  );
+  const columnIndex = currentIndex >= 0 ? currentIndex : data.columns.length - 1;
+  const column = data.columns[columnIndex];
   const shown = all ? data.rows : data.rows.slice(0, 8);
   return (
     <div className="r6-phone-rows">
@@ -144,7 +152,7 @@ export function ExplorerPhoneRows({
       <ul aria-label="Kompakte Auswertungszeilen">
         {shown.map((row) => {
           const unit = unitFor.get(row.key) ?? 'cents';
-          const value = mode === 'total' ? row.total : (row.values.at(-1) ?? null);
+          const value = mode === 'total' ? row.total : (row.values[columnIndex] ?? null);
           const content = (
             <>
               <strong>{row.label}</strong>

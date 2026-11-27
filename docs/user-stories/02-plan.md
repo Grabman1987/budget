@@ -300,3 +300,7 @@ Bereich: Plan (`/plan/monat`, `/plan/jahr`, `/plan/erwartet`, `/plan/sparziele`,
 
 - **Als Nutzer** will ich, dass erwartete Zahlungen automatisch mit Buchungen abgeglichen werden (2 Minuten nach dem Serverstart, danach alle 6 Stunden; abschaltbar mit `BUDGET_EXPECTED_MATCH=0`), damit bezahlte Termine nicht „überfällig“ bleiben und „Frei bis Gehalt“ stimmt. Ein Termin mit offenem Zuordnungsvorschlag wird nie als ausgefallen markiert; wiederkehrende Umbuchungen werden als Vorschlag gegen die Umbuchungs-Buchung des Kontos gestellt; ein Termin in der Zukunft wird nie ausgefallen (auch nicht durch „Verknüpfung lösen“).
 - **Status:** umgesetzt (Branch fix/matching-reports-1376), Abnahme offen — **Verweis:** #1376
+### P-xx – Plan-Unterseiten und Plan bei 1280 px (#1381, #1371)
+- **Story:** Als Nutzer möchte ich auf Plan keine leere „Einnahmen –“-Kachel sehen, bei 1280 px mit Inspektor Filter und „Monate“ ohne Überlappung bedienen und in „Erwartet“ lange Zahlungsnamen (max. 2 Zeilen) lesen.
+- **Abnahmekriterien:** Kachel „Einnahmen im Budget“ nur mit Wert; unter 1366 px stehen die Filterchips in eigener Zeile, Hilfstexte dürfen unter den Namen umbrechen; „Zahlung“ in Plan › Erwartet hat Vorrangbreite.
+- **Status:** umgesetzt (Branch fix/subpages-phone-1381), Abnahme offen — **Verweis:** #1381, #1371
