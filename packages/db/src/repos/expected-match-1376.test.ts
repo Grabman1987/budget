@@ -6,6 +6,7 @@ import { createBooking, createTransfer } from './bookings';
 import {
   createExpectedPayment,
   linkOccurrence,
+  markOccurrenceMissed,
   matchOccurrences,
   unlinkOccurrence,
 } from './expected';
@@ -76,7 +77,7 @@ describe('matching closes the window but keeps decisions open (#1376)', () => {
     expect(proposed.length).toBeGreaterThan(0);
   });
 
-  it('(b) proposes a recurring transfer against its transfer leg', () => {
+  it('(b) links a recurring transfer to its only transfer leg', () => {
     const p = createExpectedPayment(
       db,
       { name: 'Umbuchung Sparen', accountId: 'giro', dueDay: 10, startDate: '2026-03-01' },
@@ -89,12 +90,32 @@ describe('matching closes the window but keeps decisions open (#1376)', () => {
       { date: '2026-03-10', fromAccountId: 'giro', toAccountId: 'spar', amountCents: 5_000 },
       ctx,
     );
+    matchOccurrences(db, TODAY);
+    const march = occurrences(p.id).find((o) => o.dueDate === '2026-03-10')!;
+    expect(march.status).toBe('received');
+    expect(march.bookingId).not.toBeNull();
+    expect(proposals()).toEqual([]);
+  });
+
+  it('(b) two equal transfer legs go to the owner as a proposal', () => {
+    const p = createExpectedPayment(
+      db,
+      { name: 'Umbuchung Sparen', accountId: 'giro', dueDay: 10, startDate: '2026-03-01' },
+      { validFrom: '2026-01-01', amountCents: 5_000 },
+      ctx,
+      TODAY,
+    ).payment;
+    for (const date of ['2026-03-09', '2026-03-11'])
+      createTransfer(
+        db,
+        { date, fromAccountId: 'giro', toAccountId: 'spar', amountCents: 5_000 },
+        ctx,
+      );
     const summary = matchOccurrences(db, TODAY);
     const march = occurrences(p.id).find((o) => o.dueDate === '2026-03-10')!;
-    expect(summary.proposed + summary.received).toBeGreaterThan(0);
+    expect(summary.proposed).toBeGreaterThan(0);
     expect(proposals().map((i) => i.refId)).toContain(march.id);
-    // Past its window the date is missed; confirming the proposal links it.
-    expect(march.status).toBe('missed');
+    expect(march).toMatchObject({ status: 'missed', bookingId: null });
   });
 
   it('(b) a plain booking never fits a payment without any counterparty', () => {
@@ -162,5 +183,55 @@ describe('matching closes the window but keeps decisions open (#1376)', () => {
       status: 'expected',
       bookingId: null,
     });
+  });
+
+  const rent = () =>
+    createExpectedPayment(
+      db,
+      {
+        name: 'Miete',
+        accountId: 'giro',
+        payeeId: 'p1',
+        categoryId: 'miete',
+        dueDay: 10,
+        startDate: '2026-03-01',
+      },
+      { validFrom: '2026-01-01', amountCents: 2_800 },
+      ctx,
+      TODAY,
+    ).payment;
+  const lateBooking = () =>
+    createBooking(
+      db,
+      {
+        accountId: 'giro',
+        date: '2026-03-11',
+        amountCents: -2_800,
+        payeeId: 'p1',
+        splits: [{ amountCents: -2_800, categoryId: 'miete' }],
+      },
+      ctx,
+    );
+
+  it('(d) a late booking settles a date the run had closed as missed', () => {
+    const p = rent();
+    matchOccurrences(db, TODAY);
+    const march = () => occurrences(p.id).find((o) => o.dueDate === '2026-03-10')!;
+    expect(march().status).toBe('missed');
+    const bookingId = lateBooking();
+    const summary = matchOccurrences(db, TODAY);
+    expect(march()).toMatchObject({ status: 'received', bookingId });
+    expect(summary.missed).toBe(0);
+    // A further run neither relinks nor writes the date again.
+    expect(matchOccurrences(db, TODAY)).toMatchObject({ received: 0, missed: 0 });
+  });
+
+  it('(d) a date the owner marked missed stays missed', () => {
+    const p = rent();
+    const march = () => occurrences(p.id).find((o) => o.dueDate === '2026-03-10')!;
+    markOccurrenceMissed(db, march().id, { actor: 'owner' });
+    lateBooking();
+    matchOccurrences(db, TODAY);
+    expect(march()).toMatchObject({ status: 'missed', bookingId: null });
   });
 });

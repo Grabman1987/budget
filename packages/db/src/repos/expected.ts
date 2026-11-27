@@ -32,6 +32,7 @@ import {
   expectedPayment,
   expectedPaymentPause,
   expectedPaymentVersion,
+  auditLog,
   incomeType,
   payee,
 } from '../schema';
@@ -881,6 +882,29 @@ export interface MatchSummary {
  * `autoOnly` limits a bank-sync run to new debit links/proposals: income, existing links and
  * overdue unmatched occurrences remain untouched.
  */
+/** How far back a date the matching run closed as missed is checked again for a late booking. */
+export const MISSED_RECHECK_DAYS = 62;
+
+/** Occurrences whose latest change to "missed" was not the system's (the owner decided). */
+function ownerMarkedMissed(tx: Executor, ids: string[]): Set<string> {
+  if (ids.length === 0) return new Set();
+  const rows = tx
+    .select({
+      id: auditLog.entityId,
+      actor: auditLog.actor,
+      before: auditLog.beforeJson,
+      after: auditLog.afterJson,
+    })
+    .from(auditLog)
+    .where(and(eq(auditLog.entityType, 'expected_occurrence'), inArray(auditLog.entityId, ids)))
+    .orderBy(asc(auditLog.ts), asc(auditLog.id))
+    .all();
+  const last = new Map<string, string>();
+  const missed = (json: string | null) => !!json?.includes('"status":"missed"');
+  for (const r of rows) if (missed(r.after) && !missed(r.before)) last.set(r.id, r.actor);
+  return new Set(ids.filter((id) => (last.get(id) ?? SYSTEM_ACTOR.actor) !== SYSTEM_ACTOR.actor));
+}
+
 export function matchOccurrences(
   db: Executor,
   today: string,
@@ -902,20 +926,34 @@ export function matchOccurrences(
         and(
           isNull(expectedOccurrence.deletedAt),
           isNull(expectedPayment.deletedAt),
-          eq(expectedOccurrence.status, 'expected'),
+          options.autoOnly
+            ? eq(expectedOccurrence.status, 'expected')
+            : or(
+                eq(expectedOccurrence.status, 'expected'),
+                and(
+                  eq(expectedOccurrence.status, 'missed'),
+                  isNull(expectedOccurrence.bookingId),
+                  gte(expectedOccurrence.dueDate, addDays(today, -MISSED_RECHECK_DAYS)),
+                ),
+              ),
           options.autoOnly ? eq(expectedPayment.kind, 'outflow') : undefined,
           options.autoOnly ? isNull(expectedOccurrence.bookingId) : undefined,
         ),
       )
       .all()
       .filter((r) => addDays(r.occ.dueDate, -r.payment.dateWindowDays) <= today);
+    // A late booking (bank sync) may still settle a date the run itself closed; a date the owner
+    // marked "ausgefallen" stays as decided.
+    const ownerMissed = ownerMarkedMissed(
+      tx,
+      openCandidates.filter((r) => r.occ.status === 'missed').map((r) => r.occ.id),
+    );
+    const recheck = openCandidates.filter((r) => !ownerMissed.has(r.occ.id));
     const lifecycle = readPaymentLifecycles(
       tx,
-      openCandidates.map((r) => r.payment.id),
+      recheck.map((r) => r.payment.id),
     );
-    const open = openCandidates.filter(
-      (r) => !paymentOpenSuppressed(lifecycle.get(r.payment.id), r.occ),
-    );
+    const open = recheck.filter((r) => !paymentOpenSuppressed(lifecycle.get(r.payment.id), r.occ));
     if (open.length === 0) {
       closeStaleLinkProposals(tx, liveClaimedBookings(tx), grouped);
       return summary;
@@ -946,7 +984,16 @@ export function matchOccurrences(
       const facts = bookingById.get(bookingId);
       if (!facts || payment.accountId === null) return false;
       const known = { ...facts.facts, ...bankPayees.get(bookingId) };
+      // A recurring transfer has no payee: its own transfer leg (the plan's category, if it names
+      // one) is the counterparty. Ambiguity and amount doubts still go to the owner (#516).
+      const transferFit =
+        facts.facts.transferLeg === true &&
+        payment.payeeId === null &&
+        payment.contactId === null &&
+        payment.incomeTypeId === null &&
+        (payment.categoryId === null || facts.facts.categoryIds.includes(payment.categoryId));
       return (
+        transferFit ||
         (payment.payeeId !== null && known.payeeId === payment.payeeId) ||
         (payment.contactId !== null && known.payeeContactId === payment.contactId)
       );
@@ -1048,8 +1095,19 @@ export function matchOccurrences(
       }
       // The window closes as before; an open proposal stays confirmable for a missed occurrence.
       // (#1376: keeping such dates "expected" would count them as open bills in Heute.)
-      if (!options.autoOnly && today > addDays(occ.dueDate, payment.dateWindowDays)) {
-        updateTracked(tx, expectedOccurrence, [occ.id], { status: 'missed' }, grouped);
+      if (
+        !options.autoOnly &&
+        occ.status !== 'missed' &&
+        today > addDays(occ.dueDate, payment.dateWindowDays)
+      ) {
+        // Always recorded as the system's decision, so a later run may still settle it.
+        updateTracked(
+          tx,
+          expectedOccurrence,
+          [occ.id],
+          { status: 'missed' },
+          { ...grouped, actor: SYSTEM_ACTOR.actor },
+        );
         summary.missed++;
       }
     }
