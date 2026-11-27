@@ -197,6 +197,36 @@ describe('expected income against received', () => {
     ]);
   });
 
+  it('leaves a payment that is entirely a contact share out of the expected income', () => {
+    const r = expectedIncome({
+      today: '2026-09-17',
+      expected: [
+        {
+          ...base,
+          paymentId: 'share',
+          name: 'Rueckzahlung Muster',
+          dueDate: '2026-09-30',
+          status: 'expected',
+          expectedCents: 75_000,
+          receivedCents: 0,
+          contactShareCents: 75_000,
+        },
+        {
+          ...base,
+          dueDate: '2026-09-30',
+          status: 'expected',
+          expectedCents: 300_000,
+          receivedCents: 0,
+          contactShareCents: 10_000,
+        },
+      ],
+      booked: [],
+    });
+    expect(r.lines).toHaveLength(1);
+    expect(r.pendingCount).toBe(1);
+    expect(r.pendingCents).toBe(300_000);
+  });
+
   it('a deviating payment carries its difference; a gap counts as missing', () => {
     const r = expectedIncome({
       today: '2026-09-17',

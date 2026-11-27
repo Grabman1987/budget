@@ -420,7 +420,7 @@ function Rows({
             </tbody>
             <tfoot>
               <tr>
-                <th>Summe Konsum · alle Kategorien</th>
+                <th>Summe Konsum (Bedarf + Wunsch)</th>
                 <td>{eur(comparison.chain.currentCents)}</td>
                 <td>{eur(comparison.chain.previousCents)}</td>
                 <td>{eur(comparison.chain.currentCents - comparison.chain.previousCents)}</td>

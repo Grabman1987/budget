@@ -307,6 +307,7 @@ export function CategoryBody({
         kleinen Verläufe zeigen die letzten zwölf vollständigen Monate. Zur Vorperiode: der Zeitraum
         gleicher Länge davor, nur wenn er vollständig vorliegt. Der Anteil am Konsum ist für Zukunft
         leer, weil Sparen kein Konsum ist. Rückerstattungen in derselben Kategorie sind abgezogen.
+        Konsum bedeutet überall Bedarf plus Wunsch ohne Zukunft, netto nach Erstattungen.
       </p>
     </section>
   );

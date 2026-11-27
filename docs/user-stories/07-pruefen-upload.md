@@ -372,3 +372,4 @@ using the [acceptance procedure](../acceptance-tolerances.md#5-document-recognit
 
 - **Als Nutzer** will ich, dass gelernte Zuordnungsregeln nur den Händlernamen merken (ohne Beträge, Datum, Karten-/Referenznummern und „SPESEN“-Zusätze), damit die Regel beim nächsten Umsatz desselben Händlers greift. Bereits gespeicherte Regeln mit variablen Teilen greifen beim Abgleich ebenfalls; gespeicherte Daten werden nicht umgeschrieben.
 - **Status:** umgesetzt (Branch fix/matching-reports-1376), Abnahme offen — **Verweis:** #1379
+- Plan-Zeile ergänzt (#1378): Die Plan-Zeile unter Prüfen nennt zusätzlich „… ungedeckt aus dem Vormonat“ (dieselbe Zahl wie in der Plan-Monatsübersicht), wenn sie größer als 0 ist. Status: umgesetzt (Branch fix/report-terms-1378), Abnahme offen.
