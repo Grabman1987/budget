@@ -50,6 +50,7 @@ test('E2d merges a contact through preview and confirm, keeps booking facts and 
   await page.goto('/einstellungen/kontakte');
   const on = (await page.locator('.app').getAttribute('data-budget-redesign')) === '1';
   test.skip(!on, 'Merge lives in the redesigned contact settings only.');
+  await page.getByLabel('Aktionen für Synthetic merge source', { exact: true }).click();
   const trigger = page.getByRole('button', {
     name: 'Synthetic merge source zusammenführen',
     exact: true,
@@ -75,6 +76,7 @@ test('E2d merges a contact through preview and confirm, keeps booking facts and 
   await expect(trigger).toHaveCount(0);
 
   await page.getByRole('button', { name: 'Rückgängig', exact: true }).click();
+  await page.getByLabel('Aktionen für Synthetic merge source', { exact: true }).click();
   await expect(trigger).toBeVisible();
   expect(await readBooking()).toEqual(before);
 });

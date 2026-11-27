@@ -258,7 +258,9 @@
    not a sideways table; names never break per letter. */
 @media (max-width: 767px) {
   [data-budget-redesign='1'] .r4-contact-report .report-table-scroll {
-    overflow: visible;
+    /* clip, not visible: nowrap sr-only labels inside the rows would otherwise widen the page
+       (the phone then zooms out and taps miss their targets). */
+    overflow: clip;
     max-height: none;
   }
   [data-budget-redesign='1'] .r4-contact-report table.contact-report-register,

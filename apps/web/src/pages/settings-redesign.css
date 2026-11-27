@@ -259,6 +259,10 @@
   background: var(--surface);
   box-shadow: var(--shadow);
 }
+.settings-redesign .settings-row-menu[data-up] > .settings-row-menu-items {
+  top: auto;
+  bottom: 100%;
+}
 .settings-redesign .settings-row-menu-items > .btn {
   display: flex;
   width: 100%;
