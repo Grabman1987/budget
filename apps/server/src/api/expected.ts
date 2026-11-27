@@ -235,7 +235,7 @@ export function expectedRoutes(db: Db, today: () => string): Hono {
     return c.json(result, 201);
   });
   app.post('/occurrences/:id/unlink', (c) =>
-    c.json(unlinkOccurrence(db, c.req.param('id'), audit())),
+    c.json(unlinkOccurrence(db, c.req.param('id'), audit(), today())),
   );
   app.post('/occurrences/:id/missed', (c) =>
     c.json(markOccurrenceMissed(db, c.req.param('id'), audit())),

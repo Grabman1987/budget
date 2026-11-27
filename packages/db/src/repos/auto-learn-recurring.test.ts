@@ -5,6 +5,7 @@ import { appSetting, assignmentRule } from '../schema';
 import { undo } from './audit';
 import { createBooking, getBooking, markBankBookingTransfer, updateBooking } from './bookings';
 import {
+  learnInboxAssignment,
   listAssignmentRules,
   readBookingAssignments,
   removeAssignmentRule,
@@ -340,5 +341,27 @@ describe('recurring suggestions', () => {
     expect(all).toHaveLength(2);
     acceptRecurringSuggestion(db, all.find((x) => x.name === 'Vermieter')!.id, owner, TODAY);
     expect(recurringSuggestions(db, TODAY)).toHaveLength(1);
+  });
+});
+
+describe('learned rules ignore variable raw-text parts (#1379)', () => {
+  const learned = (text: string, date: string) => {
+    const id = bankLine(text, date, -21_600, {
+      payeeId: 'p1',
+      splits: [{ amountCents: -21_600, categoryId: 'essen' }],
+    });
+    learnInboxAssignment(db, id, owner);
+    return id;
+  };
+  const counterpartyOf = (rule: ReturnType<typeof listAssignmentRules>[number]) =>
+    rule.match.conditions.find((c) => c.type === 'counterparty');
+
+  it('stores the merchant words only and reuses the rule for the next line', () => {
+    learned('Muster Shop 4711 216,00 E-COMM 12.03.2026 SPESEN: 3,44', '2026-03-12');
+    const rules = listAssignmentRules(db).filter((r) => r.id.startsWith('inbox-learn:'));
+    expect(rules).toHaveLength(1);
+    expect(counterpartyOf(rules[0]!)).toMatchObject({ text: 'muster shop e-comm' });
+    learned('Muster Shop 4999 89,90 E-COMM 28.03.2026 SPESEN: 1,02', '2026-03-28');
+    expect(listAssignmentRules(db).filter((r) => r.id.startsWith('inbox-learn:'))).toHaveLength(1);
   });
 });

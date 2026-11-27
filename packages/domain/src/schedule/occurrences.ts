@@ -140,6 +140,8 @@ export interface BookingFacts {
   payeeContactId: string | null;
   categoryIds: readonly string[];
   incomeTypeIds: readonly string[];
+  /** The booking (or one of its splits) is one leg of a transfer (Umbuchung). */
+  transferLeg?: boolean;
 }
 
 /**
@@ -149,6 +151,15 @@ export interface BookingFacts {
  */
 export function candidateFits(target: MatchTarget, booking: BookingFacts): boolean {
   if (target.accountId !== null && booking.accountId !== target.accountId) return false;
+  // A recurring transfer ("Umbuchung auf ...") names no counterparty: its fit is a transfer leg on the account.
+  if (
+    target.accountId !== null &&
+    target.payeeId === null &&
+    target.contactId === null &&
+    target.categoryId === null &&
+    target.incomeTypeId === null
+  )
+    return booking.transferLeg === true;
   return (
     (target.payeeId !== null && booking.payeeId === target.payeeId) ||
     (target.contactId !== null && booking.payeeContactId === target.contactId) ||

@@ -48,6 +48,7 @@ import { ConflictError, EntityNotFoundError } from './errors';
 import {
   bankPayeeFacts,
   closeStaleLinkProposals,
+  hasOpenLinkProposal,
   ensureLinkProposal,
   isRejectedPair,
   previouslyLinkedBookingIds,
@@ -758,6 +759,7 @@ function loadBookings(tx: Executor, accountIds: string[], from: string, to: stri
       bankRawPayee: booking.bankRawPayee,
       bankRawText: booking.bankRawText,
       bankSourceId: booking.bankSourceId,
+      transferId: booking.transferId,
     })
     .from(booking)
     .leftJoin(payee, eq(payee.id, booking.payeeId))
@@ -772,17 +774,20 @@ function loadBookings(tx: Executor, accountIds: string[], from: string, to: stri
     .all();
   const cats = new Map<string, string[]>();
   const incomes = new Map<string, string[]>();
+  const legs = new Set<string>(rows.filter((r) => r.transferId !== null).map((r) => r.id));
   for (const ids of chunks(rows.map((r) => r.id))) {
     const splits = tx
       .select({
         bookingId: bookingSplit.bookingId,
         categoryId: bookingSplit.categoryId,
         incomeTypeId: bookingSplit.incomeTypeId,
+        transferId: bookingSplit.transferId,
       })
       .from(bookingSplit)
       .where(inArray(bookingSplit.bookingId, ids))
       .all();
     for (const s of splits) {
+      if (s.transferId) legs.add(s.bookingId);
       if (s.categoryId) cats.set(s.bookingId, [...(cats.get(s.bookingId) ?? []), s.categoryId]);
       if (s.incomeTypeId)
         incomes.set(s.bookingId, [...(incomes.get(s.bookingId) ?? []), s.incomeTypeId]);
@@ -807,6 +812,7 @@ function loadBookings(tx: Executor, accountIds: string[], from: string, to: stri
       payeeContactId: r.payeeContactId,
       categoryIds: cats.get(r.id) ?? [],
       incomeTypeIds: incomes.get(r.id) ?? [],
+      transferLeg: legs.has(r.id),
     },
   }));
 }
@@ -1042,7 +1048,12 @@ export function matchOccurrences(
         if (proposal.created) summary.proposed++;
       }
       // The window closes as before; an open proposal stays confirmable for a missed occurrence.
-      if (!options.autoOnly && today > addDays(occ.dueDate, payment.dateWindowDays)) {
+      // Never while the owner still has to decide a link proposal of this occurrence (#1376).
+      if (
+        !options.autoOnly &&
+        today > addDays(occ.dueDate, payment.dateWindowDays) &&
+        !hasOpenLinkProposal(tx, occ.id)
+      ) {
         updateTracked(tx, expectedOccurrence, [occ.id], { status: 'missed' }, grouped);
         summary.missed++;
       }
@@ -1111,17 +1122,25 @@ export function unlinkOccurrence(
   db: Executor,
   occurrenceId: string,
   ctx: AuditContext,
+  today?: string,
 ): { occurrence: OccurrenceRow; groupId: string } {
   const grouped = withGroup(ctx);
   return runInTransaction(db, (tx) => {
-    const { occ } = liveOccurrence(tx, occurrenceId);
+    const { occ, payment } = liveOccurrence(tx, occurrenceId);
     if (occ.bookingId === null) throw new ConflictError('This occurrence has no booking to unlink');
     const bookingId = occ.bookingId;
     updateTracked(
       tx,
       expectedOccurrence,
       [occurrenceId],
-      { status: 'missed', bookingId: null },
+      {
+        // A due date still ahead cannot have been missed (#1376).
+        status:
+          today !== undefined && addDays(occ.dueDate, payment.dateWindowDays) >= today
+            ? 'expected'
+            : 'missed',
+        bookingId: null,
+      },
       grouped,
     );
     // Siblings of a multi-linked booking keep their own share and get a fresh status (#1336).

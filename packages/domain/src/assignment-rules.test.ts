@@ -4,6 +4,7 @@ import {
   assignmentMatchSchema,
   assignmentSplits,
   bankAliasKey,
+  stableAliasKey,
   bankAssignmentText,
   learnAssignmentSplits,
   cleanBankPayee,
@@ -143,5 +144,41 @@ describe('assignment conditions and integer split templates', () => {
     expect(assignmentActionsSchema.safeParse({ splits: template, categoryId: 'a' }).success).toBe(
       false,
     );
+  });
+});
+
+describe('stable counterparty key (#1379)', () => {
+  const lines = [
+    'Muster Shop 4711 216,00 E-COMM 12.03.2026 SPESEN: 3,44',
+    'Muster Shop 4712 89,90 E-COMM 28.03.2026 SPESEN: 1,02',
+    'MUSTER  SHOP 99887766 5,00 EUR 2026-03-29 14:05',
+  ];
+  it('drops amounts, dates, long numbers and Spesen but keeps merchant words', () => {
+    expect(stableAliasKey(lines[0]!)).toBe('muster shop e-comm');
+    expect(stableAliasKey(lines[1]!)).toBe('muster shop e-comm');
+    expect(stableAliasKey(lines[2]!)).toBe('muster shop');
+    expect(stableAliasKey(stableAliasKey(lines[0]!))).toBe('muster shop e-comm');
+    expect(stableAliasKey('Vermieter Muster')).toBe('vermieter muster');
+  });
+  it('matches a stored rule with variable parts against the next line', () => {
+    const match = {
+      mode: 'all' as const,
+      conditions: [{ type: 'counterparty' as const, text: lines[0]!.toLowerCase() }],
+    };
+    const row = (counterparty: string) => ({
+      accountId: 'a',
+      amountCents: -100,
+      payeeId: null,
+      rawText: '',
+      counterparty,
+    });
+    expect(matchesAssignment(match, row(lines[1]!))).toBe(true);
+    expect(matchesAssignment(match, row('Anderer Laden 216,00 E-COMM'))).toBe(false);
+    // Generic text alone never matches loosely.
+    const generic = {
+      mode: 'all' as const,
+      conditions: [{ type: 'counterparty' as const, text: 'sepa 12345' }],
+    };
+    expect(matchesAssignment(generic, row('sepa 67890'))).toBe(false);
   });
 });
