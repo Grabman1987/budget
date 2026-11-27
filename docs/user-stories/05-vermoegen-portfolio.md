@@ -361,3 +361,5 @@ The project lead’s decision on 2026-11-23 uses the ordinary EUR booking workfl
 ### V-xx – Instrument-Transaktionsliste (#1381)
 - **Story:** Als Nutzer möchte ich in der Transaktionsliste einer Position Kopf- und Zahlenspalten bündig sehen.
 - **Status:** live mit Train 25 (Nutzerabnahme offen) — **Verweis:** #1381
+
+- **Sparpläne › Rhythmus (#1382):** Beim Anlegen oder Ändern eines Sparplans wähle ich den Rhythmus: „Monatlich (Tag)“, „An festen Tagen“ (Eingabe z. B. „2, 9, 16, 23“) oder „Alle N Wochen“ (1 bis 4, gezählt ab dem Startdatum). Die Liste zeigt „monatlich am 15.“, „monatlich am 2., 9., 16., 23.“, „wöchentlich“ oder „alle 2 Wochen“; geplante Ausführungen werden einzeln gegen die Käufe geprüft (je Kauf höchstens eine Ausführung, nächster Tag gewinnt), fehlende erscheinen als Vorschlag. Wöchentliche und Mehrtagespläne haben keinen Monatsplatz: bestätigte Ausführungen werden ohne Monatsverknüpfung erfasst, der Monatsstreifen entfällt, und der Umschichtungsvorschlag lässt sie unverändert. — **Status:** in Arbeit (#1382) — **Verweis:** #1382

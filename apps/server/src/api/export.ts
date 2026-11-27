@@ -643,6 +643,9 @@ function exportEntries(
         'valid_from',
         'valid_to',
         'note',
+        'cadence',
+        'days_of_month',
+        'interval_weeks',
       ],
       rows: savingsPlanRows.map(({ savingsPlan: plan, accountCurrency: currency }) => [
         plan.id,
@@ -655,6 +658,9 @@ function exportEntries(
         plan.validFrom,
         plan.validTo,
         plan.note,
+        plan.cadence,
+        plan.daysOfMonth,
+        plan.intervalWeeks,
       ]),
     },
     {

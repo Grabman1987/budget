@@ -8,7 +8,13 @@ import {
   maskMoneyText,
 } from '@budget/ui';
 import type { SecurityRecord } from '@budget/db';
-import { cents, formatDecimal, nextExecutionAfter, parseAmount } from '@budget/domain';
+import {
+  cents,
+  formatDecimal,
+  nextExecutionAfter,
+  parseAmount,
+  parseDaysOfMonth,
+} from '@budget/domain';
 import { useBlocker } from '@tanstack/react-router';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { ApiError } from '../api/http';
@@ -19,7 +25,7 @@ import { errorText } from '../ledger/labels';
 import type { AccountRow } from '../ledger/types';
 import { AppLink } from '../shell/app-link';
 import { changePlan, createPlan, endPlan, type SavingsPlanRecord } from './savings-api';
-import { BANK_NOTE } from './savings-model';
+import { BANK_NOTE, rhythmParts } from './savings-model';
 
 export function SavingsPanel({
   id,
@@ -53,7 +59,10 @@ export function SavingsPanel({
       : initialFunding
         ? formatDecimal(cents(initialFunding.amountCents))
         : '',
+    cadence: plan?.cadence ?? 'monthly',
     day: String(plan?.dayOfMonth ?? 5),
+    days: plan?.daysOfMonth ? plan.daysOfMonth.split(',').join(', ') : '',
+    weeks: String(plan?.intervalWeeks ?? 1),
     date: creating ? today : '',
     note: plan?.note ?? '',
     endDate: plan && plan.validFrom > today ? plan.validFrom : today,
@@ -101,30 +110,59 @@ export function SavingsPanel({
     setError('');
   };
   const currency = accounts.find((a) => a.id === draft.accountId)?.currency;
+  const monthlyDay =
+    Number.isInteger(Number(draft.day)) && Number(draft.day) >= 1 && Number(draft.day) <= 31
+      ? Number(draft.day)
+      : 5;
+  /** First execution of a changed weekly or multi-day rhythm, from the data entered so far. */
+  const nextStart = (): string => {
+    try {
+      return nextExecutionAfter(
+        {
+          dayOfMonth: monthlyDay,
+          cadence: draft.cadence,
+          daysOfMonth: draft.cadence === 'days' ? parseDaysOfMonth(draft.days).join(',') : null,
+          intervalWeeks: draft.cadence === 'weeks' ? Number(draft.weeks) : null,
+          validFrom: plan?.validFrom ?? today,
+        },
+        today,
+      );
+    } catch {
+      return today;
+    }
+  };
   const effective =
     draft.date ||
-    nextExecutionAfter(
-      Number.isInteger(Number(draft.day)) && Number(draft.day) >= 1 && Number(draft.day) <= 31
-        ? Number(draft.day)
-        : 5,
-      today,
-    );
+    (draft.cadence === 'monthly' ? nextExecutionAfter(monthlyDay, today) : nextStart());
   const submit = async (event: FormEvent) => {
     event.preventDefault();
     if (saving.current || !editable) return;
     const amount = parseAmount(draft.amount);
     const day = Number(draft.day);
+    let days: number[] = [];
+    if (!ending && draft.cadence === 'days') {
+      try {
+        days = parseDaysOfMonth(draft.days);
+      } catch {
+        setError('Ausführungstage als Liste von 1 bis 31 angeben, z. B. „2, 9, 16, 23“.');
+        return;
+      }
+    }
+    const weeks = Number(draft.weeks);
     if (
       !ending &&
       (!amount.ok ||
         amount.cents <= 0 ||
-        !Number.isInteger(day) ||
-        day < 1 ||
-        day > 31 ||
+        (draft.cadence === 'monthly' && (!Number.isInteger(day) || day < 1 || day > 31)) ||
+        (draft.cadence === 'weeks' && (!Number.isInteger(weeks) || weeks < 1 || weeks > 4)) ||
         !draft.securityId ||
         !draft.accountId)
     ) {
-      setError('Instrument, Anlagekonto, positive Rate und Ausführungstag von 1 bis 31 angeben.');
+      setError(
+        draft.cadence === 'monthly'
+          ? 'Instrument, Anlagekonto, positive Rate und Ausführungstag von 1 bis 31 angeben.'
+          : 'Instrument, Anlagekonto, positive Rate und einen gültigen Rhythmus angeben.',
+      );
       return;
     }
     if (ending && plan && draft.endDate < plan.validFrom) {
@@ -139,9 +177,15 @@ export function SavingsPanel({
         try {
           if (ending && plan) return await endPlan(plan.id, draft.endDate);
           if (!amount.ok) throw new Error('Ungültiger Betrag');
+          const schedule =
+            draft.cadence === 'days'
+              ? { cadence: 'days' as const, daysOfMonth: days }
+              : draft.cadence === 'weeks'
+                ? { cadence: 'weeks' as const, intervalWeeks: weeks }
+                : { cadence: 'monthly' as const, dayOfMonth: day };
           const values = {
             amountCents: amount.cents,
-            dayOfMonth: day,
+            ...schedule,
             sourceAccountId: draft.sourceAccountId || null,
             note: draft.note.trim() || null,
           };
@@ -267,7 +311,7 @@ export function SavingsPanel({
                   {!ending ? (
                     <>
                       <Field
-                        label={`Monatliche Rate${currency ? ` (${currency})` : ''}`}
+                        label={`${draft.cadence === 'monthly' ? 'Monatliche Rate' : 'Rate je Ausführung'}${currency ? ` (${currency})` : ''}`}
                         hint="Positive Rate. Keine Umrechnung oder Bankorder."
                       >
                         {({ id, describedBy }) => (
@@ -281,20 +325,70 @@ export function SavingsPanel({
                           />
                         )}
                       </Field>
-                      <Field label="Ausführungstag" hint="In kurzen Monaten gilt der letzte Tag.">
-                        {({ id, describedBy }) => (
-                          <TextInput
+                      <Field label="Rhythmus">
+                        {({ id }) => (
+                          <Select
                             id={id}
-                            type="number"
-                            required
-                            min={1}
-                            max={31}
-                            value={draft.day}
-                            aria-describedby={describedBy}
-                            onChange={(e) => update('day', e.target.value)}
-                          />
+                            value={draft.cadence}
+                            onChange={(e) => update('cadence', e.target.value)}
+                          >
+                            <option value="monthly">Monatlich (Tag)</option>
+                            <option value="days">An festen Tagen</option>
+                            <option value="weeks">Alle N Wochen</option>
+                          </Select>
                         )}
                       </Field>
+                      {draft.cadence === 'monthly' && (
+                        <Field label="Ausführungstag" hint="In kurzen Monaten gilt der letzte Tag.">
+                          {({ id, describedBy }) => (
+                            <TextInput
+                              id={id}
+                              type="number"
+                              required
+                              min={1}
+                              max={31}
+                              value={draft.day}
+                              aria-describedby={describedBy}
+                              onChange={(e) => update('day', e.target.value)}
+                            />
+                          )}
+                        </Field>
+                      )}
+                      {draft.cadence === 'days' && (
+                        <Field
+                          label="Ausführungstage"
+                          hint="Tage des Monats mit Komma getrennt, z. B. „2, 9, 16, 23“. In kurzen Monaten gilt der letzte Tag."
+                        >
+                          {({ id, describedBy }) => (
+                            <TextInput
+                              id={id}
+                              required
+                              value={draft.days}
+                              aria-describedby={describedBy}
+                              onChange={(e) => update('days', e.target.value)}
+                            />
+                          )}
+                        </Field>
+                      )}
+                      {draft.cadence === 'weeks' && (
+                        <Field
+                          label="Alle … Wochen"
+                          hint="1 bis 4 Wochen, gezählt ab dem Startdatum."
+                        >
+                          {({ id, describedBy }) => (
+                            <TextInput
+                              id={id}
+                              type="number"
+                              required
+                              min={1}
+                              max={4}
+                              value={draft.weeks}
+                              aria-describedby={describedBy}
+                              onChange={(e) => update('weeks', e.target.value)}
+                            />
+                          )}
+                        </Field>
+                      )}
                       <Field
                         label="Quellkonto"
                         hint="Informativ. Geldbewegungen werden erst bei tatsächlicher Ausführung gebucht."
@@ -451,7 +545,7 @@ export function SavingsHistory({
               <li key={row.id}>
                 <strong>
                   {currency ? nativeCurrency(row.amountCents, currency) : 'Währung nicht verfügbar'}{' '}
-                  · am {row.dayOfMonth}.
+                  · {rhythmParts(row).detail ?? rhythmParts(row).head}
                 </strong>
                 <br />
                 {longDay(row.validFrom)} bis {row.validTo ? longDay(row.validTo) : 'offen'}

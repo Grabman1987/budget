@@ -10,6 +10,33 @@ import {
 import type { TradeRow } from './trade-api';
 import type { SavingsPlanRecord } from './savings-api';
 
+type RhythmRow = Pick<
+  SavingsPlanRecord,
+  'cadence' | 'dayOfMonth' | 'daysOfMonth' | 'intervalWeeks'
+>;
+
+/** Is the plan one execution a month (the only rhythm with an explicit month slot)? */
+export const isMonthlyPlan = (row: { cadence?: string | undefined }): boolean =>
+  (row.cadence ?? 'monthly') === 'monthly';
+
+/** Rhythm for lists: `head` is the interval word, `detail` the days ("am 2., 9., 16., 23."). */
+export function rhythmParts(row: RhythmRow): { head: string; detail: string | null } {
+  if (row.cadence === 'days')
+    return { head: 'monatlich', detail: `am ${(row.daysOfMonth ?? '').split(',').join('., ')}.` };
+  if (row.cadence === 'weeks')
+    return {
+      head: row.intervalWeeks === 1 ? 'wöchentlich' : `alle ${String(row.intervalWeeks)} Wochen`,
+      detail: null,
+    };
+  return { head: 'monatlich', detail: `am ${row.dayOfMonth}.` };
+}
+
+/** One line, e.g. "monatlich am 15." or "alle 2 Wochen". */
+export const rhythmText = (row: RhythmRow): string => {
+  const { head, detail } = rhythmParts(row);
+  return detail ? `${head} ${detail}` : head;
+};
+
 export const BANK_NOTE =
   'Die App plant nur. Ausführung und Änderungen bei der Bank musst du selbst veranlassen.';
 
@@ -18,10 +45,7 @@ export function nextPlanExecution(rows: SavingsPlanRecord[], today: string) {
   const candidates = rows
     .map((row) => ({
       row,
-      date: nextExecutionAfter(
-        row.dayOfMonth,
-        row.validFrom > today ? addDays(row.validFrom, -1) : today,
-      ),
+      date: nextExecutionAfter(row, row.validFrom > today ? addDays(row.validFrom, -1) : today),
     }))
     .filter(({ row, date }) => rowAppliesOn(row, date))
     .sort((a, b) => a.date.localeCompare(b.date));
@@ -128,6 +152,8 @@ export function savingsMonthStrip(
   asOf: string,
 ): SavingsMonthSlot[] {
   const first = rows[0];
+  // Weekly and multi-day plans have no explicit month slot; they are matched automatically.
+  if (rows.some((row) => !isMonthlyPlan(row))) return [];
   const versions = first
     ? rows.filter((row) => row.accountId === first.accountId && row.securityId === first.securityId)
     : [];

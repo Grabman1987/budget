@@ -10,6 +10,8 @@ import {
   type planGroups,
   planPurchases,
   savingsMonthStrip,
+  rhythmParts,
+  rhythmText,
 } from './savings-model';
 import { tradesQuery } from './trade-api';
 import { longDay, nativeCurrency } from '../ledger/format';
@@ -98,7 +100,10 @@ export function SavingsV3({
                           : '—'}
                     </td>
                     <td data-label="Intervall">
-                      monatlich{row.current && <small>am {row.current.dayOfMonth}.</small>}
+                      {rhythmParts(row.current ?? row.latest).head}
+                      {row.current && rhythmParts(row.current).detail && (
+                        <small>{rhythmParts(row.current).detail}</small>
+                      )}
                     </td>
                     <td data-label="Nächste">{next ? longDay(next.date) : '—'}</td>
                     <td>
@@ -219,7 +224,7 @@ function PlanCard({
         ))}
         <div>
           <dt>Intervall</dt>
-          <dd>monatlich, am {group.current?.dayOfMonth ?? group.latest.dayOfMonth}.</dd>
+          <dd>{rhythmText(group.current ?? group.latest).replace(' am', ', am')}</dd>
         </div>
         <div>
           <dt>Nächste Ausführung</dt>

@@ -10,6 +10,9 @@ import {
   monthOf,
   addMonths,
   rowAppliesOn,
+  parseDaysOfMonth,
+  formatDaysOfMonth,
+  type PlanCadence,
   savingsPlanProposal,
   type ExecutionCheck,
   type PlanChange,
@@ -37,13 +40,29 @@ export interface SavingsPlanInput {
   /** Where the money comes from (informational; the transfer is booked as it happens). */
   sourceAccountId?: string | null;
   amountCents: number;
-  dayOfMonth: number;
+  /** Monthly: the execution day (1-31). Ignored for the other rhythms (the repo derives it). */
+  dayOfMonth?: number;
+  /** Default monthly. */
+  cadence?: PlanCadence;
+  /** `days`: execution days of every month, e.g. [2, 9, 16, 23]. */
+  daysOfMonth?: number[] | null;
+  /** `weeks`: every N weeks (1-4), counted from `validFrom`. */
+  intervalWeeks?: number | null;
   validFrom: string;
   note?: string | null;
 }
 
 export type SavingsPlanChange = Partial<
-  Pick<SavingsPlanInput, 'amountCents' | 'dayOfMonth' | 'sourceAccountId' | 'note'>
+  Pick<
+    SavingsPlanInput,
+    | 'amountCents'
+    | 'dayOfMonth'
+    | 'cadence'
+    | 'daysOfMonth'
+    | 'intervalWeeks'
+    | 'sourceAccountId'
+    | 'note'
+  >
 >;
 
 const toRow = (r: SavingsPlanRecord): PlanRow => ({
@@ -52,15 +71,70 @@ const toRow = (r: SavingsPlanRecord): PlanRow => ({
   accountId: r.accountId,
   amountCents: r.amountCents,
   dayOfMonth: r.dayOfMonth,
+  cadence: r.cadence,
+  daysOfMonth: r.daysOfMonth,
+  intervalWeeks: r.intervalWeeks,
   validFrom: r.validFrom,
   validTo: r.validTo,
 });
 
-function assertShape(v: { amountCents: number; dayOfMonth: number }): void {
-  if (!Number.isSafeInteger(v.amountCents) || v.amountCents <= 0)
-    throw new RangeError('The rate must be a positive whole number of cents');
-  if (!Number.isInteger(v.dayOfMonth) || v.dayOfMonth < 1 || v.dayOfMonth > 31)
+const isMonthly = (r: { cadence?: string | undefined }): boolean =>
+  (r.cadence ?? 'monthly') === 'monthly';
+
+interface ScheduleFields {
+  cadence: PlanCadence;
+  dayOfMonth: number;
+  daysOfMonth: string | null;
+  intervalWeeks: number | null;
+}
+
+/**
+ * Validate the rhythm and return the stored columns: exactly the fields of the chosen cadence are
+ * set. `day_of_month` stays a valid day for the other rhythms (first listed day / start day).
+ */
+function scheduleFields(
+  v: {
+    cadence?: PlanCadence | undefined;
+    dayOfMonth?: number | null | undefined;
+    daysOfMonth?: number[] | null | undefined;
+    intervalWeeks?: number | null | undefined;
+  },
+  validFrom: string,
+): ScheduleFields {
+  const cadence = v.cadence ?? 'monthly';
+  if (cadence === 'days') {
+    if (!v.daysOfMonth?.length) throw new RangeError('Days of the month are required');
+    const days = parseDaysOfMonth(v.daysOfMonth.join(','));
+    if (v.daysOfMonth.some((d, i) => d !== days[i]))
+      throw new RangeError('Days of the month must be ascending and unique');
+    return {
+      cadence,
+      dayOfMonth: days[0]!,
+      daysOfMonth: formatDaysOfMonth(days),
+      intervalWeeks: null,
+    };
+  }
+  if (cadence === 'weeks') {
+    const n = v.intervalWeeks;
+    if (!Number.isInteger(n) || (n as number) < 1 || (n as number) > 4)
+      throw new RangeError('The interval is 1 to 4 weeks');
+    return {
+      cadence,
+      dayOfMonth: Number(validFrom.slice(8, 10)),
+      daysOfMonth: null,
+      intervalWeeks: n as number,
+    };
+  }
+  if (cadence !== 'monthly') throw new RangeError('The rhythm is monthly, days or weeks');
+  const day = v.dayOfMonth;
+  if (!Number.isInteger(day) || (day as number) < 1 || (day as number) > 31)
     throw new RangeError('The day of the month is 1 to 31');
+  return { cadence, dayOfMonth: day as number, daysOfMonth: null, intervalWeeks: null };
+}
+
+function assertAmount(amountCents: number): void {
+  if (!Number.isSafeInteger(amountCents) || amountCents <= 0)
+    throw new RangeError('The rate must be a positive whole number of cents');
 }
 
 function load(tx: Executor, id: string): SavingsPlanRecord {
@@ -128,7 +202,8 @@ export function createSavingsPlan(
   ctx: AuditContext,
 ): SavingsPlanRecord {
   const grouped = withGroup(ctx);
-  assertShape(input);
+  assertAmount(input.amountCents);
+  const schedule = scheduleFields(input, input.validFrom);
   return runInTransaction(db, (tx) => {
     checkRefs(tx, input);
     const open = listSavingsPlans(tx).find(
@@ -147,7 +222,7 @@ export function createSavingsPlan(
         accountId: input.accountId,
         sourceAccountId: input.sourceAccountId ?? null,
         amountCents: input.amountCents,
-        dayOfMonth: input.dayOfMonth,
+        ...schedule,
         validFrom: input.validFrom,
         note: input.note ?? null,
       },
@@ -173,14 +248,30 @@ export function changeSavingsPlan(
     const cur = load(tx, id);
     if (cur.validTo !== null)
       throw new ConflictError('The savings plan has ended; start a new one');
+    const startsOn = from <= cur.validFrom ? cur.validFrom : from;
+    const schedule = scheduleFields(
+      {
+        cadence: change.cadence ?? cur.cadence,
+        dayOfMonth: change.dayOfMonth ?? cur.dayOfMonth,
+        daysOfMonth:
+          change.daysOfMonth !== undefined
+            ? change.daysOfMonth
+            : cur.daysOfMonth
+              ? parseDaysOfMonth(cur.daysOfMonth)
+              : null,
+        intervalWeeks:
+          change.intervalWeeks !== undefined ? change.intervalWeeks : cur.intervalWeeks,
+      },
+      startsOn,
+    );
     const merged = {
       amountCents: change.amountCents ?? cur.amountCents,
-      dayOfMonth: change.dayOfMonth ?? cur.dayOfMonth,
+      ...schedule,
       sourceAccountId:
         change.sourceAccountId !== undefined ? change.sourceAccountId : cur.sourceAccountId,
       note: change.note !== undefined ? change.note : cur.note,
     };
-    assertShape(merged);
+    assertAmount(merged.amountCents);
     checkRefs(tx, { ...cur, sourceAccountId: merged.sourceAccountId });
     if (from <= cur.validFrom) {
       updateTracked(tx, savingsPlan, [id], merged, grouped);
@@ -240,6 +331,7 @@ export function savingsExecutions(db: Executor, month: string, today: string): E
   const rows = listSavingsPlans(db, { includeEnded: true }).map(toRow);
   const planned = plannedExecutions(rows, month);
   if (planned.length === 0) return [];
+  const monthlyPlan = new Set(rows.filter(isMonthly).map((r) => r.id));
   const buys = db
     .select({
       id: trade.id,
@@ -258,12 +350,15 @@ export function savingsExecutions(db: Executor, month: string, today: string): E
     buys.filter((b) => !b.savingsMonth),
     today,
   ).map((execution) => {
-    const explicit = buys.find(
-      (b) =>
-        b.savingsMonth === month &&
-        b.securityId === execution.securityId &&
-        b.accountId === execution.accountId,
-    );
+    // Only a monthly plan has one explicit slot per month; the others are matched automatically.
+    const explicit = !monthlyPlan.has(execution.planId)
+      ? undefined
+      : buys.find(
+          (b) =>
+            b.savingsMonth === month &&
+            b.securityId === execution.securityId &&
+            b.accountId === execution.accountId,
+        );
     return explicit ? { ...execution, status: 'executed', tradeId: explicit.id } : execution;
   });
 }
@@ -275,6 +370,8 @@ export interface SavingsExecutionProposal {
   urgent: false;
   planId: string;
   month: string;
+  /** Non-monthly plans have several executions a month and no month slot (matched by `date`). */
+  cadence: PlanCadence;
   securityId: string;
   accountId: string;
   securityName: string;
@@ -310,11 +407,14 @@ export function savingsExecutionProposals(db: Executor, today: string): SavingsE
       months.add(month);
   }
   const planned = [...months].sort().flatMap((month) => plannedExecutions(rows.map(toRow), month));
+  const monthlyPlan = new Set(rows.filter(isMonthly).map((r) => r.id));
   const pending = planned.filter(
-    (e) => !booked.has(slot(monthOf(e.date), e.securityId, e.accountId)),
+    (e) =>
+      !monthlyPlan.has(e.planId) || !booked.has(slot(monthOf(e.date), e.securityId, e.accountId)),
   );
   const plannedPerSlot = new Map<string, number>();
   for (const e of planned) {
+    if (!monthlyPlan.has(e.planId)) continue;
     const key = slot(monthOf(e.date), e.securityId, e.accountId);
     plannedPerSlot.set(key, (plannedPerSlot.get(key) ?? 0) + 1);
   }
@@ -327,22 +427,24 @@ export function savingsExecutionProposals(db: Executor, today: string): SavingsE
   const accounts = db.select().from(account).where(isNull(account.deletedAt)).all();
   return executions.flatMap((execution) => {
     if (execution.date > today || execution.status === 'executed') return [];
+    const plan = rows.find((r) => r.id === execution.planId)!;
+    const monthly = isMonthly(plan);
     // Overlapping versions cannot be interpreted as two monthly purchases.
     const key = slot(execution.month, execution.securityId, execution.accountId);
-    if (plannedPerSlot.get(key) !== 1) return [];
-    if (booked.has(key)) return [];
-    const plan = rows.find((r) => r.id === execution.planId)!;
+    if (monthly && plannedPerSlot.get(key) !== 1) return [];
+    if (monthly && booked.has(key)) return [];
     const sec = securities.find((s) => s.id === execution.securityId);
     const acct = accounts.find((a) => a.id === execution.accountId);
     if (!sec || !acct || acct.closedAt || acct.role !== 'investment') return [];
     return [
       {
         type: 'savings' as const,
-        id: `savings:${plan.id}:${execution.month}`,
+        id: `savings:${plan.id}:${monthly ? execution.month : execution.date}`,
         kind: 'revision' as const,
         urgent: false as const,
         planId: plan.id,
         month: execution.month,
+        cadence: plan.cadence,
         securityId: sec.id,
         accountId: acct.id,
         securityName: sec.name,
@@ -376,7 +478,11 @@ export function confirmSavingsExecution(
   const grouped = withGroup(ctx);
   return runInTransaction(db, (tx) => {
     const proposal = savingsExecutionProposals(tx, today).find(
-      (p) => p.planId === planId && p.month === month,
+      (p) =>
+        p.planId === planId &&
+        p.month === month &&
+        // Several executions a month: the planned day tells them apart.
+        (p.cadence === 'monthly' || p.date === input.plannedDate),
     );
     if (!proposal)
       throw new ConflictError('Der Sparplanvorschlag ist nicht mehr offen. Bitte neu laden.');
@@ -404,8 +510,8 @@ export function confirmSavingsExecution(
       feeCents: input.feeCents ?? 0,
       importKey: input.importKey ?? null,
       note: input.note ?? null,
-      savingsPlanId: planId,
-      savingsMonth: month,
+      // One explicit slot per plan and month exists for monthly plans only.
+      ...(proposal.cadence === 'monthly' ? { savingsPlanId: planId, savingsMonth: month } : {}),
     };
     const result = input.settlementAccountId
       ? createTradeWithCashTransfer(tx, trade, input.settlementAccountId, grouped)
@@ -454,7 +560,8 @@ export function savingsProposal(
       .all()
       .map((a) => [a.id, a.institutionId]),
   );
-  const basis = listSavingsPlans(db);
+  // Rebalancing works on one monthly rate per plan; weekly and multi-day plans stay as they are.
+  const basis = listSavingsPlans(db).filter(isMonthly);
   const universe = allocationUniverse(db);
   const plans: SavingsPlan[] = basis.flatMap((r) => {
     const sec = names.get(r.securityId);
