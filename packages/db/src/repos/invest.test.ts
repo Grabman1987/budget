@@ -20,10 +20,13 @@ import { reconcileAccount } from './reconciliation';
 import { accountBalances } from './queries';
 import {
   changeSavingsPlan,
+  confirmSavingsExecution,
   createSavingsPlan,
   endSavingsPlan,
   listSavingsPlans,
   plansOn,
+  savingsExecutionProposals,
+  savingsExecutions,
 } from './savings-plans';
 import {
   createAssetClass,
@@ -757,6 +760,123 @@ describe('savings plan rows', () => {
     expect(() => createSavingsPlan(db, { ...plan, sourceAccountId: 'depot' }, testCtx)).toThrow(
       /differ/,
     );
+  });
+});
+
+describe('savings plans with several executions a month', () => {
+  const base = {
+    securityId: 's1',
+    accountId: 'depot',
+    amountCents: 2_500,
+    validFrom: '2026-01-01',
+  };
+
+  it('creates, changes and ends fixed-day and weekly plans', () => {
+    const days = createSavingsPlan(
+      db,
+      { ...base, cadence: 'days', daysOfMonth: [2, 9, 16, 23] },
+      testCtx,
+    );
+    expect(days).toMatchObject({
+      cadence: 'days',
+      daysOfMonth: '2,9,16,23',
+      dayOfMonth: 2,
+      intervalWeeks: null,
+    });
+    // Another rhythm of the same position is still the one open plan.
+    expect(() =>
+      createSavingsPlan(db, { ...base, cadence: 'weeks', intervalWeeks: 1 }, testCtx),
+    ).toThrow(ConflictError);
+    const weekly = changeSavingsPlan(
+      db,
+      days.id,
+      { cadence: 'weeks', intervalWeeks: 2 },
+      '2026-03-04',
+      testCtx,
+    );
+    expect(weekly).toMatchObject({
+      cadence: 'weeks',
+      intervalWeeks: 2,
+      daysOfMonth: null,
+      dayOfMonth: 4,
+      validFrom: '2026-03-04',
+    });
+    expect(plansOn(db, '2026-03-03')[0]).toMatchObject({ cadence: 'days' });
+    expect(plansOn(db, '2026-03-04')[0]).toMatchObject({ cadence: 'weeks' });
+    // A change that keeps the rhythm keeps its fields.
+    const cheaper = changeSavingsPlan(db, weekly.id, { amountCents: 2_000 }, '2026-04-01', testCtx);
+    expect(cheaper).toMatchObject({ cadence: 'weeks', intervalWeeks: 2, amountCents: 2_000 });
+    expect(endSavingsPlan(db, cheaper.id, '2026-12-31', testCtx).validTo).toBe('2026-12-31');
+    expect(listSavingsPlans(db)).toEqual([]);
+  });
+
+  it('validates the rhythm fields', () => {
+    const bad = [
+      { cadence: 'days' as const },
+      { cadence: 'days' as const, daysOfMonth: [9, 2] },
+      { cadence: 'days' as const, daysOfMonth: [2, 32] },
+      { cadence: 'weeks' as const },
+      { cadence: 'weeks' as const, intervalWeeks: 5 },
+      { cadence: 'monthly' as const },
+    ];
+    for (const extra of bad)
+      expect(() => createSavingsPlan(db, { ...base, ...extra }, testCtx)).toThrow(RangeError);
+  });
+
+  it('checks four buys of a month against a fixed-day plan and reports the missing one', () => {
+    createSavingsPlan(db, { ...base, cadence: 'days', daysOfMonth: [2, 9, 16, 23] }, testCtx);
+    for (const [i, date] of ['2026-03-02', '2026-03-09', '2026-03-24'].entries())
+      createTrade(
+        db,
+        {
+          securityId: 's1',
+          accountId: 'depot',
+          kind: 'buy',
+          date,
+          unitsE8: 100_000_000,
+          amountCents: 2_500,
+          feeCents: 0,
+          note: String(i),
+        },
+        testCtx,
+      );
+    expect(savingsExecutions(db, '2026-03', '2026-03-31').map((e) => [e.date, e.status])).toEqual([
+      ['2026-03-02', 'executed'],
+      ['2026-03-09', 'executed'],
+      ['2026-03-16', 'missing'],
+      ['2026-03-23', 'executed'],
+    ]);
+    // Confirming the missing one creates the buy without a month slot.
+    const proposal = savingsExecutionProposals(db, '2026-03-31').find(
+      (p) => p.date === '2026-03-16',
+    )!;
+    expect(proposal).toMatchObject({ cadence: 'days', id: expect.stringContaining('2026-03-16') });
+    const { trade: created } = confirmSavingsExecution(
+      db,
+      proposal.planId,
+      proposal.month,
+      '2026-03-31',
+      {
+        date: '2026-03-16',
+        unitsE8: 100_000_000,
+        amountCents: 2_500,
+        feeCents: 0,
+        plannedAmountCents: proposal.amountCents,
+        plannedDate: proposal.date,
+        plannedCurrency: proposal.currency,
+      },
+      testCtx,
+    );
+    expect(created).toMatchObject({ savingsMonth: null, savingsPlanId: null });
+    expect(savingsExecutions(db, '2026-03', '2026-03-31').map((e) => e.status)).toEqual([
+      'executed',
+      'executed',
+      'executed',
+      'executed',
+    ]);
+    expect(
+      savingsExecutionProposals(db, '2026-03-31').filter((p) => p.month === '2026-03'),
+    ).toEqual([]);
   });
 });
 

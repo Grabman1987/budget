@@ -60,36 +60,38 @@ export function SavingsDetail({
       )}
       {query.isSuccess && (
         <>
-          <section className="savings-months" aria-labelledby="savings-months-title">
-            <h3 id="savings-months-title">Letzte zwölf Monate</h3>
-            <p className="vnote">
-              Stand {longDay(today)}. „Ausgeführt“ bedeutet ausdrücklich zugeordneter Kauf, keine
-              Bestätigung der Bank. Manuelle oder nur ähnlich erkannte Käufe bleiben in der
-              Kaufhistorie; bei fehlender Zuordnung bitte den Posteingang prüfen.
-            </p>
-            <ol>
-              {months.map((slot) => (
-                <li key={slot.month}>
-                  <strong>{slot.month}</strong>
-                  <span>{status[slot.status]}</span>
-                  <span>
-                    {slot.amountCents !== null
-                      ? money(slot.amountCents)
-                      : slot.plannedCents !== null
-                        ? `Geplant: ${money(slot.plannedCents)}`
-                        : 'Kein geplanter Betrag'}
-                  </span>
-                  <span>
-                    Stück:{' '}
-                    {slot.unitsE8 === null
-                      ? 'nicht zugeordnet'
-                      : privateAmount(unitsText(slot.unitsE8))}
-                  </span>
-                  {slot.tradeDate && <small>Kauf am {longDay(slot.tradeDate)}</small>}
-                </li>
-              ))}
-            </ol>
-          </section>
+          {months.length > 0 && (
+            <section className="savings-months" aria-labelledby="savings-months-title">
+              <h3 id="savings-months-title">Letzte zwölf Monate</h3>
+              <p className="vnote">
+                Stand {longDay(today)}. „Ausgeführt“ bedeutet ausdrücklich zugeordneter Kauf, keine
+                Bestätigung der Bank. Manuelle oder nur ähnlich erkannte Käufe bleiben in der
+                Kaufhistorie; bei fehlender Zuordnung bitte den Posteingang prüfen.
+              </p>
+              <ol>
+                {months.map((slot) => (
+                  <li key={slot.month}>
+                    <strong>{slot.month}</strong>
+                    <span>{status[slot.status]}</span>
+                    <span>
+                      {slot.amountCents !== null
+                        ? money(slot.amountCents)
+                        : slot.plannedCents !== null
+                          ? `Geplant: ${money(slot.plannedCents)}`
+                          : 'Kein geplanter Betrag'}
+                    </span>
+                    <span>
+                      Stück:{' '}
+                      {slot.unitsE8 === null
+                        ? 'nicht zugeordnet'
+                        : privateAmount(unitsText(slot.unitsE8))}
+                    </span>
+                    {slot.tradeDate && <small>Kauf am {longDay(slot.tradeDate)}</small>}
+                  </li>
+                ))}
+              </ol>
+            </section>
+          )}
           <details className="savings-purchases">
             <summary>Käufe anzeigen</summary>
             <TradeHistory

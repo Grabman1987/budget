@@ -13,7 +13,7 @@ import { ErrorNote, LoadingNote, EmptyNote } from '../ledger/states';
 import { longDay, nativeCurrency } from '../ledger/format';
 import { instrumentsQuery } from './portfolio-api';
 import { savingsPlansQuery } from './savings-api';
-import { BANK_NOTE, currentRates, planGroups } from './savings-model';
+import { BANK_NOTE, currentRates, planGroups, rhythmParts } from './savings-model';
 import { SavingsPanel } from './savings-panel';
 import './savings.css';
 import { FundingPlanner } from './funding-plan';
@@ -219,7 +219,9 @@ export function SavingsSection({
                           ) : (
                             '—'
                           )}
-                          {current && <small>am {current.dayOfMonth}.</small>}
+                          {current && rhythmParts(current).detail && (
+                            <small>{rhythmParts(current).detail}</small>
+                          )}
                         </td>
                         <td data-label="Gültigkeit">
                           {group.future.map((future) => (
@@ -229,7 +231,7 @@ export function SavingsSection({
                                 : 'Währung unbekannt'}{' '}
                               ab {longDay(future.validFrom)}
                               <small>
-                                am {future.dayOfMonth}.
+                                {rhythmParts(future).detail ?? rhythmParts(future).head}
                                 {future.validTo && ` · bis ${longDay(future.validTo)}`}
                               </small>
                             </div>

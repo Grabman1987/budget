@@ -42,6 +42,7 @@ const proposal: SavingsExecutionProposal = {
   id: 'synthetic-proposal',
   kind: 'revision',
   urgent: false,
+  cadence: 'monthly',
   planId: 'synthetic-plan',
   month: '2026-09',
   securityId: 'synthetic-security',

@@ -544,19 +544,54 @@ export function tradeRoutes(db: Db): Hono {
 }
 
 // ---------- savings plans ----------
-const planCreate = z.object({
-  securityId: id,
-  accountId: id,
-  sourceAccountId: id.nullable().optional(),
-  amountCents: z.int().positive(),
-  dayOfMonth: z.int().min(1).max(31),
-  validFrom: day.optional(),
-  note: text.nullable().optional(),
-});
+const planCadence = z.enum(['monthly', 'days', 'weeks']);
+/** Execution days of the month for `days`: ascending, unique, 1-31. */
+const daysOfMonth = z
+  .array(z.int().min(1).max(31))
+  .min(1)
+  .max(31)
+  .refine((d) => d.every((x, i) => i === 0 || x > d[i - 1]!), 'Days must be ascending and unique');
+const intervalWeeks = z.int().min(1).max(4);
+const planCreate = z
+  .object({
+    securityId: id,
+    accountId: id,
+    sourceAccountId: id.nullable().optional(),
+    amountCents: z.int().positive(),
+    cadence: planCadence.optional(),
+    dayOfMonth: z.int().min(1).max(31).optional(),
+    daysOfMonth: daysOfMonth.optional(),
+    intervalWeeks: intervalWeeks.optional(),
+    validFrom: day.optional(),
+    note: text.nullable().optional(),
+  })
+  .superRefine((v, ctx) => {
+    const cadence = v.cadence ?? 'monthly';
+    const need: [boolean, string][] = [
+      [cadence === 'monthly', 'dayOfMonth'],
+      [cadence === 'days', 'daysOfMonth'],
+      [cadence === 'weeks', 'intervalWeeks'],
+    ];
+    for (const [required, key] of need) {
+      const present = v[key as 'dayOfMonth' | 'daysOfMonth' | 'intervalWeeks'] !== undefined;
+      if (required && !present)
+        ctx.addIssue({ code: 'custom', path: [key], message: `${key} is required for ${cadence}` });
+      // Monthly keeps the old body shape; the other rhythms reject fields of another rhythm.
+      if (!required && present && key !== 'dayOfMonth')
+        ctx.addIssue({
+          code: 'custom',
+          path: [key],
+          message: `${key} does not apply to ${cadence}`,
+        });
+    }
+  });
 const planPatch = z
   .object({
     amountCents: z.int().positive(),
+    cadence: planCadence,
     dayOfMonth: z.int().min(1).max(31),
+    daysOfMonth,
+    intervalWeeks,
     sourceAccountId: id.nullable(),
     note: text.nullable(),
     /** First day the change applies; default the next execution day. */
@@ -640,7 +675,18 @@ export function savingsPlanRoutes(db: Db, today: () => string): Hono {
     const { from, ...change } = await readBody(c, planPatch);
     const plan = listSavingsPlans(db).find((p) => p.id === c.req.param('id'));
     if (!plan) throw new ApiError(404, 'not_found', 'Open savings plan not found');
-    const start = from ?? nextExecutionAfter(change.dayOfMonth ?? plan.dayOfMonth, today());
+    const start =
+      from ??
+      nextExecutionAfter(
+        {
+          ...plan,
+          cadence: change.cadence ?? plan.cadence,
+          dayOfMonth: change.dayOfMonth ?? plan.dayOfMonth,
+          daysOfMonth: change.daysOfMonth ? change.daysOfMonth.join(',') : plan.daysOfMonth,
+          intervalWeeks: change.intervalWeeks ?? plan.intervalWeeks,
+        },
+        today(),
+      );
     const ctx = audit();
     const row = changeSavingsPlan(db, plan.id, defined(change), start, ctx);
     return c.json({ plan: row, groupId: ctx.groupId });

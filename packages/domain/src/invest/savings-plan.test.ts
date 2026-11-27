@@ -3,6 +3,7 @@ import {
   executionDate,
   matchExecutions,
   nextExecutionAfter,
+  parseDaysOfMonth,
   planChanges,
   plannedExecutions,
   type ExecutedBuy,
@@ -218,5 +219,114 @@ describe('matchExecutions on many positions', () => {
     const want = reference(planned, buys, '2026-10-07');
     expect(got.map((g) => g.tradeId)).toEqual(want.map((w) => w.tradeId));
     expect(got.some((g) => g.tradeId !== null)).toBe(true);
+  });
+});
+
+describe('cadence days (several fixed days per month)', () => {
+  const days = (over: Partial<PlanRow> = {}) =>
+    row({ cadence: 'days', daysOfMonth: '2,9,16,23', dayOfMonth: 2, amountCents: 2_500, ...over });
+
+  it('parses and rejects day lists', () => {
+    expect(parseDaysOfMonth('23, 2,9 ,16')).toEqual([2, 9, 16, 23]);
+    for (const bad of ['', '0', '32', '2,2', 'a', '2,,3', null])
+      expect(() => parseDaysOfMonth(bad)).toThrow(RangeError);
+  });
+
+  it('plans every listed day, clamped to the month end and deduplicated', () => {
+    expect(plannedExecutions([days()], '2026-03').map((e) => e.date)).toEqual([
+      '2026-03-02',
+      '2026-03-09',
+      '2026-03-16',
+      '2026-03-23',
+    ]);
+    // 29, 30 and 31 all collapse onto the 28th of a non-leap February.
+    expect(
+      plannedExecutions([days({ daysOfMonth: '15,29,30,31' })], '2026-02').map((e) => e.date),
+    ).toEqual(['2026-02-15', '2026-02-28']);
+  });
+
+  it('applies validFrom and validTo per execution day', () => {
+    const plan = days({ validFrom: '2026-03-10', validTo: '2026-03-20' });
+    expect(plannedExecutions([plan], '2026-03').map((e) => e.date)).toEqual(['2026-03-16']);
+  });
+
+  it('finds the next day, also across the month end', () => {
+    const plan = days();
+    expect(nextExecutionAfter(plan, '2026-03-09')).toBe('2026-03-16');
+    expect(nextExecutionAfter(plan, '2026-03-23')).toBe('2026-04-02');
+    expect(nextExecutionAfter(plan, '2026-12-30')).toBe('2027-01-02');
+  });
+
+  it('matches four buys in one month one-to-one and reports the missing one', () => {
+    const planned = plannedExecutions([days()], '2026-03');
+    const buys = ['2026-03-02', '2026-03-10', '2026-03-23'].map((date, i) =>
+      buy({ id: `b${String(i)}`, date, amountCents: 2_500 }),
+    );
+    const out = matchExecutions(planned, buys, '2026-03-31');
+    expect(out.map((e) => [e.date, e.status, e.tradeId])).toEqual([
+      ['2026-03-02', 'executed', 'b0'],
+      ['2026-03-09', 'executed', 'b1'],
+      ['2026-03-16', 'missing', null],
+      ['2026-03-23', 'executed', 'b2'],
+    ]);
+  });
+});
+
+describe('cadence weeks (every N weeks from the start day)', () => {
+  const weekly = (over: Partial<PlanRow> = {}) =>
+    row({
+      cadence: 'weeks',
+      intervalWeeks: 1,
+      validFrom: '2026-01-07',
+      dayOfMonth: 7,
+      amountCents: 1_000,
+      ...over,
+    });
+
+  it('plans every seven days from the anchor, also for months long after it', () => {
+    expect(plannedExecutions([weekly()], '2026-03').map((e) => e.date)).toEqual([
+      '2026-03-04',
+      '2026-03-11',
+      '2026-03-18',
+      '2026-03-25',
+    ]);
+    expect(plannedExecutions([weekly()], '2025-12')).toEqual([]);
+    expect(plannedExecutions([weekly()], '2026-01').map((e) => e.date)).toEqual([
+      '2026-01-07',
+      '2026-01-14',
+      '2026-01-21',
+      '2026-01-28',
+    ]);
+  });
+
+  it('keeps the two-week phase across month ends and stops at validTo', () => {
+    const plan = weekly({ intervalWeeks: 2, validTo: '2026-03-20' });
+    expect(plannedExecutions([plan], '2026-02').map((e) => e.date)).toEqual([
+      '2026-02-04',
+      '2026-02-18',
+    ]);
+    expect(plannedExecutions([plan], '2026-03').map((e) => e.date)).toEqual([
+      '2026-03-04',
+      '2026-03-18',
+    ]);
+    expect(plannedExecutions([plan], '2026-04')).toEqual([]);
+  });
+
+  it('finds the next execution after today', () => {
+    expect(nextExecutionAfter(weekly(), '2026-03-04')).toBe('2026-03-11');
+    expect(nextExecutionAfter(weekly({ intervalWeeks: 4 }), '2026-03-04')).toBe('2026-04-01');
+    expect(nextExecutionAfter(weekly(), '2025-12-01')).toBe('2026-01-07');
+  });
+
+  it('rejects an interval outside 1-4', () => {
+    expect(() => plannedExecutions([weekly({ intervalWeeks: 5 })], '2026-03')).toThrow(RangeError);
+    expect(() => plannedExecutions([weekly({ intervalWeeks: null })], '2026-03')).toThrow(
+      RangeError,
+    );
+  });
+
+  it('planChanges uses the next weekly execution', () => {
+    const out = planChanges([weekly()], [{ id: 'p1', proposedCents: 500 }], '2026-03-04');
+    expect(out.map((c) => c.from)).toEqual(['2026-03-11']);
   });
 });

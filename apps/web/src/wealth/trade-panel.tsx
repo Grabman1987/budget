@@ -406,7 +406,8 @@ function TradeForm({
       <fieldset className="instrument-fields" disabled={busy}>
         {proposal && (
           <p className="vnote">
-            {proposal.securityName} · {proposal.month} · geplant{' '}
+            {proposal.securityName} ·{' '}
+            {proposal.cadence === 'monthly' ? proposal.month : proposal.date} · geplant{' '}
             {sourceMoney(proposal.amountCents, proposal.currency)}. Tatsächliche Stückzahl, Betrag
             und Gebühren aus der Abrechnung übernehmen. Die Bestätigung erfasst einen Kauf auf{' '}
             {proposal.accountName}.{' '}

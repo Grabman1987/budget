@@ -474,6 +474,21 @@ export const savingsPlan = sqliteTable(
     amountCents: cents('amount_cents').notNull(),
     /** 1-31; in a shorter month the plan runs on the last day. */
     dayOfMonth: integer('day_of_month').notNull(),
+    /**
+     * monthly = `day_of_month`; days = every day of `days_of_month`; weeks = every `interval_weeks`
+     * weeks counted from `valid_from`. For the two non-monthly rhythms `day_of_month` only keeps
+     * the first day (the repo fills it), so old readers still see a valid day.
+     */
+    cadence: text('cadence', { enum: ['monthly', 'days', 'weeks'] })
+      .notNull()
+      .default('monthly'),
+    /** Comma list "2,9,16,23" (ascending, unique, 1-31); set iff `cadence = 'days'`. */
+    daysOfMonth: text('days_of_month'),
+    /**
+     * 1-4; set iff `cadence = 'weeks'`. CHECKs of the three columns live in migration 0060 as
+     * column checks (an ALTER cannot add table checks); the repo enforces the pairing.
+     */
+    intervalWeeks: integer('interval_weeks'),
     validFrom: text('valid_from').notNull(),
     /** Last day the row applies (inclusive); `NULL` = open end. */
     validTo: text('valid_to'),

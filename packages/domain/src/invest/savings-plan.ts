@@ -13,9 +13,65 @@ export interface PlanRow {
   accountId: string;
   amountCents: number;
   dayOfMonth: number;
+  /** Absent = monthly (rows from before the cadence column). */
+  cadence?: PlanCadence;
+  /** `days`: comma list "2,9,16,23" of days of the month, ascending. */
+  daysOfMonth?: string | null;
+  /** `weeks`: every N weeks (1-4), counted from `validFrom`. */
+  intervalWeeks?: number | null;
   validFrom: string;
   /** Last day the row applies; `null` = open end. */
   validTo: string | null;
+}
+
+/** monthly = one day per month; days = several fixed days per month; weeks = every N weeks. */
+export type PlanCadence = 'monthly' | 'days' | 'weeks';
+
+/** The schedule part of a row (the anchor of `weeks` is `validFrom`). */
+export type PlanSchedule = Pick<
+  PlanRow,
+  'dayOfMonth' | 'cadence' | 'daysOfMonth' | 'intervalWeeks' | 'validFrom'
+>;
+
+/** Parse "2, 9,16" into ascending unique days 1-31; throws on anything else. */
+export function parseDaysOfMonth(value: string | null | undefined): number[] {
+  const parts = (value ?? '').split(',').map((x) => x.trim());
+  const days = parts.map((x) => (/^\d{1,2}$/.test(x) ? Number(x) : NaN));
+  if (days.length === 0 || days.some((d) => !(d >= 1 && d <= 31)))
+    throw new RangeError('Days of the month are a comma list of numbers from 1 to 31');
+  const unique = [...new Set(days)].sort((a, b) => a - b);
+  if (unique.length !== days.length) throw new RangeError('Days of the month must not repeat');
+  return unique;
+}
+
+/** Normalised stored form of a day list ("2,9,16,23"). */
+export const formatDaysOfMonth = (days: ReadonlyArray<number>): string => days.join(',');
+
+/** All execution days of one schedule inside `month`, ascending (validity not applied). */
+export function scheduleDatesIn(row: PlanSchedule, month: string): string[] {
+  const cadence = row.cadence ?? 'monthly';
+  if (cadence === 'days') {
+    const dates = parseDaysOfMonth(row.daysOfMonth).map((d) => executionDate(month, d));
+    return [...new Set(dates)].sort();
+  }
+  if (cadence === 'weeks') {
+    const step = 7 * weeksOf(row);
+    const first = `${month}-01`;
+    const last = lastDayOfMonth(month);
+    if (row.validFrom > last) return [];
+    const skip = Math.max(0, Math.ceil(daysBetween(row.validFrom, first) / step));
+    const out: string[] = [];
+    for (let d = addDays(row.validFrom, skip * step); d <= last; d = addDays(d, step)) out.push(d);
+    return out;
+  }
+  return [executionDate(month, row.dayOfMonth)];
+}
+
+function weeksOf(row: Pick<PlanRow, 'intervalWeeks'>): number {
+  const n = row.intervalWeeks;
+  if (!Number.isInteger(n) || (n as number) < 1 || (n as number) > 4)
+    throw new RangeError('The interval is 1 to 4 weeks');
+  return n as number;
 }
 
 export interface PlannedExecution {
@@ -47,7 +103,7 @@ export function plannedExecutions(
   month: string,
 ): PlannedExecution[] {
   return plans
-    .map((p) => ({ p, date: executionDate(month, p.dayOfMonth) }))
+    .flatMap((p) => scheduleDatesIn(p, month).map((date) => ({ p, date })))
     .filter(({ p, date }) => rowAppliesOn(p, date))
     .map(({ p, date }) => ({
       planId: p.id,
@@ -59,11 +115,20 @@ export function plannedExecutions(
     .sort((a, b) => a.date.localeCompare(b.date) || a.planId.localeCompare(b.planId));
 }
 
-/** First execution day strictly after `today` (a plan that runs today has already run). */
-export function nextExecutionAfter(dayOfMonth: number, today: string): string {
+/**
+ * First execution day strictly after `today` (a plan that runs today has already run). A plain
+ * number is the monthly day; a schedule may also be `days` or `weeks`.
+ */
+export function nextExecutionAfter(schedule: number | PlanSchedule, today: string): string {
+  const row: PlanSchedule =
+    typeof schedule === 'number' ? { dayOfMonth: schedule, validFrom: today } : schedule;
   const month = today.slice(0, 7);
-  const thisMonth = executionDate(month, dayOfMonth);
-  return thisMonth > today ? thisMonth : executionDate(addMonths(month, 1), dayOfMonth);
+  // Two months ahead always hold a day for days/monthly; weeks (<= 28 days) need at most one more.
+  for (let m = month, i = 0; i < 3; m = addMonths(m, 1), i++) {
+    const next = scheduleDatesIn(row, m).find((d) => d > today);
+    if (next) return next;
+  }
+  throw new RangeError('No execution day found');
 }
 
 /** An executed buy, as far as matching needs it. */
@@ -176,7 +241,7 @@ export function planChanges(
       accountId: row.accountId,
       fromCents: row.amountCents,
       toCents: p.proposedCents,
-      from: nextExecutionAfter(row.dayOfMonth, today),
+      from: nextExecutionAfter(row, today),
     });
   }
   return out;
