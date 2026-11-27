@@ -97,7 +97,7 @@ for (const theme of ['light', 'dark'] as const) {
       await expect(page.getByRole('region', { name: 'Kontakt-Stammdaten' })).toContainText(
         contact.name,
       );
-      await expect(page.getByText(contact.id, { exact: true })).toBeVisible();
+      await expect(page.getByText(contact.id, { exact: true })).toHaveCount(0);
       await expect(page.getByRole('columnheader', { name: 'Saldo', exact: true })).toHaveCount(0);
       if (page.viewportSize()!.width >= 768)
         await expect(
@@ -112,7 +112,20 @@ for (const theme of ['light', 'dark'] as const) {
         page.getByRole('navigation', { name: 'Einstellungen', exact: true }),
       ).toHaveCount(0);
     }
+    // Redesign: row actions live in the ⋯ menu; open it first when the target is hidden.
+    const menuOf = (owner: string) => page.getByLabel(`Aktionen für ${owner}`, { exact: true });
+    const present = (owner: string) =>
+      on ? menuOf(owner) : page.getByRole('button', { name: `${owner} umbenennen`, exact: true });
+    const reach = async (owner: string, role: 'button' | 'link', name: string) => {
+      const target = page.getByRole(role, { name, exact: true });
+      if (on && !(await target.isVisible())) await menuOf(owner).click();
+      return target;
+    };
     const trigger = page.getByRole('button', { name: `${contact.name} umbenennen`, exact: true });
+    if (on) {
+      await menuOf(contact.name).focus();
+      await menuOf(contact.name).press('Enter');
+    }
     await trigger.focus();
     await trigger.press('Enter');
     const rename = page.getByRole('dialog', { name: 'Kontakt umbenennen', exact: true });
@@ -122,9 +135,11 @@ for (const theme of ['light', 'dark'] as const) {
       .fill('Synthetic cancelled draft');
     await rename.getByRole('button', { name: 'Abbrechen', exact: true }).click();
     await expect(rename).not.toBeVisible();
-    await expect(
-      page.getByRole('button', { name: `${contact.name} umbenennen`, exact: true }),
-    ).toBeFocused();
+    if (on) await expect(menuOf(contact.name)).toBeFocused();
+    else
+      await expect(
+        page.getByRole('button', { name: `${contact.name} umbenennen`, exact: true }),
+      ).toBeFocused();
     expect(mutations).toEqual([]);
     expect(await read(request, `/bookings/${bookings[0]!.id}`)).toEqual(beforeBooking);
     expect(await read(request, `/contacts/${contact.id}`)).toEqual(beforeHistory);
@@ -136,26 +151,20 @@ for (const theme of ['light', 'dark'] as const) {
       .fill('  Synthetic created contact  ');
     await create.getByRole('button', { name: 'Kontakt anlegen', exact: true }).click();
     await expect(create).not.toBeVisible();
-    await expect(
-      page.getByRole('button', { name: 'Synthetic created contact umbenennen', exact: true }),
-    ).toBeVisible();
-    await page.getByRole('button', { name: `${contact.name} umbenennen`, exact: true }).click();
+    await expect(present('Synthetic created contact')).toBeVisible();
+    await (await reach(contact.name, 'button', `${contact.name} umbenennen`)).click();
     await rename
       .getByRole('textbox', { name: 'Name', exact: true })
       .fill('  Synthetic renamed contact  ');
     await rename.getByRole('button', { name: 'Speichern', exact: true }).click();
     await expect(rename).not.toBeVisible();
-    await expect(
-      page.getByRole('button', { name: 'Synthetic renamed contact umbenennen', exact: true }),
-    ).toBeVisible();
+    await expect(present('Synthetic renamed contact')).toBeVisible();
     await page
       .locator('.toast')
       .filter({ hasText: 'Kontakt umbenannt.' })
       .getByRole('button', { name: 'Rückgängig', exact: true })
       .click();
-    await expect(
-      page.getByRole('button', { name: `${contact.name} umbenennen`, exact: true }),
-    ).toBeVisible();
+    await expect(present(contact.name)).toBeVisible();
     expect(mutations).toEqual([
       'POST /api/contacts',
       `PATCH /api/contacts/${contact.id}`,
@@ -188,7 +197,7 @@ for (const theme of ['light', 'dark'] as const) {
       });
     }
     if (on) {
-      await page.getByRole('link', { name: `Verlauf öffnen ${contact.name}`, exact: true }).click();
+      await (await reach(contact.name, 'link', `Verlauf öffnen ${contact.name}`)).click();
       await expect(
         page.getByRole('region', { name: 'Kontaktkontoauszug', exact: true }),
       ).toContainText(contact.name);
@@ -199,9 +208,7 @@ for (const theme of ['light', 'dark'] as const) {
       );
       await expect(page).toHaveURL(new RegExp('/einstellungen/kontakte\\?.*#synthetic-source$'));
       await page.reload();
-      await expect(
-        page.getByRole('button', { name: `${contact.name} umbenennen`, exact: true }),
-      ).toBeVisible();
+      await expect(present(contact.name)).toBeVisible();
     }
     expect(mutations).toEqual([
       'POST /api/contacts',

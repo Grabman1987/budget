@@ -564,3 +564,17 @@
     min-height: 44px;
   }
 }
+
+.instrument-region-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 90px auto;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.instrument-regions {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}

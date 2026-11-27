@@ -15,6 +15,7 @@ import { EmptyNote, ErrorNote, LoadingNote } from '../ledger/states';
 import { CONTACT_SETTINGS_META } from '../nav/pages';
 import { AppLink } from '../shell/app-link';
 import { PageFrame } from './placeholder-page';
+import { SettingsRowMenu } from './settings-row-menu';
 
 import { REDESIGN_ENABLED } from '../shell/redesign-flag';
 import { Plus } from 'lucide-react';
@@ -147,27 +148,33 @@ export function ContactSettingsPage() {
                     <div>
                       <strong>{contact.name}</strong>
                       <small>
-                        ID: <span>{contact.id}</span>
+                        {contact.mergedIntoId
+                          ? 'Zusammengeführt'
+                          : contact.archived
+                            ? 'Archiviert'
+                            : 'Aktiv'}
                       </small>
                       {identityRow(contact)}
                     </div>
                     <div className="settings-row-actions">
-                      {identityActions(contact)}
-                      <Button
-                        variant="ghost"
-                        aria-label={`${contact.name} umbenennen`}
-                        onClick={() => setRenaming(contact)}
-                      >
-                        Umbenennen
-                      </Button>
-                      <AppLink
-                        className="btn btn-ghost"
-                        aria-label={`Verlauf öffnen ${contact.name}`}
-                        to={`/konten/kontakte/${encodeURIComponent(contact.id)}`}
-                        search={(previous) => ({ ...previous, verlauf: 1 })}
-                      >
-                        Verlauf öffnen
-                      </AppLink>
+                      <SettingsRowMenu name={contact.name}>
+                        {identityActions(contact)}
+                        <Button
+                          variant="ghost"
+                          aria-label={`${contact.name} umbenennen`}
+                          onClick={() => setRenaming(contact)}
+                        >
+                          Umbenennen
+                        </Button>
+                        <AppLink
+                          className="btn btn-ghost"
+                          aria-label={`Verlauf öffnen ${contact.name}`}
+                          to={`/konten/kontakte/${encodeURIComponent(contact.id)}`}
+                          search={(previous) => ({ ...previous, verlauf: 1 })}
+                        >
+                          Verlauf öffnen
+                        </AppLink>
+                      </SettingsRowMenu>
                     </div>
                   </div>
                 ))}

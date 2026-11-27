@@ -110,27 +110,6 @@ export function AssignmentPage() {
                   ref={focusRuleAnchor}
                 >
                   <div>
-                    <small>
-                      {r.match.conditions
-                        .map((c) =>
-                          c.type === 'contains'
-                            ? `Banktext enthält „${c.text}“`
-                            : c.type === 'regex'
-                              ? `Muster „${c.pattern}“`
-                              : c.type === 'counterparty'
-                                ? `Gegenpart „${c.text}“`
-                                : c.type === 'direction'
-                                  ? c.direction === 'inflow'
-                                    ? 'Eingang'
-                                    : 'Ausgang'
-                                  : c.type === 'amount'
-                                    ? 'Betragsbereich'
-                                    : c.type === 'account'
-                                      ? 'Konto'
-                                      : 'Empfänger',
-                        )
-                        .join(r.match.mode === 'all' ? ' · und ' : ' · oder ')}
-                    </small>
                     <AssignmentSummary rule={{ ...r, unavailable: null }} />
                     <small>
                       {r.enabled ? 'aktiv' : 'deaktiviert'} ·{' '}
@@ -140,6 +119,30 @@ export function AssignmentPage() {
                           ? 'automatisch vorbereitet'
                           : 'Vorschlag'}
                     </small>
+                    <details className="settings-assignment-details">
+                      <summary>Bedingungen</summary>
+                      <small>
+                        {r.match.conditions
+                          .map((c) =>
+                            c.type === 'contains'
+                              ? `Banktext enthält „${c.text}“`
+                              : c.type === 'regex'
+                                ? `Muster „${c.pattern}“`
+                                : c.type === 'counterparty'
+                                  ? `Gegenpart „${c.text}“`
+                                  : c.type === 'direction'
+                                    ? c.direction === 'inflow'
+                                      ? 'Eingang'
+                                      : 'Ausgang'
+                                    : c.type === 'amount'
+                                      ? 'Betragsbereich'
+                                      : c.type === 'account'
+                                        ? 'Konto'
+                                        : 'Empfänger',
+                          )
+                          .join(r.match.mode === 'all' ? ' · und ' : ' · oder ')}
+                      </small>
+                    </details>
                   </div>
                   <div className="settings-row-actions">
                     <SettingsRowMenu name={r.name}>

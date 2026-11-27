@@ -61,6 +61,27 @@ const draftFor = (security?: SecurityRecord, effectiveDay = todayInVienna()): Dr
   ter: String((security?.terBp ?? 0) / 100).replace('.', ','),
   leverage: String((security?.leverageFactor ?? 10) / 10).replace('.', ','),
 });
+type RegionRow = { name: string; pct: string };
+/** Simple "Region · %" rows over the stored JSON format (fractions, e.g. {"Region":0.6}). */
+const regionRowsOf = (json: string): RegionRow[] => {
+  const weights = json.trim() ? parseRegionWeights(json) : null;
+  return Object.entries(weights ?? {}).map(([name, share]) => ({
+    name,
+    pct: String(Math.round(share * 10000) / 100).replace('.', ','),
+  }));
+};
+const regionRowsJson = (rows: RegionRow[]): string => {
+  const filled = rows.filter((r) => r.name.trim() || r.pct.trim());
+  if (!filled.length) return '';
+  const out: Record<string, number> = {};
+  for (const r of filled) {
+    const pct = r.pct.trim().replace(',', '.');
+    const name = r.name.trim();
+    if (!name || !/^\d+(\.\d{1,2})?$/.test(pct) || name in out) return 'invalid';
+    out[name] = Math.round(Number(pct) * 100) / 10000;
+  }
+  return JSON.stringify(out);
+};
 type Errors = Partial<Record<keyof Draft | 'form', string>>;
 
 /** Metadata and the explicit quote link use the existing audited security update. */
@@ -111,6 +132,14 @@ export function InstrumentForm({
   const latestFailure = latestQuoteFailure(diagnostics.data?.attempts);
   const qc = useQueryClient();
   const toast = useToast();
+  const [regionRows, setRows] = useState<RegionRow[]>(() => regionRowsOf(original.regionsJson));
+  const setRegionRows = (index: number, row: RegionRow | null) => {
+    const next = regionRows.slice();
+    if (row) next[index] = row;
+    else next.splice(index, 1);
+    setRows(next);
+    update('regionsJson', regionRowsJson(next));
+  };
   const changed = JSON.stringify(draft) !== JSON.stringify(original);
   const update = <K extends keyof Draft>(key: K, value: Draft[K]) => {
     const next = { ...draft, [key]: value };
@@ -153,7 +182,7 @@ export function InstrumentForm({
       invalid.quoteUrl = ARIVA_LINK_ERROR;
     if (draft.regionsJson.trim() && !parseRegionWeights(draft.regionsJson))
       invalid.regionsJson =
-        'Länderanteile als JSON eingeben; Anteile zwischen 0 und 1, Summe höchstens 1.';
+        'Länderanteile prüfen: Region und Anteil in % eingeben, Summe höchstens 100 %.';
     if (!name || name.length > 120) invalid.name = 'Name mit 1 bis 120 Zeichen eingeben.';
     if (!/^[A-Z]{3}$/.test(currency))
       invalid.currency = 'Dreistelligen Währungscode eingeben, etwa EUR.';
@@ -225,22 +254,6 @@ export function InstrumentForm({
   return (
     <form className="kform instrument-form" onSubmit={(event) => void save(event)}>
       <fieldset className="instrument-fields" disabled={busy}>
-        <Field
-          label="Länderanteile"
-          error={errors.regionsJson}
-          hint={'JSON, z. B. {"Region A":0.6,"Region B":0.4}. Leer bedeutet keine Angabe.'}
-        >
-          {({ id, describedBy, invalid }) => (
-            <TextInput
-              id={id}
-              value={draft.regionsJson}
-              maxLength={10000}
-              aria-describedby={describedBy}
-              aria-invalid={invalid}
-              onChange={(e) => update('regionsJson', e.target.value)}
-            />
-          )}
-        </Field>
         <Field label="Name" error={errors.name}>
           {({ id, describedBy, invalid }) => (
             <TextInput
@@ -427,6 +440,49 @@ export function InstrumentForm({
             />
           )}
         </Field>
+        <details className="settings-advanced instrument-advanced" open={!!errors.regionsJson}>
+          <summary>Erweitert</summary>
+          <fieldset className="instrument-regions">
+            <legend>Länderanteile</legend>
+            <p className="vnote">Region und Anteil in %. Leer bedeutet keine Angabe.</p>
+            {regionRows.map((row, index) => (
+              <div className="instrument-region-row" key={index}>
+                <TextInput
+                  aria-label={`Region ${index + 1}`}
+                  value={row.name}
+                  maxLength={60}
+                  onChange={(e) => setRegionRows(index, { name: e.target.value })}
+                />
+                <TextInput
+                  aria-label={`Anteil ${index + 1} (%)`}
+                  value={row.pct}
+                  inputMode="decimal"
+                  onChange={(e) => setRegionRows(index, { pct: e.target.value })}
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  aria-label={`Region ${index + 1} entfernen`}
+                  onClick={() => setRegionRows(index, null)}
+                >
+                  Entfernen
+                </Button>
+              </div>
+            ))}
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => setRegionRows(regionRows.length, { name: '', pct: '' })}
+            >
+              Region hinzufügen
+            </Button>
+            {errors.regionsJson && (
+              <p role="alert" className="field-error">
+                {errors.regionsJson}
+              </p>
+            )}
+          </fieldset>
+        </details>
         {errors.form && (
           <p role="alert" className="field-error">
             {maskMoneyText(errors.form)}

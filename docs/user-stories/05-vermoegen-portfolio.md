@@ -356,3 +356,5 @@ The project lead’s decision on 2026-11-23 uses the ordinary EUR booking workfl
 
 
 - **Vermögen › „Als Nächstes · Vermögen“ (#1352):** Die Karte trägt ihren Umfang im Titel und meldet „Keine offenen Vermögens-Aufgaben“, damit sie nicht mit den offenen Punkten unter Prüfen verwechselt wird. — **Status:** live mit Train 23 (Nutzerabnahme offen) — **Verweis:** #1352
+
+- **Vermögen › Instrument anlegen (#1380):** Feldreihenfolge Name, Art, Währung, ISIN, Symbol; Länderanteile unter „Erweitert“ als Zeilen „Region · %“ (gespeichert weiter im bisherigen Format), keine JSON-Eingabe nötig. — **Status:** umgesetzt (Branch fix/settings-contacts-1380), Abnahme offen — **Verweis:** #1380

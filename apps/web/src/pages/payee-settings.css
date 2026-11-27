@@ -30,3 +30,25 @@
   gap: 8px;
   min-height: 44px;
 }
+.payee-list {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.payee-item {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--rule);
+}
+.payee-item-main {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+.payee-item-main small {
+  color: var(--ink-2);
+}

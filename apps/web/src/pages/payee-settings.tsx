@@ -34,6 +34,8 @@ const aliasesQuery = () =>
     queryFn: () => request<{ aliases: PayeeAlias[] }>('GET', '/api/payees/aliases'),
   });
 
+const PAYEE_PAGE = 50;
+
 const fold = (text: string) =>
   text.normalize('NFD').replace(/\p{M}/gu, '').toLocaleLowerCase('de-AT');
 
@@ -42,6 +44,7 @@ export function PayeeSettingsPage() {
   const aliases = useQuery(aliasesQuery());
   const write = useContactWrite();
   const [search, setSearch] = useState('');
+  const [limit, setLimit] = useState(PAYEE_PAGE);
   const [selected, setSelected] = useState<string[]>([]);
   const [merging, setMerging] = useState<string[] | null>(null);
   const [renaming, setRenaming] = useState<{ id: string; name: string } | null>(null);
@@ -57,6 +60,7 @@ export function PayeeSettingsPage() {
     [rows],
   );
   const shown = rows.filter((p) => fold(p.name).includes(fold(search.trim())));
+  const visible = shown.slice(0, limit);
   const aliasesOf = (id: string) => (aliases.data?.aliases ?? []).filter((a) => a.payeeId === id);
   const toggle = (id: string) =>
     setSelected((now) => (now.includes(id) ? now.filter((x) => x !== id) : [...now, id]));
@@ -111,7 +115,10 @@ export function PayeeSettingsPage() {
                       type="search"
                       autoComplete="off"
                       value={search}
-                      onChange={(e) => setSearch(e.target.value)}
+                      onChange={(e) => {
+                        setSearch(e.target.value);
+                        setLimit(PAYEE_PAGE);
+                      }}
                     />
                   )}
                 </Field>
@@ -125,69 +132,60 @@ export function PayeeSettingsPage() {
                   {rows.length === 0 ? 'Noch keine Empfänger.' : 'Kein Empfänger gefunden.'}
                 </EmptyNote>
               ) : (
-                <div className="payee-table-scroll">
-                  <table className="contacts-table">
-                    <caption className="sr-only">Empfänger</caption>
-                    <thead>
-                      <tr>
-                        <th scope="col">Auswahl</th>
-                        <th scope="col">Empfänger</th>
-                        <th scope="col">Buchungen</th>
-                        <th scope="col">Zuletzt verwendet</th>
-                        <th scope="col">Aktionen</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {shown.map((p) => (
-                        <tr key={p.id} data-testid="payee-row">
-                          <td>
-                            <input
-                              type="checkbox"
-                              aria-label={`${p.name} auswählen`}
-                              checked={selected.includes(p.id)}
-                              onChange={() => toggle(p.id)}
-                            />
-                          </td>
-                          <td>
-                            <strong>{p.name}</strong>
-                            {aliasesOf(p.id).map((a) => (
-                              <p className="tech" key={a.id}>
-                                Alias: {a.rawKey}{' '}
-                                <Button
-                                  variant="ghost"
-                                  aria-label={`Alias ${a.rawKey} von ${p.name} entfernen`}
-                                  onClick={() =>
-                                    void write(
-                                      () =>
-                                        request<{ groupId: string }>(
-                                          'DELETE',
-                                          `/api/payees/aliases/${encodeURIComponent(a.id)}`,
-                                        ),
-                                      'Alias entfernt.',
-                                    )
-                                  }
-                                >
-                                  Entfernen
-                                </Button>
-                              </p>
-                            ))}
-                          </td>
-                          <td>{p.bookingCount ?? 0}</td>
-                          <td>{p.lastBookingDate ? longDay(p.lastBookingDate) : '–'}</td>
-                          <td>
-                            <Button
-                              variant="ghost"
-                              aria-label={`${p.name} umbenennen`}
-                              onClick={() => setRenaming({ id: p.id, name: p.name })}
-                            >
-                              Umbenennen
-                            </Button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                <>
+                  <ul className="payee-list">
+                    {visible.map((p) => (
+                      <li key={p.id} className="payee-item" data-testid="payee-row">
+                        <input
+                          type="checkbox"
+                          aria-label={`${p.name} auswählen`}
+                          checked={selected.includes(p.id)}
+                          onChange={() => toggle(p.id)}
+                        />
+                        <div className="payee-item-main">
+                          <strong>{p.name}</strong>
+                          <small>
+                            {pluralBookings(p.bookingCount ?? 0)} · zuletzt{' '}
+                            {p.lastBookingDate ? longDay(p.lastBookingDate) : '–'}
+                          </small>
+                          {aliasesOf(p.id).map((a) => (
+                            <small key={a.id}>
+                              Alias: {a.rawKey}{' '}
+                              <Button
+                                variant="ghost"
+                                aria-label={`Alias ${a.rawKey} von ${p.name} entfernen`}
+                                onClick={() =>
+                                  void write(
+                                    () =>
+                                      request<{ groupId: string }>(
+                                        'DELETE',
+                                        `/api/payees/aliases/${encodeURIComponent(a.id)}`,
+                                      ),
+                                    'Alias entfernt.',
+                                  )
+                                }
+                              >
+                                Entfernen
+                              </Button>
+                            </small>
+                          ))}
+                        </div>
+                        <Button
+                          variant="ghost"
+                          aria-label={`${p.name} umbenennen`}
+                          onClick={() => setRenaming({ id: p.id, name: p.name })}
+                        >
+                          Umbenennen
+                        </Button>
+                      </li>
+                    ))}
+                  </ul>
+                  {shown.length > visible.length && (
+                    <Button variant="ghost" onClick={() => setLimit((n) => n + PAYEE_PAGE)}>
+                      Weitere anzeigen ({shown.length - visible.length})
+                    </Button>
+                  )}
+                </>
               )}
             </section>
           </>

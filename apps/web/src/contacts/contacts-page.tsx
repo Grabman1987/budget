@@ -1427,7 +1427,31 @@ function ContactCredits({ statement }: { statement: Statement }) {
       automaticallyUsedCents: 0,
     })) ??
     [];
+  const openChoices = choices.filter((c) => c.availableCents > 0);
+  const settledChoices = choices.filter((c) => c.availableCents <= 0);
   const credit = choices.find((c) => c.receiptSplitId === selected);
+  const creditRow = (c: (typeof choices)[number]) => (
+    <p key={c.receiptSplitId}>
+      {eur(c.remainingCents)} ·{' '}
+      {c.categoryId
+        ? `Vorgemerkt: ${lookups.data?.categories.find((category) => category.id === c.categoryId)?.name ?? 'Kategorie'}`
+        : 'Freies Kontaktguthaben'}{' '}
+      {c.automaticallyUsedCents > 0 &&
+        `· automatisch verrechnet: ${eur(c.automaticallyUsedCents)} `}
+      <Button
+        variant="ghost"
+        onClick={() => {
+          setSelected(c.receiptSplitId);
+          setUnlock(false);
+          setAmount(decimal(c.availableCents));
+          setChoice(c.categoryId ? 'category' : 'free');
+          setCategoryId(c.categoryId ?? '');
+        }}
+      >
+        Guthaben ändern
+      </Button>
+    </p>
+  );
   const parsed = parseAmount(amount);
   const valid =
     credit &&
@@ -1442,28 +1466,13 @@ function ContactCredits({ statement }: { statement: Statement }) {
       {!!choices.length && (
         <section aria-label="Kontaktguthaben">
           <h3>Guthaben verwenden</h3>
-          {choices.map((c) => (
-            <p key={c.receiptSplitId}>
-              {eur(c.remainingCents)} ·{' '}
-              {c.categoryId
-                ? `Vorgemerkt: ${lookups.data?.categories.find((category) => category.id === c.categoryId)?.name ?? 'Kategorie'}`
-                : 'Freies Kontaktguthaben'}{' '}
-              {c.automaticallyUsedCents > 0 &&
-                `· automatisch verrechnet: ${eur(c.automaticallyUsedCents)} `}
-              <Button
-                variant="ghost"
-                onClick={() => {
-                  setSelected(c.receiptSplitId);
-                  setUnlock(false);
-                  setAmount(decimal(c.availableCents));
-                  setChoice(c.categoryId ? 'category' : 'free');
-                  setCategoryId(c.categoryId ?? '');
-                }}
-              >
-                Guthaben ändern
-              </Button>
-            </p>
-          ))}
+          {openChoices.map(creditRow)}
+          {settledChoices.length > 0 && (
+            <details className="contact-credits-settled">
+              <summary>Verrechnete Guthaben ({settledChoices.length})</summary>
+              {settledChoices.map(creditRow)}
+            </details>
+          )}
         </section>
       )}
       {credit && (

@@ -192,7 +192,7 @@ it('shows zero and retained contact identities without financial report reads; o
   const audit = view.opened.db.select().from(schema.auditLog).all().length;
   await screen.findByRole('button', { name: 'Freund umbenennen' });
   expect(screen.getByText('Synthetic zero', { exact: true })).toBeTruthy();
-  expect(screen.getByText('k1', { exact: true })).toBeTruthy();
+  expect(screen.queryByText('k1', { exact: true })).toBeNull();
   expect(screen.queryByRole('columnheader', { name: 'Saldo' })).toBeNull();
   fireEvent.click(screen.getByRole('button', { name: 'Freund umbenennen' }));
   const dialog = (await screen.findByRole('dialog', {
