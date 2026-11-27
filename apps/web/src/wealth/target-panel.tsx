@@ -674,7 +674,7 @@ export function TargetEditor({
                         <strong>{row.label || `Stufe ${index + 1}`}</strong>
                         <small>{stageStatus(index)}</small>
                       </th>
-                      <td>
+                      <td data-label="ab Invest (€)">
                         <TextInput
                           aria-label={`Stufe ${index + 1} · Ab Vermögen (€)`}
                           aria-invalid={Boolean(errors['limit:' + index])}
@@ -690,7 +690,7 @@ export function TargetEditor({
                         />
                       </td>
                       {columns.map((c) => (
-                        <td key={c.id}>
+                        <td key={c.id} data-label={`${c.name} %`}>
                           {row.entries[c.id]!.included ? (
                             <TextInput
                               aria-label={`Stufe ${index + 1} · ${c.name} · Soll (%)`}
@@ -711,7 +711,7 @@ export function TargetEditor({
                           )}
                         </td>
                       ))}
-                      <td>
+                      <td data-label="Summe">
                         <strong>{bpText(sums[index]!)} %</strong>
                       </td>
                       <td>
@@ -1159,7 +1159,7 @@ export function TargetEditor({
                     return (
                       <tr key={c.id}>
                         <th scope="row">{c.name}</th>
-                        <td>
+                        <td data-label="Soll (%)">
                           {entry.included ? (
                             <TextInput
                               aria-label={`${c.name} · Soll (%)`}
@@ -1187,7 +1187,7 @@ export function TargetEditor({
                             </p>
                           )}
                         </td>
-                        <td>
+                        <td data-label="Band">
                           {entry.included ? (
                             <Select
                               aria-label={`${c.name} · Band`}
@@ -1204,7 +1204,7 @@ export function TargetEditor({
                             <span>—</span>
                           )}
                         </td>
-                        <td>
+                        <td data-label="± Prozentpunkte">
                           {!entry.included ? (
                             <span>—</span>
                           ) : entry.bandMode === 'custom' ? (
@@ -1234,7 +1234,7 @@ export function TargetEditor({
                             </p>
                           )}
                         </td>
-                        <td>
+                        <td data-label="Verwalten">
                           <label className="asset-check">
                             <input
                               type="checkbox"
