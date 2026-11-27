@@ -36,8 +36,8 @@ const proposals = () =>
     .all()
     .filter((i) => i.refType === LINK_PROPOSAL_REF);
 
-describe('matching never misses what the owner still has to decide (#1376)', () => {
-  it('(a) keeps an occurrence with an open link proposal expected', () => {
+describe('matching closes the window but keeps decisions open (#1376)', () => {
+  it('(a) a past occurrence is missed, its open link proposal stays confirmable', () => {
     // Two equal payments and one booking: ambiguous, so a proposal opens and nothing is linked.
     const mk = (name: string) =>
       createExpectedPayment(
@@ -71,15 +71,12 @@ describe('matching never misses what the owner still has to decide (#1376)', () 
     expect(summary.proposed).toBeGreaterThan(0);
     const march = (id: string) => occurrences(id).find((o) => o.dueDate === '2026-03-10')!;
     const proposed = proposals().map((p) => p.refId);
-    for (const id of [a.id, b.id]) {
-      const occ = march(id);
-      expect(occ.status).toBe(proposed.includes(occ.id) ? 'expected' : 'missed');
-    }
+    // A past date never stays an open bill; the proposal remains for the owner to confirm.
+    for (const id of [a.id, b.id]) expect(march(id).status).toBe('missed');
     expect(proposed.length).toBeGreaterThan(0);
-    expect(summary.missed).toBeLessThan(2);
   });
 
-  it('(b) proposes a recurring transfer against the transfer leg instead of missing it', () => {
+  it('(b) proposes a recurring transfer against its transfer leg', () => {
     const p = createExpectedPayment(
       db,
       { name: 'Umbuchung Sparen', accountId: 'giro', dueDay: 10, startDate: '2026-03-01' },
@@ -96,7 +93,8 @@ describe('matching never misses what the owner still has to decide (#1376)', () 
     const march = occurrences(p.id).find((o) => o.dueDate === '2026-03-10')!;
     expect(summary.proposed + summary.received).toBeGreaterThan(0);
     expect(proposals().map((i) => i.refId)).toContain(march.id);
-    expect(march.status).toBe('expected');
+    // Past its window the date is missed; confirming the proposal links it.
+    expect(march.status).toBe('missed');
   });
 
   it('(b) a plain booking never fits a payment without any counterparty', () => {

@@ -48,7 +48,6 @@ import { ConflictError, EntityNotFoundError } from './errors';
 import {
   bankPayeeFacts,
   closeStaleLinkProposals,
-  hasOpenLinkProposal,
   ensureLinkProposal,
   isRejectedPair,
   previouslyLinkedBookingIds,
@@ -1048,12 +1047,8 @@ export function matchOccurrences(
         if (proposal.created) summary.proposed++;
       }
       // The window closes as before; an open proposal stays confirmable for a missed occurrence.
-      // Never while the owner still has to decide a link proposal of this occurrence (#1376).
-      if (
-        !options.autoOnly &&
-        today > addDays(occ.dueDate, payment.dateWindowDays) &&
-        !hasOpenLinkProposal(tx, occ.id)
-      ) {
+      // (#1376: keeping such dates "expected" would count them as open bills in Heute.)
+      if (!options.autoOnly && today > addDays(occ.dueDate, payment.dateWindowDays)) {
         updateTracked(tx, expectedOccurrence, [occ.id], { status: 'missed' }, grouped);
         summary.missed++;
       }
