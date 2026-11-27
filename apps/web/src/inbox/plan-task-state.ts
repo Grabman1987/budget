@@ -10,6 +10,8 @@ export interface PlanTaskState {
   /** Zu verteilen of the month; negative = zu viel zugewiesen. */
   assignmentCents: number | undefined;
   overspentCount: number;
+  /** Ungedeckt aus dem Vormonat (the Plan month summary figure); 0 when none. */
+  uncoveredCents?: number | undefined;
 }
 
 export function usePlanTaskState(enabled: boolean): PlanTaskState | undefined {
@@ -31,6 +33,7 @@ export function usePlanTaskState(enabled: boolean): PlanTaskState | undefined {
   return {
     month: readyHeute?.stand.today.slice(0, 7) ?? month,
     assignmentCents: readyBudget?.summary.toBeAssignedCents,
+    uncoveredCents: readyBudget?.summary.uncoveredCents,
     overspentCount:
       readyHeute?.nextSteps.items.filter((item) => item.kind === 'overspent').length ?? 0,
   };

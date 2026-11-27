@@ -727,3 +727,8 @@ Status: implemented for review; CI and owner acceptance pending. Other reports i
 - As a household member, I can read the Explorer pivot, template values and the original rows behind “Weitere” in the same register-style tables. On a phone, I can open the retained full table and scroll inside it. The headers stay visible and figures align to the right.
 - Positive values have no plus prefix. Negative values keep their minus sign. Above-average expenses use the unfavorable color, above-average income uses the favorable color, and original chart rows use neutral ink.
 - The same source values, booking links, period selection, saved views, CSV and amount masking remain available.
+
+## Begriffe und Kontaktzahlungen (#1378)
+
+- Als Haushaltsmitglied sehe ich „Konsum“ in Kategorien, Vergleich und Ausgabenanalyse mit einer Definition: Bedarf plus Wunsch, ohne Zukunft, netto nach Erstattungen. Die Kategorien-Fußnote und die Vergleichssumme nennen diese Basis. Der Empfänger-Report heißt in der Kennzahl „Ausgaben bei Empfängern“ und erklärt, dass Erstattungen beim gebuchten Empfänger bleiben und die Summe deshalb leicht abweichen kann. Status: umgesetzt (Branch fix/report-terms-1378), Abnahme offen.
+- Eine erwartete Zahlung, die vollständig Kontoanteil ist (Kontakt zahlt zurück oder vor), zählt im Monatsbericht und in den erwarteten Einnahmen nicht als „erwartete Einnahme“, weil sie eine Kontaktverrechnung und keine Haushaltseinnahme ist. Status: umgesetzt (Branch fix/report-terms-1378), Abnahme offen.
