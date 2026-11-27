@@ -33,3 +33,67 @@
     border-bottom: 0;
   }
 }
+
+/* #1381: on the phone each booking is two lines (name + amount, date · category), no sideways table. */
+@media (max-width: 767px) {
+  :root:has([data-budget-redesign='1']) .pace-bookings .report-table-scroll {
+    overflow: visible;
+    max-height: none;
+  }
+  :root:has([data-budget-redesign='1']) .pace-bookings-table.report-table,
+  :root:has([data-budget-redesign='1']) .pace-bookings-table.report-table tbody,
+  :root:has([data-budget-redesign='1']) .pace-bookings-table.report-table tfoot {
+    display: block;
+  }
+  :root:has([data-budget-redesign='1']) .pace-bookings-table.report-table thead {
+    position: absolute;
+    clip-path: inset(50%);
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+  }
+  :root:has([data-budget-redesign='1']) .pace-bookings-table.report-table tbody tr {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-areas:
+      'name name amount'
+      'date cat cat';
+    column-gap: 8px;
+    padding: 6px 0;
+    border-bottom: 1px solid var(--rule);
+  }
+  :root:has([data-budget-redesign='1']) .pace-bookings-table.report-table tfoot tr {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 0;
+  }
+  :root:has([data-budget-redesign='1']) .pace-bookings-table.report-table :is(th, td) {
+    display: block;
+    min-width: 0;
+    padding: 0;
+    border: 0;
+  }
+  :root:has([data-budget-redesign='1']) .pace-bookings-table .pb-name {
+    grid-area: name;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  :root:has([data-budget-redesign='1']) .pace-bookings-table .pb-amount {
+    grid-area: amount;
+  }
+  :root:has([data-budget-redesign='1']) .pace-bookings-table .pb-date,
+  :root:has([data-budget-redesign='1']) .pace-bookings-table .pb-cat {
+    color: var(--ink-2);
+    font-size: var(--fs-meta);
+  }
+  :root:has([data-budget-redesign='1']) .pace-bookings-table .pb-date {
+    grid-area: date;
+  }
+  :root:has([data-budget-redesign='1']) .pace-bookings-table .pb-cat {
+    grid-area: cat;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}

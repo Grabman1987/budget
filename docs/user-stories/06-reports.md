@@ -727,3 +727,7 @@ Status: implemented for review; CI and owner acceptance pending. Other reports i
 - As a household member, I can read the Explorer pivot, template values and the original rows behind “Weitere” in the same register-style tables. On a phone, I can open the retained full table and scroll inside it. The headers stay visible and figures align to the right.
 - Positive values have no plus prefix. Negative values keep their minus sign. Above-average expenses use the unfavorable color, above-average income uses the favorable color, and original chart rows use neutral ink.
 - The same source values, booking links, period selection, saved views, CSV and amount masking remain available.
+### R-xx – Report-Unterseiten am Telefon (#1381)
+- **Story:** Als Nutzer möchte ich Reports › Kontakte, Auswertung, Empfänger und Gehalt am Telefon lesbar sehen.
+- **Abnahmekriterien:** Kontakte ohne seitliche Tabelle, Namen brechen nie je Buchstabe; Auswertung zeigt standardmäßig den laufenden Monat; Empfängernamen über bis zu zwei Zeilen; Gehalt „Bestandteile laut Quelle“ mit linksbündigen, normalen Beschriftungen und rechtsbündigen Beträgen.
+- **Status:** umgesetzt (Branch fix/subpages-phone-1381), Abnahme offen — **Verweis:** #1381

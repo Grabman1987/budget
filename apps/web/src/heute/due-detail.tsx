@@ -1,10 +1,65 @@
 import { useAmountPrivacy } from '@budget/ui';
-import { CircleCheck, Clock } from 'lucide-react';
+import { CircleCheck, Clock, Ellipsis } from 'lucide-react';
+import { useEffect, useId, useRef, useState } from 'react';
+import { useBudgetWrite } from '../budget/use-category-writes';
+import { useIsPhone } from '../budget/month-span';
+import { skipOccurrence } from '../expected/api';
 import { eur, shortDay } from '../ledger/format';
 import { AppLink } from '../shell/app-link';
 import { readLiquiditySelection } from '../reports/liquidity-selection';
 import type { Heute, HeuteOccurrence } from './api';
 import { StrikeButton, statusText } from './upcoming-payments';
+
+/** Phone: the "strike this month" action hides behind a ⋯ menu instead of a multi-line button (#1381). */
+function StrikeMenu({ item }: { item: HeuteOccurrence }) {
+  const write = useBudgetWrite();
+  const [open, setOpen] = useState(false);
+  const wrap = useRef<HTMLSpanElement>(null);
+  const menuId = useId();
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: PointerEvent) => {
+      if (!wrap.current?.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('pointerdown', onDown);
+    return () => document.removeEventListener('pointerdown', onDown);
+  }, [open]);
+  const label = `Diesen Monat streichen: ${item.name}, ${shortDay(item.dueDate)}`;
+  return (
+    <span className="hv-due-menu" ref={wrap}>
+      <button
+        type="button"
+        className="icon-btn hv-due-menu-btn"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-controls={open ? menuId : undefined}
+        aria-label={`Weitere Aktionen: ${item.name}`}
+        onClick={() => setOpen((o) => !o)}
+      >
+        <Ellipsis size={16} strokeWidth={1.75} aria-hidden="true" />
+      </button>
+      {open && (
+        <span id={menuId} className="hv-due-menu-list" role="menu">
+          <button
+            type="button"
+            role="menuitem"
+            className="hv-due-menu-item"
+            aria-label={label}
+            onClick={() => {
+              setOpen(false);
+              void write(
+                () => skipOccurrence(item.paymentId, item.dueDate),
+                () => `${item.name}: ${shortDay(item.dueDate)} gestrichen`,
+              );
+            }}
+          >
+            Diesen Monat streichen
+          </button>
+        </span>
+      )}
+    </span>
+  );
+}
 
 /** "Fällig · alle Zahlungen": one compact table, Datum · Zahlung · Konto · Betrag · Deckung. */
 export function DueDetail({
@@ -18,6 +73,7 @@ export function DueDetail({
   onOpenOccurrence: (item: HeuteOccurrence) => void;
 }) {
   useAmountPrivacy();
+  const phone = useIsPhone();
   const selection = readLiquiditySelection();
   const rows = [
     ...data.upcoming14.map((item) => ({ date: item.dueDate, item })),
@@ -119,9 +175,9 @@ export function DueDetail({
                   ) : (
                     statusText(row.item.status)
                   )}
-                  {row.item.kind === 'inflow' && row.item.status === 'expected' && (
-                    <StrikeButton item={row.item} />
-                  )}
+                  {row.item.kind === 'inflow' &&
+                    row.item.status === 'expected' &&
+                    (phone ? <StrikeMenu item={row.item} /> : <StrikeButton item={row.item} />)}
                 </td>
               </tr>
             ),

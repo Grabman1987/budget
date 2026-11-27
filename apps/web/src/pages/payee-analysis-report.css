@@ -118,7 +118,7 @@
 
 .payee-bars li {
   display: grid;
-  grid-template-columns: minmax(100px, 0.8fr) minmax(70px, 1fr) minmax(92px, auto);
+  grid-template-columns: minmax(130px, 1fr) minmax(70px, 1fr) minmax(92px, auto);
   align-items: center;
   gap: 10px;
   min-width: 0;
@@ -137,9 +137,22 @@
   color: var(--ink);
   font: inherit;
   text-align: start;
+  cursor: pointer;
+}
+
+/* #1381: names wrap to at most two lines instead of being cut hard. */
+.payee-bar-name {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: var(--lh-meta, 1.25);
+}
+.payee-row-button {
   text-overflow: ellipsis;
   white-space: nowrap;
-  cursor: pointer;
 }
 
 .payee-bar-name:hover,
@@ -320,7 +333,7 @@
     text-align: end;
   }
   .payee-bars li {
-    grid-template-columns: minmax(86px, 0.75fr) minmax(45px, 1fr) minmax(83px, auto);
+    grid-template-columns: minmax(104px, 1fr) minmax(40px, 0.7fr) minmax(83px, auto);
     gap: 7px;
   }
   .payee-bars li > strong {

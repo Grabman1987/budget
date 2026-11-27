@@ -50,7 +50,7 @@
 }
 .payments-reference .xp-table {
   width: 100%;
-  min-width: 820px;
+  min-width: 900px;
   border-collapse: collapse;
   table-layout: fixed;
   font-size: var(--fs-table);
@@ -71,19 +71,19 @@
   width: auto;
 }
 .payments-reference .xp-table .col-interval {
-  width: 150px;
+  width: 120px;
   color: var(--ink-2);
 }
 .payments-reference .xp-table .col-account {
-  width: 130px;
+  width: 112px;
   color: var(--ink-2);
 }
 .payments-reference .xp-table .col-num {
-  width: 130px;
+  width: 112px;
   text-align: right;
 }
 .payments-reference .xp-table .col-due {
-  width: 108px;
+  width: 96px;
 }
 .payments-reference .xp-table .col-state,
 .payments-reference .xp-table .col-action {
@@ -95,6 +95,21 @@
   align-items: center;
   gap: var(--space-xs);
   min-height: var(--touch);
+}
+/* #1381: "Zahlung" has priority width; long names wrap to at most two lines. */
+.payments-reference .xp-table .col-name .xp-name {
+  min-width: 0;
+  max-width: 100%;
+  text-align: left;
+}
+.payments-reference .xp-table .col-name .xp-name strong {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 .payments-reference .xp-table .xp-name svg {
   flex-shrink: 0;

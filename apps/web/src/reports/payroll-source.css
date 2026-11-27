@@ -1,0 +1,17 @@
+/* #1381: key-value table like the others: regular left labels, right-aligned amounts. */
+:root:has([data-budget-redesign='1']) .pp-source table.rtable :is(th, td) {
+  padding: 8px 0;
+  border-bottom: 1px solid var(--rule);
+  vertical-align: top;
+}
+:root:has([data-budget-redesign='1']) .pp-source table.rtable th {
+  font-weight: 400;
+  text-align: left;
+  overflow-wrap: break-word;
+}
+:root:has([data-budget-redesign='1']) .pp-source table.rtable td.n {
+  text-align: right;
+  white-space: nowrap;
+  padding-left: 12px;
+  font-variant-numeric: tabular-nums;
+}
