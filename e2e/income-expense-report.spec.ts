@@ -83,3 +83,10 @@ test('direct invalid report cells retain a usable back link and report period', 
   await page.getByRole('link', { name: 'Zurück zu Einnahmen und Ausgaben' }).click();
   await expect(page).toHaveURL(/\/reports\/einnahmen-ausgaben\?zeitraum=1J/);
 });
+
+test('bookings page opened without a cell lists the period bookings (#1377)', async ({ page }) => {
+  await page.goto('/reports/einnahmen-ausgaben/buchungen?zeitraum=1J');
+  const sources = page.getByTestId('income-expense-sources');
+  await expect(sources.getByRole('link').first()).toBeVisible({ timeout: 30_000 });
+  await expect(sources).not.toContainText('nicht verfügbar');
+});

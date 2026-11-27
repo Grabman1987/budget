@@ -6,6 +6,7 @@ import {
   cents,
   expectedIncome,
   formatEuro,
+  mulDivRound,
   incomeWindow,
   lastDayOfMonth,
   monthFindings,
@@ -261,6 +262,7 @@ function expectedOf(db: Executor, f: Frame, income: MonthIncome) {
               status: r.status,
               expectedCents: r.amountCents,
               receivedCents: r.bookedAmountCents ?? 0,
+              contactShareCents: r.contactShareCents,
             },
           ],
     );
@@ -297,6 +299,10 @@ function expectedOf(db: Executor, f: Frame, income: MonthIncome) {
         status: 'unlinked' as const,
         expectedCents: o.cents,
         receivedCents: 0,
+        contactShareCents:
+          o.payment.contactShareCents != null
+            ? Math.min(o.payment.contactShareCents, o.cents)
+            : mulDivRound(o.cents, o.payment.contactShareBp ?? 0, 10000),
       }));
     materialised = false;
   }

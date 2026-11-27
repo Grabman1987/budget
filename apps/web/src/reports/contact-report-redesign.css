@@ -253,3 +253,114 @@
 [data-budget-redesign='1'] .r4-contact-settled-list[open] > summary::before {
   transform: rotate(90deg);
 }
+
+/* #1381: on the phone the statement is a list of two-line rows (recipient + amount, date + settle box),
+   not a sideways table; names never break per letter. */
+@media (max-width: 767px) {
+  [data-budget-redesign='1'] .r4-contact-report .report-table-scroll {
+    /* clip, not visible: nowrap sr-only labels inside the rows would otherwise widen the page
+       (the phone then zooms out and taps miss their targets). */
+    overflow: clip;
+    max-height: none;
+  }
+  [data-budget-redesign='1'] .r4-contact-report table.contact-report-register,
+  [data-budget-redesign='1'] .r4-contact-report table.contact-report-register tbody,
+  [data-budget-redesign='1'] .r4-contact-report table.contact-report-register tfoot {
+    display: block;
+  }
+  [data-budget-redesign='1'] .r4-contact-report table.contact-report-register thead {
+    position: absolute;
+    clip-path: inset(50%);
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+  }
+  [data-budget-redesign='1']
+    .r4-contact-report
+    table.contact-report-register
+    tbody
+    tr:not(.contact-month-head, .contact-month-summary),
+  [data-budget-redesign='1'] .r4-contact-report table.contact-report-register tfoot tr {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      'name amount'
+      'date settle';
+    column-gap: 8px;
+    align-items: center;
+    padding: 6px 0;
+    border-bottom: 1px solid var(--rule);
+  }
+  [data-budget-redesign='1']
+    .r4-contact-report
+    table.contact-report-register
+    :is(.contact-month-head, .contact-month-summary) {
+    display: block;
+  }
+  [data-budget-redesign='1'] .r4-contact-report table.contact-report-register tbody tr td,
+  [data-budget-redesign='1'] .r4-contact-report table.contact-report-register tfoot tr :is(th, td) {
+    display: block;
+    width: auto;
+    min-width: 0;
+    padding: 0;
+    border: 0;
+    overflow-wrap: normal;
+    word-break: normal;
+  }
+  [data-budget-redesign='1']
+    .r4-contact-report
+    table.contact-report-register
+    tbody
+    tr
+    td:nth-child(2) {
+    grid-area: name;
+    text-align: left;
+  }
+  [data-budget-redesign='1']
+    .r4-contact-report
+    table.contact-report-register
+    tbody
+    tr
+    td.contact-source-cell,
+  [data-budget-redesign='1'] .r4-contact-report table.contact-report-register .contact-source {
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    text-align: left;
+  }
+  [data-budget-redesign='1']
+    .r4-contact-report
+    table.contact-report-register
+    tbody
+    tr
+    td.contact-date {
+    grid-area: date;
+    width: auto;
+    color: var(--ink-2);
+    font-size: var(--fs-meta);
+  }
+  [data-budget-redesign='1']
+    .r4-contact-report
+    table.contact-report-register
+    tbody
+    tr
+    td.contact-amount {
+    grid-area: amount;
+    text-align: right;
+  }
+  [data-budget-redesign='1']
+    .r4-contact-report
+    table.contact-report-register
+    tbody
+    tr
+    td.contact-settle {
+    grid-area: settle;
+    text-align: right;
+  }
+  [data-budget-redesign='1'] .r4-contact-report table.contact-report-register tfoot tr {
+    grid-template-areas: none;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+  }
+}

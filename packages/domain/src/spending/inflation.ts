@@ -272,7 +272,8 @@ export function personalInflation(input: {
   reference?: Readonly<Record<string, number>> | null;
 }): PersonalInflation {
   // Price relatives belong to items, never to the sum of contracts in a category.
-  const raw = input.items.filter((i) => Object.values(i.level).some((v) => (v ?? 0) > 0));
+  // Only prices inside the window count: an item priced only outside it has no change to show.
+  const raw = input.items.filter((i) => input.available.some((m) => (i.level[m] ?? 0) > 0));
   const first = input.available.findIndex((m) => raw.some((i) => (i.level[m] ?? 0) > 0));
   const available = input.available.slice(Math.max(0, first));
   if (available.length < 13) return empty();

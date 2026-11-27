@@ -3,6 +3,7 @@ import type { InboxTaskSource } from '@budget/domain';
 import { Fragment, type ReactNode } from 'react';
 import { Landmark, NotebookPen, Receipt, FileText, CircleHelp } from 'lucide-react';
 import { AppLink } from '../shell/app-link';
+import { eur } from '../ledger/format';
 import { REDESIGN_ENABLED } from '../shell/redesign-flag';
 import type { PlanTaskState } from './plan-task-state';
 
@@ -28,6 +29,8 @@ export function TaskSourceSummary({
         `${planState.overspentCount} ${planState.overspentCount === 1 ? 'Kategorie' : 'Kategorien'} überzogen`,
       );
     if ((planState.assignmentCents ?? 0) < 0) planProblems.push('zu viel zugewiesen');
+    if ((planState.uncoveredCents ?? 0) > 0)
+      planProblems.push(`${eur(planState.uncoveredCents!)} ungedeckt aus dem Vormonat`);
   }
   const planLink = planProblems.length
     ? planState!.overspentCount > 0

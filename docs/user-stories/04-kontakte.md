@@ -167,3 +167,5 @@ Als Nutzer will ich bei einer wiederkehrenden Zahlung statt eines Prozentanteils
 - **Status:** live mit Train 24 (Nutzerabnahme offen) — **Verweis:** Review 26.11
 
 - Kontaktanteile werden nur in Euro erfasst; Rechnen im Feld (z. B. 1809,61/2) ersetzt Prozente (Owner 26.11.2026). Eine ältere Zahlung mit Prozentanteil zeigt im Formular den Euro-Gegenwert der aktuellen Version; Speichern wandelt sie in Euro um.
+
+- **Kontaktdetail › „Guthaben verwenden“ (#1380):** Es erscheinen nur offene Guthaben (verfügbarer Betrag über 0); verrechnete stehen eingeklappt unter „Verrechnete Guthaben (N)“. — **Status:** live mit Train 25 (Nutzerabnahme offen) — **Verweis:** #1380

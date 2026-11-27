@@ -41,7 +41,19 @@ export function SettingsRowMenu({ name, children }: { name: string; children: Re
     };
   }, []);
   return (
-    <details ref={ref} className="settings-row-menu">
+    <details
+      ref={ref}
+      className="settings-row-menu"
+      onToggle={(event) => {
+        const menu = event.currentTarget;
+        menu.removeAttribute('data-up');
+        if (!menu.open) return;
+        const items = menu.querySelector('.settings-row-menu-items');
+        const tabbar = document.querySelector('nav.tabbar');
+        const limit = tabbar ? tabbar.getBoundingClientRect().top : window.innerHeight;
+        if (items && items.getBoundingClientRect().bottom > limit) menu.setAttribute('data-up', '');
+      }}
+    >
       <summary aria-label={`Aktionen für ${name}`}>
         <Ellipsis size={18} aria-hidden="true" />
       </summary>

@@ -259,6 +259,10 @@
   background: var(--surface);
   box-shadow: var(--shadow);
 }
+.settings-redesign .settings-row-menu[data-up] > .settings-row-menu-items {
+  top: auto;
+  bottom: 100%;
+}
 .settings-redesign .settings-row-menu-items > .btn {
   display: flex;
   width: 100%;
@@ -1198,4 +1202,91 @@
   .settings-redesign .source-account.settings-source-subrow > .field-row {
     flex-wrap: wrap;
   }
+}
+
+@media (max-width: 767px) {
+  .settings-redesign .settings-rule-list .settings-row {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+  }
+  .settings-redesign .settings-rule-list .settings-row > div:first-child {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+  .settings-redesign .settings-rule-list .settings-row-actions {
+    flex-wrap: nowrap;
+    justify-content: space-between;
+    gap: 4px;
+  }
+  .settings-redesign .settings-row-menu-items .btn {
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 767px) {
+  .settings-redesign .settings-stage-scroll {
+    overflow: visible;
+    border: 0;
+    background: transparent;
+  }
+  .settings-redesign .settings-stage-table,
+  .settings-redesign .settings-stage-table :is(tbody, tr, th, td) {
+    display: block;
+    min-width: 0;
+  }
+  .settings-redesign .settings-stage-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+  .settings-redesign .settings-stage-table tr {
+    margin-bottom: 8px;
+    padding: 8px;
+    border: 1px solid var(--rule);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+  }
+  .settings-redesign .settings-stage-table :is(th, td) {
+    padding: 4px 0;
+    border: 0;
+  }
+  .settings-redesign .settings-stage-table td[data-label] {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 140px);
+    gap: 8px;
+    align-items: center;
+  }
+  .settings-redesign .settings-stage-table td[data-label]::before {
+    content: attr(data-label);
+    color: var(--ink-2);
+    font-size: var(--fs-meta);
+    overflow-wrap: anywhere;
+  }
+  .settings-redesign .settings-stage-table td:last-child {
+    min-width: 0;
+  }
+}
+
+.settings-redesign .settings-assignment-list .assignment-review {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 8px;
+  align-items: baseline;
+}
+.settings-redesign .settings-assignment-list .assignment-review > strong {
+  flex-basis: 100%;
+}
+.settings-redesign .settings-assignment-list .assignment-review > span {
+  color: var(--ink-2);
+  font-size: var(--fs-meta);
+}
+.settings-redesign .settings-assignment-details > summary {
+  min-height: 32px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  color: var(--ink-2);
+  font-size: var(--fs-meta);
 }

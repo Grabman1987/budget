@@ -74,13 +74,18 @@ export function IncomeExpenseReport({
 }) {
   const [period, setPeriod] = useZeitraum();
   const query = useQuery(queryOptionsForReport(projectId));
-  const { zelle, spalte, gruppen, monat, darstellung } = useSearch({ strict: false }) as {
+  const search = useSearch({ strict: false }) as {
     zelle?: string;
     spalte?: string;
     gruppen?: string[];
     monat?: string;
     darstellung?: string;
   };
+  // Opened without a cell (e.g. from the report list): all bookings of the period, net (#1377).
+  const bare = search.zelle === undefined && search.spalte === undefined;
+  const zelle = bare ? 'net' : search.zelle;
+  const spalte = bare ? 'summe' : search.spalte;
+  const { gruppen, monat, darstellung } = search;
   const anchor = useLocation({ select: (location) => location.hash });
   const followedAnchor = useRef<string | undefined>(undefined);
   const navigate = useNavigate();

@@ -358,3 +358,5 @@ Einstellungen erreicht der Nutzer über die Navigation „Einstellungen“. Die 
   4. Nicht lesbare Bewegungen nennen das fehlerhafte Feld (nie einen Wert).
   5. Eine Sparplan-Bewegung ohne Bankbuchung innerhalb von zehn Tagen bleibt offen.
 - **Status:** live (Stand 26.11.2026: alle verknüpften Issues erledigt; Nutzerabnahme offen) — **Verweis:** #1205, #1081
+
+- **Einstellungen aufgeräumt (Audit 27.11, #1380):** Empfänger: Dubletten zuerst, Suche, zunächst 50 Empfänger mit „Weitere anzeigen“, kompakte Zeilen. Kontakte: keine technischen Kennungen, je Kontakt eine Zeile mit Status und Aktionsmenü (⋯: Aliase, Zusammenführen, Archivieren, Umbenennen, Verlauf öffnen). Regelwerk am Telefon: Name volle Breite, Schwellen darunter, Aktionen in einer Zeile. Profil: Beschriftungen mit Abstand zum Feld. Vermögensstufen am Telefon: eine Karte je Stufe statt breiter Tabelle. Zuordnungsregeln: Titel und eine Zeile, Bedingungen aufklappbar. — **Status:** live mit Train 25 (Nutzerabnahme offen) — **Verweis:** #1380

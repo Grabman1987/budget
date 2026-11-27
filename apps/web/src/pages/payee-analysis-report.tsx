@@ -148,7 +148,7 @@ export function PayeeAnalysisReport({
                 { op: '+', label: 'Übrige Empfänger', value: cents(data.remainingCents) },
               ],
               result: {
-                label: 'Konsum bei Empfängern · netto',
+                label: 'Ausgaben bei Empfängern · netto',
                 value: data.totalSpendCents,
                 unit: 'money',
               },
@@ -162,7 +162,7 @@ export function PayeeAnalysisReport({
               ...(REDESIGN_ENABLED ? { unavailable: !data.from || !data.to } : {}),
               period: `${data.from}..${data.to}`,
               metric: {
-                label: 'Konsum bei Empfängern',
+                label: 'Ausgaben bei Empfängern',
                 value: data.totalSpendCents,
                 unit: 'money',
               },
@@ -294,6 +294,10 @@ function ReportBody({
         <p className="payee-chain-note">
           Nettoanteil der Top 5: {share(data.topFiveSharePercent)}
           {data.totalSpendCents <= 0 && ' · bei nicht positiver Gesamtsumme nicht berechenbar'}
+        </p>
+        <p className="payee-chain-note">
+          Basis: Bedarf und Wunsch je Empfänger; Erstattungen bleiben beim gebuchten Empfänger,
+          daher kann die Summe leicht vom Konsum in Kategorien und Ausgabenanalyse abweichen.
         </p>
         <ReportBodyDisclosure id="payee-frequency" label="Bon-Statistik im Detail">
           <h3>Häufigste Empfänger</h3>

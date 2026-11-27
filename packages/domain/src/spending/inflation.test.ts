@@ -348,3 +348,34 @@ describe('long billing rhythms', () => {
     ]);
   });
 });
+
+describe('items without any price in the window', () => {
+  it('are left out instead of failing the whole basket', () => {
+    const rent: InflationItem = {
+      id: 'rent',
+      name: 'Miete',
+      class: 'need',
+      level: steps([
+        [0, 80_000],
+        [24, 88_000],
+      ]),
+      spend: spend(80_000),
+    };
+    // Spending recorded, but its only price lies outside the window (e.g. a new basket item).
+    const unpriced: InflationItem = {
+      id: 'unpriced',
+      name: 'Neu',
+      class: 'want',
+      level: { ...Object.fromEntries(available.map((m) => [m, null])), '2027-05': 5_000 },
+      spend: spend(5_000),
+    };
+    const result = personalInflation({
+      available,
+      items: [rent, unpriced],
+      baseConsumptionCents: 12 * 85_000,
+    });
+    expect(result.status).toBe('ok');
+    expect(result.basket.map((b) => b.id)).toEqual(['rent']);
+    expect(result.contributions.map((c) => c.id)).toEqual(['rent']);
+  });
+});

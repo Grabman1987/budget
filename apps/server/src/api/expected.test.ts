@@ -233,8 +233,9 @@ describe('occurrences, refresh, link, unlink, missed', () => {
     ).toBe(404);
     expect((await call('POST', `/expected/occurrences/${id}/missed`)).status).toBe(409);
 
+    // Due 2026-04-09 is still ahead of TODAY: unlinking cannot make it ausgefallen (#1376).
     const unlink = await call('POST', `/expected/occurrences/${id}/unlink`);
-    expect(unlink.body.occurrence).toMatchObject({ status: 'missed', bookingId: null });
+    expect(unlink.body.occurrence).toMatchObject({ status: 'expected', bookingId: null });
     expect((await call('POST', `/expected/occurrences/${id}/unlink`)).status).toBe(409);
 
     const may = (await call('GET', '/expected/occurrences?from=2026-05-01&to=2026-05-31')).body

@@ -122,3 +122,21 @@ it('counts open plan problems in the Plan row and links to the plan', () => {
   expect(link.getAttribute('href')).toBe('/plan/monat');
   expect(link.getAttribute('data-search')).toContain('triage');
 });
+
+it('names the uncovered amount from the previous month in the Plan row', () => {
+  const counts = { accounts: 0, plan: 0, receipts: 0, payslips: 0, other: 0 };
+  render(
+    <TaskSourceSummary
+      counts={counts}
+      selected={undefined}
+      onSelect={() => undefined}
+      planState={{
+        month: '2026-11',
+        assignmentCents: 0,
+        overspentCount: 0,
+        uncoveredCents: 12_300,
+      }}
+    />,
+  );
+  expect(screen.getByText(/ungedeckt aus dem Vormonat/)).toBeTruthy();
+});

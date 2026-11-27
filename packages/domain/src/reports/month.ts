@@ -184,6 +184,8 @@ export interface ExpectedIncomeInput {
   status: OccurrenceState;
   expectedCents: number;
   receivedCents: number;
+  /** The part that is a contact's share; a payment that is entirely share is a contact settlement. */
+  contactShareCents?: number;
 }
 
 export interface ExpectedIncomeLine {
@@ -242,6 +244,8 @@ export function expectedIncome(input: {
   const unlinkedTypes = new Set<string>();
   for (const e of input.expected) {
     if (e.typeId !== null && excluded.has(e.typeId)) continue;
+    // A contact repaying or prefunding is a settlement, not household income.
+    if ((e.contactShareCents ?? 0) > 0 && e.contactShareCents! >= e.expectedCents) continue;
     const status = incomeLineStatus(e, input.today);
     const received = status === 'ok' || status === 'diff' ? e.receivedCents : 0;
     if (status === 'unlinked') unlinkedTypes.add(e.typeId ?? '');
