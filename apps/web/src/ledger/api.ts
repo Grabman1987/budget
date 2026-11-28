@@ -156,6 +156,8 @@ export interface SplitInput {
   memo?: string | null;
   /** Kept on edits: the server stores a missing field as null. */
   contactId?: string | null;
+  /** What an advance ("Auslagen") line was for: an expense category. */
+  purposeCategoryId?: string | null;
   offsetContactCredit?: false;
   incomeTypeId?: string | null;
   /** Creating only: this line moves the money to another account (a transfer leg). */

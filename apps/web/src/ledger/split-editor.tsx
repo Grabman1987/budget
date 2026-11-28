@@ -30,6 +30,8 @@ export interface SplitEditorProps {
   accountId: string;
   contacts: ReadonlyArray<{ id: string; name: string }>;
   hasAdvanceCategory: boolean;
+  /** The Auslagen category: where the contact's half of "50/50 mit Kontakt" is booked. */
+  advanceCategoryId?: string | undefined;
   locked: boolean;
   error: string | undefined;
   /** Explicit choices take precedence over asynchronous payee suggestions. */
@@ -71,6 +73,7 @@ export function captureLines(
       amount: draft.amount,
       memo: '',
       contactId: draft.contactId || null,
+      ...(draft.contactId ? { purposeCategoryId: draft.purposeCategoryId || null } : {}),
       incomeTypeId: draft.kind === 'income' ? draft.incomeTypeId || null : null,
       ...singleMetadata,
       shares: [],
@@ -86,6 +89,7 @@ export function SplitEditor({
   accounts,
   accountId,
   contacts,
+  advanceCategoryId,
   locked,
   error,
   onCategoryChoose,
@@ -125,24 +129,40 @@ export function SplitEditor({
           updated.length === 1 && updated[0]?.type === 'contact'
             ? (updated[0].contactId ?? '')
             : '',
+        purposeCategoryId:
+          updated.length === 1 && updated[0]?.type === 'contact'
+            ? (updated[0].purposeCategoryId ?? '')
+            : '',
       };
     });
   const change = (key: string, patch: Partial<BookingLineDraft>) =>
     update((current) => current.map((line) => (line.key === key ? { ...line, ...patch } : line)));
-  /** "50/50 mit Kontakt": the contact (last used one if still listed) carries half, the owner the rest. */
+  /**
+   * "50/50 mit Kontakt": the contact (last used one if still listed) carries half as an advance
+   * (Auslagen, purpose = the line's category), the owner keeps the rest in the line's category.
+   */
   const halveWithContact = (line: BookingLineDraft) => {
     const amount = halfShareAmount(line.amount);
-    if (amount === null || line.shares.length) return;
+    if (amount === null || line.shares.length || !advanceCategoryId) return;
     const last = lastShareContactId();
     const contactId =
       (last && contacts.some((c) => c.id === last) ? last : undefined) ??
       (contacts.length === 1 ? contacts[0]!.id : null);
     change(line.key, {
-      shares: [{ ...newShare(), contactId, amount }],
+      shares: [
+        {
+          ...newShare(),
+          contactId,
+          amount,
+          categoryId: advanceCategoryId,
+          purposeCategoryId: line.categoryId || null,
+        },
+      ],
     });
   };
   const canHalve = (line: BookingLineDraft) =>
     !locked &&
+    Boolean(advanceCategoryId) &&
     draft.kind === 'expense' &&
     line.type === 'category' &&
     line.shares.length === 0 &&
@@ -172,8 +192,33 @@ export function SplitEditor({
         categoryId: id === '__none' ? '' : id,
         contactId: null,
         toAccountId: '',
+        // An advance share made by "50/50" follows the line's category as its purpose.
+        shares: line.shares.map((share) =>
+          share.categoryId ? { ...share, purposeCategoryId: id === '__none' ? null : id } : share,
+        ),
       });
   };
+  /** Optional "Zweck" of an advance: an expense category (never Auslagen, income or cards). */
+  const purposeCategories = categories.filter(
+    (c) => !c.hidden && c.kind !== 'income' && c.kind !== 'advance' && c.kind !== 'card_payment',
+  );
+  const purposePicker = (
+    label: string,
+    value: string | null | undefined,
+    onPick: (id: string | null) => void,
+  ) => (
+    <CategoryCombobox
+      excludeIncome
+      label={label}
+      placeholder="Zweck (optional)"
+      pickFirst={false}
+      categories={purposeCategories}
+      capturePicker
+      selectedName={categories.find((c) => c.id === value)?.name ?? ''}
+      onSearchChange={() => onPick(null)}
+      onSelect={(id) => onPick(id || null)}
+    />
+  );
   const addLineControl = (
     <Button
       className={contactHost ? 'bk-line-add' : undefined}
@@ -285,12 +330,15 @@ export function SplitEditor({
               const offset = share.offsetContactCredit !== false;
               const before = pool
                 ? pool
-                    .filter((c) => !c.categoryId || c.categoryId === line.categoryId)
+                    .filter(
+                      (c) =>
+                        !c.categoryId || c.categoryId === (share.categoryId || line.categoryId),
+                    )
                     .reduce((sum, c) => sum + c.remainingCents, 0)
                 : undefined;
               const used =
                 offset && pool && shareCents > 0
-                  ? consumeContactCredit(pool, line.categoryId, shareCents)
+                  ? consumeContactCredit(pool, share.categoryId || line.categoryId, shareCents)
                   : 0;
               covered += used;
               if (shareCents === 0 || used < shareCents) allCovered = false;
@@ -317,6 +365,10 @@ export function SplitEditor({
                       });
                     }}
                   />
+                  {share.categoryId &&
+                    purposePicker(`Zweck ${label}`, share.purposeCategoryId, (id) =>
+                      shareChange(share.key, { purposeCategoryId: id }),
+                    )}
                   <div className="bk-share-value">
                     <AmountInput
                       currency="EUR"
@@ -469,6 +521,11 @@ export function SplitEditor({
             {line.type === 'contact' && category && category.kind !== 'advance' && (
               <p className="khint">Ursprüngliche Kategorie: {category.name}</p>
             )}
+            {line.type === 'contact' &&
+              !(category && category.kind !== 'advance') &&
+              purposePicker(multiple ? `Zweck ${n}` : 'Zweck', line.purposeCategoryId, (id) =>
+                change(line.key, { purposeCategoryId: id }),
+              )}
             {compact && !multiple && (
               <div className="bk-category-tools">
                 {line.type === 'category' && category?.availableCents != null && (

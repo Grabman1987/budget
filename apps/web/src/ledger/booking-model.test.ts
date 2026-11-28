@@ -629,3 +629,98 @@ it('halfShareAmount gives the contact the lower half and refuses unusable amount
   expect(halfShareAmount('')).toBeNull();
   expect(halfShareAmount('-5,00')).toBeNull();
 });
+
+describe('advance purpose', () => {
+  const advanceCreate = (over: Record<string, unknown> = {}) =>
+    buildCreate(
+      {
+        ...emptyDraft('a1', '2026-09-10'),
+        amount: '20,00',
+        contactId: 'anna',
+        purposeCategoryId: 'c1',
+        ...over,
+      },
+      null,
+      { advanceCategoryId: 'auslagen' },
+    );
+
+  it('sends the purpose of a single advance line and nothing for a normal line', () => {
+    expect(advanceCreate()).toMatchObject({
+      ok: true,
+      value: {
+        splits: [
+          {
+            categoryId: 'auslagen',
+            contactId: 'anna',
+            purposeCategoryId: 'c1',
+            amountCents: -2000,
+          },
+        ],
+      },
+    });
+    const plain = advanceCreate({ contactId: '', categoryId: 'c1' });
+    expect(JSON.stringify(plain)).not.toContain('purposeCategoryId');
+  });
+
+  it('sends the purpose of the contact line of a split and of a 50/50 share', () => {
+    const line = {
+      ...newSplit({ type: 'category', categoryId: 'c1', amount: '20,01' }),
+      shares: [],
+    };
+    const share = {
+      ...newSplit({
+        type: 'contact',
+        contactId: 'anna',
+        amount: '10,00',
+        categoryId: 'auslagen',
+        purposeCategoryId: 'c1',
+      }),
+      mode: 'amount' as const,
+    };
+    const built = buildCreate(
+      {
+        ...emptyDraft('a1', '2026-09-10'),
+        amount: '20,01',
+        lines: [{ ...line, shares: [share] }],
+      },
+      null,
+      { advanceCategoryId: 'auslagen' },
+    );
+    expect(built).toMatchObject({
+      ok: true,
+      value: {
+        splits: [
+          { categoryId: 'c1', amountCents: -1001 },
+          {
+            categoryId: 'auslagen',
+            contactId: 'anna',
+            purposeCategoryId: 'c1',
+            amountCents: -1000,
+          },
+        ],
+      },
+    });
+  });
+
+  it('keeps the purpose of an existing advance on an edit and drops it with the contact', () => {
+    const original = stored({
+      splits: [
+        {
+          ...stored().splits[0]!,
+          categoryId: 'auslagen',
+          contactId: 'anna',
+          purposeCategoryId: 'c1',
+        },
+      ],
+    });
+    const draft = draftFromBooking(original);
+    expect(draft).toMatchObject({ contactId: 'anna', purposeCategoryId: 'c1' });
+    // Unchanged: nothing to patch.
+    expect(buildPatch(original, draft, 'p1', false)).toMatchObject({ ok: true, value: {} });
+    const other = buildPatch(original, { ...draft, purposeCategoryId: 'c2' }, 'p1', false);
+    expect(other).toMatchObject({ ok: true, value: { splits: [{ purposeCategoryId: 'c2' }] } });
+    const cleared = buildPatch(original, { ...draft, purposeCategoryId: '' }, 'p1', false);
+    expect(JSON.stringify(cleared)).not.toContain('purposeCategoryId');
+    expect(cleared).toMatchObject({ ok: true, value: { splits: [{ contactId: 'anna' }] } });
+  });
+});

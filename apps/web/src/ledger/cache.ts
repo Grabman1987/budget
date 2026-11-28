@@ -32,6 +32,7 @@ export function patchListed(b: ListedBooking, patch: BookingPatch, names: Names)
       amountCents: s.amountCents,
       memo: s.memo ?? null,
       contactId: b.splits[i]?.contactId ?? null,
+      purposeCategoryId: s.purposeCategoryId ?? null,
       incomeTypeId: b.splits[i]?.incomeTypeId ?? null,
       transferId: b.splits[i]?.transferId ?? null,
     }));

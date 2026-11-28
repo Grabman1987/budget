@@ -91,6 +91,8 @@ export interface SplitInput {
   memo?: string | null;
   /** Receivable share: paid for or repaid by this contact (concept §3.4). */
   contactId?: string | null;
+  /** What an advance ("Auslagen" split) was for: an expense category; refused on other splits. */
+  purposeCategoryId?: string | null;
   /** New shared purchases only. Omission keeps the automatic offset. */
   offsetContactCredit?: false;
   /** Income type of an inflow (Gehalt, Sonderzahlung, …). */
@@ -310,6 +312,8 @@ function assertSplitRefs(
       }
     }
     const categoryId = s.categoryId ?? null;
+    if (s.purposeCategoryId && categoryId === null)
+      throw new BookingInvariantError('Ein Zweck ist nur bei der Kategorie „Auslagen“ möglich.');
     if (categoryId === null) {
       if (s.contactId)
         throw new BookingInvariantError('Ein Kontaktanteil braucht die Kategorie „Auslagen“.');
@@ -324,6 +328,17 @@ function assertSplitRefs(
       throw new BookingInvariantError(
         'Die ausgewählte Kategorie ist nicht verfügbar. Bitte eine andere Kategorie wählen.',
       );
+    if (s.purposeCategoryId) {
+      if (row.kind !== 'advance')
+        throw new BookingInvariantError('Ein Zweck ist nur bei der Kategorie „Auslagen“ möglich.');
+      const purpose = tx
+        .select({ kind: category.kind })
+        .from(category)
+        .where(and(eq(category.id, s.purposeCategoryId), isNull(category.deletedAt)))
+        .get();
+      if (!purpose || ['advance', 'card_payment', 'income'].includes(purpose.kind))
+        throw new BookingInvariantError('Als Zweck ist nur eine Ausgabenkategorie möglich.');
+    }
     if (row.kind === 'card_payment') {
       throw new BookingInvariantError(
         'Die Kategorie für die Kartenzahlung wird automatisch befüllt. Bitte die Ausgabenkategorie wählen.',
@@ -376,6 +391,7 @@ const splitValues = (s: SplitInput) => ({
   amountCents: s.amountCents,
   memo: s.memo ?? null,
   contactId: s.contactId ?? null,
+  purposeCategoryId: s.purposeCategoryId ?? null,
   incomeTypeId: s.incomeTypeId ?? null,
 });
 

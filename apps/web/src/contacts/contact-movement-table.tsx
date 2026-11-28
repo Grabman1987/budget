@@ -1,6 +1,7 @@
 import { Button, maskMoneyText, useAmountPrivacy } from '@budget/ui';
 import type { ContactMovement, OpenContactOutlay } from '@budget/domain';
 import { useQuery } from '@tanstack/react-query';
+import { Pencil } from 'lucide-react';
 import { useId, useState } from 'react';
 import { ReportTable } from '../reports/report-table';
 import { request } from '../api/http';
@@ -22,7 +23,18 @@ const movementKind = (movement: ContactMovement) =>
       : 'Rückzahlung';
 const description = (movement: ContactMovement) =>
   maskMoneyText(movement.memo?.trim() || movementKind(movement));
+
 const lineText = (text: string) => text.replace(/\s+/g, ' ').trim();
+
+/** Purpose of an advance (recorded), else the category the share stayed in; empty if none. */
+const purposeOf = (movement: ContactMovement) =>
+  lineText(
+    maskMoneyText(
+      movement.purposeName?.trim() || (movement.categoryId ? movement.categoryName : '') || '',
+    ),
+  );
+const noteOf = (movement: ContactMovement) =>
+  lineText(maskMoneyText(movement.memo?.trim() || movement.bookingMemo?.trim() || ''));
 
 /** Payee only; a repayment without payee shows the contact. No kind words, memo or category. */
 const recipient = (movement: ContactMovement, contactName: string) =>
@@ -82,7 +94,8 @@ export function ContactMovementTable({
   // A tick only marks a row; the gift dialog opens from its own explicit button.
   const [skippedIds, setSkippedIds] = useState<ReadonlySet<string>>(new Set());
   const { giftReceiptIds, giftedByOutlay } = giftInfo(statement);
-  const { monthEnd } = runningBalances(statement.movements);
+  const balances = runningBalances(statement.movements);
+  const { monthEnd } = balances;
   const shown = movements.filter((movement) => !giftReceiptIds.has(movement.splitId));
   // Month grouping with a running balance belongs to the report; the detail page is already
   // split into month sections.
@@ -126,6 +139,7 @@ export function ContactMovementTable({
           return [
             longDay(movement.date),
             recipient(movement, name),
+            ...(purposeOf(movement) ? [`Zweck ${purposeOf(movement)}`] : []),
             eur(movement.amountCents, { sign: true }),
             ...(rest !== undefined ? [`Rest ${eur(rest)}`] : []),
             ...(giftedCents > 0 ? ['Geschenk'] : []),
@@ -179,66 +193,103 @@ export function ContactMovementTable({
             : !onGift
               ? 'In dieser Ansicht nicht änderbar'
               : 'Hier nicht änderbar';
+    const kind = movementKind(movement);
+    const purpose = purposeOf(movement);
+    const note = noteOf(movement);
+    const outlayCents = movement.amountCents < 0 ? -movement.amountCents : 0;
+    const backCents = movement.amountCents > 0 ? movement.amountCents : 0;
+    const balance = balances.after.get(movement.splitId);
+    const allocated = repayment?.recorded ? repayment.allocations.length : 0;
+    const status = waived
+      ? 'Geschenk'
+      : outlay
+        ? outlay.remainingCents === 0
+          ? settledBy
+            ? null
+            : 'ausgeglichen'
+          : rest !== undefined
+            ? `offen, Rest ${eur(rest)}`
+            : 'offen'
+        : repayment?.recorded && (allocated > 0 || repayment.creditCents > 0)
+          ? [
+              allocated > 0 ? `deckt ${allocated} ${allocated === 1 ? 'Auslage' : 'Auslagen'}` : '',
+              repayment.creditCents > 0 ? `+ Guthaben ${eur(repayment.creditCents)}` : '',
+            ]
+              .filter(Boolean)
+              .join(' ')
+          : '–';
+    const openRow = (event: React.MouseEvent) => {
+      // Controls inside the row keep their own action.
+      if ((event.target as HTMLElement).closest('button, input, label, a')) return;
+      onOpen(movement);
+    };
     return (
-      <tr key={movement.splitId} className={waived ? 'contact-row-waived' : undefined}>
-        <td className="contact-date">{longDay(movement.date)}</td>
-        <td>
+      // The Empfänger cell holds the keyboard-accessible button; the row click is a pointer shortcut.
+      <tr
+        key={movement.splitId}
+        className={`contact-row${waived ? ' contact-row-waived' : ''}`}
+        onClick={openRow}
+      >
+        <td className="contact-date c-date">{longDay(movement.date)}</td>
+        <td className="c-art">
+          <span className="contact-art">{kind}</span>
+        </td>
+        <td className="c-payee">
           <button
             type="button"
             className="contact-source"
             data-contact-source={movement.splitId}
+            data-kind={kind}
             aria-label={`Ursprungsbuchung öffnen · ${sourceLabel} · Kontaktanteil ${eur(movement.amountCents, { sign: true })}${sourceLabel.toLowerCase().includes(visible.toLowerCase()) ? '' : ` · ${visible}`}`}
             onClick={() => onOpen(movement)}
           >
-            {recipient(movement, name)}
+            {visible}
           </button>
-          {giftedCents > 0 && <span className="contact-gift-tag">Geschenk</span>}
-          {outlay && settledBy && !waived && (
-            <small className="contact-settled-note" data-contact-settled={movement.splitId}>
-              {outlay.remainingCents === 0 ? 'Ausgeglichen' : 'Teilweise ausgeglichen'} am{' '}
-              {longDay(settledBy.date)} ·{' '}
-              <button
-                type="button"
-                className="contact-settled-link"
-                onClick={() => onOpen(settledBy)}
-              >
-                Rückzahlung öffnen
-              </button>
-            </small>
-          )}
-          {repayment && (
-            <details className="contact-allocation-details">
-              <summary>Zuordnung</summary>
-              <p>
-                {repayment.recorded ? (
-                  <>
-                    {repayment.allocations
-                      .map((allocation) => {
-                        const source = statement.outlays.find(
-                          (row) => row.splitId === allocation.outlaySplitId,
-                        );
-                        return `${source ? longDay(source.date) : 'Auslage'} · ${source?.categoryName ?? 'Kategorie unbekannt'}: ${eur(allocation.amountCents)}`;
-                      })
-                      .join(' · ')}
-                    {repayment.creditCents > 0 && ` · Guthaben: ${eur(repayment.creditCents)}`}
-                  </>
-                ) : (
-                  'Zuordnung nicht protokolliert'
-                )}
-              </p>
-              {repayment.allocatable !== false && onAllocate && (
-                <Button variant="ghost" onClick={() => onAllocate(movement.splitId)}>
-                  Zuordnung ändern
-                </Button>
-              )}
-            </details>
+        </td>
+        <td className="c-purpose" title={purpose || undefined}>
+          {purpose}
+        </td>
+        <td className="c-note" title={note || undefined}>
+          {note}
+        </td>
+        <td className="n contact-amount c-out">{outlayCents ? eur(outlayCents) : ''}</td>
+        <td className="n contact-amount c-back">
+          {backCents ? (
+            eur(backCents)
+          ) : giftedCents > 0 ? (
+            <span className="contact-gift-tag">Geschenk {eur(giftedCents)}</span>
+          ) : (
+            ''
           )}
         </td>
-        <td className="n contact-amount">
-          {eur(movement.amountCents, { sign: true })}
-          {rest !== undefined && <small className="contact-rest">Rest {eur(rest)}</small>}
+        <td className="n c-bal">{balance === undefined ? '' : eur(balance)}</td>
+        <td className="c-status">
+          {status === null && settledBy ? (
+            <button
+              type="button"
+              className="contact-settled-link"
+              data-contact-settled={movement.splitId}
+              aria-label={`Rückzahlung öffnen, ausgeglichen am ${longDay(settledBy.date)}`}
+              onClick={() => onOpen(settledBy)}
+            >
+              ausgeglichen {settledBy.date.slice(8, 10)}.{settledBy.date.slice(5, 7)}.
+            </button>
+          ) : (
+            status
+          )}
+          {repayment && repayment.allocatable !== false && onAllocate && (
+            <Button
+              variant="ghost"
+              className="contact-allocate"
+              aria-label="Zuordnung ändern"
+              title="Zuordnung ändern"
+              onClick={() => onAllocate(movement.splitId)}
+            >
+              <Pencil size={14} strokeWidth={1.75} aria-hidden="true" />
+            </Button>
+          )}
         </td>
-        <td className="contact-settle">
+        <td className="contact-settle c-settle">
           {outlay ? (
             <>
               <label className="contact-settle-box" title={checkTitle}>
@@ -279,59 +330,98 @@ export function ContactMovementTable({
       </tr>
     );
   };
+  const monthSums = (group: { rows: ContactMovement[] }) => ({
+    out: group.rows.reduce((sum, m) => (m.amountCents < 0 ? sum - m.amountCents : sum), 0),
+    back: group.rows.reduce((sum, m) => (m.amountCents > 0 ? sum + m.amountCents : sum), 0),
+  });
   const rows = (
     <>
       <thead>
         <tr>
-          <th scope="col">Datum</th>
-          <th scope="col">Empfänger</th>
-          <th scope="col" className="n">
-            Betrag
+          <th scope="col" className="c-date">
+            Datum
+          </th>
+          <th scope="col" className="c-art">
+            Art
+          </th>
+          <th scope="col" className="c-payee">
+            Empfänger
+          </th>
+          <th scope="col" className="c-purpose">
+            Zweck
+          </th>
+          <th scope="col" className="c-note">
+            Notiz
+          </th>
+          <th scope="col" className="n c-out">
+            Ausgelegt
+          </th>
+          <th scope="col" className="n c-back">
+            Zurück
+          </th>
+          <th scope="col" className="n c-bal">
+            Stand
+          </th>
+          <th scope="col" className="c-status">
+            Status
           </th>
           <th
             scope="col"
-            className="contact-settle-head"
+            className="contact-settle-head c-settle"
             title="Haken: wird mit Rückzahlungen verrechnet. Ohne Haken: als Geschenk übernehmen. Rückzahlungen, Geschenke und bereits ausgeglichene Auslagen haben keinen änderbaren Haken."
           >
             Verrechnen
           </th>
         </tr>
       </thead>
-      {groups.map((group) => (
-        <tbody key={group.key}>
-          {register && group.rows.length > 0 && (
-            <tr className="contact-month-head">
-              <td colSpan={4}>{group.title}</td>
-            </tr>
-          )}
-          {group.rows.map(renderRow)}
-          {register && group.rows.length > 0 && (
-            <tr className="contact-month-summary">
-              <td colSpan={4}>
-                {monthSummary(name, group.endBalanceCents, group.key === asOfMonth, group.title)}
-              </td>
-            </tr>
-          )}
-        </tbody>
-      ))}
+      {groups.map((group) => {
+        const sums = monthSums(group);
+        return (
+          <tbody key={group.key}>
+            {register && group.rows.length > 0 && (
+              <tr className="contact-month-head">
+                <td className="c-date">{group.title}</td>
+                <td className="c-art" />
+                <td className="c-payee" />
+                <td className="c-purpose" />
+                <td className="c-note" />
+                <td className="n c-out">{sums.out ? eur(sums.out) : ''}</td>
+                <td className="n c-back">{sums.back ? eur(sums.back) : ''}</td>
+                <td className="n c-bal">{eur(group.endBalanceCents)}</td>
+                <td className="c-status" />
+                <td className="c-settle" />
+              </tr>
+            )}
+            {group.rows.map(renderRow)}
+          </tbody>
+        );
+      })}
       {totalCents !== undefined && (
         <tfoot>
-          <tr>
-            <th scope="row" colSpan={2}>
-              Offen: <span className="sr-only">von {maskMoneyText(name)}</span>
-            </th>
-            <td className="n">{eur(totalCents)}</td>
-            <td />
-          </tr>
-          {!!creditCents && (
-            <tr>
-              <th scope="row" colSpan={2}>
-                Guthaben:
+          {[
+            { label: 'Offen:', cents: totalCents, key: 'open' },
+            ...(creditCents ? [{ label: 'Guthaben:', cents: creditCents, key: 'credit' }] : []),
+          ].map((line) => (
+            <tr className="contact-foot" key={line.key}>
+              <th scope="row" className="c-date">
+                {line.label}
+                {line.key === 'open' && <span className="sr-only"> von {maskMoneyText(name)}</span>}
               </th>
-              <td className="n">{eur(creditCents)}</td>
-              <td>{creditHref && <AppLink to={creditHref}>Guthaben ändern</AppLink>}</td>
+              <td className="c-art" />
+              <td className="c-payee" />
+              <td className="c-purpose" />
+              <td className="c-note" />
+              <td className="c-out" />
+              <td className="c-back" />
+              <td className="n c-bal">{eur(line.cents)}</td>
+              <td className="c-status">
+                {line.key === 'credit' && creditHref && (
+                  <AppLink to={creditHref}>Guthaben ändern</AppLink>
+                )}
+              </td>
+              <td className="c-settle" />
             </tr>
-          )}
+          ))}
         </tfoot>
       )}
     </>
@@ -371,11 +461,15 @@ export function ContactMovementTable({
         </div>
       )}
       {register ? (
-        <ReportTable caption={caption} regionLabel={caption} className="contact-report-register">
+        <ReportTable
+          caption={caption}
+          regionLabel={caption}
+          className="contact-ledger contact-report-register"
+        >
           {rows}
         </ReportTable>
       ) : (
-        <table className="contacts-table contact-movements">
+        <table className="contacts-table contact-ledger contact-movements">
           <caption className="sr-only">{caption}</caption>
           {rows}
         </table>

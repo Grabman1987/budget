@@ -101,7 +101,7 @@ test('contact statement: edited allocation, excess credit, undo and retained bal
   await expect(panel.locator('.contacts-balance')).toContainText('60,00 €');
   await expect(
     panel.getByRole('table', { name: 'Kontaktbuchungen im aktuellen Monat' }).locator('tbody tr'),
-  ).toContainText('02.09.2026 · Auslagen: 40,00 €');
+  ).toContainText('deckt 1 Auslage');
   const readStatement = async () =>
     (await request.get(`${origin}/api/contacts/${contactId}`)).json();
   expect(
@@ -118,7 +118,7 @@ test('contact statement: edited allocation, excess credit, undo and retained bal
   await expect(panel).toContainText('Guthaben aus dieser Rückzahlung: 20,00 €');
   await panel.getByRole('button', { name: 'Rückzahlung speichern' }).click();
   await expect(panel.locator('.contacts-balance')).toHaveText('Du schuldest 20,00 €');
-  await expect(panel).toContainText('Guthaben: 20,00 €');
+  await expect(panel).toContainText('+ Guthaben 20,00 €');
   // The undo toast closes after 6 s of real time; the axe runs and screenshots below can take
   // longer on a slow runner. The toast keeps open while the pointer is over it (documented
   // behaviour of ToastProvider), so park the pointer on it for the undo further down.

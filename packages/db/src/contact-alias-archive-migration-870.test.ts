@@ -38,6 +38,10 @@ it('#870 migrates 0050/0051 on a copied fixture database: counts, content and st
   try {
     original = openDatabase(originalPath);
     migrateDatabase(original.db, migrations);
+    // The repository writer inserts newer booking_split columns; this fixture stops at 0053.
+    original.sqlite.exec(
+      'ALTER TABLE booking_split ADD purpose_category_id text REFERENCES category(id)',
+    );
     seedBasics(original.db);
     seedIdentityContacts(original.db);
     // Bring the fixture to the predecessor schema (empty new structures: rollback is allowed).

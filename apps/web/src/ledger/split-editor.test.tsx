@@ -369,13 +369,14 @@ it.each([false, true])(
               { id: 'k2', name: 'Kontakt Zwei' },
             ]}
             hasAdvanceCategory
+            advanceCategoryId="adv-1"
             locked={false}
             error={undefined}
             contactHost={portal ? host : undefined}
           />
           <output data-testid="expanded">
             {expandBookingLines(draft)
-              .splits.map((x) => x.amount)
+              .splits.map((x) => `${x.amount}:${x.categoryId}:${x.purposeCategoryId ?? ''}`)
               .join('|')}
           </output>
         </>
@@ -393,7 +394,9 @@ it.each([false, true])(
     expect((screen.getByLabelText('Kontakt 1.1') as HTMLSelectElement).value).toBe('k2');
     // The share is set: the shortcut is gone and the whole draft is a valid, cent-exact split.
     expect(screen.queryByRole('button', { name: '50/50 mit Kontakt' })).toBeNull();
-    expect(screen.getByTestId('expanded').textContent).toBe('50,01|50,00');
+    // The owner keeps the larger half in the original category, the contact's half is an
+    // advance (Auslagen) that remembers the original category as its purpose.
+    expect(screen.getByTestId('expanded').textContent).toBe('50,01:cat-1:|50,00:adv-1:cat-1');
     localStorage.removeItem('budget-last-share-contact');
   },
 );

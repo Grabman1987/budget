@@ -5,6 +5,7 @@ import {
 } from './contact-credit';
 import { contactStatement } from '@budget/domain';
 import { and, eq, inArray, isNull, ne, sql } from 'drizzle-orm';
+import { alias } from 'drizzle-orm/sqlite-core';
 import {
   account,
   category,
@@ -81,6 +82,8 @@ function identityIds(tx: Executor, contactId: string | readonly string[]): strin
   return typeof contactId === 'string' ? contactIdentityIds(tx, contactId) : [...contactId];
 }
 
+const purposeCategory = alias(category, 'purpose_category');
+
 export function actualContactMovements(
   tx: Executor,
   contactId: string | readonly string[],
@@ -99,6 +102,7 @@ export function actualContactMovements(
       bookingMemo: booking.memo,
       payeeName: payee.name,
       categoryName: category.name,
+      purposeName: purposeCategory.name,
       currency: booking.currency,
       status: booking.status,
       accountId: booking.accountId,
@@ -109,6 +113,7 @@ export function actualContactMovements(
     .innerJoin(account, eq(account.id, booking.accountId))
     .leftJoin(payee, eq(payee.id, booking.payeeId))
     .leftJoin(category, eq(category.id, bookingSplit.categoryId))
+    .leftJoin(purposeCategory, eq(purposeCategory.id, bookingSplit.purposeCategoryId))
     .where(
       and(
         inArray(bookingSplit.contactId, identityIds(tx, contactId)),

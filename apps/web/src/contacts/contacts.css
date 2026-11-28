@@ -227,29 +227,22 @@
 .contact-source {
   display: block;
   width: 100%;
-  min-height: 34px;
-  padding-block: 4px;
+  min-height: 28px;
+  padding-block: 2px;
   text-align: left;
   color: var(--ink);
   font-size: var(--fs-table);
   line-height: var(--lh-table);
-  overflow-wrap: anywhere;
-  text-decoration: underline;
-  text-decoration-color: var(--rule-strong);
-  text-underline-offset: 3px;
-}
-.contact-settled-note {
-  display: block;
-  margin-top: 4px;
-  color: var(--ink-2);
-  font-size: var(--fs-meta);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-decoration: none;
 }
 .contact-settled-link {
   display: inline;
   max-width: 100%;
-  white-space: normal;
+  white-space: nowrap;
   text-align: left;
-  overflow-wrap: anywhere;
   cursor: pointer;
   padding: 0;
   background: none;
@@ -277,11 +270,8 @@
   text-align: center;
 }
 .contact-source:hover {
-  text-decoration-color: currentColor;
-}
-.contact-movements td:nth-child(2) {
-  width: 100%;
-  max-width: 0;
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 .contacts-table .n {
   text-align: right;
@@ -289,15 +279,11 @@
 }
 .contact-date {
   white-space: nowrap;
-  vertical-align: top;
-  padding-top: 10px;
   color: var(--ink-2);
   font-variant-numeric: tabular-nums;
 }
 .contact-amount {
   white-space: nowrap;
-  vertical-align: top;
-  padding-top: 10px;
   text-align: right;
   font-variant-numeric: tabular-nums;
 }
@@ -349,25 +335,6 @@
   font-weight: 600;
   color: var(--ink-2);
 }
-.contact-month-summary td {
-  color: var(--ink-2);
-  font-size: var(--fs-meta);
-  font-style: italic;
-  text-align: right;
-}
-.contact-allocation-details summary {
-  display: list-item;
-  min-height: 24px;
-  padding-block: 2px;
-  width: fit-content;
-  cursor: pointer;
-  font-size: var(--fs-meta);
-}
-.contact-allocation-details p {
-  color: var(--ink-2);
-  font-size: var(--fs-meta);
-  overflow-wrap: anywhere;
-}
 .contact-copy-fallback {
   display: grid;
   gap: 4px;
@@ -390,17 +357,9 @@
   .contact-source {
     min-height: var(--touch);
   }
-  .contact-allocation-details summary {
-    min-height: var(--touch);
-    padding-block: 10px;
-  }
-  .contacts-statement .contact-movements td:last-child {
-    font-size: var(--fs-table);
-  }
 }
 @media (pointer: coarse) {
-  .contact-source,
-  .contact-allocation-details summary {
+  .contact-source {
     min-height: var(--touch);
   }
 }
@@ -438,4 +397,218 @@
 .contact-name-cell .contact-review-hint {
   order: 3;
   flex-basis: 100%;
+}
+
+/* "Vorgestreckt pro Monat": five figures must never widen the phone page (the form is a grid). */
+.contacts-advance-report {
+  min-width: 0;
+}
+.contacts-advance-report .contacts-table {
+  table-layout: fixed;
+}
+.contacts-advance-report .contacts-table .num {
+  white-space: normal;
+}
+.contacts-advance-report th {
+  overflow-wrap: anywhere;
+  hyphens: auto;
+}
+:root:has([data-budget-redesign='1']) .contacts-advance-report .contacts-table td:last-child {
+  font-size: inherit;
+}
+
+/* Dense ledger table of a contact: one line per row (detail page and report "Offen von …"). */
+.contact-ledger {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+.contact-ledger :is(th, td),
+.report-table-scroll table.report-table.contact-ledger :is(th, td) {
+  padding: 4px 8px;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+.contact-ledger tbody tr.contact-row {
+  cursor: pointer;
+}
+.contact-ledger :is(.c-payee, .c-purpose, .c-note) {
+  max-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.contact-ledger .c-payee {
+  width: 24%;
+}
+.contact-ledger .c-purpose {
+  width: 15%;
+  color: var(--ink-2);
+}
+.contact-ledger .c-note {
+  width: 22%;
+  color: var(--ink-2);
+}
+.contact-ledger .c-settle {
+  text-align: center;
+}
+.contact-ledger .c-settle .contact-gift-action {
+  display: inline-block;
+  white-space: nowrap;
+}
+.contact-ledger .c-status {
+  color: var(--ink-2);
+}
+.contact-ledger .contact-allocate {
+  min-width: 28px;
+  min-height: 28px;
+  padding: 0;
+  margin-inline-start: 4px;
+}
+.contact-ledger .contact-gift-tag {
+  margin: 0;
+  border: 0;
+  padding: 0;
+  font-style: italic;
+  color: var(--ink-2);
+  font-size: inherit;
+}
+.contact-ledger .contact-art {
+  color: var(--ink-2);
+  font-size: var(--fs-meta);
+}
+.contact-statement-section {
+  container-type: inline-size;
+}
+@container (max-width: 920px) {
+  .contact-ledger :is(.c-note) {
+    display: none;
+  }
+}
+@container (max-width: 720px) {
+  .contact-ledger :is(.c-purpose) {
+    display: none;
+  }
+}
+.contact-ledger .contact-month-head td {
+  overflow: visible;
+  padding-top: 12px;
+  font-size: var(--fs-meta);
+  font-weight: 600;
+  color: var(--ink-2);
+}
+.contact-ledger .contact-foot :is(th, td) {
+  font-weight: 600;
+}
+.contact-ledger .contact-foot th {
+  text-align: left;
+  overflow: visible;
+}
+@media (max-width: 767px) {
+  /* Phone: still one row per item, a two-line grid: recipient + amount, date + status. */
+  .contact-ledger,
+  .contact-ledger tbody,
+  .contact-ledger tfoot {
+    display: block;
+  }
+  .contact-ledger thead {
+    position: absolute;
+    clip-path: inset(50%);
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+  }
+  .contact-ledger tr.contact-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    grid-template-areas:
+      'payee payee amount'
+      'date status settle';
+    column-gap: 8px;
+    align-items: center;
+    padding: 4px 0;
+    border-bottom: 1px solid var(--rule);
+  }
+  .contact-ledger tr.contact-row td {
+    display: block;
+    padding: 0;
+    border: 0;
+    min-width: 0;
+  }
+  .contact-ledger :is(.c-art, .c-purpose, .c-note) {
+    display: none !important;
+  }
+  .contact-ledger tr.contact-row td.c-bal,
+  .contact-ledger tr.contact-month-head td:not(.c-date),
+  .contact-ledger tr.contact-foot td:empty,
+  .contact-ledger tr.contact-row td:empty {
+    display: none !important;
+  }
+  .contact-ledger .contact-source::before {
+    content: attr(data-kind) ' · ';
+    color: var(--ink-2);
+  }
+  .contact-ledger td.c-payee {
+    grid-area: payee;
+    width: auto;
+    max-width: none;
+  }
+  .contact-ledger td.c-date {
+    grid-area: date;
+    font-size: var(--fs-meta);
+  }
+  .contact-ledger td.c-out,
+  .contact-ledger td.c-back {
+    grid-area: amount;
+  }
+  .contact-ledger td.c-status {
+    grid-area: status;
+    font-size: var(--fs-meta);
+  }
+  .contact-ledger td.c-settle {
+    grid-area: settle;
+  }
+  .contact-ledger tr.contact-month-head {
+    display: block;
+  }
+  .contact-ledger tr.contact-month-head td.c-date {
+    display: block;
+    padding: 12px 0 4px;
+  }
+  .contact-ledger tr.contact-foot {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    column-gap: 8px;
+    padding: 6px 0;
+    text-align: right;
+  }
+  .contact-ledger tr.contact-foot th {
+    text-align: left;
+  }
+  .contact-ledger tr.contact-foot :is(th, td) {
+    display: block;
+    padding: 0;
+    border: 0;
+  }
+}
+@media (min-width: 768px) {
+  :root:has([data-budget-redesign='1']) .contact-ledger tbody tr.contact-row td {
+    border-bottom: 1px solid var(--rule);
+  }
+}
+@media (max-width: 767px) {
+  /* The phone shows every row: no inner scroll box (it would cut the list), no per-cell lines. */
+  :root:has([data-budget-redesign='1']) .report-table-scroll:has(.contact-ledger) {
+    overflow: clip;
+    max-height: none;
+  }
+  :root:has([data-budget-redesign='1'])
+    .report-table-scroll
+    table.report-table.contact-ledger
+    tr
+    :is(th, td) {
+    border: 0;
+  }
+}
+:root:has([data-budget-redesign='1']) .contact-ledger tbody tr.contact-row:hover {
+  background: var(--surface);
 }

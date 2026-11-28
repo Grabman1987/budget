@@ -1187,6 +1187,7 @@ export function CaptureForm({
       contacts={contacts}
       contactCredits={contactCredits}
       hasAdvanceCategory={Boolean(advanceCategoryId)}
+      advanceCategoryId={advanceCategoryId}
       locked={splitLocked}
       error={splitError ?? errors.category}
       singleMetadata={singleMetadata}

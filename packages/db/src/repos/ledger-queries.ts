@@ -235,6 +235,8 @@ export interface ListedSplit {
   amountCents: number;
   memo: string | null;
   contactId: string | null;
+  /** What an advance split was for (an expense category); only set on "Auslagen" splits. */
+  purposeCategoryId?: string | null;
   incomeTypeId: string | null;
   transferId: string | null;
 }
@@ -728,6 +730,7 @@ export function queryBookings(
       amountCents: split.amountCents,
       memo: split.memo,
       contactId: split.contactId,
+      purposeCategoryId: split.purposeCategoryId,
       incomeTypeId: split.incomeTypeId,
       transferId: split.transferId,
     });

@@ -1,6 +1,6 @@
 import { useNavigate, useSearch } from '@tanstack/react-router';
-import { contactBalanceLine } from '../contacts/contact-balance';
-import { Button, useAmountPrivacy } from '@budget/ui';
+import { contactBalanceLine, contactBalanceSentence } from '../contacts/contact-balance';
+import { Button, maskMoneyText, useAmountPrivacy } from '@budget/ui';
 import { cents } from '@budget/domain';
 import { useRef, useState, type MouseEvent, type RefObject } from 'react';
 import { useQueries, type UseQueryResult } from '@tanstack/react-query';
@@ -137,7 +137,6 @@ export function ContactReportRedesign({
       ready={ready}
       selected={selected === id}
       heading={heading}
-      relation={relation}
       onForgive={(contact, button) => {
         opener.current = button;
         setForgiving(contact);
@@ -154,14 +153,6 @@ export function ContactReportRedesign({
       }}
     />
   );
-  const relation = (balance: number, credit = 0) =>
-    credit > 0
-      ? 'Guthaben des Kontakts'
-      : balance > 0
-        ? 'schuldet dir'
-        : balance < 0
-          ? 'Du schuldest dem Kontakt'
-          : 'ausgeglichen';
   return (
     <ReportFrame
       meta={{
@@ -173,6 +164,8 @@ export function ContactReportRedesign({
       }}
       title="Kontakte"
       subtitle="Wer schuldet wem wie viel?"
+      hideVerdict
+      hideDetail
       sourceDate={ready ? view?.asOf : undefined}
       reportDataBasis={
         view
@@ -213,7 +206,6 @@ export function ContactReportRedesign({
                 <section className="r4-contact-list" aria-labelledby="r4-contact-list-title">
                   <div className="r4-contact-heading">
                     <h2 id="r4-contact-list-title">Kontaktsalden</h2>
-                    <span>{view.contacts.filter(hasOpenAmount).length} offen</span>
                   </div>
                   <ul>
                     {visible.map((contact) => (
@@ -227,19 +219,23 @@ export function ContactReportRedesign({
                         >
                           <span>
                             <strong>{contact.name}</strong>
-                            <small>{relation(contact.balanceCents, contact.creditCents)}</small>
+                            {contact.balanceCents !== 0 && (
+                              <small>{contactBalanceLine(contact.balanceCents)}</small>
+                            )}
+                            {contact.balanceCents === 0 && <small>Ausgeglichen</small>}
                           </span>
-                          <span className="r4-contact-amounts">
-                            <span>
-                              Offen:{' '}
-                              <b>
-                                {eur(contact.receivableCents ?? Math.max(0, contact.balanceCents))}
-                              </b>
-                            </span>
-                            <span>
-                              Guthaben: <b>{eur(contact.creditCents)}</b>
-                            </span>
-                          </span>
+                          {(contact.receivableCents ?? Math.max(0, contact.balanceCents)) > 0 &&
+                            contact.creditCents > 0 && (
+                              <span className="r4-contact-amounts">
+                                <span>
+                                  Offen:{' '}
+                                  <b>{eur(contact.receivableCents ?? contact.balanceCents)}</b>
+                                </span>
+                                <span>
+                                  Guthaben: <b>{eur(contact.creditCents)}</b>
+                                </span>
+                              </span>
+                            )}
                         </AppLink>
                       </li>
                     ))}
@@ -289,14 +285,6 @@ export function ContactReportRedesign({
                   sheet(selected!)}
               </div>
             </div>
-            {view && (
-              <p className="r4-source">
-                Offen: Kontakt schuldet dir · Guthaben: du schuldest dem Kontakt. Kontaktbeträge
-                zählen nicht zusätzlich zum Nettovermögen. Rückzahlungen werden bei der normalen
-                Buchung zugeordnet und sind keine Einnahmen. Erfasste unbestätigte Buchungen sind
-                enthalten.
-              </p>
-            )}
           </>
         )}
         {forgiving && (
@@ -321,7 +309,6 @@ function ContactSheetCard({
   ready,
   selected,
   heading,
-  relation,
   onForgive,
 }: {
   contactId: string;
@@ -329,7 +316,6 @@ function ContactSheetCard({
   ready: boolean;
   selected: boolean;
   heading: RefObject<HTMLHeadingElement | null>;
-  relation: (balance: number, credit?: number) => string;
   onForgive: (
     contact: { id: string; name: string; balanceCents: number },
     button: HTMLButtonElement,
@@ -338,6 +324,7 @@ function ContactSheetCard({
   useAmountPrivacy();
   const person = query.isSuccess ? query.data : undefined;
   const detailReady = ready && query.isSuccess && !query.isFetching && !query.isError;
+  const openCents = person ? person.outlays.reduce((sum, o) => sum + o.remainingCents, 0) : 0;
   return (
     <section
       id={`kontakt-${contactId}`}
@@ -370,31 +357,26 @@ function ContactSheetCard({
               Kontoblatt {person.contact.name}
             </h2>
             <strong className="contacts-balance">
-              {person.creditCents > 0
-                ? `Guthaben · ${eur(person.creditCents)}`
-                : person.balanceCents === 0
-                  ? `Ausgeglichen · ${eur(person.balanceCents)}`
-                  : contactBalanceLine(person.balanceCents)}
+              {maskMoneyText(contactBalanceSentence(person.contact.name, person.balanceCents))}
             </strong>
           </div>
-          <p className="r4-contact-summary">
-            Offen {eur(person.outlays.reduce((sum, o) => sum + o.remainingCents, 0))} · Guthaben{' '}
-            {eur(person.creditCents)}
-          </p>
-          <p className="r4-source">
-            {person.movements.length} Bewegungen ·{' '}
-            {relation(person.balanceCents, person.creditCents)} · Stand {longDay(person.asOf)}
-          </p>
-          <ContactForgivenessAction
-            balance={person.balanceCents}
-            ready={detailReady}
-            onOpen={(event) =>
-              onForgive(
-                { ...person.contact, balanceCents: person.balanceCents },
-                event.currentTarget,
-              )
-            }
-          />
+          <div className="r4-contact-bar">
+            <p className="r4-contact-summary">
+              Offen {eur(openCents)}
+              {person.creditCents > 0 &&
+                ` − Guthaben ${eur(person.creditCents)} = ${eur(openCents - person.creditCents)}`}
+            </p>
+            <ContactForgivenessAction
+              balance={person.balanceCents}
+              ready={detailReady}
+              onOpen={(event) =>
+                onForgive(
+                  { ...person.contact, balanceCents: person.balanceCents },
+                  event.currentTarget,
+                )
+              }
+            />
+          </div>
           {!detailReady && (
             <p role="status">Kontoblatt derzeit nicht bestätigt. Die Eingaben bleiben erhalten.</p>
           )}

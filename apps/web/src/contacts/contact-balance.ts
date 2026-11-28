@@ -32,3 +32,16 @@ export function contactBalanceLine(balanceCents: number): string {
  * Rückzahlung or Ausgleich lowers it (−). Ledger movements carry the account's sign.
  */
 export const receivableDelta = (movementCents: number): number => -movementCents;
+
+/**
+ * Header sentence of a contact's sheet, always the NET balance (open minus credit):
+ * "Anna schuldet dir 12,00 €", "Du schuldest Anna 12,00 €", "ausgeglichen".
+ */
+export function contactBalanceSentence(name: string, balanceCents: number): string {
+  const { tone, amount } = contactBalanceWords(balanceCents);
+  return tone === 'plus'
+    ? `${name} schuldet dir ${amount}`
+    : tone === 'minus'
+      ? `Du schuldest ${name} ${amount}`
+      : 'ausgeglichen';
+}

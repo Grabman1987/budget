@@ -10,6 +10,8 @@ export interface ContactMovement {
   payeeName?: string | null;
   categoryName?: string | null;
   categoryId?: string | null;
+  /** What an advance was for (name of its purpose category), when recorded. */
+  purposeName?: string | null;
   onBudget?: boolean;
   /** Only explicit credit decisions carry these fields; legacy movements stay unchanged. */
   creditCategoryId?: string | null;
@@ -368,3 +370,4 @@ export function contactTotals(
 }
 export * from './checklist';
 export * from './open-summary';
+export * from './advance-report';

@@ -134,6 +134,7 @@ export interface ListedSplit {
   amountCents: number;
   memo: string | null;
   contactId: string | null;
+  purposeCategoryId?: string | null;
   incomeTypeId: string | null;
   transferId: string | null;
 }

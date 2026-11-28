@@ -1,5 +1,10 @@
 import { expect, it } from 'vitest';
-import { contactBalanceLine, contactBalanceWords, receivableDelta } from './contact-balance';
+import {
+  contactBalanceLine,
+  contactBalanceSentence,
+  contactBalanceWords,
+  receivableDelta,
+} from './contact-balance';
 
 it('says a positive balance as "Schuldet dir" in the plus role', () => {
   expect(contactBalanceWords(4500)).toEqual({
@@ -33,4 +38,10 @@ it('keeps cents exact at the edges', () => {
 it('shows history in the receivable view: Auslage plus, Rückzahlung minus', () => {
   expect(receivableDelta(-3000)).toBe(3000);
   expect(receivableDelta(1000)).toBe(-1000);
+});
+
+it('says the net direction as a sentence with the contact name', () => {
+  expect(contactBalanceSentence('Anna', 118639)).toBe('Anna schuldet dir 1.186,39 €');
+  expect(contactBalanceSentence('Anna', -1200)).toBe('Du schuldest Anna 12,00 €');
+  expect(contactBalanceSentence('Anna', 0)).toBe('ausgeglichen');
 });
