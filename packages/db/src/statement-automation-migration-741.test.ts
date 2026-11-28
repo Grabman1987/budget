@@ -79,6 +79,10 @@ beforeEach(() => {
   const existing = openDatabase(sourcePath);
   try {
     migrateDatabase(existing.db, oldFolder);
+    // The repository writer inserts newer booking_split columns; this fixture stops at an older migration.
+    existing.sqlite.exec(
+      'ALTER TABLE booking_split ADD purpose_category_id text REFERENCES category(id)',
+    );
     accounts.create(
       existing.db,
       {

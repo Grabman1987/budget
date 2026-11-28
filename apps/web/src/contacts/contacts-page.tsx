@@ -40,6 +40,8 @@ import { AppLink } from '../shell/app-link';
 import { BackButton } from '../shell/back-button';
 import { contactBalanceLine, contactBalanceWords } from './contact-balance';
 import { ContactActionsMenu } from './contact-menu';
+import { ContactOpenSince } from './contact-open-since';
+import { ContactAdvanceReport } from './contact-advance-report';
 import {
   ContactBookingSource,
   ContactMovementTable,
@@ -528,6 +530,7 @@ export function ContactBody({
                 onSettle={() => setWriteOff(true)}
               />
             )}
+            <ContactOpenSince contactId={statement.contact.id} asOf={statement.asOf} />
             <button
               type="button"
               className="icon-btn contact-info"
@@ -546,6 +549,9 @@ export function ContactBody({
             </p>
           )}
         </>
+      )}
+      {ready && !reportReader && (
+        <ContactAdvanceReport contactId={statement.contact.id} asOf={statement.asOf} />
       )}
       {ready && !!(statement.creditChoices ?? statement.credits)?.length && (
         <ContactCredits statement={statement} />

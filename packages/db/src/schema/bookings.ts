@@ -153,6 +153,8 @@ export const booking = sqliteTable(
  *   or repaid by (inflow, "Ausgleich") that contact. It runs through the "Auslagen" envelope
  *   (category kind `advance`) and changes the contact's receivable. It is NOT the counterparty of
  *   a salary or contribution; that is the payee (and its contact);
+ * - `purpose_category_id`: only on a split in an `advance` category ("Auslagen"): what the
+ *   advance was for (an expense category). Informational; it never changes a balance;
  * - `transfer_id`: this split is one leg of a transfer; the other leg is a booking with the same
  *   `transfer_id` and the opposite amount.
  */
@@ -167,6 +169,7 @@ export const bookingSplit = sqliteTable(
     amountCents: cents('amount_cents').notNull(),
     memo: text('memo'),
     contactId: text('contact_id').references(() => contact.id),
+    purposeCategoryId: text('purpose_category_id').references(() => category.id),
     incomeTypeId: text('income_type_id').references(() => incomeType.id),
     transferId: text('transfer_id').references(() => transfer.id),
     sortOrder: integer('sort_order').notNull().default(0),

@@ -129,8 +129,8 @@ for (const profile of ['desktop', 'phone'] as const)
         });
         await expect(open).toBeVisible();
         await expect(table.getByRole('row')).toHaveCount(2);
-        await expect(table).toContainText('−40,00 €');
-        await expect(table).toContainText('40,00 €');
+        // Dense ledger: the outlay stands unsigned in the "Ausgelegt" column.
+        await expect(table.getByRole('cell', { name: '40,00 €', exact: true })).toBeVisible();
         await expect(region.locator('.contacts-balance')).toHaveText('Schuldet dir 60,00 €');
         await expect(
           region.getByRole('table', { name: 'Noch offene Auslagen aus früheren Monaten' }),

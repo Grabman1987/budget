@@ -178,7 +178,6 @@ function show(ready = true) {
   );
 }
 function openAllocation() {
-  fireEvent.click(screen.getByText('Zuordnung', { exact: true }));
   fireEvent.click(screen.getByRole('button', { name: 'Zuordnung ändern' }));
 }
 const disabled = (button: HTMLElement) => (button as HTMLButtonElement).disabled;

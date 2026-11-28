@@ -350,6 +350,10 @@ beforeEach(() => {
   const source = openDatabase(sourcePath);
   try {
     migrateDatabase(source.db, through47);
+    // The repository writer inserts newer booking_split columns; this fixture stops at an older migration.
+    source.sqlite.exec(
+      'ALTER TABLE booking_split ADD purpose_category_id text REFERENCES category(id)',
+    );
     seedCard47(source);
     // Genuine old-schema fixtures: using the new604 mapper before48 would read absent columns.
     // These retained live/deleted goals and their old audit snapshots contain no lifecycle intent.

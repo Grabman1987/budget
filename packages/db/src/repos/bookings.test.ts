@@ -1,7 +1,7 @@
 import { eq } from 'drizzle-orm';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createTestDatabase, type OpenedDatabase } from '../client';
-import { auditLog, booking, bookingSplit } from '../schema';
+import { auditLog, booking, bookingSplit, category } from '../schema';
 import { history, undo } from './audit';
 import {
   type BookingInput,
@@ -321,6 +321,32 @@ describe('createTransfer', () => {
 });
 
 describe('updateBooking', () => {
+  it('never rejects an unchanged purpose of an old split, but validates new or changed ones', () => {
+    const adv = (purposeCategoryId: string) => ({
+      splits: [{ categoryId: 'auslagen', purposeCategoryId, amountCents: -1200 }],
+    });
+    const id = createBooking(db, basic(adv('essen')), ctx);
+    // The purpose category is gone later (deleted/renamed kinds): the stored purpose stays valid.
+    db.update(category)
+      .set({ deletedAt: '2026-02-01T00:00:00.000Z' })
+      .where(eq(category.id, 'essen'))
+      .run();
+    updateBooking(db, id, { memo: 'nur Notiz' }, ctx);
+    updateBooking(db, id, { splits: adv('essen').splits }, ctx);
+    expect(getBooking(db, id)?.splits[0]).toMatchObject({ purposeCategoryId: 'essen' });
+    // A new or changed purpose is still checked.
+    expect(() => updateBooking(db, id, adv('miete'), ctx)).not.toThrow();
+    expect(() =>
+      updateBooking(
+        db,
+        id,
+        { splits: [{ ...adv('essen').splits[0]!, categoryId: 'auslagen' }] },
+        ctx,
+      ),
+    ).toThrow(BookingInvariantError);
+    expect(() => updateBooking(db, id, adv('auslagen'), ctx)).toThrow(BookingInvariantError);
+  });
+
   it('changes fields and replaces splits with re-validation', () => {
     const id = createBooking(db, basic(), ctx);
     updateBooking(db, id, { memo: 'neu', payeeId: 'p1', date: '2026-01-06' }, ctx);

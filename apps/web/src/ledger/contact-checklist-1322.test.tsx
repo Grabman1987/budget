@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { ToastProvider } from '@budget/ui';
@@ -420,4 +420,49 @@ it('re-split: an existing inflow of a contact offers Neu aufteilen with its own 
   expect(
     (screen.getByRole('button', { name: 'Neu aufteilen speichern' }) as HTMLButtonElement).disabled,
   ).toBe(true);
+});
+
+const outlayRow = (splitId: string, date: string, remainingCents: number) => ({
+  splitId,
+  bookingId: `b-${splitId}`,
+  date,
+  remainingCents,
+  memo: null,
+  categoryId: 'essen',
+  categoryName: 'Essen',
+});
+
+it('"Alles bis <Datum> ausgleichen" ticks outlays up to the date and unticks later ones', async () => {
+  const user = await open('17,00', {
+    outlays: [
+      outlayRow('o1', '2026-09-01', 1000),
+      outlayRow('o2', '2026-09-20', 700),
+      outlayRow('o3', '2026-10-02', 500),
+    ],
+    contributions: [],
+    credits: [],
+  });
+  expect(screen.getByTestId('checklist-selected').textContent).toMatch(/^22,00\s€$/);
+  fireEvent.change(screen.getByLabelText('Ausgleichsdatum'), { target: { value: '2026-09-30' } });
+  await user.click(screen.getByRole('button', { name: 'Alles bis 30.09.2026 ausgleichen' }));
+  const boxes = screen.getAllByRole('checkbox') as HTMLInputElement[];
+  expect(boxes.map((b) => b.checked)).toEqual([true, true, false]);
+  expect(screen.getByTestId('checklist-selected').textContent).toMatch(/^17,00\s€$/);
+  expect(rest()).toMatch(/^0,00\s€$/);
+});
+
+it('a remainder can be taken over as a gift per outlay; the others stay open', async () => {
+  const user = await open('12,00', {
+    outlays: [outlayRow('o1', '2026-09-01', 1000), outlayRow('o2', '2026-09-20', 700)],
+    contributions: [],
+    credits: [],
+  });
+  expect(rest()).toMatch(/^[−-]5,00\s€$/);
+  await user.click(screen.getByRole('checkbox', { name: /Rest 5,00\s€ vom 20\.09\./ }));
+  await user.click(screen.getByRole('button', { name: 'Speichern' }));
+  await waitFor(() => expect(checklistWrite).toHaveBeenCalledTimes(1));
+  expect(checklistWrite.mock.calls[0]![0].body).toMatchObject({
+    shortfall: 'open',
+    waiveOutlaySplitIds: ['o2'],
+  });
 });

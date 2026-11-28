@@ -2,7 +2,7 @@ import AxeBuilder from '@axe-core/playwright';
 import { mkdir } from 'node:fs/promises';
 import { expect, type APIRequestContext } from '@playwright/test';
 import { test } from './isolated-ledger';
-import { redesignReportsOn, revealReportDetail } from './report-frame';
+import { redesignReportsOn } from './report-frame';
 
 test.use({ ledgerToday: '2026-10-02', reducedMotion: 'reduce' });
 test('961/962 contacts: zero net retains credit and movement source context', async ({
@@ -69,18 +69,18 @@ test('961/962 contacts: zero net retains credit and movement source context', as
   const list = page.getByRole('region', { name: 'Kontaktsalden' });
   const sheet = page.getByRole('region', { name: 'Kontaktkontoauszug' });
   await expect(page.getByTestId('report-frame-result')).toHaveText('0,00 €');
-  await revealReportDetail(page);
-  const chain = page.getByRole('group', { name: 'Maßkette Kontakte' });
-  await expect(chain).toContainText('Wir bekommen');
-  await expect(chain).toContainText('Wir schulden');
-  await expect(chain.locator('.ct-val')).toHaveText(['1.234,56 €', '1.234,56 €']);
+  // Contacts have nothing to assess: no verdict card and no calculation disclosure.
+  await expect(page.getByText('Berechnung und Einordnung')).toHaveCount(0);
+  await expect(page.getByText('Keine Bewertung möglich')).toHaveCount(0);
   await expect(list.getByRole('link', { name: new RegExp(credit.name) })).toContainText(
-    'Guthaben: 1.234,56 €',
+    'Du schuldest 1.234,56 €',
   );
   await expect(sheet.locator('.r4-contact-summary')).toHaveText(
-    'Offen 0,00 € · Guthaben 1.234,56 €',
+    'Offen 0,00 € − Guthaben 1.234,56 € = −1.234,56 €',
   );
-  await expect(sheet.locator('.contacts-balance')).toHaveText('Guthaben · 1.234,56 €');
+  await expect(sheet.locator('.contacts-balance')).toHaveText(
+    `Du schuldest ${credit.name} 1.234,56 €`,
+  );
   const settledList = list.locator('.r4-contact-settled-list');
   await expect(settledList).not.toHaveAttribute('open', '');
   await expect(list.getByRole('link', { name: new RegExp(settled.name) })).toBeHidden();
@@ -236,7 +236,7 @@ test('1149 all open contacts stay visible and settled history stays closed, incl
   const past = history.locator('[data-r8-detail="contact-history"]');
   await expect(past).not.toHaveAttribute('open');
   await expect(past.locator(':scope > summary')).toContainText(
-    '2 Buchungen · Beglichene Auslagen: 10,01 €',
+    'Vergangene Buchungen · beglichen 10,01 €',
   );
   await past.locator(':scope > summary').click();
   await expect(past.getByRole('table')).toHaveClass(/report-table/);
@@ -458,11 +458,6 @@ test('1149 contacts: open register and forgiveness remain readable and accessibl
   await page.goto(`/reports/kontakte?kontakt=${owed.id}&verlauf=1#details`);
   if (!(await redesignReportsOn(page))) return;
   const sheet = page.getByRole('region', { name: 'Kontaktkontoauszug' });
-  await revealReportDetail(page);
-  const calculation = page.locator('.redesign-report-equation');
-  await expect(calculation.getByText('Wir bekommen', { exact: true })).toBeVisible();
-  await expect(calculation).toContainText('50,00 €');
-  await expect(calculation).toContainText('20,00 €');
   const evidence = 'docs/evidence/redesign-reports-20261103-a';
   await mkdir(evidence, { recursive: true });
   await page.evaluate(() => {
@@ -488,13 +483,11 @@ test('1149 contacts: open register and forgiveness remain readable and accessibl
   await tableRegion.focus();
   await expect(tableRegion).toBeFocused();
   await expect(openTable).toContainText('50,00 €');
-  await expect(openTable.getByRole('columnheader')).toHaveText([
-    'Datum',
-    'Empfänger',
-    'Betrag',
-    'Verrechnen',
-  ]);
-  const openHeader = openTable.getByRole('columnheader', { name: 'Betrag', exact: true });
+  // Zweck, Notiz and Stand give way when the pane is narrow; the core columns always stay.
+  expect(await openTable.getByRole('columnheader').allTextContents()).toEqual(
+    expect.arrayContaining(['Datum', 'Empfänger', 'Ausgelegt', 'Zurück', 'Status', 'Verrechnen']),
+  );
+  const openHeader = openTable.getByRole('columnheader', { name: 'Ausgelegt', exact: true });
   await expect(openHeader).toHaveCSS('position', 'sticky');
   await openHeader.scrollIntoViewIfNeeded();
   await expect(openHeader).toBeVisible();

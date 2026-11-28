@@ -199,7 +199,7 @@ it('detail offers no settle action at a zero balance', async () => {
   expect(screen.queryByRole('button', { name: /Ausgleichen/ })).toBeNull();
 });
 
-it('detail history is in the receivable view: Auslage minus, Rückzahlung plus', async () => {
+it('detail history shows the advance under Ausgelegt and the repayment under Zurück', async () => {
   stubStatement(2000);
   render(wrap(<ContactStatementPage />));
   const table = await screen.findByRole(
@@ -208,8 +208,11 @@ it('detail history is in the receivable view: Auslage minus, Rückzahlung plus',
     { timeout: 10000 },
   );
   const rows = table.querySelectorAll('tbody tr');
-  expect(rows[0]?.querySelector('.contact-amount')?.textContent).toBe('−30,00 €Rest 20,00 €');
-  expect(rows[1]?.querySelector('.contact-amount')?.textContent).toBe('+10,00 €');
+  expect(rows[0]?.querySelector('.c-out')?.textContent).toBe('30,00 €');
+  expect(rows[0]?.querySelector('.c-back')?.textContent).toBe('');
+  expect(rows[0]?.querySelector('.c-status')?.textContent).toBe('offen, Rest 20,00 €');
+  expect(rows[1]?.querySelector('.c-back')?.textContent).toBe('10,00 €');
+  expect(rows[1]?.querySelector('.c-out')?.textContent).toBe('');
 });
 
 it('marks a contact whose settlement needs review with a link to its detail (#1174)', async () => {

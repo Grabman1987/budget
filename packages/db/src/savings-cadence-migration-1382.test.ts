@@ -53,6 +53,11 @@ it('0060 keeps existing savings plans monthly, enforces the cadence pairing, and
     insert('weeks', null, 2);
     expect(opened.sqlite.pragma('foreign_key_check')).toEqual([]);
 
+    // An older rollback must never cross a later applied migration: undo the later ones first.
+    for (const later of journal.entries.filter((e) => e.idx > added.idx).reverse())
+      opened.sqlite.transaction(() =>
+        opened.sqlite.exec(readFileSync(join(folder, 'rollback', `${later.tag}.sql`), 'utf8')),
+      )();
     const rollback = readFileSync(join(folder, 'rollback', `${TAG}.sql`), 'utf8');
     // Retained data (non-monthly plans) blocks the rollback and leaves everything untouched.
     expect(() => opened.sqlite.transaction(() => opened.sqlite.exec(rollback))()).toThrow(/CHECK/);

@@ -9,6 +9,7 @@ import {
   createEntity,
   createPayee,
   chooseContactCredit,
+  contactAdvanceReport,
   convertContactOutlayToGift,
   getContactStatement,
   getContactCreditAvailability,
@@ -96,6 +97,11 @@ export function contactRoutes(db: Db, today: () => string): Hono {
     const { asOf } = readQuery(c, z.object({ asOf: day }));
     return c.json(getContactCreditAvailability(db, c.req.param('id'), asOf));
   });
+  /** "Vorgestreckt pro Monat": advanced, repaid and open per month (read-only). */
+  app.get('/:id/advance-report', (c) => {
+    const { asOf } = readQuery(c, z.object({ asOf: day }));
+    return c.json(contactAdvanceReport(db, c.req.param('id'), asOf));
+  });
   app.get('/:id/checklist', (c) => {
     const { asOf, bookingId } = readQuery(
       c,
@@ -136,6 +142,7 @@ export function contactRoutes(db: Db, today: () => string): Hono {
           occurrenceIds: z.array(id).max(1000),
           creditReceiptSplitIds: z.array(id).max(1000).optional(),
           shortfall: z.enum(['open', 'waive']).optional(),
+          waiveOutlaySplitIds: z.array(id).max(1000).optional(),
           surplus: z.enum(['credit', 'gift']).optional(),
           payeeId: id.optional(),
           payeeName: z.string().trim().min(1).max(200).optional(),

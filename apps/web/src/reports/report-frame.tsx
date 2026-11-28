@@ -36,6 +36,10 @@ export interface ReportFrameProps extends PageFrameProps {
   calculation?: ReportCalculation | undefined;
   sourceDate?: string | undefined;
   sourceReportId?: string | undefined;
+  /** Reports with nothing to assess (contacts) leave out the verdict line. */
+  hideVerdict?: boolean;
+  /** … and the "Berechnung und Einordnung" disclosure; the header total stays. */
+  hideDetail?: boolean;
 }
 
 function metricText(
@@ -70,6 +74,8 @@ function RedesignReportFrame({
   sourceReportId,
   verdict,
   verdictTestId,
+  hideVerdict = false,
+  hideDetail = false,
   statement,
   children,
 }: ReportFrameProps) {
@@ -146,7 +152,7 @@ function RedesignReportFrame({
           )}
         </div>
       </header>
-      {statement ? (
+      {hideVerdict ? null : statement ? (
         <p className="report-verdict" data-testid={verdictTestId ?? 'report-verdict'}>
           {statement}
         </p>
@@ -158,7 +164,7 @@ function RedesignReportFrame({
           vor.
         </p>
       )}
-      {(explanation || calculation) && (
+      {!hideDetail && (explanation || calculation) && (
         <details className="redesign-report-detail">
           <summary>Berechnung und Einordnung</summary>
           {explanation && (

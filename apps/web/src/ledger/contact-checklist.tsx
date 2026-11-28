@@ -1,6 +1,6 @@
 import { useId, useMemo, useState, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { applyChecklistCredits, planContactChecklist } from '@budget/domain';
+import { applyChecklistCredits, outlayIdsUpTo, planContactChecklist } from '@budget/domain';
 import type { listContactChecklist } from '@budget/db';
 import { request } from '../api/http';
 import { useLedgerWrites } from './mutations';
@@ -21,6 +21,8 @@ export interface ChecklistReceiptBody {
   payeeId?: string;
   payeeName?: string;
   shortfall: 'open' | 'waive';
+  /** Per-remainder waiver: only these outlays' remainders are booked as a gift. */
+  waiveOutlaySplitIds?: string[];
   surplus: 'credit' | 'gift';
 }
 
@@ -38,6 +40,7 @@ const checklistQuery = (contactId: string, date: string, ownBookingId?: string) 
 });
 
 const day = (iso: string) => `${iso.slice(8, 10)}.${iso.slice(5, 7)}.`;
+const fullDay = (iso: string) => `${iso.slice(8, 10)}.${iso.slice(5, 7)}.${iso.slice(0, 4)}`;
 
 /**
  * Allocation list of an inflow from a contact: every open outlay and due contribution is a
@@ -68,6 +71,10 @@ export function useContactChecklist({
     contributionTicks: new Map<string, boolean>() as ReadonlyMap<string, boolean>,
     shortfall: 'open' as 'open' | 'waive',
     surplus: 'credit' as 'credit' | 'gift',
+    /** Outlays whose remainder is taken over as a gift (default: stays open). */
+    waived: new Set<string>() as ReadonlySet<string>,
+    /** Cutoff of "Alles bis … ausgleichen"; empty = the payment date. */
+    cutoff: '',
   });
   const current =
     state.contactId === contactId
@@ -78,6 +85,8 @@ export function useContactChecklist({
           contributionTicks: new Map<string, boolean>(),
           shortfall: 'open' as const,
           surplus: 'credit' as const,
+          waived: new Set<string>() as ReadonlySet<string>,
+          cutoff: '',
         };
   const { unticked, shortfall, surplus } = current;
   const setShortfall = (value: 'open' | 'waive') => setState({ ...current, shortfall: value });
@@ -152,6 +161,11 @@ export function useContactChecklist({
   const shortOutlays = planned.filter((r) => r.kind === 'outlay' && paidCash(r.id) < r.amountCents);
   const canWaive = shortOutlays.length > 0 && shortOutlays.every((r) => r.categoryId);
   const effectiveShortfall = canWaive ? shortfall : 'open';
+  // Remainders of single outlays can be taken over one by one (only while "schenken" is off).
+  const waivable = effectiveShortfall === 'open' ? shortOutlays.filter((r) => r.categoryId) : [];
+  const waiveIds = waivable.filter((r) => current.waived.has(r.id)).map((r) => r.id);
+  const cutoff = current.cutoff || date;
+  const selectedCents = planned.reduce((sum, r) => sum + r.amountCents, 0);
   const active = rows.length > 0;
   const outlayIds = ticked.filter((r) => r.kind === 'outlay').map((r) => r.id);
   const creditIds = ticked.filter((r) => r.kind === 'credit').map((r) => r.id);
@@ -166,6 +180,24 @@ export function useContactChecklist({
     const next = new Set(unticked);
     if (!next.delete(row.key)) next.add(row.key);
     setState({ ...current, unticked: next });
+  };
+  /** "Alles bis <Datum> ausgleichen": tick every open outlay up to the cutoff, untick later ones. */
+  const settleUpTo = () => {
+    const keep = new Set(
+      outlayIdsUpTo(
+        outlays.map((o) => ({ id: o.splitId, date: o.date })),
+        cutoff,
+      ),
+    );
+    setState({
+      ...current,
+      unticked: new Set(outlays.filter((o) => !keep.has(o.splitId)).map((o) => `o:${o.splitId}`)),
+    });
+  };
+  const toggleWaive = (id: string) => {
+    const next = new Set(current.waived);
+    if (!next.delete(id)) next.add(id);
+    setState({ ...current, waived: next });
   };
   const choice = <V extends string>(
     name: string,
@@ -193,6 +225,24 @@ export function useContactChecklist({
         <span>Erhalten</span>
         <span className="cc-amount">{eur(receivedCents)}</span>
       </legend>
+      {!ownBookingId && outlays.length > 0 && (
+        <div className="cc-row cc-cutoff">
+          <label className="cc-label" htmlFor={`${heading}-cutoff`}>
+            Ausgleichsdatum
+          </label>
+          <input
+            id={`${heading}-cutoff`}
+            type="date"
+            className="cc-date"
+            value={cutoff}
+            max={date}
+            onChange={(e) => setState({ ...current, cutoff: e.target.value })}
+          />
+          <button type="button" className="kbtn" onClick={settleUpTo} disabled={cutoff === ''}>
+            {`Alles bis ${cutoff ? fullDay(cutoff) : '…'} ausgleichen`}
+          </button>
+        </div>
+      )}
       {rows.map((row) => (
         <label key={row.key} className="cc-row">
           <input
@@ -212,6 +262,12 @@ export function useContactChecklist({
           </span>
         </label>
       ))}
+      <div className="cc-row cc-selected">
+        <span className="cc-label">Ausgewählt (von {eur(receivedCents)} erhalten)</span>
+        <span className="cc-amount" data-testid="checklist-selected">
+          {eur(selectedCents)}
+        </span>
+      </div>
       <div className="cc-rest" role="status" aria-live="polite">
         <span>Rest</span>
         <span className="cc-amount" data-testid="checklist-rest">
@@ -230,6 +286,20 @@ export function useContactChecklist({
           ['open', 'bleibt offen bis nächsten Monat'],
           ...(canWaive ? ([['waive', 'schenken']] as const) : []),
         ] as const)}
+      {!ownBookingId &&
+        rest < 0 &&
+        waivable.map((r) => (
+          <label key={r.id} className="cc-row">
+            <input
+              type="checkbox"
+              checked={current.waived.has(r.id)}
+              onChange={() => toggleWaive(r.id)}
+            />
+            <span className="cc-label">
+              {`Rest ${eur(r.amountCents - paidCash(r.id))} vom ${day(outlays.find((o) => o.splitId === r.id)?.date ?? date)}: als Geschenk übernehmen, sonst bleibt er offen`}
+            </span>
+          </label>
+        ))}
       {!ownBookingId &&
         rest > 0 &&
         choice('Zahlung größer als Auswahl', surplus, setSurplus, [
@@ -258,6 +328,7 @@ export function useContactChecklist({
             occurrenceIds,
             creditReceiptSplitIds: creditIds,
             shortfall: effectiveShortfall,
+            ...(waiveIds.length ? { waiveOutlaySplitIds: waiveIds } : {}),
             surplus,
           }
         : null,

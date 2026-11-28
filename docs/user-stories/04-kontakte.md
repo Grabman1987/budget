@@ -169,3 +169,31 @@ Als Nutzer will ich bei einer wiederkehrenden Zahlung statt eines Prozentanteils
 - Kontaktanteile werden nur in Euro erfasst; Rechnen im Feld (z. B. 1809,61/2) ersetzt Prozente (Owner 26.11.2026). Eine ältere Zahlung mit Prozentanteil zeigt im Formular den Euro-Gegenwert der aktuellen Version; Speichern wandelt sie in Euro um.
 
 - **Kontaktdetail › „Guthaben verwenden“ (#1380):** Es erscheinen nur offene Guthaben (verfügbarer Betrag über 0); verrechnete stehen eingeklappt unter „Verrechnete Guthaben (N)“. — **Status:** live mit Train 25 (Nutzerabnahme offen) — **Verweis:** #1380
+
+## Kontakt in einem Schritt ausgleichen
+
+Als Nutzer will ich eine Sammelüberweisung eines Kontakts (Mietanteil plus gemeinsame Einkäufe bis zu einem Datum) in einem Schritt abhaken und dem Kontakt eine Liste der offenen Beträge schicken können, damit nichts einzeln angehakt werden muss und keine kleinen Reste ungewollt offen bleiben.
+
+- **Ablauf:**
+  1. In der Abhakliste einer Zahlung des Kontakts steht oben „Ausgleichsdatum“ (Voreinstellung: Zahlungsdatum) und die Schaltfläche „Alles bis <Datum> ausgleichen“. Sie hakt alle offenen Auslagen bis einschließlich dieses Datums an und nimmt spätere heraus. Die Zeile „Ausgewählt (von … erhalten)“ zeigt die angehakte Summe neben dem erhaltenen Betrag.
+  2. Bleibt bei einer Auslage ein Rest, kann man je Rest „als Geschenk übernehmen“ ankreuzen; ohne Haken bleibt der Rest offen. „schenken“ für alle Reste gibt es weiter. Ein Überschuss bleibt wie bisher als Guthaben stehen.
+  3. Im Kontaktdetail zeigt „Offen seit letztem Ausgleich“ die offenen Auslagen (Datum, Empfänger/Notiz, Anteil des Kontakts), die nutzbaren Guthaben und die fälligen erwarteten Beiträge mit der Gesamtsumme. „Text kopieren“ legt eine einfache deutsche Liste in die Zwischenablage. Der Bereich ändert nichts.
+  4. Im Buchungsformular bietet jede Kategorie-Zeile einer Ausgabe „50/50 mit Kontakt“: Der Kontakt (zuletzt verwendeter, sonst auswählen) trägt die abgerundete Hälfte, der ungerade Cent bleibt beim Nutzer.
+- **Regeln:**
+  1. Reste werden nur für ausgewählte Auslagen mit Kategorie erlassen; alle Schritte einer Zahlung sind eine Änderungsgruppe, ein „Rückgängig“ nimmt alles zurück.
+  2. Beträge in Cent, keine Rundung außer dem ungeraden Cent bei 50/50.
+- **Status:** in Arbeit — **Verweis:** #1322
+
+## Vorgestreckt: Zweck und Monatsübersicht
+
+Als Nutzer will ich, dass meine Kategorie-Auswertungen nur meinen eigenen Anteil zeigen, wenn ich etwas für einen Kontakt auslege, und sehen, wie viel ich pro Monat und wofür vorstrecke, damit ich weiß, was mich der Kontakt „kostet“ und wie schnell das Geld zurückkommt.
+
+- **Ablauf:**
+  1. „50/50 mit Kontakt“ (ergänzt Schritt 4 oben): Die Hälfte des Kontakts wird in der Kategorie „Auslagen“ gebucht, mit der Ursprungskategorie als „Zweck“; die größere Hälfte (ungerader Cent) bleibt in der Ursprungskategorie. Gibt es keine Kategorie „Auslagen“, fehlt die Schaltfläche. Ändert man danach die Kategorie der Zeile, folgt der Zweck.
+  2. Bei jeder Zeile „Für Kontakt auslegen“ und bei jedem Kontaktanteil in „Auslagen“ gibt es das optionale Feld „Zweck“ (nur Ausgabenkategorien). Der Zweck ändert keinen Saldo und keine Verrechnung; ohne Zweck steht „ohne Zweck“ im Bericht.
+  3. Im Kontaktdetail zeigt „Vorgestreckt pro Monat“ die letzten 12 Monate (neuester zuerst): vorgestreckt (mit Aufteilung nach Zweck), zurückgezahlt (mit dem als Geschenk übernommenen Teil darunter, wenn es einen gibt) und offen am Monatsende. Monate ohne Bewegung und ohne offenen Betrag fehlen. Darunter stehen die durchschnittliche Dauer bis zum vollständigen Ausgleich und der Höchststand offen.
+- **Regeln:**
+  1. Ein Zweck ist nur bei einer Teilbuchung in der Kategorie „Auslagen“ erlaubt und muss eine Ausgabenkategorie sein; vorhandene Buchungen haben keinen Zweck. Ein alter Kontaktanteil, der in seiner Ausgabenkategorie geblieben ist, zählt mit dieser Kategorie als Zweck.
+  2. „Zurückgezahlt“ zählt am Tag der Zahlung; Guthaben, das eine spätere Auslage deckt, zählt am Tag dieser Auslage. Geschenke („Geschenk an Kontakt“) gelten als ausgeglichen, aber nicht als zurückgezahlt.
+  3. Beträge in Cent; der Bericht liest nur und ändert nichts.
+- **Status:** in Arbeit — **Verweis:** #1322, #1393

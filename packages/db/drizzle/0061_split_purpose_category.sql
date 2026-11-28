@@ -1,0 +1,1 @@
+ALTER TABLE `booking_split` ADD `purpose_category_id` text REFERENCES category(id);

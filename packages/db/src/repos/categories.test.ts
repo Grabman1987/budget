@@ -1,7 +1,7 @@
 import { toBeAssignedFlow } from '@budget/domain';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { createTestDatabase, type Db } from '../client';
-import { categoryGroup, payee } from '../schema';
+import { bookingSplit, categoryGroup, payee } from '../schema';
 import { undo } from './audit';
 import { assignMany, budgetSummary, coverOverspending, moveMoney } from './budget';
 import {
@@ -19,6 +19,7 @@ import {
 } from './categories';
 import { createBooking, deleteBooking } from './bookings';
 import { accounts, createEntity, getEntity } from './entities';
+import { category } from '../schema';
 import { getAssigned } from './envelopes';
 import { budget } from './queries';
 
@@ -156,6 +157,73 @@ describe('categories', () => {
     expect(() => deleteCategoryGroup(db, 'genuss', ctx)).toThrow(/noch Kategorien/);
     deleteCategoryGroup(db, empty.id, ctx);
     expect(categoryTree(db).groups).toHaveLength(2);
+  });
+
+  it('merge repoints the purpose of advances with the soft-deleted source; undo restores it', () => {
+    createCategory(
+      db,
+      {
+        id: 'auslagen',
+        name: 'Auslagen',
+        groupId: 'genuss',
+        kind: 'advance',
+        class: null,
+      } as never,
+      ctx,
+    );
+    createBooking(
+      db,
+      {
+        accountId: 'giro',
+        date: '2026-08-02',
+        amountCents: -1000,
+        splits: [{ categoryId: 'auslagen', purposeCategoryId: 'essen', amountCents: -1000 }],
+      },
+      ctx,
+    );
+    const purposes = () =>
+      db
+        .select({ purpose: bookingSplit.purposeCategoryId, category: bookingSplit.categoryId })
+        .from(bookingSplit)
+        .all();
+    expect(purposes()).toEqual([{ purpose: 'essen', category: 'auslagen' }]);
+    const { groupId } = mergeCategories(db, ['essen'], 'kaffee', ctx);
+    // The purpose follows the target; the source is deleted and nothing dangles.
+    expect(purposes()).toEqual([{ purpose: 'kaffee', category: 'auslagen' }]);
+    expect(getEntity(db, category, 'essen')).toBeFalsy();
+    undo(db, { groupId }, ctx);
+    expect(purposes()).toEqual([{ purpose: 'essen', category: 'auslagen' }]);
+    expect(getEntity(db, category, 'essen')).toBeTruthy();
+  });
+
+  it('merge clears a purpose when the target cannot be a purpose (undoable)', () => {
+    createCategory(
+      db,
+      {
+        id: 'auslagen',
+        name: 'Auslagen',
+        groupId: 'genuss',
+        kind: 'advance',
+        class: null,
+      } as never,
+      ctx,
+    );
+    createBooking(
+      db,
+      {
+        accountId: 'giro',
+        date: '2026-08-02',
+        amountCents: -500,
+        splits: [{ categoryId: 'auslagen', purposeCategoryId: 'essen', amountCents: -500 }],
+      },
+      ctx,
+    );
+    const read = () =>
+      db.select({ purpose: bookingSplit.purposeCategoryId }).from(bookingSplit).all();
+    const { groupId } = mergeCategories(db, ['essen'], 'auslagen', ctx);
+    expect(read()).toEqual([{ purpose: null }]);
+    undo(db, { groupId }, ctx);
+    expect(read()).toEqual([{ purpose: 'essen' }]);
   });
 
   it('stores target versions and derives the need in the month summary', () => {

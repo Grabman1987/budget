@@ -28,6 +28,15 @@ for (const path of [
       return;
     }
     const frame = page.locator('.redesign-report-frame').first();
+    if (path === 'kontakte') {
+      // Contacts have nothing to assess: header total only, no verdict card, no calculation block.
+      await expect(frame.getByTestId('report-frame-basis')).not.toHaveText('wird geladen');
+      await expect(frame.getByTestId('report-frame-result')).toContainText('€');
+      await expect(frame.locator('.report-verdict')).toHaveCount(0);
+      await expect(frame.locator('.redesign-report-detail')).toHaveCount(0);
+      await expect(frame.getByText('Berechnung und Einordnung')).toHaveCount(0);
+      return;
+    }
     const verdict = frame.locator(':scope > .report-verdict');
     await expect(verdict).toHaveCount(1);
     await expect(verdict).toBeVisible();

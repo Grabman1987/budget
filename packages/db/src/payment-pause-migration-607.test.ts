@@ -54,6 +54,10 @@ it('#607 migrates a real disposable amended48 copy, preserves all previous data 
   try {
     original = openDatabase(originalPath);
     migrateDatabase(original.db, stages[0]!);
+    // The repository writer inserts newer booking_split columns; this fixture stops at an older migration.
+    original.sqlite.exec(
+      'ALTER TABLE booking_split ADD purpose_category_id text REFERENCES category(id)',
+    );
     seedBasics(original.db, { predecessorSchema: true });
     const bookingId = createBooking(
       original.db,

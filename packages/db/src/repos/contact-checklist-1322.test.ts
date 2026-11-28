@@ -272,6 +272,36 @@ it('paid less, rest waived: balance back to zero, waiver booked on the payment d
   expect(waivers.map((w) => w.date)).toEqual([date]);
 });
 
+it('per-outlay waiver: only the chosen remainder is waived, the other stays open', () => {
+  outlay('essen', 2501, '2026-09-01');
+  outlay('essen', 1000, '2026-09-02');
+  const last = outlay('essen', 700, '2026-09-03');
+  const open = listContactChecklist(db(), 'k1', date);
+  const result = run(3001, open, {
+    occurrenceIds: [],
+    waiveOutlaySplitIds: [last.id],
+  });
+  expect(result.restCents).toBe(-1200);
+  const statement = getContactStatement(db(), 'k1', today);
+  expect(statement.balanceCents).toBe(500);
+  expect(statement.outlays.find((x) => x.splitId === last.id)?.remainingCents ?? 0).toBe(0);
+});
+
+it('per-outlay waiver refuses an outlay that is not ticked and writes nothing', () => {
+  outlay('essen', 2501, '2026-09-01');
+  const other = outlay('essen', 700, '2026-09-03');
+  const open = listContactChecklist(db(), 'k1', date);
+  const before = liveBookings();
+  expect(() =>
+    run(2000, open, {
+      occurrenceIds: [],
+      outlaySplitIds: [open.outlays[0]!.splitId],
+      waiveOutlaySplitIds: [other.id],
+    }),
+  ).toThrow(/ausgewählte Auslage/);
+  expect(liveBookings()).toBe(before);
+});
+
 it('waiving a legacy outlay without a category is refused and writes nothing', () => {
   outlay('auslagen', 2501, '2026-09-01');
   contribution('Mietanteil', 'miete', 80000, 3);

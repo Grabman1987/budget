@@ -87,6 +87,7 @@ const movement = {
   categoryName: 'Beispielauslagen',
   categoryId: null,
   categoryKind: 'advance' as const,
+  purposeName: null,
   currency: 'EUR',
   status: 'confirmed' as const,
   accountId: 'example-account',
@@ -164,25 +165,23 @@ afterEach(() => {
 it('shows both sides of a zero net header and credit in the default list and automatically selected sheet', async () => {
   show();
   const list = screen.getByRole('region', { name: 'Kontaktsalden' });
+  // Every row says the NET direction in words; Offen/Guthaben only where both are non-zero.
   expect(within(list).getByRole('link', { name: /Beispiel Vorauszahlung/ }).textContent).toContain(
-    'Guthaben: 50,00 €',
+    'Du schuldest 50,00 €',
   );
   expect(within(list).getByRole('link', { name: /Beispiel Forderung/ }).textContent).toContain(
-    'Offen: 50,00 €',
+    'Schuldet dir 50,00 €',
   );
   const settled = list.querySelector<HTMLDetailsElement>('details.r4-contact-settled-list')!;
   expect(settled.open).toBe(false);
   expect(settled.querySelector('summary')!.textContent).toBe('Ausgeglichene Kontakte (1)');
-  fireEvent.click(screen.getByText('Berechnung und Einordnung'));
-  const chain = screen.getByRole('group', { name: 'Maßkette Kontakte' });
-  expect(chain.textContent).toContain('Wir bekommen');
-  expect(chain.textContent).toContain('Wir schulden');
-  expect(chain.textContent?.match(/50,00/g)).toHaveLength(2);
+  // Nothing to assess here: no verdict card, no calculation disclosure; the header total stays.
+  expect(screen.queryByText('Berechnung und Einordnung')).toBeNull();
+  expect(screen.queryByText(/Keine Bewertung möglich/)).toBeNull();
   expect(screen.getByTestId('report-frame-result').textContent).toBe('0,00 €');
   const sheet = screen.getByRole('region', { name: 'Kontaktkontoauszug' });
-  expect(sheet.textContent).toContain('Guthaben 50,00 €');
-  expect(sheet.textContent).toContain('Offen 0,00 €');
-  expect(sheet.textContent).not.toContain('Ausgeglichen');
+  expect(sheet.textContent).toContain('Offen 0,00 € − Guthaben 50,00 € = −50,00 €');
+  expect(sheet.textContent).not.toMatch(/Bewegungen|Stand /);
   expect(within(sheet).queryByRole('button', { name: 'Kontakt ausgleichen' })).toBeNull();
 });
 
@@ -191,13 +190,10 @@ it('does not hide source-provided credit even when the contact net is zero', () 
     { ...overview, contacts: [{ ...contacts[0]!, balanceCents: 0 }] },
     { ...statement, balanceCents: 0 },
   );
-  expect(screen.getByRole('link', { name: /Beispiel Vorauszahlung/ }).textContent).toContain(
-    'Guthaben: 50,00 €',
-  );
   expect(screen.getByRole('heading', { name: 'Kontoblatt Beispiel Vorauszahlung' })).toBeTruthy();
-  expect(screen.getByRole('region', { name: 'Kontaktkontoauszug' }).textContent).toContain(
-    'Guthaben · 50,00 €',
-  );
+  const sheet = screen.getByRole('region', { name: 'Kontaktkontoauszug' });
+  expect(sheet.textContent).toContain('Guthaben 50,00 €');
+  expect(sheet.querySelector('.contacts-balance')!.textContent).toBe('ausgeglichen');
 });
 
 it.each(['2026-10-01', '2026-09-01'])(
@@ -308,17 +304,27 @@ it('puts only outstanding shares above the chart and keeps completed rows in clo
     within(table)
       .getAllByRole('columnheader')
       .map((cell) => cell.textContent),
-  ).toEqual(['Datum', 'Empfänger', 'Betrag', 'Verrechnen']);
+  ).toEqual([
+    'Datum',
+    'Art',
+    'Empfänger',
+    'Zweck',
+    'Notiz',
+    'Ausgelegt',
+    'Zurück',
+    'Stand',
+    'Status',
+    'Verrechnen',
+  ]);
   expect(table.textContent).toContain('100,01 €');
   expect(table.textContent).toContain('30,01 €');
-  expect(table.textContent).toContain('−100,01 €');
   expect(table.textContent).toContain('Offen: ');
   expect(table.textContent).not.toContain('Beglichen');
   const history = container.querySelector<HTMLDetailsElement>(
     '[data-r8-detail="contact-history"]',
   )!;
   expect(history.open).toBe(false);
-  expect(history.querySelector('summary')!.textContent).toContain('22 Buchungen');
+  expect(history.querySelector('summary')!.textContent).toMatch(/Vergangene Buchungen · beglichen/);
   expect(history.querySelector('summary')!.textContent).toContain('70,00 €');
   expect(screen.queryByText('Guthaben verwenden')).toBeNull();
   expect(screen.queryByRole('link', { name: 'Guthaben ändern' })).toBeNull();
@@ -432,4 +438,27 @@ it('shows every open sheet including zero net with credit, keeping settled sheet
   expect(screen.getAllByRole('link', { name: 'Guthaben ändern' })).toHaveLength(2);
   act(() => setAmountsHidden(true));
   expect(container.innerHTML).not.toMatch(/10,01|50,00/);
+});
+
+it('the header is always the net balance: open 1.341,25 and credit 154,86 means the contact owes 1.186,39', () => {
+  const owed = { ...statement.outlays[0]!, remainingCents: 134125 };
+  show(
+    {
+      ...overview,
+      contacts: [
+        { ...contacts[0]!, balanceCents: 118639, receivableCents: 134125, creditCents: 15486 },
+      ],
+    },
+    { ...statement, balanceCents: 118639, creditCents: 15486, outlays: [owed] },
+  );
+  const sheet = screen.getByRole('region', { name: 'Kontaktkontoauszug' });
+  expect(sheet.querySelector('.contacts-balance')!.textContent).toBe(
+    'Beispiel Vorauszahlung schuldet dir 1.186,39 €',
+  );
+  expect(sheet.textContent).toContain('Offen 1.341,25 € − Guthaben 154,86 € = 1.186,39 €');
+  // The list says the same net amount and keeps Offen/Guthaben as the second line (both non-zero).
+  const row = screen.getByRole('link', { name: /Beispiel Vorauszahlung/ });
+  expect(row.textContent).toContain('Schuldet dir 1.186,39 €');
+  expect(row.textContent).toContain('Offen: 1.341,25 €');
+  expect(row.textContent).toContain('Guthaben: 154,86 €');
 });

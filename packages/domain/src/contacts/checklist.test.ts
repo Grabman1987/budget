@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { applyChecklistCredits, planContactChecklist, type ChecklistItem } from './checklist';
+import {
+  applyChecklistCredits,
+  outlayIdsUpTo,
+  planContactChecklist,
+  type ChecklistItem,
+} from './checklist';
 
 const rows: ChecklistItem[] = [
   { id: 'rent', kind: 'contribution', amountCents: 80000 },
@@ -90,5 +95,18 @@ describe('applyChecklistCredits', () => {
     expect(r.appliedByCredit.get('k1')).toBe(80);
     expect(r.appliedByCredit.get('k2')).toBe(20);
     expect(r.outlays).toEqual([{ id: 'a', amountCents: 0 }]);
+  });
+});
+
+describe('outlayIdsUpTo', () => {
+  const dated = [
+    { id: 'a', date: '2026-09-01' },
+    { id: 'b', date: '2026-09-15' },
+    { id: 'c', date: '2026-09-16' },
+  ];
+  it('keeps outlays on or before the cutoff, drops later ones', () => {
+    expect(outlayIdsUpTo(dated, '2026-09-15')).toEqual(['a', 'b']);
+    expect(outlayIdsUpTo(dated, '2026-08-31')).toEqual([]);
+    expect(outlayIdsUpTo(dated, '2026-12-31')).toEqual(['a', 'b', 'c']);
   });
 });

@@ -90,3 +90,14 @@ export function applyChecklistCredits(
     appliedByCredit,
   };
 }
+
+/**
+ * "Alles bis <Datum> ausgleichen": ids of the outlays dated on or before the cutoff (ISO dates
+ * compare as text). Later outlays are left out, so they stay open for the next payment.
+ */
+export function outlayIdsUpTo(
+  outlays: readonly { id: string; date: string }[],
+  cutoff: string,
+): string[] {
+  return outlays.filter((o) => o.date <= cutoff).map((o) => o.id);
+}

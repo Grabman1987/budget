@@ -86,10 +86,6 @@ export function ContactBalanceChart({
           )}
         </ChartSvg>
       )}
-      <p className="vnote">
-        {days ? `Letzte ${days} Tage · ` : ''}Saldo je erfasster Bewegung · EUR. Gleiche Tage
-        behalten die gespeicherte Reihenfolge.
-      </p>
     </div>
   );
 }

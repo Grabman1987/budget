@@ -21,6 +21,8 @@ export interface SplitDraft {
   /** Not edited in the panel, but kept: an edit must not drop the income type or contact share. */
   contactId: string | null;
   incomeTypeId: string | null;
+  /** Advance ("Auslagen") lines only: what it was for (an expense category). */
+  purposeCategoryId?: string | null | undefined;
   offsetContactCredit?: false | undefined;
 }
 
@@ -50,6 +52,8 @@ export interface BookingDraft {
   incomeTypeId: string;
   /** One line only: the contact who is paid for (Auslage) or pays back; `''` = none. */
   contactId: string;
+  /** One advance line only: what it was for; `''` / absent = none. */
+  purposeCategoryId?: string | undefined;
   projectId: string;
   memo: string;
   status: 'pending' | 'confirmed';
@@ -123,6 +127,7 @@ export function draftFromBooking(b: ListedBooking): BookingDraft {
         : (b.splits[0]?.categoryId ?? ''),
     incomeTypeId: b.splits[0]?.incomeTypeId ?? '',
     contactId: several ? '' : (b.splits[0]?.contactId ?? ''),
+    purposeCategoryId: several ? '' : (b.splits[0]?.purposeCategoryId ?? ''),
     projectId: b.projectId ?? '',
     memo: b.memo ?? '',
     status: b.status === 'pending' ? 'pending' : 'confirmed',
@@ -139,6 +144,7 @@ export function draftFromBooking(b: ListedBooking): BookingDraft {
             memo: s.memo ?? '',
             contactId: s.contactId,
             incomeTypeId: s.incomeTypeId,
+            purposeCategoryId: s.purposeCategoryId ?? null,
           }),
         )
       : [],
@@ -179,10 +185,21 @@ function expandLine(line: BookingLineDraft): SplitDraft[] {
     ...line.shares.map((s, i) => ({
       ...s,
       type: 'contact' as const,
-      categoryId: line.categoryId,
+      // A share that already names its category (the 50/50 button: Auslagen) keeps it.
+      categoryId: s.categoryId || line.categoryId,
       amount: formatDecimal(toCents(result.contactCents[i]!)),
     })),
   ];
+}
+
+/**
+ * "50/50 mit Kontakt": the contact's half of a line as an amount text, `null` when the line has no
+ * readable positive amount of at least two cents. The odd cent stays with the owner (category).
+ */
+export function halfShareAmount(lineAmount: string): string | null {
+  const value = lineOf(lineAmount);
+  if (value === undefined || value < 2) return null;
+  return formatDecimal(toCents(Math.floor(value / 2)));
 }
 
 /** Invalid sharing expands to no rows so existing create/patch validation refuses the save. */
@@ -266,6 +283,7 @@ function splitInput(draft: BookingDraft, s: SplitDraft, options: ValidateOptions
       categoryId: s.categoryId || options.advanceCategoryId || null,
       amountCents,
       contactId: s.contactId,
+      ...(s.purposeCategoryId ? { purposeCategoryId: s.purposeCategoryId } : {}),
       ...(s.offsetContactCredit === false ? { offsetContactCredit: false } : {}),
       ...(s.incomeTypeId ? { incomeTypeId: s.incomeTypeId } : {}),
       ...memo,
@@ -405,6 +423,7 @@ export function buildCreate(
               categoryId: options.advanceCategoryId ?? null,
               amountCents: sign(draft.kind, abs),
               contactId: draft.contactId,
+              ...(draft.purposeCategoryId ? { purposeCategoryId: draft.purposeCategoryId } : {}),
             }
           : {
               categoryId: draft.categoryId || null,
@@ -476,9 +495,14 @@ export function buildPatch(
     // The income type is edited for an income; a spend keeps whatever the booking carries.
     draft.kind === 'income' ? draft.incomeTypeId || null : undefined,
     draft.contactId || null,
+    draft.contactId
+      ? draft.purposeCategoryId === undefined
+        ? undefined
+        : draft.purposeCategoryId || null
+      : null,
   );
   const key = (s: SplitInput) =>
-    `${s.categoryId ?? ''}|${s.amountCents}|${s.memo ?? ''}|${s.contactId ?? ''}|${s.incomeTypeId ?? ''}`;
+    `${s.categoryId ?? ''}|${s.amountCents}|${s.memo ?? ''}|${s.contactId ?? ''}|${s.incomeTypeId ?? ''}|${s.purposeCategoryId ?? ''}`;
   const before = original.splits.map(key);
   const after = (splits ?? [single]).map(key);
   if (before.join(';') !== after.join(';')) {
@@ -498,14 +522,23 @@ export function keepSplit(
   incomeTypeId?: string | null,
   /** The same for the contact share. */
   contactId?: string | null,
+  /** `undefined` keeps the purpose while the category stays, `null` clears it. */
+  purposeCategoryId?: string | null,
 ): SplitInput {
   const incomeType = incomeTypeId === undefined ? (split?.incomeTypeId ?? null) : incomeTypeId;
   const contact = contactId === undefined ? (split?.contactId ?? null) : contactId;
+  const purpose =
+    purposeCategoryId === undefined
+      ? split?.categoryId === categoryId
+        ? (split?.purposeCategoryId ?? null)
+        : null
+      : purposeCategoryId;
   return {
     categoryId,
     amountCents,
     ...(split?.memo ? { memo: split.memo } : {}),
     ...(contact ? { contactId: contact } : {}),
+    ...(contact && purpose ? { purposeCategoryId: purpose } : {}),
     ...(incomeType ? { incomeTypeId: incomeType } : {}),
   };
 }

@@ -209,3 +209,36 @@ it('re-splits an existing inflow through the API; the list offers its own links;
       .filter((o) => o.bookingId !== null),
   ).toHaveLength(0);
 });
+
+it('stores a purpose on an advance split and reports the advanced amount per month', async () => {
+  const bad = await call('POST', '/bookings', {
+    type: 'booking',
+    accountId: 'giro',
+    date: '2026-09-10',
+    amountCents: -1000,
+    splits: [{ categoryId: 'essen', amountCents: -1000, purposeCategoryId: 'reise' }],
+  });
+  expect(bad.status, JSON.stringify(bad.body)).toBe(422);
+  expect(JSON.stringify(bad.body)).toContain('Zweck');
+  const ok = await call('POST', '/bookings', {
+    type: 'booking',
+    accountId: 'giro',
+    date: '2026-09-10',
+    amountCents: -1000,
+    splits: [
+      { categoryId: 'auslagen', contactId: 'k1', amountCents: -1000, purposeCategoryId: 'essen' },
+    ],
+  });
+  expect(ok.status, JSON.stringify(ok.body)).toBe(201);
+  const listed = await call('GET', '/bookings?accountId=giro');
+  expect(JSON.stringify(listed.body)).toContain('"purposeCategoryId":"essen"');
+  const report = await call('GET', '/contacts/k1/advance-report?asOf=2026-09-17');
+  expect(report.status).toBe(200);
+  expect(report.body.months[0]).toMatchObject({
+    month: '2026-09',
+    advancedCents: 1000,
+    openCents: 1000,
+  });
+  expect(report.body.months[0].byPurpose).toEqual([{ purposeCategoryId: 'essen', cents: 1000 }]);
+  expect(report.body.purposeNames).toEqual({ essen: 'Essen' });
+});

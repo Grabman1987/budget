@@ -84,3 +84,13 @@
   gap: 8px;
   justify-content: flex-end;
 }
+.cc-cutoff {
+  flex-wrap: wrap;
+}
+.cc-date {
+  flex: 0 1 auto;
+  min-height: var(--touch, 44px);
+}
+.cc-selected {
+  color: var(--ink-2);
+}

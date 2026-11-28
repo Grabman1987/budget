@@ -157,6 +157,10 @@ afterEach(() => {
     actualCalls.filter(
       (call) =>
         call.path !== '/api/contacts/contact-alpha' &&
+        // Read-only "Offen seit letztem Ausgleich" list; not part of this fixture.
+        call.path !== '/api/contacts/contact-alpha/checklist' &&
+        // Read-only "Vorgestreckt pro Monat" report; not part of this fixture.
+        call.path !== '/api/contacts/contact-alpha/advance-report' &&
         call.path !== '/api/auth/status' &&
         !statement.movements.some((m) => call.path === `/api/bookings/${m.bookingId}`),
     ),
@@ -189,9 +193,16 @@ it('keeps every movement in its exact section and copies only the named month wi
     name: 'Kontaktbuchungen im aktuellen Monat',
   });
   expect(within(currentTable).getAllByRole('row')).toHaveLength(3);
+  // One line per row: Ausgelegt and Zurück are separate columns, the rest sits in the status.
   expect(
-    Array.from(currentTable.querySelectorAll('tbody .contact-amount'), (node) => node.textContent),
-  ).toEqual(['−40,00 €Rest 25,00 €', '+15,00 €']);
+    Array.from(
+      currentTable.querySelectorAll('tbody .contact-amount'),
+      (node) => node.textContent,
+    ).filter(Boolean),
+  ).toEqual(['40,00 €', '15,00 €']);
+  expect(
+    Array.from(currentTable.querySelectorAll('tbody .c-status'), (node) => node.textContent),
+  ).toEqual(['offen, Rest 25,00 €', 'deckt 1 Auslage']);
   expect(within(currentTable).getByRole('columnheader', { name: 'Verrechnen' })).toBeTruthy();
   expect(
     within(currentTable).getByRole('button', {

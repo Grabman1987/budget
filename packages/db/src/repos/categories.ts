@@ -330,6 +330,21 @@ export function mergeCategories(
         updateTracked(tx, bookingSplit, [s.id], { categoryId: targetId }, grouped);
       }
       movedSplits += splits.length;
+      // A purpose pointing at the source follows the merge, unless the target cannot be a purpose.
+      const purposeOk = !['advance', 'card_payment', 'income'].includes(target.kind);
+      const purposeSplits = tx
+        .select({ id: bookingSplit.id })
+        .from(bookingSplit)
+        .where(eq(bookingSplit.purposeCategoryId, source.id))
+        .all();
+      for (const s of purposeSplits)
+        updateTracked(
+          tx,
+          bookingSplit,
+          [s.id],
+          { purposeCategoryId: purposeOk ? targetId : null },
+          grouped,
+        );
       const months = tx
         .select()
         .from(envelopeMonth)

@@ -35,6 +35,7 @@ export interface ChecklistOutlay {
   date: string;
   remainingCents: number;
   memo: string | null;
+  payeeName: string | null;
   categoryId: string | null;
   categoryName: string | null;
 }
@@ -116,6 +117,7 @@ export function listContactChecklist(
       date: o.date,
       remainingCents: o.remainingCents,
       memo: o.memo ?? null,
+      payeeName: o.payeeName ?? null,
       categoryId: o.categoryId ?? null,
       categoryName: o.categoryName ?? null,
     }));
@@ -206,6 +208,11 @@ export interface ChecklistReceiptInput {
   payeeId?: string | null;
   /** Paid less: the rest stays an open claim (default) or is waived through the gift path. */
   shortfall?: 'open' | 'waive';
+  /**
+   * Waive only the remainders of these ticked outlays (the rest of a short payment stays open);
+   * `shortfall: 'waive'` waives every remainder and wins over this list.
+   */
+  waiveOutlaySplitIds?: string[];
   /** Paid more: the surplus stays as contact credit (default) or is booked as a gift to me. */
   surplus?: 'credit' | 'gift';
 }
@@ -333,9 +340,15 @@ export function settleContactChecklist(
     const allocations = outlays.flatMap((o) =>
       paid(o.splitId) ? [{ outlaySplitId: o.splitId, amountCents: paid(o.splitId) }] : [],
     );
+    const waiveIds = new Set(input.waiveOutlaySplitIds ?? []);
+    if (waiveIds.size !== (input.waiveOutlaySplitIds ?? []).length)
+      throw new BookingInvariantError('Jede Zeile kann nur einmal ausgewählt werden.');
+    for (const id of waiveIds)
+      if (!tickedOutlays.some((o) => o.splitId === id))
+        throw new BookingInvariantError('Nur eine ausgewählte Auslage kann geschenkt werden.');
+    const waives = (splitId: string) => input.shortfall === 'waive' || waiveIds.has(splitId);
     if (
-      input.shortfall === 'waive' &&
-      outlays.some((o) => o.remainingCents > paid(o.splitId) && !o.categoryId)
+      outlays.some((o) => waives(o.splitId) && o.remainingCents > paid(o.splitId) && !o.categoryId)
     )
       throw new BookingInvariantError(
         'Eine alte Auslage ohne Kategorie kann hier nicht geschenkt werden.',
@@ -415,8 +428,9 @@ export function settleContactChecklist(
         today,
       );
     }
-    if (plan.shortfallCents > 0 && input.shortfall === 'waive') {
+    if (plan.shortfallCents > 0) {
       for (const o of outlays) {
+        if (!waives(o.splitId)) continue;
         const short = o.remainingCents - paid(o.splitId);
         if (short > 0)
           waiveContactOutlay(

@@ -121,6 +121,8 @@ const split = z.object({
   amountCents: cents,
   memo: nullableText.optional(),
   contactId: id.nullable().optional(),
+  /** What an advance ("Auslagen") split was for; refused on other splits. */
+  purposeCategoryId: id.nullable().optional(),
   incomeTypeId: id.nullable().optional(),
   transferAccountId: id.nullable().optional(),
 });

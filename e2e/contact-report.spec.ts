@@ -119,7 +119,7 @@ test('fixed EUR report preserves credit, running history, source links and recei
   }
   const sheet = page.getByRole('region', { name: 'Kontaktkontoauszug' });
   await expect(sheet.locator('.contacts-balance')).toContainText(
-    on ? 'Guthaben · 20,00 €' : 'Du schuldest 20,00 €',
+    on ? `Du schuldest ${data.contact.name} 20,00 €` : 'Du schuldest 20,00 €',
   );
   const movements = sheet.locator(
     on ? '.report-table tbody tr:has([data-contact-source])' : '.contact-movements tbody tr',
@@ -128,16 +128,16 @@ test('fixed EUR report preserves credit, running history, source links and recei
   const outlay = movements.filter({
     has: page.getByRole('button', { name: /Ursprungsbuchung öffnen · Anteil Haushalt/ }),
   });
-  const receipt = movements.filter({ hasText: '+120,00 €' });
-  await expect(outlay.locator('td').nth(2)).toHaveText('−100,00 €');
+  const receipt = movements.filter({ hasText: '120,00 €' });
+  // One line per row: Ausgelegt and Zurück are columns of their own.
+  await expect(outlay.locator('td').nth(5)).toHaveText('100,00 €');
   await expect(outlay).toContainText('01.09.2026');
-  await expect(receipt.locator('td').nth(2)).toHaveText('+120,00 €');
+  await expect(receipt.locator('td').nth(6)).toHaveText('120,00 €');
   if (!on)
     await expect(
       sheet.getByRole('heading', { name: data.contact.name, exact: true }),
     ).toBeFocused();
-  await receipt.locator('.contact-allocation-details > summary').click();
-  await expect(receipt.locator('.contact-allocation-details')).toContainText('Guthaben: 20,00 €');
+  await expect(receipt.locator('.c-status')).toContainText('+ Guthaben 20,00 €');
   await expect(page.getByRole('combobox', { name: /Monat|Zeitraum/ })).toHaveCount(0);
   const overview = await (await request.get(`${MAIN_URL}/api/contacts?history=1`)).json();
   expect(overview.totals.balanceCents).toBe(
@@ -151,9 +151,9 @@ test('fixed EUR report preserves credit, running history, source links and recei
   const touch = await page.evaluate(
     () => matchMedia('(pointer: coarse), (max-width: 767px)').matches,
   );
-  // The existing contact source is compact on desktop; the shared touch floor remains 44px.
-  if (touch || on) expect((await source.boundingBox())!.height).toBeGreaterThanOrEqual(44);
-  else expect((await source.boundingBox())!.height).toBe(34);
+  // Dense one-line rows on desktop; the shared touch floor remains 44px on touch and phones.
+  if (touch) expect((await source.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+  else expect((await source.boundingBox())!.height).toBeLessThanOrEqual(40);
   await source.focus();
   const sourceRead = page.waitForRequest(
     (r) => new URL(r.url()).pathname === `/api/bookings/${data.outlay.bookings[0].id}`,
@@ -181,7 +181,7 @@ test('fixed EUR report preserves credit, running history, source links and recei
   await page.reload();
   await expect(movements).toHaveCount(2);
   await expect(sheet.locator('.contacts-balance')).toContainText(
-    on ? 'Guthaben · 20,00 €' : 'Du schuldest 20,00 €',
+    on ? `Du schuldest ${data.contact.name} 20,00 €` : 'Du schuldest 20,00 €',
   );
   expect(
     (await statement()).movements.map((m: { balanceCents: number }) => m.balanceCents),
@@ -214,8 +214,10 @@ test('balanced contacts stay hidden by default and retain deep-linked full histo
   }
   const sheet = page.getByRole('region', { name: 'Kontaktkontoauszug' });
   if (on) await sheet.locator('[data-r8-detail="contact-history"] > summary').click();
-  await expect(sheet.locator('.contacts-balance')).toContainText('Ausgeglichen');
-  await expect(sheet.locator('.contacts-balance')).toContainText('0,00 €');
+  await expect(sheet.locator('.contacts-balance')).toContainText(
+    on ? 'ausgeglichen' : 'Ausgeglichen',
+  );
+  if (!on) await expect(sheet.locator('.contacts-balance')).toContainText('0,00 €');
   const closed = sheet.locator('.contacts-closed-history > summary');
   if (!on && (await closed.count())) await closed.click();
   await expect(
@@ -315,7 +317,9 @@ test('mixed-currency failure hides every figure and person ledger, with usable r
       exact: true,
     }),
   ).toBeVisible();
-  await expect(sheet.locator('.contacts-balance')).toContainText('Ausgeglichen');
+  await expect(sheet.locator('.contacts-balance')).toContainText(
+    on ? 'ausgeglichen' : 'Ausgeglichen',
+  );
   await page.route(path, (route) => route.fulfill({ status: 503, json: { error: 'unavailable' } }));
   await page.evaluate(() => window.dispatchEvent(new Event('visibilitychange')));
   await expect(page.getByRole('alert')).toBeVisible();
