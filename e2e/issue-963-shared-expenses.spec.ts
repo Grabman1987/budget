@@ -52,10 +52,15 @@ test('shared repayment shows its category and offers undoable credit choices', a
   await page.goto(`/reports/kontakte?kontakt=${contact.id}`);
   let sheet = page.getByRole('region', { name: 'Kontaktkontoauszug' });
   await sheet.locator('[data-r8-detail="contact-history"] > summary').click();
-  await sheet.getByText('Zuordnung', { exact: true }).click();
-  await expect(sheet.locator('.contact-allocation-details')).toContainText(
-    'Beispiel Möbel: 20,00 €',
-  );
+  // Dense one-line table: the advance row shows the category its share stayed in (Zweck),
+  // the repayment row what it covers (Status).
+  const advanceRow = sheet.locator('tbody tr.contact-row').filter({ hasText: 'Auslage' }).first();
+  await expect(advanceRow.locator('.c-purpose')).toHaveText('Beispiel Möbel');
+  await expect(advanceRow.locator('.c-out')).toHaveText('20,00 €');
+  const repaymentRow = sheet.locator('tbody tr.contact-row').filter({ hasText: 'Rückzahlung' });
+  await expect(repaymentRow.locator('.c-back')).toHaveText('30,00 €');
+  await expect(repaymentRow.locator('.c-status')).toContainText('deckt 1 Auslage');
+  await expect(repaymentRow.locator('.c-status')).toContainText('Guthaben 10,00 €');
   await sheet.getByRole('link', { name: 'Guthaben ändern' }).click();
   sheet = page.getByRole('region', { name: 'Kontaktkontoauszug' });
   await expect(sheet.getByRole('region', { name: 'Kontaktguthaben' })).toContainText(

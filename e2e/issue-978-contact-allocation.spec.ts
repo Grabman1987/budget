@@ -69,7 +69,6 @@ test('targeted repayments and consumed credit choices preserve cash and support 
   ).toEqual([1001, 0]);
   const afterReceipt = await cash();
   expect(afterReceipt).toEqual({ netWorth: 498999, balance: 498999 });
-  await sheet.getByText('Zuordnung', { exact: true }).click();
   await sheet.getByRole('button', { name: 'Zuordnung ändern' }).click();
   const allocation = page.getByRole('dialog', { name: 'Rückzahlung neu zuordnen' });
   await allocation.getByRole('textbox', { name: /Zuordnung Auslage 1/ }).fill('10,01');
@@ -194,7 +193,6 @@ test('owner confirms locked reallocation, keeps credit and waives an exact conta
   ).toBe(499199);
   await page.goto(`/konten/kontakte/${contact.id}`);
   const sheet = page.getByRole('region', { name: 'Kontaktkontoauszug' });
-  await sheet.getByText('Zuordnung', { exact: true }).click();
   await sheet.getByRole('button', { name: 'Zuordnung ändern' }).click();
   const allocation = page.getByRole('dialog', { name: 'Rückzahlung neu zuordnen' });
   await allocation.getByRole('textbox', { name: /Zuordnung Auslage 1/ }).fill('0');
