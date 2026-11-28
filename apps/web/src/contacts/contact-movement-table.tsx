@@ -269,7 +269,8 @@ export function ContactMovementTable({
               type="button"
               className="contact-settled-link"
               data-contact-settled={movement.splitId}
-              aria-label={`Rückzahlung öffnen, ausgeglichen am ${longDay(settledBy.date)}`}
+              // The accessible name starts with the visible text (axe label-content-name-mismatch).
+              aria-label={`ausgeglichen ${settledBy.date.slice(8, 10)}.${settledBy.date.slice(5, 7)}. – Rückzahlung vom ${longDay(settledBy.date)} öffnen`}
               onClick={() => onOpen(settledBy)}
             >
               ausgeglichen {settledBy.date.slice(8, 10)}.{settledBy.date.slice(5, 7)}.
