@@ -43,6 +43,9 @@ export function ContactAdvanceReport({ contactId, asOf }: { contactId: string; a
             <th scope="col" className="num">
               Vorgestreckt
             </th>
+            <th scope="col" className="advance-purpose">
+              Wofür
+            </th>
             <th scope="col" className="num">
               Zurückgezahlt
             </th>
@@ -55,18 +58,19 @@ export function ContactAdvanceReport({ contactId, asOf }: { contactId: string; a
           {rows.map((m) => (
             <tr key={m.month}>
               <th scope="row">{monthLabel(m.month)}</th>
-              <td className="num">
-                {amount(m.advancedCents)}
-                {m.byPurpose.length > 0 && (
-                  <small>
-                    {maskMoneyText(
-                      m.byPurpose
-                        .map((p) => `${purpose(p.purposeCategoryId)} ${eur(p.cents)}`)
-                        .join(' · '),
-                    )}
-                  </small>
-                )}
-              </td>
+              <td className="num">{amount(m.advancedCents)}</td>
+              {(() => {
+                const text = maskMoneyText(
+                  m.byPurpose
+                    .map((p) => `${purpose(p.purposeCategoryId)} ${eur(p.cents)}`)
+                    .join(' · '),
+                );
+                return (
+                  <td className="advance-purpose" title={text || undefined}>
+                    {text}
+                  </td>
+                );
+              })()}
               <td className="num">
                 {amount(m.repaidCents)}
                 {m.waivedCents > 0 && (
@@ -78,20 +82,15 @@ export function ContactAdvanceReport({ contactId, asOf }: { contactId: string; a
           ))}
         </tbody>
       </table>
-      {data.purposeTotals.length > 0 && (
-        <p data-testid="advance-purposes">
-          {maskMoneyText(
-            `In diesen Monaten vorgestreckt für: ${data.purposeTotals
-              .map((p) => `${purpose(p.purposeCategoryId)} ${eur(p.cents)}`)
-              .join(' · ')}`,
-          )}
-        </p>
-      )}
-      <p data-testid="advance-stats">
-        {data.averageDaysToSettle === null
-          ? 'Noch keine Auslage vollständig ausgeglichen.'
-          : `Im Schnitt ${data.averageDaysToSettle} ${data.averageDaysToSettle === 1 ? 'Tag' : 'Tage'} bis zum vollständigen Ausgleich (${data.settledOutlays} ausgeglichene Auslagen).`}{' '}
-        {maskMoneyText(`Höchststand offen: ${eur(data.peakOpenCents)}.`)}
+      <p className="contacts-meta" data-testid="advance-stats">
+        {[
+          data.averageDaysToSettle === null
+            ? null
+            : `Ø ${data.averageDaysToSettle} ${data.averageDaysToSettle === 1 ? 'Tag' : 'Tage'} bis Ausgleich`,
+          maskMoneyText(`Höchststand offen ${eur(data.peakOpenCents)}`),
+        ]
+          .filter(Boolean)
+          .join(' · ')}
       </p>
     </section>
   );

@@ -60,13 +60,14 @@ it('shows advanced, repaid (with taken over) and open per month with purposes an
   const november = within(rows[1]!);
   expect(november.getByRole('rowheader').textContent).toBe('November 2026');
   const cells = november.getAllByRole('cell').map((c) => c.textContent);
-  expect(cells[0]).toMatch(/^80,00\s€Essen 50,00\s€ · ohne Zweck 30,00\s€$/);
-  expect(cells.slice(1)).toEqual([
+  expect(cells[0]).toMatch(/^80,00\s€$/);
+  expect(cells[1]).toMatch(/^Essen 50,00\s€ · ohne Zweck 30,00\s€$/);
+  expect(cells.slice(2)).toEqual([
     expect.stringMatching(/^20,00\s€übernommen 5,00\s€$/),
     expect.stringMatching(/^55,00\s€$/),
   ]);
   expect(screen.getByTestId('advance-stats').textContent).toMatch(
-    /Im Schnitt 36 Tage bis zum vollständigen Ausgleich \(2 ausgeglichene Auslagen\)\. Höchststand offen: 150,00\s€\./,
+    /^Ø 36 Tage bis Ausgleich · Höchststand offen 150,00\s€$/,
   );
 });
 
@@ -89,7 +90,5 @@ it('renders nothing without advances and shows a waiver only where there is one'
   mount();
   await screen.findByText('Vorgestreckt pro Monat');
   expect(screen.queryByText(/übernommen/)).toBeNull();
-  expect(screen.getByTestId('advance-stats').textContent).toMatch(
-    /^Noch keine Auslage vollständig ausgeglichen\./,
-  );
+  expect(screen.getByTestId('advance-stats').textContent).toMatch(/^Höchststand offen/);
 });

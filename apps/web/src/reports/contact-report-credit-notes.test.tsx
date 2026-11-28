@@ -324,7 +324,7 @@ it('puts only outstanding shares above the chart and keeps completed rows in clo
     '[data-r8-detail="contact-history"]',
   )!;
   expect(history.open).toBe(false);
-  expect(history.querySelector('summary')!.textContent).toContain('22 Buchungen');
+  expect(history.querySelector('summary')!.textContent).toMatch(/Vergangene Buchungen · beglichen/);
   expect(history.querySelector('summary')!.textContent).toContain('70,00 €');
   expect(screen.queryByText('Guthaben verwenden')).toBeNull();
   expect(screen.queryByRole('link', { name: 'Guthaben ändern' })).toBeNull();

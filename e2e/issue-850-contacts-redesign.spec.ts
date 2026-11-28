@@ -236,7 +236,7 @@ test('1149 all open contacts stay visible and settled history stays closed, incl
   const past = history.locator('[data-r8-detail="contact-history"]');
   await expect(past).not.toHaveAttribute('open');
   await expect(past.locator(':scope > summary')).toContainText(
-    '2 Buchungen · Beglichene Auslagen: 10,01 €',
+    'Vergangene Buchungen · beglichen 10,01 €',
   );
   await past.locator(':scope > summary').click();
   await expect(past.getByRole('table')).toHaveClass(/report-table/);

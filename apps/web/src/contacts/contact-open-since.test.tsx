@@ -42,24 +42,23 @@ function mount() {
 beforeEach(() => http.request.mockReset());
 afterEach(cleanup);
 
-it('lists open outlays and due contributions and copies a plain German text', async () => {
+it('copies the open items since the last settlement as plain German text', async () => {
   http.request.mockResolvedValue(data);
   const user = userEvent.setup();
   const writeText = vi.fn().mockResolvedValue(undefined);
   Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText } });
   mount();
-  await screen.findByText('Offen seit letztem Ausgleich');
-  expect(screen.getByText(/01\.09\.2026 · Laden - Einkauf: 25,01\s€/)).toBeTruthy();
-  expect(screen.getByTestId('open-since-total').textContent).toMatch(/insgesamt 820,01\s€/);
-  await user.click(screen.getByRole('button', { name: 'Text kopieren' }));
+  await user.click(await screen.findByRole('button', { name: 'Offene Posten kopieren' }));
   await waitFor(() => expect(writeText).toHaveBeenCalledTimes(1));
   expect(writeText.mock.calls[0]![0]).toContain('Gesamt offen: 820,01 €');
   expect(writeText.mock.calls[0]![0]).toContain('Abzüglich Guthaben: -5,00 €');
+  expect(screen.queryByText('Offen seit letztem Ausgleich')).toBeNull();
+  expect(screen.queryByTestId('open-since-total')).toBeNull();
 });
 
 it('renders nothing when nothing is open or the answer has another shape', async () => {
   http.request.mockResolvedValue({ outlays: [], contributions: [], credits: [] });
   mount();
   await waitFor(() => expect(http.request).toHaveBeenCalled());
-  expect(screen.queryByText('Offen seit letztem Ausgleich')).toBeNull();
+  expect(screen.queryByRole('button', { name: 'Offene Posten kopieren' })).toBeNull();
 });

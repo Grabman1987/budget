@@ -72,15 +72,14 @@ export function ContactReportRows({
             </p>
           )}
           {statement.movements.length > 0 && (
-            <ContactBalanceChart statement={statement} height={160} />
+            <ContactBalanceChart statement={statement} height={120} />
           )}
           <details
             className="contacts-closed-history r8-body-disclosure"
             data-r8-detail="contact-history"
           >
             <summary>
-              Vergangene Buchungen · {maskMoneyText(statement.contact.name)} · {past.length}{' '}
-              Buchungen · Beglichene Auslagen:{' '}
+              Vergangene Buchungen · beglichen{' '}
               {eur(settledOutlays.reduce((sum, outlay) => sum - outlay.amountCents, 0))}
             </summary>
             {past.length > 0 ? (

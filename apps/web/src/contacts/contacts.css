@@ -409,6 +409,27 @@
 .contacts-advance-report .contacts-table .num {
   white-space: normal;
 }
+.contacts-advance-report .contacts-table :is(td, th) {
+  vertical-align: middle;
+}
+.contacts-advance-report td.advance-purpose {
+  color: var(--ink-2);
+  font-size: var(--fs-meta);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  overflow-wrap: normal;
+}
+.contacts-meta {
+  color: var(--ink-2);
+  font-size: var(--fs-meta);
+}
+.contacts-copy-status:empty {
+  display: none;
+}
+.contacts-advance-report th.advance-purpose {
+  text-align: left;
+}
 .contacts-advance-report th {
   overflow-wrap: anywhere;
   hyphens: auto;
@@ -439,9 +460,14 @@
 }
 .contact-ledger .c-payee {
   width: 24%;
+  min-width: 15ch;
+}
+.contact-ledger .c-art {
+  width: 1%;
 }
 .contact-ledger .c-purpose {
   width: 15%;
+  min-width: 6ch;
   color: var(--ink-2);
 }
 .contact-ledger .c-note {
@@ -611,4 +637,17 @@
 }
 :root:has([data-budget-redesign='1']) .contact-ledger tbody tr.contact-row:hover {
   background: var(--surface);
+}
+
+/* Contact detail: no empty bands between page header, view menu, "Zurück" and the contact name. */
+:root:has([data-budget-redesign='1']) .sheet:has(> .contacts-statement) {
+  gap: 8px;
+}
+:root:has([data-budget-redesign='1']) .contacts-statement {
+  padding-block-start: 0;
+}
+@media (max-width: 600px) {
+  .contacts-advance-report .advance-purpose {
+    display: none;
+  }
 }

@@ -530,6 +530,7 @@ export function ContactBody({
                 onSettle={() => setWriteOff(true)}
               />
             )}
+            <ContactOpenSince contactId={statement.contact.id} asOf={statement.asOf} />
             <button
               type="button"
               className="icon-btn contact-info"
@@ -548,9 +549,6 @@ export function ContactBody({
             </p>
           )}
         </>
-      )}
-      {ready && !reportReader && (
-        <ContactOpenSince contactId={statement.contact.id} asOf={statement.asOf} />
       )}
       {ready && !reportReader && (
         <ContactAdvanceReport contactId={statement.contact.id} asOf={statement.asOf} />
