@@ -26,15 +26,49 @@ it('0061 adds a null purpose to existing splits without touching data and rolls 
       INSERT INTO account (id,name,type,role,on_budget,opening_date) VALUES ('a','Konto Muster','checking','budget',1,'2026-01-01');
       INSERT INTO category_group (id,name) VALUES ('g','Gruppe');
       INSERT INTO category (id,group_id,name,kind,class) VALUES ('c','g','Essen','variable','need'),('adv','g','Auslagen','advance',NULL);
+      INSERT INTO account (id,name,type,role,on_budget,opening_date) VALUES ('a2','Konto Zwei','checking','budget',1,'2026-01-01');
+      INSERT INTO contact (id,name) VALUES ('k','Kontakt Muster');
       INSERT INTO booking (id,account_id,date,amount_cents,currency) VALUES ('b','a','2026-01-05',-500,'EUR');
       INSERT INTO booking_split (id,booking_id,category_id,amount_cents) VALUES ('s','b','c',-500);
     `);
+    // A few dozen synthetic splits: normal, contact share, transfer legs and income-type rows.
+    for (let i = 0; i < 40; i++) {
+      const kind = i % 4;
+      const amount = kind === 3 ? 1000 + i : -(100 + i);
+      opened.sqlite
+        .prepare(
+          'INSERT INTO booking (id,account_id,date,amount_cents,currency) VALUES (?,?,?,?,?)',
+        )
+        .run(`bk${i}`, kind === 2 ? 'a2' : 'a', '2026-02-01', amount, 'EUR');
+      const cat = kind === 1 ? 'adv' : kind === 2 ? null : kind === 3 ? null : 'c';
+      opened.sqlite
+        .prepare(
+          'INSERT INTO booking_split (id,booking_id,category_id,amount_cents,contact_id) VALUES (?,?,?,?,?)',
+        )
+        .run(`sp${i}`, `bk${i}`, cat, amount, kind === 1 ? 'k' : null);
+    }
     const sql = (q: string) => opened.sqlite.prepare(q).all();
     const before = sql('SELECT * FROM booking_split') as Record<string, unknown>[];
+    const totals = () =>
+      sql('SELECT count(*) AS n, SUM(amount_cents) AS total FROM booking_split')[0] as {
+        n: number;
+        total: number;
+      };
+    const beforeTotals = totals();
+    expect(beforeTotals.n).toBe(41);
+    expect(opened.sqlite.pragma('foreign_key_check')).toEqual([]);
     const migrations = (sql('SELECT count(*) AS n FROM __drizzle_migrations')[0] as { n: number })
       .n;
     migrateDatabase(opened.db);
     // Existing rows are unchanged apart from the new column, which stays null.
+    expect(sql('SELECT * FROM booking_split')).toEqual(
+      before.map((r) => ({ ...r, purpose_category_id: null })),
+    );
+    expect(totals()).toEqual(beforeTotals);
+    expect(opened.sqlite.pragma('foreign_key_check')).toEqual([]);
+    // Idempotent: a second run changes nothing.
+    migrateDatabase(opened.db);
+    expect(totals()).toEqual(beforeTotals);
     expect(sql('SELECT * FROM booking_split')).toEqual(
       before.map((r) => ({ ...r, purpose_category_id: null })),
     );
@@ -52,6 +86,8 @@ it('0061 adds a null purpose to existing splits without touching data and rolls 
     opened.sqlite.exec('UPDATE booking_split SET purpose_category_id = NULL');
     opened.sqlite.transaction(() => opened.sqlite.exec(rollback))();
     expect(sql('SELECT * FROM booking_split')).toEqual(before);
+    expect(totals()).toEqual(beforeTotals);
+    expect(opened.sqlite.pragma('foreign_key_check')).toEqual([]);
     expect((sql('SELECT count(*) AS n FROM __drizzle_migrations')[0] as { n: number }).n).toBe(
       migrations,
     );

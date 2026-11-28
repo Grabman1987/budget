@@ -294,6 +294,8 @@ function assertSplitRefs(
   /** Contacts the booking already carried: history of an archived contact stays editable. */
   existingContactIds: ReadonlySet<string> = new Set(),
   contactModel = false,
+  /** `categoryId|purposeId` pairs already stored: an unchanged purpose is never re-validated. */
+  existingPurposes: ReadonlySet<string> = new Set(),
 ): void {
   for (const s of splits) {
     if (s.contactId && !existingContactIds.has(s.contactId)) {
@@ -328,7 +330,7 @@ function assertSplitRefs(
       throw new BookingInvariantError(
         'Die ausgewählte Kategorie ist nicht verfügbar. Bitte eine andere Kategorie wählen.',
       );
-    if (s.purposeCategoryId) {
+    if (s.purposeCategoryId && !existingPurposes.has(`${categoryId}|${s.purposeCategoryId}`)) {
       if (row.kind !== 'advance')
         throw new BookingInvariantError('Ein Zweck ist nur bei der Kategorie „Auslagen“ möglich.');
       const purpose = tx
@@ -1118,6 +1120,11 @@ function updateBookingImpl(
           sharedCategory,
           new Set(curSplits.flatMap((old) => (old.contactId ? [old.contactId] : []))),
           options.contactModel,
+          new Set(
+            curSplits.flatMap((old) =>
+              old.purposeCategoryId ? [`${old.categoryId}|${old.purposeCategoryId}`] : [],
+            ),
+          ),
         );
       }
     }
