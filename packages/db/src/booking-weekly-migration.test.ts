@@ -54,7 +54,9 @@ it('weekly migration preserves stored schedules, versions, links, bookings and a
             ? (t as Record<string, unknown>[]).map((r) => ({ ...r, purpose: null }))
             : tables[i] === 'expected_occurrence'
               ? (t as Record<string, unknown>[]).map((r) => ({ ...r, planned_due_date: null }))
-              : t,
+              : tables[i] === 'booking_split'
+                ? (t as Record<string, unknown>[]).map((r) => ({ ...r, purpose_category_id: null }))
+                : t,
       ),
     );
     expect(opened.sqlite.pragma('foreign_key_check')).toEqual([]);

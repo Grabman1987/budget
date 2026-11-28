@@ -48,6 +48,10 @@ it('migrates a copied existing ledger additively, reverses only the empty cache 
   try {
     existing = openDatabase(sourcePath);
     migrateDatabase(existing.db, oldFolder);
+    // The repository writer inserts newer booking_split columns; this fixture stops at an older migration.
+    existing.sqlite.exec(
+      'ALTER TABLE booking_split ADD purpose_category_id text REFERENCES category(id)',
+    );
     seedBasics(existing.db, { predecessorSchema: true });
     createBooking(
       existing.db,
