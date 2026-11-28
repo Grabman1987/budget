@@ -6,7 +6,13 @@ import { expect, it, vi } from 'vitest';
 import { ToastProvider } from '@budget/ui';
 import * as ledgerApi from './api';
 import { SplitEditor } from './split-editor';
-import { buildCreate, emptyDraft, newSplit, type BookingDraft } from './booking-model';
+import {
+  buildCreate,
+  emptyDraft,
+  expandBookingLines,
+  newSplit,
+  type BookingDraft,
+} from './booking-model';
 
 it.each([false, true])('contact shares are always euro amounts (portal: %s)', (portal) => {
   function Form() {
@@ -335,3 +341,59 @@ it('does not replace a line amount while the total is invalid', () => {
   fireEvent.click(screen.getByRole('button', { name: 'Rest verteilen in Zeile 1' }));
   expect((screen.getByLabelText('Betrag 1') as HTMLInputElement).value).toBe('20');
 });
+
+it.each([false, true])(
+  '"50/50 mit Kontakt" gives the contact the lower half and the last used contact (portal: %s)',
+  (portal) => {
+    localStorage.setItem('budget-last-share-contact', 'k2');
+    function Form() {
+      const [draft, setDraft] = useState<BookingDraft>({
+        ...emptyDraft('account-example', '2026-10-01'),
+        amount: '100,01',
+        categoryId: 'cat-1',
+      });
+      const [host, setHost] = useState<HTMLDivElement | null>(null);
+      return (
+        <>
+          {portal && <div ref={setHost} />}
+          <SplitEditor
+            draft={draft}
+            setDraft={setDraft}
+            categories={[
+              { id: 'cat-1', name: 'Essen', kind: 'expense', availableCents: 0 } as never,
+            ]}
+            accounts={[]}
+            accountId="account-example"
+            contacts={[
+              { id: 'k1', name: 'Kontakt Eins' },
+              { id: 'k2', name: 'Kontakt Zwei' },
+            ]}
+            hasAdvanceCategory
+            locked={false}
+            error={undefined}
+            contactHost={portal ? host : undefined}
+          />
+          <output data-testid="expanded">
+            {expandBookingLines(draft)
+              .splits.map((x) => x.amount)
+              .join('|')}
+          </output>
+        </>
+      );
+    }
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <ToastProvider>
+          <Form />
+        </ToastProvider>
+      </QueryClientProvider>,
+    );
+    fireEvent.click(screen.getByRole('button', { name: '50/50 mit Kontakt' }));
+    expect((screen.getByLabelText('Anteil 1.1 (€)') as HTMLInputElement).value).toBe('50,00');
+    expect((screen.getByLabelText('Kontakt 1.1') as HTMLSelectElement).value).toBe('k2');
+    // The share is set: the shortcut is gone and the whole draft is a valid, cent-exact split.
+    expect(screen.queryByRole('button', { name: '50/50 mit Kontakt' })).toBeNull();
+    expect(screen.getByTestId('expanded').textContent).toBe('50,01|50,00');
+    localStorage.removeItem('budget-last-share-contact');
+  },
+);

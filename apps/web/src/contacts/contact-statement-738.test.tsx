@@ -157,6 +157,8 @@ afterEach(() => {
     actualCalls.filter(
       (call) =>
         call.path !== '/api/contacts/contact-alpha' &&
+        // Read-only "Offen seit letztem Ausgleich" list; not part of this fixture.
+        call.path !== '/api/contacts/contact-alpha/checklist' &&
         call.path !== '/api/auth/status' &&
         !statement.movements.some((m) => call.path === `/api/bookings/${m.bookingId}`),
     ),

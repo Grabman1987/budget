@@ -175,6 +175,26 @@ export function remember(accountId: string, categoryId: string | null): void {
   }
 }
 
+const SHARE_CONTACT_KEY = 'budget-last-share-contact';
+
+/** The contact most recently used for a contact share ("50/50 mit Kontakt" default). */
+export function lastShareContactId(): string | null {
+  try {
+    return localStorage.getItem(SHARE_CONTACT_KEY) || null;
+  } catch {
+    return null;
+  }
+}
+
+export function rememberShareContact(contactId: string | null): void {
+  if (!contactId) return;
+  try {
+    localStorage.setItem(SHARE_CONTACT_KEY, contactId);
+  } catch {
+    // Blocked storage: the shortcut then simply starts without a default contact.
+  }
+}
+
 /**
  * The category a chosen payee's default fills in, or `undefined` to leave the field alone. It only
  * replaces an empty category or the one the previous payee's default set: a category the user

@@ -169,3 +169,17 @@ Als Nutzer will ich bei einer wiederkehrenden Zahlung statt eines Prozentanteils
 - Kontaktanteile werden nur in Euro erfasst; Rechnen im Feld (z. B. 1809,61/2) ersetzt Prozente (Owner 26.11.2026). Eine ältere Zahlung mit Prozentanteil zeigt im Formular den Euro-Gegenwert der aktuellen Version; Speichern wandelt sie in Euro um.
 
 - **Kontaktdetail › „Guthaben verwenden“ (#1380):** Es erscheinen nur offene Guthaben (verfügbarer Betrag über 0); verrechnete stehen eingeklappt unter „Verrechnete Guthaben (N)“. — **Status:** live mit Train 25 (Nutzerabnahme offen) — **Verweis:** #1380
+
+## Kontakt in einem Schritt ausgleichen
+
+Als Nutzer will ich eine Sammelüberweisung eines Kontakts (Mietanteil plus gemeinsame Einkäufe bis zu einem Datum) in einem Schritt abhaken und dem Kontakt eine Liste der offenen Beträge schicken können, damit nichts einzeln angehakt werden muss und keine kleinen Reste ungewollt offen bleiben.
+
+- **Ablauf:**
+  1. In der Abhakliste einer Zahlung des Kontakts steht oben „Ausgleichsdatum“ (Voreinstellung: Zahlungsdatum) und die Schaltfläche „Alles bis <Datum> ausgleichen“. Sie hakt alle offenen Auslagen bis einschließlich dieses Datums an und nimmt spätere heraus. Die Zeile „Ausgewählt (von … erhalten)“ zeigt die angehakte Summe neben dem erhaltenen Betrag.
+  2. Bleibt bei einer Auslage ein Rest, kann man je Rest „als Geschenk übernehmen“ ankreuzen; ohne Haken bleibt der Rest offen. „schenken“ für alle Reste gibt es weiter. Ein Überschuss bleibt wie bisher als Guthaben stehen.
+  3. Im Kontaktdetail zeigt „Offen seit letztem Ausgleich“ die offenen Auslagen (Datum, Empfänger/Notiz, Anteil des Kontakts), die nutzbaren Guthaben und die fälligen erwarteten Beiträge mit der Gesamtsumme. „Text kopieren“ legt eine einfache deutsche Liste in die Zwischenablage. Der Bereich ändert nichts.
+  4. Im Buchungsformular bietet jede Kategorie-Zeile einer Ausgabe „50/50 mit Kontakt“: Der Kontakt (zuletzt verwendeter, sonst auswählen) trägt die abgerundete Hälfte, der ungerade Cent bleibt beim Nutzer.
+- **Regeln:**
+  1. Reste werden nur für ausgewählte Auslagen mit Kategorie erlassen; alle Schritte einer Zahlung sind eine Änderungsgruppe, ein „Rückgängig“ nimmt alles zurück.
+  2. Beträge in Cent, keine Rundung außer dem ungeraden Cent bei 50/50.
+- **Status:** in Arbeit — **Verweis:** #1322

@@ -185,6 +185,16 @@ function expandLine(line: BookingLineDraft): SplitDraft[] {
   ];
 }
 
+/**
+ * "50/50 mit Kontakt": the contact's half of a line as an amount text, `null` when the line has no
+ * readable positive amount of at least two cents. The odd cent stays with the owner (category).
+ */
+export function halfShareAmount(lineAmount: string): string | null {
+  const value = lineOf(lineAmount);
+  if (value === undefined || value < 2) return null;
+  return formatDecimal(toCents(Math.floor(value / 2)));
+}
+
 /** Invalid sharing expands to no rows so existing create/patch validation refuses the save. */
 export function expandBookingLines(draft: BookingDraft): BookingDraft {
   if (!draft.lines) return draft;

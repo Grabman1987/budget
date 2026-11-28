@@ -620,3 +620,12 @@ describe('amountOf', () => {
     expect(amountOf('abc')).toBeUndefined();
   });
 });
+
+it('halfShareAmount gives the contact the lower half and refuses unusable amounts', async () => {
+  const { halfShareAmount } = await import('./booking-model');
+  expect(halfShareAmount('100,01')).toBe('50,00');
+  expect(halfShareAmount('20,00')).toBe('10,00');
+  expect(halfShareAmount('0,01')).toBeNull();
+  expect(halfShareAmount('')).toBeNull();
+  expect(halfShareAmount('-5,00')).toBeNull();
+});

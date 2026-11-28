@@ -136,6 +136,7 @@ export function contactRoutes(db: Db, today: () => string): Hono {
           occurrenceIds: z.array(id).max(1000),
           creditReceiptSplitIds: z.array(id).max(1000).optional(),
           shortfall: z.enum(['open', 'waive']).optional(),
+          waiveOutlaySplitIds: z.array(id).max(1000).optional(),
           surplus: z.enum(['credit', 'gift']).optional(),
           payeeId: id.optional(),
           payeeName: z.string().trim().min(1).max(200).optional(),

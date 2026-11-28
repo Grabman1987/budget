@@ -9,12 +9,13 @@ import {
   splitRemainder,
   distributeRest,
   expandBookingLines,
+  halfShareAmount,
   type BookingDraft,
   type BookingLineDraft,
   type SplitDraft,
 } from './booking-model';
 import { CategoryCombobox } from './category-picker';
-import type { PickCategory } from './capture-model';
+import { lastShareContactId, rememberShareContact, type PickCategory } from './capture-model';
 import { ContactSelect } from './contact-select';
 import { eur } from './format';
 import type { AccountRow } from './types';
@@ -128,6 +129,24 @@ export function SplitEditor({
     });
   const change = (key: string, patch: Partial<BookingLineDraft>) =>
     update((current) => current.map((line) => (line.key === key ? { ...line, ...patch } : line)));
+  /** "50/50 mit Kontakt": the contact (last used one if still listed) carries half, the owner the rest. */
+  const halveWithContact = (line: BookingLineDraft) => {
+    const amount = halfShareAmount(line.amount);
+    if (amount === null || line.shares.length) return;
+    const last = lastShareContactId();
+    const contactId =
+      (last && contacts.some((c) => c.id === last) ? last : undefined) ??
+      (contacts.length === 1 ? contacts[0]!.id : null);
+    change(line.key, {
+      shares: [{ ...newShare(), contactId, amount }],
+    });
+  };
+  const canHalve = (line: BookingLineDraft) =>
+    !locked &&
+    draft.kind === 'expense' &&
+    line.type === 'category' &&
+    line.shares.length === 0 &&
+    halfShareAmount(line.amount) !== null;
   const choose = (line: BookingLineDraft, id: string) => {
     onCategoryChoose?.();
     if (id === '__new-contact') return setCreatingLine(line.key);
@@ -290,12 +309,13 @@ export function SplitEditor({
                     value={share.contactId ?? ''}
                     contacts={contacts}
                     noneLabel="Kontakt wählen"
-                    onChange={(contactId) =>
+                    onChange={(contactId) => {
+                      rememberShareContact(contactId || null);
                       shareChange(share.key, {
                         contactId: contactId || null,
                         offsetContactCredit: undefined,
-                      })
-                    }
+                      });
+                    }}
                   />
                   <div className="bk-share-value">
                     <AmountInput
@@ -440,6 +460,11 @@ export function SplitEditor({
                   />
                 </Button>
               )}
+              {line.type === 'category' && !contactHost && canHalve(line) && (
+                <Button variant="ghost" onClick={() => halveWithContact(line)}>
+                  50/50 mit Kontakt
+                </Button>
+              )}
             </div>
             {line.type === 'contact' && category && category.kind !== 'advance' && (
               <p className="khint">Ursprüngliche Kategorie: {category.name}</p>
@@ -530,6 +555,15 @@ export function SplitEditor({
                       >
                         <Plus size={16} strokeWidth={1.75} aria-hidden="true" />
                         Kontakt hinzufügen
+                      </Button>
+                    )}
+                    {canHalve(line) && (
+                      <Button
+                        variant="ghost"
+                        className="bk-contact-add"
+                        onClick={() => halveWithContact(line)}
+                      >
+                        50/50 mit Kontakt
                       </Button>
                     )}
                   </fieldset>,
