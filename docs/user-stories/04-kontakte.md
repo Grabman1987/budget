@@ -182,7 +182,7 @@ Als Nutzer will ich eine Sammelüberweisung eines Kontakts (Mietanteil plus geme
 - **Regeln:**
   1. Reste werden nur für ausgewählte Auslagen mit Kategorie erlassen; alle Schritte einer Zahlung sind eine Änderungsgruppe, ein „Rückgängig“ nimmt alles zurück.
   2. Beträge in Cent, keine Rundung außer dem ungeraden Cent bei 50/50.
-- **Status:** in Arbeit — **Verweis:** #1322
+- **Status:** live (Nutzerabnahme offen) — **Verweis:** #1322
 
 ## Vorgestreckt: Zweck und Monatsübersicht
 
@@ -196,4 +196,4 @@ Als Nutzer will ich, dass meine Kategorie-Auswertungen nur meinen eigenen Anteil
   1. Ein Zweck ist nur bei einer Teilbuchung in der Kategorie „Auslagen“ erlaubt und muss eine Ausgabenkategorie sein; vorhandene Buchungen haben keinen Zweck. Ein alter Kontaktanteil, der in seiner Ausgabenkategorie geblieben ist, zählt mit dieser Kategorie als Zweck.
   2. „Zurückgezahlt“ zählt am Tag der Zahlung; Guthaben, das eine spätere Auslage deckt, zählt am Tag dieser Auslage. Geschenke („Geschenk an Kontakt“) gelten als ausgeglichen, aber nicht als zurückgezahlt.
   3. Beträge in Cent; der Bericht liest nur und ändert nichts.
-- **Status:** in Arbeit — **Verweis:** #1322, #1393
+- **Status:** live (Nutzerabnahme offen) — **Verweis:** #1322, #1393
